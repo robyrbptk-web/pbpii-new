@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102b49">
+  <title>Login Admin — PB PII</title>
+  <link rel="icon" href="/assets/logo-pii.png" type="image/png">
+  <style>
+    :root{--auth-navy:#102b49;--auth-blue:#176da8;--ink:#182638;--muted:#637184;--line:#e0e7ef}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 15% 5%,#dceeff 0,transparent 35%),linear-gradient(145deg,#f1f6fb,#fff 56%,#f5f8fc);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink)}
+    .card{width:min(100%,440px);background:rgb(255 255 255 / 96%);border:1px solid var(--line);border-radius:22px;padding:36px;box-shadow:0 24px 80px #102b4914}
+    .brand{text-align:center;margin-bottom:28px}
+    .brand img{width:82px;height:82px;object-fit:contain;margin:0 auto 14px;padding:9px;border:1px solid var(--line);border-radius:20px;background:#fff}
+    .brand h1{font-size:20px;line-height:1.3;margin:0;color:var(--auth-navy)}
+    .brand p{font-size:13px;color:var(--muted);margin:8px 0 0}
+    .eyebrow{color:var(--auth-blue);font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+    h2{font-size:27px;letter-spacing:-.7px;margin:7px 0;color:var(--auth-navy)}
+    .intro{font-size:14px;color:var(--muted);margin:0 0 25px}
+    label{display:block;font-size:13px;font-weight:750;margin:17px 0 7px}
+    input{width:100%;padding:13px 14px;border:1px solid #d5e0eb;border-radius:10px;font:inherit;font-size:14px;outline:none}
+    input:focus{border-color:var(--auth-blue);box-shadow:0 0 0 3px #176da81b}
+    .password-wrap{position:relative}
+    .password-wrap input{padding-right:90px}
+    .toggle{position:absolute;right:9px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--auth-blue);font-weight:700;cursor:pointer;font-size:12px}
+    button[type=submit]{width:100%;border:0;background:var(--auth-navy);color:#fff;padding:14px;border-radius:10px;font:inherit;font-weight:800;margin-top:24px;cursor:pointer;transition:background .2s,transform .2s}
+    button[type=submit]:hover{background:var(--auth-blue);transform:translateY(-1px)}
+    button:disabled{opacity:.65;cursor:wait}
+    .message{display:none;margin-top:15px;padding:12px;border-radius:9px;font-size:13px;overflow-wrap:anywhere}
+    .error{display:block;background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
+    .success{display:block;background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
+    .back{display:block;text-align:center;margin-top:22px;color:var(--auth-blue);font-size:13px;font-weight:700}
+    .foot{text-align:center;margin-top:26px;color:#8b96a3;font-size:11px}
+    @media(max-width:480px){body{padding:16px}.card{padding:28px 22px;border-radius:18px}.brand h1{font-size:18px}}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <img src="/assets/logo-pii.png" alt="Logo PII" onerror="this.onerror=null;this.src='public/assets/logo-pii.png'">
+      <h1>PENGURUS BESAR<br>PELAJAR ISLAM INDONESIA</h1>
+      <p>Kepelajaran • Keislaman • Keindonesiaan</p>
+    </div>
+
+    <div class="eyebrow">Area pengelola</div>
+    <h2>Selamat datang</h2>
+    <p class="intro">Masuk untuk mengelola artikel, sambutan Ketua Umum, dan galeri website PB PII.</p>
+
+    <form id="loginForm">
+      <label for="username">Username administrator</label>
+      <input id="username" name="username" type="text" autocomplete="username" placeholder="admin" required>
+
+      <label for="password">Kata sandi</label>
+      <div class="password-wrap">
+        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Masukkan kata sandi" required>
+        <button class="toggle" id="togglePassword" type="button">Lihat</button>
+      </div>
+
+      <button type="submit" id="submitButton">Masuk ke Dashboard</button>
+      <div class="message" id="message" role="status" aria-live="polite"></div>
+    </form>
+
+    <a class="back" href="./">← Kembali ke halaman utama</a>
+    <div class="foot">PB PII · Sistem Pengelolaan Konten</div>
+  </main>
+
+  <script>
+    const API_ENDPOINT = '/api/pii';
+
+    const form = document.getElementById('loginForm');
+    const message = document.getElementById('message');
+    const submitButton = document.getElementById('submitButton');
+
+    function showMessage(text, type) {
+      message.className = 'message ' + type;
+      message.textContent = text;
+    }
+
+    document.getElementById('togglePassword').addEventListener('click', function () {
+      const input = document.getElementById('password');
+      const visible = input.type === 'password';
+      input.type = visible ? 'text' : 'password';
+      this.textContent = visible ? 'Sembunyikan' : 'Lihat';
+    });
+
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      submitButton.disabled = true;
+      submitButton.textContent = 'Memeriksa akun…';
+      message.className = 'message';
+
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            action: 'login',
+            username: document.getElementById('username').value.trim(),
+            password: document.getElementById('password').value
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || 'Login gagal.');
+        }
+
+        if (!result.data || !result.data.token) {
+          throw new Error('Server tidak mengembalikan token sesi.');
+        }
+
+        sessionStorage.setItem('pbpii_admin_token', result.data.token);
+        sessionStorage.setItem('pbpii_admin_username', result.data.username || '');
+        showMessage('Login berhasil. Membuka dashboard…', 'success');
+        window.location.href = '/admin.html';
+      } catch (error) {
+        showMessage(error.message || 'Tidak dapat terhubung ke server.', 'error');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Masuk ke Dashboard';
+      }
+    });
+  </script>
+</body>
+</html>

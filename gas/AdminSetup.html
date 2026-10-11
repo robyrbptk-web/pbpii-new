@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{font-family:Arial,sans-serif;color:#172638}
+    *{box-sizing:border-box}
+    body{margin:0;padding:22px}
+    h1{margin:0 0 8px;font-size:20px}
+    p{margin:0 0 18px;color:#5e6d7d;font-size:13px;line-height:1.55}
+    label{display:block;margin:14px 0 6px;font-size:13px;font-weight:700}
+    input{width:100%;padding:11px 12px;border:1px solid #ccd7e1;border-radius:8px;font:inherit}
+    input:focus{outline:2px solid #90c5f0;border-color:#287bb8}
+    button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:8px;background:#102b49;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+    button:disabled{opacity:.65;cursor:wait}
+    #message{min-height:20px;margin-top:12px;font-size:13px}
+    #message.error{color:#a51e27}
+    #message.success{color:#17642c}
+    .note{margin-top:14px;font-size:11px}
+  </style>
+</head>
+<body>
+  <h1>Buat akun administrator</h1>
+  <p>Username admin adalah <strong>admin</strong>. Buat password minimal 8 karakter. Password disimpan di Script Properties dan tidak ditampilkan pada source code.</p>
+
+  <form id="adminForm">
+    <label for="password">Password admin</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+
+    <label for="confirmation">Ulangi password</label>
+    <input id="confirmation" name="confirmation" type="password" autocomplete="new-password" minlength="8" required>
+
+    <button id="saveButton" type="submit">Simpan akun admin</button>
+    <div id="message" role="status" aria-live="polite"></div>
+  </form>
+
+  <p class="note">Setelah disimpan, terbitkan versi Apps Script terbaru melalui Deploy → Manage deployments → Edit → New version → Deploy.</p>
+
+  <script>
+    const form = document.getElementById('adminForm');
+    const button = document.getElementById('saveButton');
+    const message = document.getElementById('message');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      message.className = '';
+      message.textContent = 'Menyimpan pengaturan akun…';
+
+      google.script.run
+        .withSuccessHandler((result) => {
+          message.className = 'success';
+          message.textContent = result;
+          form.reset();
+          button.disabled = false;
+        })
+        .withFailureHandler((error) => {
+          message.className = 'error';
+          message.textContent = error && error.message
+            ? error.message
+            : 'Akun admin gagal disimpan.';
+          button.disabled = false;
+        })
+        .saveAdminPassword(
+          document.getElementById('password').value,
+          document.getElementById('confirmation').value
+        );
+    });
+  </script>
+</body>
+</html>

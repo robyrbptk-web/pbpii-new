@@ -1,0 +1,556 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c2948">
+  <title>Dashboard Admin — PB PII</title>
+  <link rel="icon" href="/assets/logo-pii.png" type="image/png">
+  <style>
+    :root{--green:#087a36;--dark:#075c2b;--ink:#17251c;--muted:#6b786e;--line:#e3e9e4;--soft:#f5f8f5;--red:#c52c35}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--soft);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.55}
+    button,input,textarea,select{font:inherit}
+    a{text-decoration:none;color:inherit}
+    .topbar{height:70px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;gap:16px;position:sticky;top:0;z-index:10}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:850}
+    .brand img{width:40px;height:47px;object-fit:contain}
+    .brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.6px}
+    .top-actions{display:flex;align-items:center;gap:10px}
+    .user-name{font-size:12px;color:var(--muted)}
+    .layout{display:grid;grid-template-columns:235px minmax(0,1fr);min-height:calc(100vh - 70px)}
+    aside{background:#fff;border-right:1px solid var(--line);padding:24px 15px}
+    .side-label{font-size:10px;color:#8a968d;font-weight:800;letter-spacing:1.3px;padding:0 12px;margin-bottom:10px}
+    .tab{display:flex;width:100%;align-items:center;gap:11px;padding:12px;border:0;background:transparent;border-radius:9px;text-align:left;font-weight:700;color:#58665c;cursor:pointer;margin-bottom:5px}
+    .tab.active,.tab:hover{background:#eaf6ed;color:var(--green)}
+    .side-bottom{margin-top:28px;border-top:1px solid var(--line);padding-top:18px}
+    main{padding:32px;min-width:0}
+    .page-head{display:flex;justify-content:space-between;align-items:start;gap:18px;margin-bottom:25px}
+    .page-head h1{margin:0;font-size:28px;letter-spacing:-.8px}
+    .page-head p{margin:5px 0 0;color:var(--muted)}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:24px;margin-bottom:20px}
+    .panel h2{font-size:17px;margin:0 0 5px}
+    .panel-intro{color:var(--muted);font-size:13px;margin:0 0 20px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+    .field{min-width:0}
+    .field.full{grid-column:1/-1}
+    label{display:block;font-weight:750;font-size:12px;margin-bottom:7px}
+    input,textarea,select{display:block;width:100%;border:1px solid #d9e2da;border-radius:9px;padding:11px 12px;background:#fff;outline:none;color:var(--ink)}
+    textarea{resize:vertical;min-height:100px}
+    input:focus,textarea:focus,select:focus{border-color:var(--green);box-shadow:0 0 0 3px #087a3610}
+    .checkline{display:flex;align-items:center;gap:9px;margin-top:9px;font-weight:650}
+    .checkline input{width:17px;height:17px;accent-color:var(--green)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:9px;padding:10px 15px;font-weight:750;font-size:12px;cursor:pointer;gap:7px}
+    .primary{background:var(--green);color:#fff}.primary:hover{background:var(--dark)}
+    .secondary{background:#fff;border-color:var(--line);color:var(--ink)}
+    .danger{background:#fff0f0;border-color:#f1d1d3;color:var(--red)}
+    .btn-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
+    .message{display:none;margin-bottom:18px;padding:12px 15px;border-radius:9px;font-size:13px;overflow-wrap:anywhere}
+    .message.show{display:block}.message.ok{background:#eaf7ed;color:#17622d;border:1px solid #cce8d2}.message.err{background:#fff0f0;color:#a51e27;border:1px solid #f0d0d3}
+    .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-bottom:22px}
+    .stat{background:#fff;border:1px solid var(--line);padding:20px;border-radius:13px}
+    .stat span{display:block;color:var(--muted);font-size:12px;font-weight:700}
+    .stat strong{display:block;font-size:28px;letter-spacing:-1px;margin-top:5px}
+    .list-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+    .list-head h2{margin:0;font-size:17px}
+    .item-list{display:grid;gap:10px}
+    .item{border:1px solid var(--line);border-radius:11px;padding:15px;display:flex;align-items:start;justify-content:space-between;gap:16px}
+    .item h3{font-size:14px;margin:0 0 5px}
+    .item p{margin:0;color:var(--muted);font-size:12px}
+    .item-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:800;background:#f0f2f0;color:#59645c}
+    .badge.published{background:#e7f6eb;color:#167334}
+    .badge.draft{background:#fff4d8;color:#85620d}
+    .empty{border:1px dashed #d3ddd4;border-radius:10px;padding:25px;text-align:center;color:var(--muted);font-size:13px}
+    .hidden{display:none!important}
+    .hint{font-size:11px;color:var(--muted);margin-top:5px}
+    .mobile-menu{display:none}
+    @media(max-width:850px){
+      .layout{grid-template-columns:1fr}
+      aside{border-right:0;border-bottom:1px solid var(--line);padding:10px 15px;display:flex;gap:6px;overflow-x:auto}
+      .side-label,.side-bottom{display:none}
+      .tab{white-space:nowrap;width:auto;margin:0;padding:10px}
+      main{padding:22px}
+      .topbar{padding:0 18px}
+      .user-name{display:none}
+    }
+    @media(max-width:560px){
+      main{padding:16px 12px}
+      .topbar{height:62px;padding:0 12px}
+      .brand img{width:32px;height:38px}
+      .brand{font-size:11px;gap:7px}
+      .brand small{font-size:8px}
+      .top-actions .btn{padding:8px;font-size:11px}
+      .page-head h1{font-size:24px}
+      .page-head{align-items:center}
+      .panel{padding:17px}
+      .form-grid{grid-template-columns:1fr}
+      .field.full{grid-column:auto}
+      .stats{gap:7px}
+      .stat{padding:12px}
+      .stat strong{font-size:22px}
+      .stat span{font-size:10px}
+      .item{flex-direction:column}
+      .item-actions{justify-content:flex-start}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <img src="/assets/logo-pii.png" alt="Logo PII" onerror="this.onerror=null;this.src='public/assets/logo-pii.png'">
+      <span>PB PII <small>PENGELOLAAN WEBSITE</small></span>
+    </a>
+    <div class="top-actions">
+      <span class="user-name" id="userName"></span>
+      <a class="btn secondary" href="/" target="_blank" rel="noopener">Lihat website ↗</a>
+      <button class="btn secondary" id="logoutButton" type="button">Keluar</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="side-label">MENU UTAMA</div>
+      <button class="tab active" data-page="overview">▦ Ringkasan</button>
+      <button class="tab" data-page="articles">▤ Artikel</button>
+      <button class="tab" data-page="settings">⚙ Sambutan & Pengaturan</button>
+      <button class="tab" data-page="gallery">▧ Galeri</button>
+      <div class="side-bottom"></div>
+    </aside>
+
+    <main>
+      <div id="globalMessage" class="message" role="status" aria-live="polite"></div>
+
+      <section id="page-overview">
+        <div class="page-head">
+          <div><h1>Ringkasan</h1><p>Kelola publikasi dan identitas digital PB PII.</p></div>
+          <button class="btn primary" id="newArticleTop">+ Tulis artikel</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>Total artikel</span><strong id="totalArticles">0</strong></div>
+          <div class="stat"><span>Sudah terbit</span><strong id="publishedArticles">0</strong></div>
+          <div class="stat"><span>Foto galeri</span><strong id="totalGallery">0</strong></div>
+        </div>
+        <div class="panel">
+          <div class="list-head"><h2>Artikel terbaru</h2><button class="btn secondary" data-goto="articles">Kelola artikel →</button></div>
+          <div class="item-list" id="recentArticles"><div class="empty">Memuat data…</div></div>
+        </div>
+        <div class="panel">
+          <h2>Catatan pengelola</h2>
+          <p class="panel-intro">Pastikan judul, nama penulis, tanggal, dan isi berita sudah diperiksa sebelum artikel diterbitkan. Sambutan Ketua Umum juga perlu mendapatkan persetujuan sebelum ditampilkan sebagai pernyataan resmi.</p>
+        </div>
+      </section>
+
+      <section id="page-articles" class="hidden">
+        <div class="page-head">
+          <div><h1>Artikel</h1><p>Buat, edit, dan terbitkan berita atau gagasan PB PII.</p></div>
+          <button class="btn primary" id="newArticle">+ Artikel baru</button>
+        </div>
+
+        <div class="panel hidden" id="articleEditor">
+          <h2 id="articleFormTitle">Tulis artikel baru</h2>
+          <p class="panel-intro">Artikel berstatus draft tidak akan tampil pada halaman utama publik.</p>
+          <form id="articleForm">
+            <input type="hidden" id="articleId">
+            <div class="form-grid">
+              <div class="field full"><label for="articleTitle">Judul artikel *</label><input id="articleTitle" required maxlength="180" placeholder="Masukkan judul yang jelas dan informatif"></div>
+              <div class="field"><label for="articleCategory">Kategori</label>
+                <select id="articleCategory">
+                  <option>Berita</option><option>Kaderisasi</option><option>Pendidikan</option><option>Opini</option><option>Organisasi</option><option>Nasional</option><option>Pengumuman</option>
+                </select>
+              </div>
+              <div class="field"><label for="articleAuthor">Penulis / Redaksi</label><input id="articleAuthor" value="Redaksi PB PII"></div>
+              <div class="field full"><label for="articleSlug">Slug URL (opsional)</label><input id="articleSlug" placeholder="otomatis-dari-judul"><div class="hint">Gunakan huruf kecil dan tanda hubung. Slug akan dibuat otomatis jika dikosongkan.</div></div>
+              <div class="field full"><label for="articleExcerpt">Ringkasan artikel</label><textarea id="articleExcerpt" rows="3" maxlength="500" placeholder="Ringkasan singkat untuk kartu berita"></textarea></div>
+              <div class="field full"><label for="articleCover">URL gambar sampul</label><input id="articleCover" type="url" placeholder="https://..."><div class="hint">Untuk versi ini, gunakan URL gambar HTTPS yang dapat diakses publik.</div></div>
+              <div class="field full"><label for="articleContent">Isi artikel *</label><textarea id="articleContent" rows="12" required placeholder="Tulis isi artikel di sini. Gunakan paragraf yang jelas."></textarea></div>
+              <div class="field"><label for="articleStatus">Status</label><select id="articleStatus"><option value="draft">Draft</option><option value="published">Terbitkan</option></select></div>
+            </div>
+            <div class="btn-row">
+              <button type="submit" class="btn primary" id="saveArticleButton">Simpan artikel</button>
+              <button type="button" class="btn secondary" id="cancelArticle">Batal</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="list-head"><h2>Semua artikel</h2><button class="btn secondary" id="refreshArticles">↻ Muat ulang</button></div>
+          <div class="item-list" id="articleList"><div class="empty">Memuat data…</div></div>
+        </div>
+      </section>
+
+      <section id="page-settings" class="hidden">
+        <div class="page-head"><div><h1>Sambutan & Pengaturan</h1><p>Atur identitas dan konten utama website.</p></div></div>
+        <form id="settingsForm">
+          <div class="panel">
+            <h2>Identitas website</h2><p class="panel-intro">Informasi yang muncul pada bagian atas dan bawah halaman.</p>
+            <div class="form-grid">
+              <div class="field full"><label for="siteName">Nama website</label><input id="siteName" name="siteName"></div>
+              <div class="field full"><label for="tagline">Tagline</label><input id="tagline" name="tagline"></div>
+              <div class="field full"><label for="heroTitle">Judul utama halaman depan</label><input id="heroTitle" name="heroTitle"></div>
+              <div class="field full"><label for="heroText">Deskripsi halaman depan</label><textarea id="heroText" name="heroText" rows="3"></textarea></div>
+              <div class="field full"><label for="aboutText">Tentang PII</label><textarea id="aboutText" name="aboutText" rows="5"></textarea></div>
+              <div class="field full"><label for="footerText">Deskripsi footer</label><textarea id="footerText" name="footerText" rows="2"></textarea></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Sambutan Ketua Umum</h2><p class="panel-intro">Isi yang disimpan akan ditampilkan di halaman depan jika visibilitas diaktifkan. Pastikan naskah telah disetujui sebelum menjadi sambutan resmi.</p>
+            <div class="form-grid">
+              <div class="field"><label for="chairmanName">Nama Ketua Umum</label><input id="chairmanName" name="chairmanName"></div>
+              <div class="field"><label for="chairmanRole">Jabatan</label><input id="chairmanRole" name="chairmanRole"></div>
+              <div class="field full"><label for="chairmanPhoto">URL foto Ketua Umum</label><input id="chairmanPhoto" name="chairmanPhoto" type="url" placeholder="https://..."></div>
+              <div class="field full"><label for="chairmanGreeting">Isi sambutan</label><textarea id="chairmanGreeting" name="chairmanGreeting" rows="12"></textarea></div>
+              <div class="field full">
+                <label class="checkline"><input type="checkbox" id="chairmanGreetingVisible" name="chairmanGreetingVisible"> Tampilkan sambutan Ketua Umum di halaman utama</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Kontak & media sosial</h2><p class="panel-intro">Kosongkan kolom yang belum digunakan.</p>
+            <div class="form-grid">
+              <div class="field full"><label for="contactEmail">Email resmi</label><input id="contactEmail" name="contactEmail" type="email"></div>
+              <div class="field"><label for="instagramUrl">URL Instagram</label><input id="instagramUrl" name="instagramUrl" type="url"></div>
+              <div class="field"><label for="youtubeUrl">URL YouTube</label><input id="youtubeUrl" name="youtubeUrl" type="url"></div>
+            </div>
+          </div>
+          <div class="btn-row"><button type="submit" class="btn primary" id="saveSettingsButton">Simpan pengaturan</button></div>
+        </form>
+      </section>
+
+      <section id="page-gallery" class="hidden">
+        <div class="page-head"><div><h1>Galeri</h1><p>Pilih dokumentasi yang ingin ditampilkan pada halaman utama.</p></div></div>
+        <div class="panel" id="galleryEditor">
+          <h2 id="galleryFormTitle">Tambah foto galeri</h2>
+          <p class="panel-intro">Masukkan URL foto publik yang diawali HTTPS.</p>
+          <form id="galleryForm">
+            <input type="hidden" id="galleryId">
+            <div class="form-grid">
+              <div class="field full"><label for="galleryTitle">Judul foto *</label><input id="galleryTitle" required maxlength="160"></div>
+              <div class="field full"><label for="galleryUrl">URL foto *</label><input id="galleryUrl" type="url" required placeholder="https://..."></div>
+              <div class="field full"><label for="galleryCaption">Keterangan foto</label><textarea id="galleryCaption" rows="2"></textarea></div>
+              <div class="field"><label for="galleryOrder">Urutan tampilan</label><input id="galleryOrder" type="number" value="0"></div>
+              <div class="field"><label class="checkline"><input id="galleryFeatured" type="checkbox"> Tampilkan di halaman utama</label></div>
+            </div>
+            <div class="btn-row"><button type="submit" class="btn primary" id="saveGalleryButton">Simpan foto</button><button type="button" class="btn secondary" id="cancelGallery">Bersihkan form</button></div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="list-head"><h2>Foto tersimpan</h2><button class="btn secondary" id="refreshGallery">↻ Muat ulang</button></div>
+          <div class="item-list" id="galleryList"><div class="empty">Memuat data…</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API_ENDPOINT = '/api/pii';
+    let state = {settings:{}, articles:[], gallery:[]};
+    let busy = false;
+
+    const $ = id => document.getElementById(id);
+    const token = () => sessionStorage.getItem('pbpii_admin_token') || '';
+
+    function escapeHTML(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+      );
+    }
+
+    function safeUrl(value) {
+      try {
+        const u = new URL(String(value || ''));
+        return u.protocol === 'https:' ? u.href : '';
+      } catch (e) { return ''; }
+    }
+
+    function notify(text, type='ok') {
+      const el = $('globalMessage');
+      el.textContent = text;
+      el.className = 'message show ' + (type === 'err' ? 'err' : 'ok');
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    async function api(action, extra={}) {
+      const response = await fetch(API_ENDPOINT, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action, token:token(), ...extra})
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        const error = new Error(result.error || 'Permintaan gagal.');
+        if (/sesi berakhir|token tidak valid/i.test(error.message)) {
+          sessionStorage.removeItem('pbpii_admin_token');
+          sessionStorage.removeItem('pbpii_admin_username');
+          window.location.replace('/login.html');
+        }
+        throw error;
+      }
+      return result.data;
+    }
+
+    function showPage(name) {
+      document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+      $('page-' + name).classList.remove('hidden');
+      document.querySelectorAll('.tab[data-page]').forEach(el =>
+        el.classList.toggle('active', el.dataset.page === name)
+      );
+    }
+
+    document.querySelectorAll('.tab[data-page]').forEach(button =>
+      button.addEventListener('click', () => showPage(button.dataset.page))
+    );
+
+    document.querySelectorAll('[data-goto]').forEach(button =>
+      button.addEventListener('click', () => showPage(button.dataset.goto))
+    );
+
+    $('userName').textContent = sessionStorage.getItem('pbpii_admin_username') || 'Administrator';
+
+    function updateStats() {
+      $('totalArticles').textContent = state.articles.length;
+      $('publishedArticles').textContent = state.articles.filter(a => a.status === 'published').length;
+      $('totalGallery').textContent = state.gallery.length;
+    }
+
+    function renderArticleItems() {
+      const html = state.articles.map(a => {
+        const status = a.status === 'published' ? 'published' : 'draft';
+        const date = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('id-ID') : '';
+        return '<div class="item"><div><h3>' + escapeHTML(a.title) + '</h3><p>' +
+          escapeHTML(a.category || 'Berita') + ' · ' + escapeHTML(date) + ' · ' +
+          '<span class="badge ' + status + '">' + (status === 'published' ? 'TERBIT' : 'DRAFT') +
+          '</span></p></div><div class="item-actions"><button class="btn secondary" data-edit-article="' +
+          escapeHTML(a.id) + '">Edit</button><button class="btn danger" data-delete-article="' +
+          escapeHTML(a.id) + '">Hapus</button></div></div>';
+      }).join('') || '<div class="empty">Belum ada artikel. Klik “Artikel baru” untuk mulai menulis.</div>';
+
+      $('articleList').innerHTML = html;
+      $('recentArticles').innerHTML = state.articles.slice(0,5).map(a =>
+        '<div class="item"><div><h3>' + escapeHTML(a.title) + '</h3><p>' +
+        escapeHTML(a.category || 'Berita') + ' · ' +
+        '<span class="badge ' + (a.status === 'published' ? 'published' : 'draft') + '">' +
+        (a.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></p></div></div>'
+      ).join('') || '<div class="empty">Belum ada artikel.</div>';
+    }
+
+    function renderGalleryItems() {
+      $('galleryList').innerHTML = state.gallery.map(g => {
+        const image = safeUrl(g.imageUrl);
+        const preview = image
+          ? '<img src="' + escapeHTML(image) + '" alt="" style="width:70px;height:60px;object-fit:cover;border-radius:7px">'
+          : '';
+        return '<div class="item">' + preview + '<div style="flex:1"><h3>' + escapeHTML(g.title) +
+          '</h3><p>Urutan: ' + escapeHTML(g.sortOrder) + ' · ' +
+          (String(g.featured) === 'true' ? '<span class="badge published">TAMPIL DI BERANDA</span>' : '<span class="badge">DISEMBUNYIKAN</span>') +
+          '</p></div><div class="item-actions"><button class="btn secondary" data-edit-gallery="' +
+          escapeHTML(g.id) + '">Edit</button><button class="btn danger" data-delete-gallery="' +
+          escapeHTML(g.id) + '">Hapus</button></div></div>';
+      }).join('') || '<div class="empty">Belum ada foto galeri.</div>';
+    }
+
+    async function loadData(showNotice=false) {
+      try {
+        state = await api('adminData');
+        state.settings = state.settings || {};
+        state.articles = state.articles || [];
+        state.gallery = state.gallery || [];
+        updateStats();
+        renderArticleItems();
+        renderGalleryItems();
+        fillSettings(state.settings);
+        if (showNotice) notify('Data berhasil dimuat ulang.');
+      } catch (e) {
+        notify(e.message, 'err');
+      }
+    }
+
+    function fillSettings(settings) {
+      const keys = [
+        'siteName','tagline','heroTitle','heroText','aboutText','footerText',
+        'chairmanName','chairmanRole','chairmanPhoto','chairmanGreeting',
+        'contactEmail','instagramUrl','youtubeUrl'
+      ];
+      keys.forEach(key => {
+        if ($(key)) $(key).value = settings[key] || '';
+      });
+      $('chairmanGreetingVisible').checked =
+        String(settings.chairmanGreetingVisible == null ? 'true' : settings.chairmanGreetingVisible).toLowerCase() !== 'false';
+    }
+
+    function resetArticleForm() {
+      $('articleForm').reset();
+      $('articleId').value = '';
+      $('articleAuthor').value = 'Redaksi PB PII';
+      $('articleStatus').value = 'draft';
+      $('articleFormTitle').textContent = 'Tulis artikel baru';
+      $('articleEditor').classList.remove('hidden');
+      $('articleTitle').focus();
+    }
+
+    $('newArticle').addEventListener('click', resetArticleForm);
+    $('newArticleTop').addEventListener('click', () => {
+      showPage('articles');
+      resetArticleForm();
+    });
+    $('cancelArticle').addEventListener('click', () => $('articleEditor').classList.add('hidden'));
+
+    $('articleForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = $('saveArticleButton');
+      button.disabled = true;
+      try {
+        await api('saveArticle', {article:{
+          id:$('articleId').value,
+          title:$('articleTitle').value.trim(),
+          slug:$('articleSlug').value.trim(),
+          category:$('articleCategory').value,
+          author:$('articleAuthor').value.trim(),
+          excerpt:$('articleExcerpt').value.trim(),
+          coverImage:$('articleCover').value.trim(),
+          content:$('articleContent').value,
+          status:$('articleStatus').value
+        }});
+        $('articleEditor').classList.add('hidden');
+        await loadData();
+        notify('Artikel berhasil disimpan.');
+      } catch (e) { notify(e.message, 'err'); }
+      finally { button.disabled = false; }
+    });
+
+    $('articleList').addEventListener('click', async event => {
+      const edit = event.target.closest('[data-edit-article]');
+      const del = event.target.closest('[data-delete-article]');
+
+      if (edit) {
+        const a = state.articles.find(item => item.id === edit.dataset.editArticle);
+        if (!a) return;
+        showPage('articles');
+        $('articleEditor').classList.remove('hidden');
+        $('articleFormTitle').textContent = 'Edit artikel';
+        $('articleId').value = a.id || '';
+        $('articleTitle').value = a.title || '';
+        $('articleSlug').value = a.slug || '';
+        $('articleCategory').value = a.category || 'Berita';
+        $('articleAuthor').value = a.author || 'Redaksi PB PII';
+        $('articleExcerpt').value = a.excerpt || '';
+        $('articleCover').value = a.coverImage || '';
+        $('articleContent').value = a.content || '';
+        $('articleStatus').value = a.status || 'draft';
+        window.scrollTo({top:0,behavior:'smooth'});
+      }
+
+      if (del) {
+        const a = state.articles.find(item => item.id === del.dataset.deleteArticle);
+        if (!a || !confirm('Hapus artikel "' + a.title + '" secara permanen?')) return;
+        try {
+          await api('deleteArticle', {id:a.id});
+          await loadData();
+          notify('Artikel berhasil dihapus.');
+        } catch (e) { notify(e.message, 'err'); }
+      }
+    });
+
+    $('settingsForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = $('saveSettingsButton');
+      button.disabled = true;
+      const settings = {};
+      [
+        'siteName','tagline','heroTitle','heroText','aboutText','footerText',
+        'chairmanName','chairmanRole','chairmanPhoto','chairmanGreeting',
+        'contactEmail','instagramUrl','youtubeUrl'
+      ].forEach(key => settings[key] = $(key).value.trim());
+
+      settings.chairmanGreetingVisible = $('chairmanGreetingVisible').checked ? 'true' : 'false';
+
+      try {
+        await api('saveSettings', {settings});
+        await loadData();
+        notify('Pengaturan dan sambutan Ketua Umum berhasil disimpan.');
+      } catch (e) { notify(e.message, 'err'); }
+      finally { button.disabled = false; }
+    });
+
+    function resetGalleryForm() {
+      $('galleryForm').reset();
+      $('galleryId').value = '';
+      $('galleryOrder').value = 0;
+      $('galleryFormTitle').textContent = 'Tambah foto galeri';
+    }
+
+    $('cancelGallery').addEventListener('click', resetGalleryForm);
+
+    $('galleryForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = $('saveGalleryButton');
+      button.disabled = true;
+      try {
+        await api('saveGalleryItem', {item:{
+          id:$('galleryId').value,
+          title:$('galleryTitle').value.trim(),
+          imageUrl:$('galleryUrl').value.trim(),
+          caption:$('galleryCaption').value.trim(),
+          sortOrder:$('galleryOrder').value,
+          featured:$('galleryFeatured').checked
+        }});
+        resetGalleryForm();
+        await loadData();
+        notify('Data galeri berhasil disimpan.');
+      } catch (e) { notify(e.message, 'err'); }
+      finally { button.disabled = false; }
+    });
+
+    $('galleryList').addEventListener('click', async event => {
+      const edit = event.target.closest('[data-edit-gallery]');
+      const del = event.target.closest('[data-delete-gallery]');
+
+      if (edit) {
+        const g = state.gallery.find(item => item.id === edit.dataset.editGallery);
+        if (!g) return;
+        $('galleryId').value = g.id || '';
+        $('galleryTitle').value = g.title || '';
+        $('galleryUrl').value = g.imageUrl || '';
+        $('galleryCaption').value = g.caption || '';
+        $('galleryOrder').value = Number(g.sortOrder) || 0;
+        $('galleryFeatured').checked = String(g.featured) === 'true';
+        $('galleryFormTitle').textContent = 'Edit foto galeri';
+        window.scrollTo({top:0,behavior:'smooth'});
+      }
+
+      if (del) {
+        const g = state.gallery.find(item => item.id === del.dataset.deleteGallery);
+        if (!g || !confirm('Hapus foto "' + g.title + '" dari galeri?')) return;
+        try {
+          await api('deleteGalleryItem', {id:g.id});
+          await loadData();
+          notify('Foto galeri berhasil dihapus.');
+        } catch (e) { notify(e.message, 'err'); }
+      }
+    });
+
+    $('refreshArticles').addEventListener('click', () => loadData(true));
+    $('refreshGallery').addEventListener('click', () => loadData(true));
+
+    $('logoutButton').addEventListener('click', async () => {
+      try { await api('logout'); } catch (e) {}
+      sessionStorage.removeItem('pbpii_admin_token');
+      sessionStorage.removeItem('pbpii_admin_username');
+      window.location.replace('/login.html');
+    });
+
+    async function start() {
+      if (!token()) {
+        window.location.replace('/login.html');
+        return;
+      }
+      await loadData();
+    }
+
+    start();
+  </script>
+</body>
+</html>
