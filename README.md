@@ -22,16 +22,21 @@ Jika spreadsheet dan Apps Script sudah dibuat sebelumnya, mulai dari langkah 2. 
 Jika menu **PB PII** belum terlihat, pastikan kedua file sudah disimpan dan muat ulang spreadsheet. Langkah membuat/menyimpan akun cukup diulang dari langkah 6 jika ingin mengganti password.
 
 ## B. Hubungkan ke Vercel
-1. Unggah folder proyek ini ke repository GitHub.
-2. Import repository tersebut ke Vercel.
-3. Proxy sudah memakai URL deployment yang diberikan sebagai nilai bawaan. Jika `GAS_WEB_APP_URL` sudah tersimpan di Vercel, nilainya harus sama dengan URL `/exec` terbaru; Environment Variable akan mengesampingkan URL bawaan.
-4. Redeploy. Pastikan fungsi serverless `api/pii.js` aktif.
-5. Buka website dan tes halaman publik, login admin, simpan draft, terbitkan artikel, ubah sambutan, dan tampil/sembunyikan foto galeri.
+1. Import repository GitHub ke Vercel dan pilih branch `main`.
+2. Pastikan **Root Directory** adalah root repository (`./`), bukan folder parent atau subfolder yang tidak memuat `index.html`.
+3. Gunakan framework **Other** / tanpa framework, tanpa Build Command, dan jangan mengatur Output Directory ke `public`; halaman HTML berada di root repository. `vercel.json` memetakan `/` langsung ke `index.html` dan mempertahankan fungsi `api/pii.js`.
+4. Proxy sudah memakai URL deployment yang diberikan sebagai nilai bawaan. Jika `GAS_WEB_APP_URL` sudah tersimpan di Vercel, nilainya harus sama dengan URL `/exec` terbaru; Environment Variable akan mengesampingkan URL bawaan.
+5. Pilih **Deploy** atau **Redeploy** setelah commit terbaru berstatus tersedia. Tes `/`, `/login.html`, `/admin.html`, `/manifest.json`, dan login admin. Jika masih 404, periksa **Project Settings > Build and Deployment > Root Directory** menunjuk ke root repository dan tunggu deployment branch `main` selesai.
+
+### Instal sebagai aplikasi
+- Halaman depan menyediakan manifest PWA, ikon Android/iOS, navigasi bawah yang nyaman disentuh, serta cache app-shell dan halaman offline.
+- Buka website lewat HTTPS. Di Android/Chrome gunakan tombol **Instal aplikasi** saat tersedia atau menu browser **Install app / Add to Home screen**. Di iPhone/iPad, gunakan **Share > Add to Home Screen**.
+- Konten API dan perubahan dashboard tidak disimpan offline; cache hanya untuk kerangka halaman/aset statis.
 
 Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -g vercel` dan `vercel dev`. Halaman juga bisa dibuka langsung untuk melihat tata letak, tetapi panggilan API memerlukan proxy Vercel dan URL Apps Script yang sudah dikonfigurasi.
 
 ## C. Fitur yang ada
-- Halaman depan responsif untuk desktop dan HP.
+- Halaman depan responsif untuk desktop, tablet, dan HP; pada layar kecil memakai navigasi bawah bergaya aplikasi.
 - Artikel: tambah, edit, hapus, draft/published, kategori, ringkasan, isi, URL gambar sampul.
 - Pengaturan: judul dan teks hero, nama/jabatan/foto Ketua Umum, sambutan, tampil/sembunyikan sambutan, profil ringkas, footer, email, dan tautan media sosial.
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.

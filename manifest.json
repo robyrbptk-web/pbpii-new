@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "Pengurus Besar Pelajar Islam Indonesia",
+  "short_name": "PB PII",
+  "description": "Kabar, gagasan, dan kegiatan Pengurus Besar Pelajar Islam Indonesia.",
+  "lang": "id",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f8fafb",
+  "theme_color": "#102b49",
+    "icons": [
+      {
+        "src": "public/assets/logo-pii.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "public/assets/logo-pii.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "maskable"
+      }
+    ]
+}

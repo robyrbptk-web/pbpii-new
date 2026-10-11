@@ -3,10 +3,15 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0c2948">
   <title>Dashboard Admin — PB PII</title>
-  <link rel="icon" href="/assets/logo-pii.png" type="image/png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
   <style>
     :root{--green:#087a36;--dark:#075c2b;--ink:#17251c;--muted:#6b786e;--line:#e3e9e4;--soft:#f5f8f5;--red:#c52c35}
     *{box-sizing:border-box}
@@ -78,7 +83,30 @@
     @media(max-width:560px){
       main{padding:16px 12px}
       .topbar{height:62px;padding:0 12px}
-      .brand img{width:32px;height:38px}
+      .brand img{width:32px;height:38px      }
+      @media(max-width:850px){
+        body{padding-bottom:env(safe-area-inset-bottom)}
+        .topbar{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+        .layout{min-height:calc(100dvh - 70px)}
+        aside{position:sticky;top:62px;z-index:8;scrollbar-width:none;background:rgb(255 255 255 / 94%);backdrop-filter:blur(14px);padding:8px max(12px,env(safe-area-inset-left))}
+        aside::-webkit-scrollbar{display:none}
+        .tab{min-height:42px}
+        main{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+      }
+      @media(max-width:560px){
+        body{font-size:14px}
+        .topbar{height:60px}
+        .brand img{width:35px;height:40px}
+        .layout{min-height:calc(100dvh - 60px)}
+        aside{top:60px}
+        main{padding:18px 14px calc(28px + env(safe-area-inset-bottom))}
+        .page-head{align-items:center}
+        .page-head h1{font-size:24px}
+        .panel{border-radius:13px;padding:18px 15px}
+        .stat{border-radius:11px}
+        .item{flex-direction:column;gap:10px}
+        .top-actions{gap:6px}
+      }
       .brand{font-size:11px;gap:7px}
       .brand small{font-size:8px}
       .top-actions .btn{padding:8px;font-size:11px}

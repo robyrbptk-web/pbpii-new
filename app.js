@@ -112,19 +112,12 @@ function showLoadError(title, description) {
 async function init() {
   $('#year').textContent = new Date().getFullYear();
 
-  const menuButton = $('#menuToggle');
-  const navigation = $('#nav');
-  menuButton.addEventListener('click', () => {
-    const isOpen = navigation.classList.toggle('open');
-    menuButton.setAttribute('aria-expanded', String(isOpen));
-  });
-
-  navigation.addEventListener('click', (event) => {
-    if (event.target.closest('a')) {
-      navigation.classList.remove('open');
-      menuButton.setAttribute('aria-expanded', 'false');
-    }
-  });
+  setupInstallPrompt();
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('Service worker gagal dipasang.', error);
+    });
+  }
 
   if (location.protocol === 'file:') {
     showLoadError(
@@ -188,6 +181,30 @@ async function init() {
     );
     console.error(error);
   }
+}
+
+function setupInstallPrompt() {
+  const button = $('#installApp');
+  let installPrompt;
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    installPrompt = event;
+    button.hidden = false;
+  });
+
+  button.addEventListener('click', async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    button.hidden = true;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    button.hidden = true;
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
