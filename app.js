@@ -183,7 +183,11 @@ async function init() {
     ].forEach(([selector, key]) => {
       if (settings[key]) $(selector).textContent = settings[key];
     });
-    if (settings.siteName) document.title = `${settings.siteName} — Pelajar Islam Indonesia`;
+    const siteName = String(settings.siteName || '').trim();
+    if (siteName) {
+      const tagline = String(settings.tagline || '').trim();
+      document.title = tagline && tagline !== siteName ? `${siteName} | ${tagline}` : siteName;
+    }
     renderFooterLinks(settings);
 
     if (settings.chairmanGreetingVisible === 'false') {

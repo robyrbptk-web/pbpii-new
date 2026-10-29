@@ -4,7 +4,11 @@ Fondasi website publik PB PII dengan artikel, sambutan Ketua Umum yang bisa diub
 
 ## Catatan copywriting dan sumber
 
-Naskah awal ditulis dengan merujuk profil dan tujuan PII yang dipublikasikan di situs resmi PB PII: https://pbpii.or.id/profil-organisasi/ dan https://pbpii.or.id/misi-dan-eksistensi-pii/. PII berdiri pada 4 Mei 1947 dan berfokus pada pendidikan serta kebudayaan sesuai Islam. Sambutan Ketua Umum pada starter ini adalah naskah editorial awal, bukan kutipan atau pernyataan resmi Ketua Umum. Admin perlu menyunting dan menyetujuinya sebelum dipublikasikan. Nama Ketua Umum, foto, dan teks sambutan dapat diubah dari dashboard.
+Naskah halaman depan mengikuti susunan dan bahasa situs resmi PB PII, https://pbpii.or.id/ — khususnya https://pbpii.or.id/profil-organisasi/, https://pbpii.or.id/misi-dan-eksistensi-pii/, https://pbpii.or.id/tujuan-pelajar-islam-indonesia/, dan https://pbpii.or.id/sejarah-perjuangan-pelajar-islam-indonesia/. PII berdiri di Yogyakarta pada 4 Mei 1947 dan bergerak dalam pendidikan serta kebudayaan sesuai Islam; tagline resmi yang dipakai **#BergerakBerjamaah**. Bagian "Arah Gerakan" menautkan program yang diumumkan PB PII (PII Level Up, Komunitas Pelajar Literasi, kelembagaan dan data keaktifan).
+
+Sambutan Ketua Umum pada starter ini adalah naskah editorial awal, bukan kutipan atau pernyataan resmi Ketua Umum, dan `chairmanName` masih placeholder. Admin perlu menyunting dan menyetujuinya sebelum dipublikasikan. Nama, foto, periode, dan teks sambutan diubah dari dashboard.
+
+Teks bawaan disimpan di sheet `Settings` dan hanya ditambahkan bila kuncinya belum ada. Untuk menyisipkan kunci copywriting baru ke spreadsheet yang sudah jalan tanpa menimpa hasil suntingan redaksi, jalankan **PB PII > Segarkan teks resmi website** di menu spreadsheet (atau `segarkanTeksResmi(true)` dari Apps Script untuk memaksa semua nilai kembali ke salinan resmi).
 
 ## A. Buat Google Sheets dan Apps Script
 Jika spreadsheet dan Apps Script sudah dibuat sebelumnya, mulai dari langkah 2. Jangan membuat spreadsheet baru untuk database yang sudah berisi data.
@@ -44,7 +48,7 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 - Pengaturan: judul dan teks hero, nama/jabatan/foto Ketua Umum, sambutan, tampil/sembunyikan sambutan, profil ringkas, footer, email, dan tautan media sosial.
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.
 - Login admin dengan token sesi sementara di CacheService.
-- **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan CCTV, ditambah ringkasan angka langsung di beranda.
+- **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan kamera CCTV Dishub Jakarta, Bandung, Tasikmalaya, serta Kabupaten Bandung, ditambah ringkasan angka langsung di beranda.
 - **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, pengingat adzan, arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini.
 - Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
 - **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
@@ -85,8 +89,44 @@ Proxy yang tersedia:
 | `/api/muslim/quran?nomor=&page=&limit=` | API Muslim (114 surat) | tidak perlu |
 | `/api/muslim/qibla?lat=&lon=` | API Muslim | tidak perlu |
 | `/api/muslim/kalender` | API Muslim (Hijriah) | tidak perlu |
+| `/api/cctv/sources` | Dishub DKI Jakarta + ATCS Bandung/Tasikmalaya/Kab. Bandung | tidak perlu |
+| `/api/cctv/health` | hasil pencocokan registry di `/api/cctv/sources` | tidak perlu |
+| `/api/cctv/frame/:id` | citra statis kamera yang memilikinya | tidak perlu |
+| `/api/cctv/media/:id` (bisa `?seg=`) | HLS playlist + segmen ATCS | tidak perlu |
 
-Lapisan peta lain (FIRMS, Google Places, ringkasan AI, CCTV, penerbangan) tetap
+### Kamera pengawas (CCTV)
+
+Registry dibangun di `lib/cctv.js` dan dipakai keempat route `/api/cctv/*`.
+Sumber diambil dari empat packs publik, digabung lalu dibatasi per pack
+(dekat anchor kota masing-masing) supaya payload awal tetap terkendali:
+
+| Pack | Sumber | Isi | Jangkauan |
+| --- | --- | --- | --- |
+| `jakarta-dishub` | dataset [lakuapik/cctv-jakarta](https://github.com/lakuapik/cctv-jakarta) | ±746 titik kamera Dishub DKI Jakarta, disajikan 400 | lokasi saja |
+| `bandung-city-cctv` | `pelindung.bandung.go.id:8443/api/cek` | ±425 stream HLS, disajikan 250 | video (host stream `:3443`) |
+| `tasikmalaya-atcs` | `atcs.tasikmalayakota.go.id` | 29 stream HLS | video |
+| `bandungkab-dishub` | `dishub.bandungkab.go.id/cctv/` | baris HLS bertoken | video |
+
+- **Pack Jakarta sengaja tidak punya URL stream.** Dataset hanya memuat halaman
+  embed di `cctv.balitower.co.id` yang tidak menjawab dari luar jaringan Dishub,
+  jadi kamera didaftarkan sebagai lokasi (`url: ''`). Peta menampilkan pin dan
+  menuliskan "Tanpa stream" daripada berpura-pura ada siaran. `/api/cctv/health`
+  melaporkan status ini apa adanya.
+- Koordinat divalidasi dalam box Indonesia dan 11 baris dataset yang tertukar
+  lat/lon-nya dibetulkan sebelum dipakai.
+- Nama kamera dibuat dari slug stream (`Bambu-Apus-001-MP-601170_2` →
+  "Bambu Apus"), dan tiap stream dihitung satu kamera.
+- `/api/cctv/media/:id` hanya mengambil dua URL: playlist yang tersimpan di
+  registry, dan referensi `?seg=` yang asalnya dari playlist itu serta tetap di
+  origin yang sama. Host tidak pernah diambil dari request, jadi route ini bukan
+  open proxy. Playlist ditulis ulang agar HLS.js selalu lewat proxy.
+- Batas per pack bisa diubah lewat Environment Variables Vercel
+  `CCTV_JAKARTA_MAX_SOURCES`, `CCTV_BANDUNG_CITY_MAX_SOURCES`,
+  `CCTV_TASIK_MAX_SOURCES`, `CCTV_BANDUNGKAB_MAX_SOURCES` (8–600).
+- Lapisan CCTV tidak aktif saat globe pertama dibuka; nyalakan lewat tombol
+  **CCTV** pada panel peta. Registry di-cache enam jam per instance fungsi.
+
+Lapisan peta lain (FIRMS, Google Places, ringkasan AI, penerbangan) tetap
 membutuhkan proxy dan kunci dari aplikasi globe aslinya; bila kunci belum ada,
 lapisan itu menampilkan pesan tidak tersedia dan sisa peta tetap berjalan.
 

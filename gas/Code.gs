@@ -82,16 +82,16 @@ const SETTINGS_HEADERS = ['key', 'value'];
 
 const DEFAULT_SETTINGS = [
   ['siteName', 'Pengurus Besar Pelajar Islam Indonesia'],
-  ['tagline', 'Kepelajaran • Keislaman • Keindonesiaan'],
-  ['heroTitle', 'Membentuk Pelajar, Menyiapkan Pemimpin Masa Depan'],
-  ['heroText', 'Pelajar Islam Indonesia merupakan ruang pembinaan dan perjuangan pelajar untuk memperkuat keilmuan, akhlak, kepemimpinan, serta tanggung jawab kepada umat dan bangsa.'],
+  ['tagline', '#BergerakBerjamaah'],
+  ['heroTitle', 'Organisasi Pelajar Tertua di Indonesia, Bergerak Sejak 4 Mei 1947'],
+  ['heroText', 'Pelajar Islam Indonesia (PII) telah menemani perjalanan bangsa selama puluhan tahun. Dari rahim sejarah itulah lahir kader-kader pelajar yang beriman, berilmu, dan berjuang untuk umat serta negara.'],
   ['chairmanName', 'Nama Ketua Umum PB PII'],
-  ['chairmanRole', 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia'],
+  ['chairmanRole', 'Periode 2026 – 2028'],
   ['chairmanPhoto', ''],
-  ['chairmanGreeting', 'Assalamu’alaikum warahmatullahi wabarakatuh.\n\nPelajar memiliki peran penting dalam merawat masa depan umat dan bangsa. Karena itu, pendidikan tidak cukup dimaknai sebagai proses memperoleh pengetahuan, tetapi juga sebagai ikhtiar membentuk akhlak, keluasan wawasan, kemandirian berpikir, dan keberanian untuk bertanggung jawab.\n\nPelajar Islam Indonesia berupaya menghadirkan ruang pembinaan yang mempertemukan nilai-nilai keislaman, tradisi keilmuan, dan semangat kebangsaan. Di tengah perubahan zaman, kader PII dituntut terus belajar, terbuka terhadap perkembangan ilmu pengetahuan, serta mampu menjawab persoalan masyarakat dengan gagasan dan kerja nyata.\n\nSaya mengajak seluruh keluarga besar PII untuk menjaga semangat belajar, memperkuat persaudaraan, dan merawat pengabdian. Mari menjadikan organisasi ini sebagai ruang tumbuh bagi pelajar yang berintegritas, berilmu, dan siap berkontribusi bagi Indonesia.\n\nWassalamu’alaikum warahmatullahi wabarakatuh.'],
+  ['chairmanGreeting', 'Assalamu’alaikum warahmatullahi wabarakatuh.\n\nPelajar Islam Indonesia, sebagai organisasi pelajar tertua di Indonesia, telah menemani perjalanan bangsa selama puluhan tahun. Namun zaman terus bergerak. Tantangan pelajar hari ini tidak lagi sama dengan satu atau dua dekade yang lalu. Perubahan sosial, teknologi, dan dinamika global menuntut PII untuk terus berbenah tanpa kehilangan jati dirinya.\n\nPII Level Up hadir sebagai ikhtiar kolektif untuk meningkatkan kualitas kaderisasi dan penguatan kelembagaan agar PII tetap relevan, berdampak, dan berkelanjutan. Ini bukan tentang meninggalkan nilai, melainkan memperkuatnya. Bukan menghapus sejarah, tetapi melanjutkannya dengan cara yang lebih adaptif dan progresif.\n\nMelalui pembaruan sistem kaderisasi, penguatan kapasitas kader, serta pengelolaan kelembagaan yang lebih profesional, PII Level Up menjadi ruang tumbuh bagi pelajar Islam untuk naik kelas — dalam karakter, intelektualitas, dan kepemimpinan.\n\nWassalamu’alaikum warahmatullahi wabarakatuh.'],
   ['chairmanGreetingVisible', 'true'],
-  ['aboutText', 'Pelajar Islam Indonesia (PII) berdiri di Yogyakarta pada 4 Mei 1947. PII bergerak dalam bidang pendidikan dan kebudayaan dengan ikhtiar mewujudkan pendidikan dan kebudayaan yang sesuai dengan nilai-nilai Islam bagi masyarakat Indonesia dan umat manusia.'],
-  ['footerText', 'Pengurus Besar Pelajar Islam Indonesia'],
+  ['aboutText', 'Pelajar Islam Indonesia (PII) berdiri di Yogyakarta pada 4 Mei 1947 dan menjadi organisasi pelajar tertua di Indonesia. PII bergerak dalam bidang pendidikan dan kebudayaan dengan tujuan mewujudkan kesempurnaan pendidikan dan kebudayaan yang sesuai dengan Islam bagi segenap rakyat Indonesia dan umat manusia.'],
+  ['footerText', 'Pengurus Besar — Pelajar Islam Indonesia · Jl. Menteng Raya No. 58, Jakarta Pusat'],
   ['contactEmail', ''],
   ['instagramUrl', ''],
   ['youtubeUrl', '']
@@ -179,7 +179,64 @@ function onOpen() {
     .createMenu('PB PII')
     .addItem('Atur akun admin', 'configureAdmin')
     .addItem('Setel ulang password admin', 'aturUlangPasswordAdmin')
+    .addItem('Segarkan teks resmi website', 'segarkanTeksResmi')
     .addToUi();
+}
+
+/**
+ * Menimpa teks kop website dengan salinan resmi PB PII terbaru. Nilai yang
+ * sudah diubah redaksi lewat dashboard admin sengaja dilewati, kecuali dipaksa.
+ */
+function segarkanTeksResmi(force) {
+  const sheet = sheet_(APP.SHEET_SETTINGS);
+  const rows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getDisplayValues()
+    : [];
+  const rowOfKey = new Map();
+  rows.forEach(function (row, index) {
+    rowOfKey.set(String(row[0]).trim(), index + 2);
+  });
+
+  const updated = [];
+  const added = [];
+  const skipped = [];
+
+  DEFAULT_SETTINGS.forEach(function (setting) {
+    const key = String(setting[0]);
+    const value = String(setting[1]);
+    const rowNumber = rowOfKey.get(key);
+
+    if (!rowNumber) {
+      sheet.appendRow([key, value]);
+      added.push(key);
+      return;
+    }
+    const existing = String(sheet.getRange(rowNumber, 2).getDisplayValue());
+    if (existing === value) {
+      return;
+    }
+    if (!force) {
+      skipped.push(key);
+      return;
+    }
+    sheet.getRange(rowNumber, 2).setValue(value);
+    updated.push(key);
+  });
+
+  const parts = [];
+  if (added.length) parts.push('ditambah (' + added.join(', ') + ')');
+  if (updated.length) parts.push('diperbarui (' + updated.join(', ') + ')');
+  if (skipped.length) parts.push(skipped.length + ' nilai hasil edit redaksi dipertahankan');
+  const message = parts.length
+    ? 'Teks resmi: ' + parts.join('; ') + '.'
+    : 'Semua teks sudah sesuai salinan resmi.';
+
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (error) {
+    // Dipanggil dari editor/API tanpa UI, pesan tetap dikembalikan.
+  }
+  return message;
 }
 
 function configureAdmin() {

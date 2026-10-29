@@ -32,6 +32,18 @@
     },
     "api/muslim/kalender.js": {
       "maxDuration": 20
+    },
+    "api/cctv/sources.js": {
+      "maxDuration": 30
+    },
+    "api/cctv/health.js": {
+      "maxDuration": 30
+    },
+    "api/cctv/frame/[id].js": {
+      "maxDuration": 15
+    },
+    "api/cctv/media/[id].js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

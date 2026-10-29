@@ -212,6 +212,71 @@ nav a:hover,
   font-size: 1.08rem;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.hero-actions .button {
+  margin-top: 0;
+}
+
+.hero-actions .button-ghost {
+  border-color: rgb(255 255 255 / 45%);
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+
+.hero-actions .button-ghost:hover {
+  border-color: #fff;
+  background: rgb(255 255 255 / 12%);
+}
+
+.pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.pillar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 12px 30px #102b490d;
+}
+
+.pillar-card b {
+  color: var(--navy);
+  font-size: 1.05rem;
+  letter-spacing: -.01em;
+}
+
+.pillar-card p {
+  flex: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: .92rem;
+  line-height: 1.65;
+}
+
+.about-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: .9rem;
+  font-weight: 600;
+}
+
 .eyebrow {
   margin-bottom: 12px;
   color: var(--blue);
