@@ -486,6 +486,12 @@ nav a:hover,
   font-size: 1.02rem;
 }
 
+.office-address {
+  margin: 18px 0 0;
+  font-size: .94rem;
+  line-height: 1.7;
+}
+
 .gallery-section {
   background: #fff;
 }
@@ -1287,6 +1293,13 @@ body.peta-page {
   color: #a8c6dd;
 }
 
+.globe-toolbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .globe-fullscreen {
   flex: 0 0 auto;
   border: 1px solid rgb(255 255 255 / 30%);
@@ -1322,6 +1335,10 @@ body.peta-page {
 
   .globe-toolbar span {
     display: none;
+  }
+
+  .globe-toolbar {
+    flex-wrap: wrap;
   }
 }
 

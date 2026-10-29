@@ -73,6 +73,11 @@ Lapisan peta lain (FIRMS, Google Places, ringkasan AI, CCTV, penerbangan) tetap
 membutuhkan proxy dan kunci dari aplikasi globe aslinya; bila kunci belum ada,
 lapisan itu menampilkan pesan tidak tersedia dan sisa peta tetap berjalan.
 
+Globe membuka kamera ke Sekretariat PB PII (Jl. Menteng Raya No. 58, Kebon
+Sirih, Menteng, Jakarta Pusat) saat pertama dimuat. Penanda lokasi memakai
+koordinat `-6.1844917, 106.8344897`; klik penanda atau kartunya membuka Google
+Maps. Sekolah dan gunung berapi aktif secara bawaan karena tidak butuh kunci.
+
 ### Memperbarui peta
 
 ```bash
