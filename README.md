@@ -55,6 +55,13 @@ Peta adalah fitur dari website ini, bukan aplikasi terpisah. Halaman `/peta.html
 memakai header dan navigasi PB PII, lalu menampilkan globe di dalam bingkai;
 tombol **Layar penuh** membuka `/peta/` langsung.
 
+Bingkai globe memeriksa sendiri apakah aplikasi benar-benar termuat (ada canvas
+Cesium). Bila pemuatan pertama gagal — misalnya server baru hidup atau koneksi
+terputus saat mengunduh aset Cesium — halaman mencoba ulang sekali secara
+otomatis, lalu menampilkan panel "Globe belum dapat dimuat" dengan tombol muat
+ulang dan tautan layar penuh. Jadi kegagalan sementara tidak lagi menyisakan
+bingkai kosong.
+
 Struktur:
 
 - `peta/` — hasil build aplikasi globe (Vite + CesiumJS). Semua aset memakai

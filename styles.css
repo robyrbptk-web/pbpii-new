@@ -1324,6 +1324,13 @@ body.peta-page {
   background: rgb(255 255 255 / 12%);
 }
 
+.globe-stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .globe-frame {
   display: block;
   min-height: 0;
@@ -1331,6 +1338,76 @@ body.peta-page {
   width: 100%;
   border: 0;
   background: #06121c;
+}
+
+.globe-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
+  background: #06121c;
+  color: #eaf5ff;
+  text-align: center;
+}
+
+.globe-fallback[hidden] {
+  display: none;
+}
+
+.globe-fallback b {
+  font-size: 1.05rem;
+}
+
+.globe-fallback p {
+  max-width: 42ch;
+  margin: 0;
+  color: #a8c6dd;
+  font-size: .88rem;
+  line-height: 1.6;
+}
+
+.globe-fallback-icon {
+  width: 46px;
+  height: 46px;
+  fill: none;
+  stroke: #4f9fd4;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.globe-fallback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.globe-fallback-actions button,
+.globe-fallback-actions a {
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 999px;
+  padding: 9px 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: .85rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.globe-fallback-actions button {
+  border-color: #4f9fd4;
+  background: #176da8;
+}
+
+.globe-fallback-actions button:hover {
+  background: #1d82c9;
 }
 
 @media (max-width: 680px) {

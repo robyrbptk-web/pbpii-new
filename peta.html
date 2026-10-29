@@ -42,14 +42,87 @@
         <a class="globe-fullscreen" href="/peta/" target="_blank" rel="noopener">Layar penuh ↗</a>
       </div>
     </div>
-    <iframe
-      class="globe-frame"
-      src="/peta/"
-      title="PII Global View — globe interaktif PB PII"
-      loading="eager"
-      allow="fullscreen; clipboard-write"
-      referrerpolicy="same-origin"></iframe>
+    <div class="globe-stage">
+      <iframe
+        id="globeFrame"
+        class="globe-frame"
+        src="/peta/"
+        title="PII Global View — globe interaktif PB PII"
+        loading="eager"
+        allow="fullscreen; clipboard-write"
+        referrerpolicy="same-origin"></iframe>
+      <div class="globe-fallback" id="globeFallback" hidden>
+        <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.4 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.4-4-9s1.4-6.6 4-9Z"/></svg>
+        <b>Globe belum dapat dimuat</b>
+        <p>Mesin globe tidak merespons. Biasanya karena koneksi terputus saat memuat aset Cesium.</p>
+        <div class="globe-fallback-actions">
+          <button type="button" id="globeRetry">Muat ulang globe</button>
+          <a href="/peta/" target="_blank" rel="noopener">Buka di layar penuh ↗</a>
+        </div>
+      </div>
+    </div>
   </main>
+  <script>
+    (function () {
+      const frame = document.getElementById('globeFrame');
+      const fallback = document.getElementById('globeFallback');
+      const retry = document.getElementById('globeRetry');
+      let attempt = 0;
+      let timer = 0;
+
+      function globeAlive() {
+        try {
+          const doc = frame.contentDocument;
+          return !!(doc && doc.body && doc.body.childElementCount > 0 &&
+            (doc.querySelector('canvas') || doc.querySelector('.cesium-widget')));
+        } catch (error) {
+          return false;
+        }
+      }
+
+      function showFallback() {
+        clearTimeout(timer);
+        fallback.hidden = false;
+      }
+
+      function load() {
+        fallback.hidden = true;
+        frame.src = '/peta/?retry=' + Date.now();
+        watch();
+      }
+
+      function failed() {
+        if (attempt < 1) {
+          attempt += 1;
+          load();
+          return;
+        }
+        showFallback();
+      }
+
+      function watch() {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (!globeAlive()) failed();
+        }, 15000);
+      }
+
+      frame.addEventListener('load', () => {
+        clearTimeout(timer);
+        setTimeout(() => {
+          if (globeAlive()) fallback.hidden = true;
+          else failed();
+        }, 2500);
+      });
+
+      retry.addEventListener('click', () => {
+        attempt = 0;
+        load();
+      });
+
+      watch();
+    })();
+  </script>
   <script src="site.js" defer></script>
 </body>
 </html>
