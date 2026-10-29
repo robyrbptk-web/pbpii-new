@@ -43,6 +43,7 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.
 - Login admin dengan token sesi sementara di CacheService.
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan CCTV, ditambah ringkasan angka langsung di beranda.
+- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), hitung mundur waktu sholat berikutnya, pengingat adzan, arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini.
 
 ## D. Peta Global (PII Global View)
 
@@ -68,6 +69,11 @@ Proxy yang tersedia:
 | `/api/celestrak/:group` | CelesTrak TLE | tidak perlu |
 | `/api/indonesia/hospitals` | API Indonesia | `API_INDONESIA_KEY` |
 | `/api/indonesia/transjakarta` | API Indonesia | `API_INDONESIA_KEY` |
+| `/api/muslim/jadwal?id=` | API Muslim (Kemenag RI) | tidak perlu |
+| `/api/muslim/kota?q=` | API Muslim (517 kab/kota) | tidak perlu |
+| `/api/muslim/quran?nomor=&page=&limit=` | API Muslim (114 surat) | tidak perlu |
+| `/api/muslim/qibla?lat=&lon=` | API Muslim | tidak perlu |
+| `/api/muslim/kalender` | API Muslim (Hijriah) | tidak perlu |
 
 Lapisan peta lain (FIRMS, Google Places, ringkasan AI, CCTV, penerbangan) tetap
 membutuhkan proxy dan kunci dari aplikasi globe aslinya; bila kunci belum ada,
@@ -90,6 +96,26 @@ rm -rf peta && cp -r dist peta
 Kunci `API_INDONESIA_KEY` diisi di Environment Variables Vercel (atau `.env`
 untuk `vercel dev`). Kunci tidak pernah dikirim ke browser; proxy menambahkannya
 di sisi server. Lihat `.env.example`.
+
+## E. Ruang Ibadah
+
+`/ibadah.html` memakai API Muslim (api.myquran.com/v3) yang tidak memerlukan
+kunci. Proxy di `api/muslim/` menyimpan hasilnya di cache: jadwal sholat 1 jam,
+daftar kabupaten/kota 7 hari, daftar surat dan ayat 30 hari, arah kiblat 30 hari,
+tanggal Hijriah 1 jam. Dengan begitu satu instance hangat melayani banyak
+pengunjung tanpa membanjiri API publik.
+
+- Jadwal yang dikirim API sudah berupa waktu setempat untuk kota tersebut; zona
+  WIB/WITA/WIT di layar diturunkan dari nama provinsi, dan hitung mundur dihitung
+  memakai jam kota itu, bukan jam perangkat.
+- Pilihan kota, surat terakhir, dan status adzan disimpan di `localStorage`
+  (`pbpii:ibadah-city`, `pbpii:ibadah-surah`, `pbpii:ibadah-adzan`).
+- Berkas adzan berasal dari islamcan.com. Browser memblokir audio otomatis
+  sebelum ada interaksi, jadi pengunjung perlu menekan **Putar adzan** sekali;
+  setelah itu bunyi otomatis pada Subuh, Dzuhur, Ashar, Maghrib, dan Isya aktif
+  selama tab terbuka.
+- Arah kiblat bawaannya dihitung dari Sekretariat PB PII; tombol **Gunakan
+  lokasi saya** memakai geolocation (perlu HTTPS atau `localhost`).
 
 
 Untuk membuat atau mengganti akun admin, ikuti langkah A di atas. Formulir password memakai kolom tersembunyi dan menyimpan nilainya ke Script Properties tanpa menuliskannya ke source code.

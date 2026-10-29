@@ -17,6 +17,21 @@
     },
     "api/celestrak.js": {
       "maxDuration": 20
+    },
+    "api/muslim/jadwal.js": {
+      "maxDuration": 20
+    },
+    "api/muslim/kota.js": {
+      "maxDuration": 20
+    },
+    "api/muslim/quran.js": {
+      "maxDuration": 20
+    },
+    "api/muslim/qibla.js": {
+      "maxDuration": 20
+    },
+    "api/muslim/kalender.js": {
+      "maxDuration": 20
     }
   },
   "rewrites": [

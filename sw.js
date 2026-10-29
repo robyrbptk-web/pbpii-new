@@ -1,13 +1,15 @@
-const CACHE_NAME = 'pbpii-shell-v2';
+const CACHE_NAME = 'pbpii-shell-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/ibadah.html',
   '/peta.html',
   '/login.html',
   '/admin.html',
   '/offline.html',
   '/styles.css',
   '/app.js',
+  '/ibadah.js',
   '/manifest.json',
   '/assets/icon-192.png',
   '/assets/icon-512.png',

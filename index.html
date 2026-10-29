@@ -23,6 +23,7 @@
     </a>
     <nav id="nav" aria-label="Navigasi utama">
       <a href="#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Berita</span></a>
+      <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
       <a href="#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Ketua</span></a>
       <a href="#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
       <a href="#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
@@ -66,6 +67,27 @@
         <div class="data-stat" data-stat="transjakarta"><strong>—</strong><span>Halte Transjakarta</span></div>
       </div>
       <p class="data-strip-note" id="dataStripNote">Menghubungi API data publik…</p>
+    </section>
+
+    <section id="ibadah" class="section ibadah-teaser">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">RUANG IBADAH</p>
+          <h2>Jadwal Sholat Hari Ini</h2>
+          <p><span data-teaser-city>Kota Jakarta</span> · waktu setempat menurut Kementerian Agama RI.</p>
+        </div>
+        <a class="text-link" href="ibadah.html">Al-Qur'an, kiblat &amp; adzan ↗</a>
+      </div>
+      <div class="teaser-card" data-ibadah-widget>
+        <div class="teaser-next">
+          <span>Menuju waktu sholat</span>
+          <b data-next-name>—</b>
+          <strong data-next-countdown>--:--:--</strong>
+          <small data-next-time>Memuat jadwal…</small>
+        </div>
+        <ul class="teaser-times" data-times aria-label="Waktu sholat hari ini"></ul>
+      </div>
+      <p class="data-strip-note" data-ibadah-note>Memuat jadwal sholat…</p>
     </section>
 
     <section id="berita" class="section">
@@ -128,5 +150,6 @@
   </footer>
 
   <script src="app.js" defer></script>
+  <script src="ibadah.js" defer></script>
 </body>
 </html>

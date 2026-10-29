@@ -1061,7 +1061,7 @@ footer {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0;
     border: 0;
     border-top: 1px solid #e5ebf0;
@@ -1390,5 +1390,851 @@ body.peta-page {
 @media (max-width: 380px) {
   .data-strip {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Ruang Ibadah — jadwal sholat, adzan, kiblat, and the Qur'an reader. */
+.ibadah-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 56px);
+  padding: clamp(46px, 6vw, 76px) max(7vw, 24px);
+  background:
+    radial-gradient(ellipse at 84% 18%, rgb(46 145 204 / 26%), transparent 38%),
+    linear-gradient(118deg, #102b49 0%, #12446c 70%, #176da8 100%);
+  color: #fff;
+}
+
+.ibadah-hero h1 {
+  max-width: 720px;
+  margin: 10px 0 16px;
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  letter-spacing: -.04em;
+}
+
+.ibadah-hero-copy > p:not(.eyebrow) {
+  max-width: 620px;
+  margin-bottom: 22px;
+  color: #d8e9f7;
+  font-size: 1rem;
+}
+
+.ibadah-hero .eyebrow {
+  color: #a8d9ff;
+}
+
+.ibadah-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 999px;
+  padding: 6px 13px;
+  background: rgb(255 255 255 / 10%);
+  color: #eaf5ff;
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.pill-ghost {
+  background: transparent;
+}
+
+.next-prayer {
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 20px;
+  padding: 22px 24px;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  box-shadow: 0 20px 50px #061b3333;
+}
+
+.next-prayer span {
+  color: #a8d9ff;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.next-prayer b {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.45rem;
+}
+
+.next-prayer strong {
+  display: block;
+  font-size: clamp(2.1rem, 4vw, 2.9rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
+  line-height: 1.15;
+}
+
+.next-prayer small {
+  color: #cfe5f7;
+  font-size: .8rem;
+}
+
+.ibadah-section {
+  padding-bottom: clamp(52px, 6vw, 78px);
+}
+
+.ibadah-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.ibadah-search {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.ibadah-search input,
+.surah-panel input {
+  width: min(340px, 72vw);
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: .92rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.ibadah-search input:focus-visible,
+.surah-panel input:focus-visible {
+  outline: 2px solid #79bfff;
+  outline-offset: 1px;
+}
+
+.ibadah-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.city-results {
+  display: grid;
+  max-height: 280px;
+  gap: 2px;
+  margin: 12px 0 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px;
+  background: #fff;
+  list-style: none;
+  box-shadow: 0 14px 34px #102b4910;
+}
+
+.city-results[hidden] {
+  display: none;
+}
+
+.city-results button {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: .9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.city-results button:hover {
+  background: var(--soft);
+}
+
+.city-empty {
+  padding: 9px 12px;
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.prayer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prayer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: #fff;
+  transition: border-color .2s, background .2s;
+}
+
+.prayer-name {
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.prayer-time {
+  color: var(--navy);
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  line-height: 1.3;
+}
+
+.prayer-tag {
+  min-height: 15px;
+  color: var(--blue);
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.prayer-card.is-past {
+  background: #fbfcfd;
+}
+
+.prayer-card.is-past .prayer-time {
+  color: #7d8b9b;
+}
+
+.prayer-card.is-next {
+  border-color: #102b49;
+  background: linear-gradient(150deg, #102b49, #15578a);
+  box-shadow: 0 14px 34px #102b4920;
+}
+
+.prayer-card.is-next .prayer-name,
+.prayer-card.is-next .prayer-tag {
+  color: #a8d9ff;
+}
+
+.prayer-card.is-next .prayer-time {
+  color: #fff;
+}
+
+.adzan-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 18px;
+  background: #fff;
+}
+
+.adzan-note {
+  flex: 1 1 240px;
+  color: var(--muted);
+  font-size: .79rem;
+}
+
+.button-ghost {
+  min-height: 40px;
+  border: 1px solid #d8e3ec;
+  background: #fff;
+  color: var(--navy);
+}
+
+.button-ghost:hover {
+  border-color: #a7c3da;
+  background: #f5f9fc;
+}
+
+.button-solid {
+  border: 1px solid #176da8;
+  background: var(--blue);
+  color: #fff;
+}
+
+.button-solid:hover {
+  background: #125c8e;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .87rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.switch-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #cfdae4;
+  transition: background .2s;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px #102b4933;
+  transition: transform .2s;
+}
+
+.switch input:checked + .switch-track {
+  background: var(--green);
+}
+
+.switch input:checked + .switch-track .switch-thumb {
+  transform: translateX(18px);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 3px solid #79bfff;
+  outline-offset: 3px;
+}
+
+.qibla-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+  align-items: center;
+  gap: clamp(28px, 5vw, 64px);
+  background: #eef3f6;
+}
+
+.qibla-copy h2 {
+  color: var(--navy);
+}
+
+.qibla-copy p:not(.eyebrow, .qibla-meta) {
+  max-width: 560px;
+  color: #435268;
+}
+
+.qibla-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  margin: 20px 0 12px;
+}
+
+.qibla-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.qibla-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 16px 40px #102b490d;
+}
+
+.qibla-compass {
+  width: min(248px, 68vw);
+  height: auto;
+}
+
+.qibla-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.3;
+}
+
+.qibla-readout strong {
+  color: var(--navy);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.qibla-readout span {
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.qibla-hint {
+  margin: 0;
+  color: #9aa8b7;
+  font-size: .74rem;
+}
+
+.quran-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.surah-panel {
+  position: sticky;
+  top: 88px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.surah-panel input {
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: 8px;
+  font-size: .88rem;
+}
+
+.surah-list {
+  display: grid;
+  max-height: min(62vh, 560px);
+  gap: 2px;
+  margin: 0;
+  overflow: auto;
+  padding: 0;
+  list-style: none;
+}
+
+.surah-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.surah-item:hover {
+  background: var(--soft);
+}
+
+.surah-item[aria-current="true"] {
+  background: var(--sky);
+}
+
+.surah-no {
+  display: grid;
+  flex: 0 0 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: #eef3f7;
+  color: var(--navy);
+  font-size: .76rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.surah-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.surah-name b {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: .87rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.surah-name small {
+  color: var(--muted);
+  font-size: .71rem;
+}
+
+.surah-empty {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.quran-reader {
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px;
+  background: #fff;
+}
+
+.reader-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+
+.reader-head h3 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 1.28rem;
+}
+
+.reader-head p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.ayah {
+  border-bottom: 1px solid #eef2f6;
+  padding: 18px 0;
+}
+
+.ayah:last-of-type {
+  border-bottom: 0;
+}
+
+.ayah-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.ayah-no {
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ayah-play {
+  border: 1px solid #d8e3ec;
+  border-radius: 999px;
+  padding: 5px 13px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ayah-play:hover {
+  border-color: #a7c3da;
+  background: #f5f9fc;
+}
+
+.ayah-play.is-playing {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
+}
+
+.ayah-arab {
+  margin: 0 0 10px;
+  color: #10233a;
+  font-family: "Traditional Arabic", "Scheherazade New", "Amiri", "Noto Naskh Arabic", serif;
+  font-size: clamp(1.55rem, 2.4vw, 1.95rem);
+  line-height: 2.15;
+  text-align: right;
+}
+
+.ayah-text {
+  margin: 0;
+  color: #435268;
+  font-size: .93rem;
+}
+
+.ayah-tafsir {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.ayah-tafsir summary {
+  color: var(--blue);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ayah-tafsir p {
+  margin: 8px 0 0;
+  line-height: 1.8;
+}
+
+.reader-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.reader-pager button {
+  border: 1px solid #d8e3ec;
+  border-radius: 9px;
+  padding: 7px 12px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reader-pager button:disabled {
+  color: #a9b5c2;
+  cursor: not-allowed;
+}
+
+.reader-pager button:not(:disabled):hover {
+  background: var(--soft);
+}
+
+.reader-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.reader-pages button {
+  min-width: 32px;
+  padding: 6px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-pages button.is-current {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
+}
+
+/* Homepage teaser: the same prayer data, one screen wide. */
+.ibadah-teaser {
+  background: linear-gradient(180deg, #f7fafc, #fff);
+}
+
+.teaser-card {
+  display: grid;
+  grid-template-columns: minmax(210px, .55fr) minmax(0, 1.45fr);
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+}
+
+.teaser-next {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 16px 18px;
+  background: linear-gradient(150deg, #102b49, #15578a);
+  color: #fff;
+}
+
+.teaser-next span {
+  color: #a8d9ff;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.teaser-next b {
+  font-size: 1.2rem;
+}
+
+.teaser-next strong {
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+}
+
+.teaser-next small {
+  color: #cfe5f7;
+  font-size: .76rem;
+}
+
+.teaser-times {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teaser-times li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+}
+
+.teaser-times span {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.teaser-times strong {
+  color: var(--navy);
+  font-size: 1.08rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.teaser-times li.is-next {
+  border-color: #102b49;
+  background: #f4f8fb;
+}
+
+@media (max-width: 1024px) {
+  .quran-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .surah-panel {
+    position: static;
+  }
+
+  .surah-list {
+    max-height: 320px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ibadah-hero,
+  .qibla-section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .next-prayer {
+    justify-self: start;
+    width: min(360px, 100%);
+  }
+
+  .prayer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .teaser-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .ibadah-hero {
+    padding: 36px 20px 40px;
+  }
+
+  .ibadah-hero h1 {
+    font-size: clamp(1.9rem, 8vw, 2.5rem);
+  }
+
+  .next-prayer {
+    width: 100%;
+  }
+
+  .next-prayer strong {
+    font-size: 2.2rem;
+  }
+
+  .prayer-grid {
+    gap: 10px;
+  }
+
+  .prayer-card {
+    padding: 13px 14px;
+  }
+
+  .prayer-time {
+    font-size: 1.4rem;
+  }
+
+  .adzan-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .adzan-bar .button {
+    width: 100%;
+  }
+
+  .qibla-card {
+    padding: 18px;
+  }
+
+  .teaser-times {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .quran-reader {
+    padding: 16px;
+  }
+
+  .ayah-arab {
+    line-height: 2.05;
+  }
+
+  .reader-pager {
+    justify-content: center;
+  }
+
+  .reader-pager > button {
+    flex: 1 1 45%;
   }
 }
