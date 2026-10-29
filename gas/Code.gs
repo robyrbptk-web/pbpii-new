@@ -167,6 +167,7 @@ function aturUlangPasswordAdmin() {
     SpreadsheetApp.getUi().alert(message);
   } catch (error) {
     // Dipanggil dari editor Apps Script: hasil tampil di panel eksekusi.
+    Logger.log(message);
   }
   return message;
 }
@@ -180,7 +181,16 @@ function onOpen() {
     .addItem('Atur akun admin', 'configureAdmin')
     .addItem('Setel ulang password admin', 'aturUlangPasswordAdmin')
     .addItem('Segarkan teks resmi website', 'segarkanTeksResmi')
+    .addItem('Ganti teks dengan salinan resmi', 'paksaTeksResmi')
     .addToUi();
+}
+
+/**
+ * Menimpa seluruh teks kop dengan salinan resmi, termasuk nilai yang sudah
+ * pernah ditulis sebelumnya. Dipakai saat salinan resmi di repository berubah.
+ */
+function paksaTeksResmi() {
+  return segarkanTeksResmi(true);
 }
 
 /**
@@ -235,6 +245,7 @@ function segarkanTeksResmi(force) {
     SpreadsheetApp.getUi().alert(message);
   } catch (error) {
     // Dipanggil dari editor/API tanpa UI, pesan tetap dikembalikan.
+    Logger.log(message);
   }
   return message;
 }

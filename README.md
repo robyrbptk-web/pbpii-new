@@ -25,6 +25,29 @@ Jika spreadsheet dan Apps Script sudah dibuat sebelumnya, mulai dari langkah 2. 
 
 Jika menu **PB PII** belum terlihat, pastikan kedua file sudah disimpan dan muat ulang spreadsheet. Langkah membuat/menyimpan akun cukup diulang dari langkah 6 jika ingin mengganti password.
 
+### Menyinkronkan deployment lama dengan kode terbaru
+
+Sheet dan Script Properties bertahan di tempat, jadi menyalin `gas/Code.gs` saja
+tidak mengubah konten yang sudah tersimpan. Urutan yang benar untuk deployment
+yang sudah jalan:
+
+1. Editor Apps Script > tempel isi `gas/Code.gs` terbaru ke `Code.gs` > **Save**.
+2. Jalankan `setup` dari dropdown fungsi. Sheet baru (Orgs, Activities, Forms,
+   Participants, Letters) dibuat, kolom yang kurang ditambahkan, dan artikel serta
+   pengaturan lama tidak disentuh.
+3. **Deploy > Manage deployments** > pensil > **New version** > **Deploy**. Langkah
+   ini yang paling sering terlewat: tanpa versi baru, `/exec` masih menjalankan
+   kode lama sehingga fitur lembaga (daftar PW/PD/PK) menjawab "Sesi berakhir".
+4. Teks kop website: jalankan **PB PII > Ganti teks dengan salinan resmi** pada
+   spreadsheet, atau **Segarkan teks resmi website** bila tidak ingin menimpa
+   suntingan redaksi. Bedanya: yang pertama memaksa semua kunci kembali ke
+   `DEFAULT_SETTINGS`, yang kedua melewati nilai yang sudah pernah diubah lewat
+   dashboard.
+5. Lupa password admin: **PB PII > Setel ulang password admin** mengembalikan
+   username `admin` dengan kata sandi awal `DEFAULT_ADMIN_PASSWORD` di `Code.gs`.
+   Setelah itu segera ganti lewat **PB PII > Atur akun admin**; jangan Biarkan
+   kata sandi bawaan terpakai di situs produksi.
+
 ## B. Hubungkan ke Vercel
 1. Import repository GitHub ke Vercel dan pilih branch `main`.
 2. Pastikan **Root Directory** adalah root repository (`./`), bukan folder parent atau subfolder yang tidak memuat `index.html`.
