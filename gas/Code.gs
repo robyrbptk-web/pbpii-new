@@ -5,7 +5,8 @@
  * Cara pasang:
  * 1. Jalankan setup() dari spreadsheet yang terhubung.
  * 2. Tambahkan file HTML bernama AdminSetup dari AdminSetup.html.
- * 3. Atur password melalui menu spreadsheet PB PII > Atur akun admin.
+ * 3. Password awal admin: tauhid12 (ganti lewat menu PB PII > Atur akun admin).
+ *    Bila password hilang, jalankan aturUlangPasswordAdmin() lalu ganti lagi.
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  */
 const APP = {
@@ -24,6 +25,12 @@ const APP = {
   PB_ORG_ID: 'pb-pii',
   PB_ORG_NAME: 'Pengurus Besar PII'
 };
+
+/**
+ * Kata sandi admin awal. Ganti lewat menu PB PII > Atur akun admin setelah
+ * berhasil masuk, karena nilai ini tertulis di repository.
+ */
+const DEFAULT_ADMIN_PASSWORD = 'tauhid12';
 
 const ORG_HEADERS = [
   'id', 'jenjang', 'name', 'province', 'district', 'subdistrict', 'parentId',
@@ -130,8 +137,32 @@ function setup() {
 
   properties.setProperty(APP.PROP_SPREADSHEET_ID, spreadsheet.getId());
   properties.setProperty(APP.PROP_ADMIN_USERNAME, 'admin');
+  if (!properties.getProperty(APP.PROP_ADMIN_PASSWORD)) {
+    properties.setProperty(APP.PROP_ADMIN_PASSWORD, DEFAULT_ADMIN_PASSWORD);
+  }
 
-  return 'Setup selesai. Username admin adalah admin. Pilih menu PB PII > Atur akun admin untuk menyimpan password.';
+  return 'Setup selesai. Username admin: admin. Bila password belum pernah diatur, password awal: ' +
+    DEFAULT_ADMIN_PASSWORD + '. Ganti lewat menu PB PII > Atur akun admin.';
+}
+
+/**
+ * Pemulihan akun admin: setel ulang username dan kata sandi ke nilai awal.
+ * Jalankan sekali dari editor Apps Script bila kata sandi admin hilang,
+ * lalu segera ganti lewat menu PB PII > Atur akun admin.
+ */
+function aturUlangPasswordAdmin() {
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty(APP.PROP_ADMIN_USERNAME, 'admin');
+  properties.setProperty(APP.PROP_ADMIN_PASSWORD, DEFAULT_ADMIN_PASSWORD);
+  const message =
+    'Akun admin disetel ulang.\n\nUsername: admin\nKata sandi: ' + DEFAULT_ADMIN_PASSWORD +
+    '\n\nSegera ganti melalui menu PB PII > Atur akun admin.';
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (error) {
+    // Dipanggil dari editor Apps Script: hasil tampil di panel eksekusi.
+  }
+  return message;
 }
 
 /**
@@ -141,6 +172,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('PB PII')
     .addItem('Atur akun admin', 'configureAdmin')
+    .addItem('Setel ulang password admin', 'aturUlangPasswordAdmin')
     .addToUi();
 }
 

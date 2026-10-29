@@ -162,9 +162,13 @@ membaca berkas lama.
 
 Jika lupa password: buka spreadsheet → menu **PB PII → Atur akun admin** → isi
 password baru dua kali. Bila menu belum muncul, jalankan `setup()` pada editor
-Apps Script lalu muat ulang spreadsheet. Username tetap `admin` kecuali diubah
-manual di Script Properties. Halaman `/login.html` dan panel bantuan dashboard
-memuat ringkasan langkah yang sama agar bisa dibuka tanpa README.
+Apps Script lalu muat ulang spreadsheet. Bila password benar-benar tidak
+diketahui, jalankan `aturUlangPasswordAdmin()` di editor Apps Script (atau menu
+**PB PII → Setel ulang password admin**): akun kembali ke username `admin` dan
+password awal `tauhid12`, lalu segera ganti lewat menu. Username tetap `admin`
+kecuali diubah manual di Script Properties. Halaman `/login.html` dan panel
+bantuan dashboard memuat ringkasan langkah yang sama agar bisa dibuka tanpa
+README.
 
 Tombol **Periksa koneksi data** pada dashboard memanggil endpoint publik dan
 menampilkan jumlah artikel terbit/galeri, sehingga bisa dipakai memastikan
