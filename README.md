@@ -47,6 +47,7 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan CCTV, ditambah ringkasan angka langsung di beranda.
 - **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, pengingat adzan, arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini.
 - Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
+- **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
 
 ## D. Peta Global (PII Global View)
 
@@ -143,6 +144,11 @@ berada di **satu Google Spreadsheet** yang terhubung ke Apps Script:
 | Artikel | Spreadsheet → sheet `Articles` |
 | Sambutan, hero, kontak, footer | Spreadsheet → sheet `Settings` |
 | Foto galeri | Spreadsheet → sheet `Gallery` |
+| Akun lembaga PW/PD/PK | Spreadsheet → sheet `Orgs` |
+| Kegiatan lembaga | Spreadsheet → sheet `Activities` |
+| Formulir pendaftaran | Spreadsheet → sheet `Forms` |
+| Data peserta | Spreadsheet → sheet `Participants` |
+| Surat antarlebaga | Spreadsheet → sheet `Letters` |
 | ID spreadsheet | Apps Script → **Project Settings → Script Properties → `SPREADSHEET_ID`** |
 | Username admin | Script Properties → `ADMIN_USERNAME` (bawaan `admin`) |
 | Password admin | Script Properties → `ADMIN_PASSWORD` (tersimpan di akun Google, bukan di repo) |
@@ -163,6 +169,70 @@ memuat ringkasan langkah yang sama agar bisa dibuka tanpa README.
 Tombol **Periksa koneksi data** pada dashboard memanggil endpoint publik dan
 menampilkan jumlah artikel terbit/galeri, sehingga bisa dipakai memastikan
 frontend masih tersambung ke Apps Script sebelum menyalahkan akun.
+
+## G. Akun lembaga, verifikasi bertingkat, KPI, formulir, dan surat
+
+Selain akun admin website, setiap jenjang organisasi punya **satu akun resmi**
+(email + kata sandi per lembaga) yang dipakai untuk mengunggah kegiatan,
+membuat formulir peserta, dan berkirim surat.
+
+### Jenjang dan induk otomatis
+| Jenjang | Wilayah | Induk (parentId) |
+| --- | --- | --- |
+| PB | Nasional | — (akar, dibuat `setup()`) |
+| PW | Provinsi | PB PII |
+| PD | Kota/Kabupaten | PW provinsi yang sama dan sudah terverifikasi |
+| PK | Kecamatan | PD kota/kabupaten yang sama dan sudah terverifikasi |
+
+Jalankan ulang `setup()` di Apps Script setelah memperbarui kode untuk membuat
+sheet `Orgs`, `Activities`, `Forms`, `Participants`, `Letters`, dan baris akar PB.
+
+Pendaftaran terbuka di `/daftar.html`. Induk ditentukan otomatis dari provinsi
+dan kota/kabupaten; pendaftaran PD/PK ditolak bila induknya belum terverifikasi,
+dengan pesan yang menjelaskan langkah berikutnya. Data disimpan sebagai baris
+datar `id` + `parentId` di sheet `Orgs` supaya mudah dipindahkan ke Supabase
+nanti (tanpa mengubah bentuk relasi).
+
+### Verifikasi bertingkat + override PB
+- PB memverifikasi PW, PW memverifikasi PD, PD memverifikasi PK.
+- Dashboard admin (`/admin.html` → tab **Lembaga**) dapat memverifikasi atau
+  menolak semua jenjang sebagai override, serta mengatur email/kata sandi akun PB.
+- Verifikasi bisa dicabut (status kembali `pending`); akun tetap bisa masuk
+  tetapi tidak dihitung sebagai lembaga resmi.
+- Kata sandi lembaga di-hash SHA-256 dengan salt unik dan 250 iterasi; token sesi
+  (6 jam) disimpan di `CacheService`, bukan di spreadsheet.
+
+### Kegiatan dan Indeks Keaktifan (KPI)
+Kegiatan yang berstatus **terbit** menjadi dasar KPI:
+
+```
+skor = bulat(100 × (0.5 × min(1, kegiatan30/4)
+                  + 0.3 × min(1, peserta90/100)
+                  + 0.2 × min(1, formulir90/2)))
+```
+
+Label: **Sangat Aktif** ≥ 75, **Aktif** ≥ 50, **Cukup** ≥ 25, selebihnya
+**Perlu Pembinaan**. Setiap PW melihat KPI PD dan PK di bawahnya, PB melihat
+seluruh jejaring, dan kegiatan bawahan muncul di umpan aktivitas atasan.
+
+### Formulir dan data peserta
+Lembaga membuat formulir di `/lembaga.html` → **Formulir**, lalu membagikan
+tautan publik `/formulir.html?id=<formId>`. Peserta mengisi nama, asal
+sekolah/lembaga, WhatsApp, email, dan catatan. Atasan (PW/PD) dan PB dapat
+membuka data peserta kegiatan lembaga di bawahnya dan mengunduhnya sebagai CSV.
+Formulir dapat ditutup agar tidak menerima pendaftaran baru.
+
+### Surat berkategori
+Surat hanya dapat dikirim dalam jejaring sendiri (atasan/bawahan) atau ke/dari
+PB. Kategori tetap: **Kesekretariatan**, **Kebendaharaan**, **Kelembagaan**,
+**Eksternal** — tiap bidang di jenjang mana pun dapat menyaring kotak masuk
+sesuai kategorinya, menandai dibaca, dan menandai selesai.
+
+### Catatan migrasi
+Backend ini sengaja masih memakai Google Sheets + Apps Script sebagai langkah
+sementara. Skema baru (`Orgs`, `Activities`, `Forms`, `Participants`, `Letters`)
+memakai id acak, `parentId`, dan timestamp ISO agar bisa dipetakan langsung ke
+tabel Supabase tanpa mengubah kontrak API frontend.
 
 ## Penting untuk keamanan dan produksi
 - Ini starter/MVP, belum audit keamanan produksi. Gunakan hanya akun admin tepercaya, password kuat, batasi akses editor, dan jangan bagikan URL deployment atau kredensial.

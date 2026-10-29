@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Dashboard Lembaga — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <style>
+    :root{--navy:#102b49;--navy-deep:#0c2948;--blue:#176da8;--ink:#182638;--muted:#637184;--line:#e0e7ef;--soft:#f4f7fa;--green:#0e7a3d;--amber:#8a5a00;--red:#c52c35}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--soft);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.55;min-height:100dvh}
+    button,input,select,textarea{font:inherit}
+    a{color:var(--blue);text-decoration:none}
+    .hidden{display:none!important}
+    .auth-wrap{min-height:100dvh;display:grid;place-items:center;padding:max(22px,env(safe-area-inset-top)) 18px max(22px,env(safe-area-inset-bottom));background:linear-gradient(150deg,#eaf1f7,#fff 60%,#f2f6f9)}
+    .auth-card{width:min(100%,430px);background:#fff;border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 18px 55px #102b4912}
+    .auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .auth-brand img{width:44px;height:52px;object-fit:contain}
+    .auth-brand b{display:block;color:var(--navy);font-size:14px}
+    .auth-brand small{color:var(--muted);font-size:11px}
+    .auth-card h1{font-size:23px;letter-spacing:-.5px;margin:0 0 5px;color:var(--navy)}
+    .auth-card .intro{color:var(--muted);font-size:13px;margin:0 0 20px}
+    .lbl{display:block;font-size:12.5px;font-weight:750;margin:0 0 6px}
+    input,select,textarea{display:block;width:100%;border:1px solid #d5e0eb;border-radius:10px;padding:11px 12px;background:#fff;color:var(--ink);outline:none}
+    textarea{resize:vertical;min-height:90px}
+    input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
+    .auth-card .field{margin-bottom:15px}
+    .pass-wrap{position:relative}
+    .pass-wrap input{padding-right:82px}
+    .pass-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--blue);font-size:11.5px;font-weight:750;cursor:pointer}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:9px;padding:10px 15px;font-size:12.5px;font-weight:750;cursor:pointer}
+    .btn.primary{background:var(--navy);color:#fff}
+    .btn.primary:hover{background:var(--blue)}
+    .btn.secondary{background:#fff;border-color:var(--line);color:var(--ink)}
+    .btn.ghost{background:#eef4f9;color:var(--navy)}
+    .btn.danger{background:#fff0f0;border-color:#f1d1d3;color:var(--red)}
+    .btn:disabled{opacity:.55;cursor:wait}
+    .btn.full{width:100%}
+    .auth-msg{display:none;margin-top:13px;padding:11px 12px;border-radius:9px;font-size:12.5px;line-height:1.55}
+    .auth-msg.show{display:block}
+    .auth-msg.err{background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
+    .auth-msg.ok{background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
+    .auth-links{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:18px;font-size:12.5px;font-weight:700}
+    .topbar{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 20px;position:sticky;top:0;z-index:20}
+    .topbar .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .topbar .brand img{width:34px;height:40px;object-fit:contain}
+    .topbar .brand b{display:block;font-size:12.5px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
+    .topbar .brand small{display:block;color:var(--muted);font-size:10px}
+    .top-actions{display:flex;align-items:center;gap:8px}
+    .who{text-align:right;font-size:10.5px;color:var(--muted);line-height:1.35}
+    .who b{display:block;color:var(--ink);font-size:11px}
+    .layout{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:calc(100dvh - 68px)}
+    aside{background:#fff;border-right:1px solid var(--line);padding:20px 12px}
+    .side-label{font-size:9.5px;color:#8a96a5;font-weight:800;letter-spacing:1.2px;padding:0 12px;margin:0 0 8px}
+    .tab{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px;border:0;background:transparent;border-radius:9px;text-align:left;font-weight:700;color:#586678;cursor:pointer;margin-bottom:4px}
+    .tab.active,.tab:hover{background:#e9f1f8;color:var(--navy)}
+    .tab .count{background:#e4ecf4;color:var(--navy);border-radius:99px;font-size:10px;padding:1px 7px;font-weight:800}
+    main{padding:26px;min-width:0}
+    .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:20px}
+    .page-head h1{margin:0;font-size:26px;letter-spacing:-.7px;color:var(--navy)}
+    .page-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+    .panel h2{font-size:16px;margin:0 0 4px;color:var(--navy)}
+    .panel .intro{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .field{min-width:0}
+    .field.full{grid-column:1/-1}
+    .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+    .message{display:none;margin-bottom:14px;padding:11px 14px;border-radius:9px;font-size:12.5px;overflow-wrap:anywhere}
+    .message.show{display:block}
+    .message.ok{background:#eaf7ed;color:#17622d;border:1px solid #cce8d2}
+    .message.err{background:#fff0f0;color:#a51e27;border:1px solid #f0d0d3}
+    .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;background:#eef2f6;color:#5a6878;white-space:nowrap}
+    .badge.verified{background:#e7f6eb;color:#167334}
+    .badge.pending{background:#fff4d8;color:#85620d}
+    .badge.rejected{background:#ffeced;color:#a51e27}
+    .badge.cat{background:#e9f1f8;color:#164f78}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+    .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px}
+    .stat span{display:block;color:var(--muted);font-size:11px;font-weight:700}
+    .stat strong{display:block;font-size:23px;letter-spacing:-.8px;margin-top:4px;color:var(--navy)}
+    .kpi{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center}
+    .kpi-score{width:104px;height:104px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--blue) calc(var(--v) * 1%),#e8eef4 0);position:relative}
+    .kpi-score::after{content:"";position:absolute;inset:9px;background:#fff;border-radius:50%}
+    .kpi-score b{position:relative;z-index:1;font-size:27px;color:var(--navy);letter-spacing:-1px}
+    .kpi-info b{display:block;color:var(--navy);font-size:17px}
+    .kpi-info p{margin:3px 0 10px;color:var(--muted);font-size:12px}
+    .bars{display:grid;gap:7px;max-width:420px}
+    .bar{display:grid;grid-template-columns:1fr auto;gap:8px;font-size:11px;color:var(--muted)}
+    .bar i{grid-column:1/-1;height:6px;border-radius:99px;background:#e8eef4;display:block;overflow:hidden}
+    .bar i b{display:block;height:100%;background:var(--blue);border-radius:99px}
+    .list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .list-head h2{margin:0}
+    .item-list{display:grid;gap:9px}
+    .item{border:1px solid var(--line);border-radius:11px;padding:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+    .item-main{min-width:0;flex:1}
+    .item h3{font-size:13.5px;margin:0 0 4px;color:var(--ink);overflow-wrap:anywhere}
+    .item p{margin:0;color:var(--muted);font-size:11.5px}
+    .item-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .empty{border:1px dashed #d3dde6;border-radius:10px;padding:22px;text-align:center;color:var(--muted);font-size:12.5px}
+    .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+    .chip{border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:#fff;color:#586678;font-size:11px;font-weight:750;cursor:pointer}
+    .chip.active{background:#e9f1f8;border-color:#b9d2e6;color:var(--navy)}
+    .letter{border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;background:#fff}
+    .letter summary{cursor:pointer;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;list-style:none}
+    .letter summary::-webkit-details-marker{display:none}
+    .letter summary .sub{font-weight:750;font-size:12.5px;color:var(--ink);flex:1;min-width:130px}
+    .letter .body{padding:0 14px 14px;color:#3d4d60;font-size:12.5px;white-space:pre-wrap;border-top:1px dashed var(--line);padding-top:12px;margin-top:2px}
+    .letter .letter-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .letter.unread summary{background:#f7fbff}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{text-align:left;padding:8px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+    th{color:var(--muted);font-size:10.5px;letter-spacing:.4px;text-transform:uppercase}
+    .table-wrap{overflow-x:auto}
+    .modal{position:fixed;inset:0;background:#0c294866;display:grid;place-items:center;padding:18px;z-index:60}
+    .modal-card{background:#fff;border-radius:16px;width:min(100%,760px);max-height:86dvh;overflow:auto;padding:22px}
+    .modal-card h2{margin:0 0 4px;font-size:17px;color:var(--navy)}
+    .modal-card p{margin:0 0 14px;color:var(--muted);font-size:12.5px}
+    .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(-14px);top:14px;background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;font-size:12.5px;font-weight:650;z-index:80;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;max-width:90vw}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .bottom-nav{display:none}
+    .network-card{border:1px solid var(--line);border-radius:11px;padding:13px 14px}
+    .network-card .row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .network-card h3{font-size:13px;margin:0}
+    .network-card .meta{color:var(--muted);font-size:11px;margin-top:2px}
+    .network-card .kpi-mini{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--muted)}
+    .network-card .kpi-mini b{color:var(--navy)}
+    .banner{border-radius:11px;padding:12px 14px;font-size:12.5px;margin-bottom:16px;border:1px solid}
+    .banner.pending{background:#fffaec;border-color:#f0dfae;color:#6d5209}
+    .banner.rejected{background:#fff2f2;border-color:#f0cfd2;color:#8f2029}
+    .banner.verified{background:#eef8f1;border-color:#cfe8d6;color:#17622d}
+    @media(max-width:980px){
+      .layout{grid-template-columns:minmax(0,1fr)}
+      aside{display:none}
+      main{padding:18px 15px 96px}
+      .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .bottom-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:6px 4px max(6px,env(safe-area-inset-bottom));z-index:30}
+      .bottom-nav button{border:0;background:none;color:#6b7a8b;font-size:9.5px;font-weight:750;padding:7px 2px;border-radius:9px;display:grid;gap:3px;justify-items:center;cursor:pointer}
+      .bottom-nav button b{font-size:15px;font-weight:400;line-height:1}
+      .bottom-nav button.active{color:var(--navy);background:#e9f1f8}
+      .topbar .who{display:none}
+      .page-head h1{font-size:23px}
+    }
+    @media(max-width:620px){
+      .grid2{grid-template-columns:1fr}
+      .kpi{grid-template-columns:1fr;justify-items:center;text-align:center}
+      .kpi-score{width:92px;height:92px}
+      .item{flex-direction:column}
+      .item-actions{justify-content:flex-start}
+      .auth-card{padding:24px 18px;border-radius:16px}
+      .btn{padding:11px 14px}
+    }
+  </style>
+</head>
+<body>
+  <div id="authView" class="auth-wrap">
+    <main class="auth-card">
+      <div class="auth-brand">
+        <img src="/assets/logo-pii.png" alt="Logo PII">
+        <div><b>PB PII</b><small>Dashboard lembaga</small></div>
+      </div>
+      <h1>Masuk akun lembaga</h1>
+      <p class="intro">Gunakan email dan kata sandi yang didaftarkan untuk PW, PD, atau PK.</p>
+      <form id="loginForm">
+        <div class="field"><label class="lbl" for="loginEmail">Email lembaga</label><input id="loginEmail" type="email" autocomplete="username" required></div>
+        <div class="field"><label class="lbl" for="loginPassword">Kata sandi</label>
+          <div class="pass-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pass-toggle" id="togglePass">Lihat</button></div>
+        </div>
+        <button class="btn primary full" type="submit" id="loginBtn">Masuk</button>
+        <div class="auth-msg" id="loginMessage" role="status" aria-live="polite"></div>
+      </form>
+      <div class="auth-links">
+        <a href="/daftar.html">Daftar akun lembaga</a>
+        <a href="/">← Halaman utama</a>
+      </div>
+    </main>
+  </div>
+
+  <div id="appView" class="hidden">
+    <header class="topbar">
+      <div class="brand">
+        <img src="/assets/logo-pii.png" alt="Logo PII">
+        <div><b id="topOrgName">Lembaga</b><small id="topOrgRole">Memuat…</small></div>
+      </div>
+      <div class="top-actions">
+        <div class="who"><b id="topUser">Admin lembaga</b><span id="topStatus">—</span></div>
+        <button class="btn ghost" type="button" data-page="profil">Profil</button>
+        <button class="btn secondary" type="button" id="logoutBtn">Keluar</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside>
+        <div class="side-label">MENU LEMBAGA</div>
+        <button class="tab active" data-page="ringkasan">Ringkasan</button>
+        <button class="tab" data-page="kegiatan">Kegiatan <span class="count" id="tabActivities">0</span></button>
+        <button class="tab" data-page="formulir">Formulir <span class="count" id="tabForms">0</span></button>
+        <button class="tab" data-page="surat">Surat <span class="count" id="tabLetters">0</span></button>
+        <button class="tab" data-page="jejaring">Jejaring <span class="count" id="tabNetwork">0</span></button>
+        <button class="tab" data-page="profil">Profil lembaga</button>
+      </aside>
+
+      <main>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div id="bannerBox"></div>
+
+        <section id="page-ringkasan">
+          <div class="page-head"><div><h1>Ringkasan</h1><p id="ringkasanSub">Memuat data lembaga…</p></div></div>
+          <div class="stats">
+            <div class="stat"><span>Kegiatan terbit</span><strong id="statActivities">0</strong></div>
+            <div class="stat"><span>Peserta tercatat</span><strong id="statParticipants">0</strong></div>
+            <div class="stat"><span>Formulir</span><strong id="statForms">0</strong></div>
+            <div class="stat"><span>Surat belum dibaca</span><strong id="statUnread">0</strong></div>
+          </div>
+          <div class="panel">
+            <div class="list-head"><h2>Indeks Keaktifan</h2><span class="badge" id="kpiLabel">—</span></div>
+            <div class="kpi">
+              <div class="kpi-score" id="kpiRing" style="--v:0"><b id="kpiScore">0</b></div>
+              <div class="kpi-info">
+                <b id="kpiTitle">Belum ada data</b>
+                <p>50% frekuensi kegiatan 30 hari · 30% jumlah peserta 90 hari · 20% formulir 90 hari.</p>
+                <div class="bars">
+                  <div class="bar"><span>Kegiatan 30 hari</span><em id="kpiA">0</em><i><b id="kpiABar" style="width:0%"></b></i></div>
+                  <div class="bar"><span>Peserta 90 hari</span><em id="kpiP">0</em><i><b id="kpiPBar" style="width:0%"></b></i></div>
+                  <div class="bar"><span>Formulir 90 hari</span><em id="kpiF">0</em><i><b id="kpiFBar" style="width:0%"></b></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel hidden" id="pendingPanel">
+            <div class="list-head"><h2>Menunggu verifikasi Anda</h2></div>
+            <p class="intro">Lembaga di bawah Anda yang baru mendaftar. Periksa SK dan kelengkapan data sebelum menyetujui.</p>
+            <div class="item-list" id="pendingList"></div>
+          </div>
+          <div class="grid2">
+            <div class="panel">
+              <div class="list-head"><h2>Kegiatan terbaru</h2><button class="btn secondary" data-page="kegiatan">Kelola</button></div>
+              <div class="item-list" id="recentActivities"><div class="empty">Memuat…</div></div>
+            </div>
+            <div class="panel">
+              <div class="list-head"><h2>Aktivitas bawahan</h2><button class="btn secondary" data-page="jejaring">Jejaring</button></div>
+              <div class="item-list" id="recentNetwork"><div class="empty">Memuat…</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-kegiatan" class="hidden">
+          <div class="page-head">
+            <div><h1>Kegiatan</h1><p>Kegiatan yang Anda terbitkan menjadi dasar KPI dan terlihat oleh atasan.</p></div>
+            <button class="btn primary" type="button" id="newActivity">+ Tambah kegiatan</button>
+          </div>
+          <div class="panel hidden" id="activityEditor">
+            <h2 id="activityFormTitle">Tambah kegiatan</h2>
+            <p class="intro">Kegiatan berstatus draft tidak dihitung dalam KPI.</p>
+            <form id="activityForm">
+              <input type="hidden" id="aId">
+              <div class="grid2">
+                <div class="field full"><label class="lbl" for="aTitle">Judul kegiatan *</label><input id="aTitle" maxlength="180" required></div>
+                <div class="field"><label class="lbl" for="aCategory">Bidang / kategori</label>
+                  <select id="aCategory"><option>Kaderisasi</option><option>Pendidikan</option><option>Sosial</option><option>Dakwah</option><option>Organisasi</option><option>Kesekretariatan</option><option>Lainnya</option></select>
+                </div>
+                <div class="field"><label class="lbl" for="aDate">Tanggal *</label><input id="aDate" type="date" required></div>
+                <div class="field"><label class="lbl" for="aLocation">Lokasi</label><input id="aLocation" maxlength="160"></div>
+                <div class="field"><label class="lbl" for="aParticipants">Jumlah peserta</label><input id="aParticipants" type="number" min="0" step="1" value="0"></div>
+                <div class="field full"><label class="lbl" for="aCover">URL gambar (https)</label><input id="aCover" type="url" placeholder="https://..."></div>
+                <div class="field full"><label class="lbl" for="aDescription">Deskripsi</label><textarea id="aDescription" maxlength="8000" placeholder="Ringkas hasil, agenda, dan jumlah sasaran kegiatan."></textarea></div>
+                <div class="field"><label class="lbl" for="aStatus">Status</label><select id="aStatus"><option value="published">Terbitkan</option><option value="draft">Draft</option></select></div>
+              </div>
+              <div class="btn-row"><button class="btn primary" type="submit" id="saveActivityBtn">Simpan kegiatan</button><button class="btn secondary" type="button" id="cancelActivity">Batal</button></div>
+            </form>
+          </div>
+          <div class="panel">
+            <div class="list-head"><h2>Kegiatan lembaga</h2></div>
+            <div class="item-list" id="activityList"><div class="empty">Memuat…</div></div>
+          </div>
+        </section>
+
+        <section id="page-formulir" class="hidden">
+          <div class="page-head">
+            <div><h1>Formulir & peserta</h1><p>Buat pendaftaran kegiatan, lalu pantau peserta dari lembaga Anda dan bawahan.</p></div>
+            <button class="btn primary" type="button" id="newForm">+ Buat formulir</button>
+          </div>
+          <div class="panel hidden" id="formEditor">
+            <h2 id="formEditorTitle">Formulir baru</h2>
+            <p class="intro">Peserta mendaftar lewat tautan publik. Data peserta hanya dapat dilihat lembaga Anda dan atasan.</p>
+            <form id="createForm">
+              <input type="hidden" id="fId">
+              <div class="grid2">
+                <div class="field full"><label class="lbl" for="fTitle">Judul formulir *</label><input id="fTitle" maxlength="180" required></div>
+                <div class="field"><label class="lbl" for="fActivity">Kegiatan terkait</label><select id="fActivity"><option value="">Tidak terhubung kegiatan</option></select></div>
+                <div class="field"><label class="lbl" for="fStatus">Status</label><select id="fStatus"><option value="open">Dibuka</option><option value="closed">Ditutup</option></select></div>
+                <div class="field full"><label class="lbl" for="fDescription">Keterangan</label><textarea id="fDescription" maxlength="4000" placeholder="Syarat peserta, tanggal pelaksanaan, kontak panitia."></textarea></div>
+              </div>
+              <div class="btn-row"><button class="btn primary" type="submit">Simpan formulir</button><button class="btn secondary" type="button" id="cancelForm">Batal</button></div>
+            </form>
+          </div>
+          <div class="panel">
+            <div class="list-head"><h2>Formulir Anda dan bawahan</h2></div>
+            <div class="item-list" id="formList"><div class="empty">Memuat…</div></div>
+          </div>
+        </section>
+
+        <section id="page-surat" class="hidden">
+          <div class="page-head"><div><h1>Surat & pesan</h1><p>Kirim surat ke atasan atau bawahan. Kategori menentukan bidang yang menindaklanjuti.</p></div></div>
+          <div class="panel">
+            <h2>Tulis surat</h2>
+            <p class="intro">Surat hanya dapat dikirim dalam jejaring Anda (atasan/bawahan) dan ke/dari PB PII.</p>
+            <form id="letterForm">
+              <div class="grid2">
+                <div class="field"><label class="lbl" for="lTo">Tujuan *</label><select id="lTo" required></select></div>
+                <div class="field"><label class="lbl" for="lCategory">Kategori *</label><select id="lCategory"></select></div>
+                <div class="field full"><label class="lbl" for="lSubject">Subjek *</label><input id="lSubject" maxlength="180" required></div>
+                <div class="field full"><label class="lbl" for="lBody">Isi surat *</label><textarea id="lBody" maxlength="8000" required placeholder="Tulis isi surat atau pesan."></textarea></div>
+              </div>
+              <div class="btn-row"><button class="btn primary" type="submit">Kirim surat</button></div>
+            </form>
+          </div>
+          <div class="panel">
+            <div class="list-head"><h2>Kotak masuk</h2><span class="badge" id="inboxCount">0</span></div>
+            <div class="chips" id="letterFilters"></div>
+            <div class="item-list" id="inboxList"><div class="empty">Memuat…</div></div>
+          </div>
+          <div class="panel">
+            <div class="list-head"><h2>Surat terkirim</h2></div>
+            <div class="item-list" id="outboxList"><div class="empty">Belum ada surat terkirim.</div></div>
+          </div>
+        </section>
+
+        <section id="page-jejaring" class="hidden">
+          <div class="page-head"><div><h1>Jejaring lembaga</h1><p>Keaktifan PD dan PK di bawah Anda dihitung dari kegiatan yang mereka unggah.</p></div></div>
+          <div class="panel">
+            <div class="list-head"><h2>Lembaga di bawah Anda</h2><span class="badge" id="networkCount">0</span></div>
+            <p class="intro" id="networkIntro">Data mengikuti hierarki PW → PD → PK.</p>
+            <div class="item-list" id="networkList"><div class="empty">Memuat…</div></div>
+          </div>
+          <div class="panel">
+            <div class="list-head"><h2>Kegiatan terbaru bawahan</h2></div>
+            <div class="item-list" id="networkActivityList"><div class="empty">Belum ada kegiatan dari bawahan.</div></div>
+          </div>
+        </section>
+
+        <section id="page-profil" class="hidden">
+          <div class="page-head"><div><h1>Profil lembaga</h1><p>Kelengkapan data membantu proses verifikasi dan surat-menyurat.</p></div></div>
+          <div class="panel">
+            <h2>Identitas</h2>
+            <p class="intro" id="profileSummary">—</p>
+            <div class="grid2" id="profileFacts"></div>
+          </div>
+          <div class="panel">
+            <h2>Kontak & dokumen</h2>
+            <form id="profileForm">
+              <div class="grid2">
+                <div class="field"><label class="lbl" for="pPhone">Nomor WhatsApp</label><input id="pPhone" maxlength="40"></div>
+                <div class="field"><label class="lbl" for="pSkUrl">Tautan SK / surat tugas</label><input id="pSkUrl" type="url" placeholder="https://..."></div>
+              </div>
+              <div class="btn-row"><button class="btn primary" type="submit" id="saveProfileBtn">Simpan kontak</button><button class="btn danger" type="button" id="logoutBtn2">Keluar dari akun</button></div>
+            </form>
+          </div>
+          <div class="panel">
+            <h2>Catatan data</h2>
+            <p class="intro">Data lembaga, kegiatan, formulir, peserta, dan surat tersimpan di Google Spreadsheet PB PII (sheet Orgs, Activities, Forms, Participants, Letters). Hubungi admin PB PII bila perlu pemulihan akun.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <nav class="bottom-nav" id="bottomNav">
+      <button data-page="ringkasan" class="active"><b>▦</b>Ringkasan</button>
+      <button data-page="kegiatan"><b>▤</b>Kegiatan</button>
+      <button data-page="formulir"><b>▧</b>Formulir</button>
+      <button data-page="surat"><b>✉</b>Surat</button>
+      <button data-page="jejaring"><b>◉</b>Jejaring</button>
+    </nav>
+  </div>
+
+  <div class="modal hidden" id="modal">
+    <div class="modal-card">
+      <div class="list-head"><h2 id="modalTitle">Peserta</h2><button class="btn secondary" type="button" id="modalClose">Tutup</button></div>
+      <p id="modalSub"></p>
+      <div class="table-wrap" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_ENDPOINT = '/api/pii';
+    const TOKEN_KEY = 'pbpii_org_token';
+    const ORG_KEY = 'pbpii_org_name';
+    const $ = (id) => document.getElementById(id);
+    const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const token = () => sessionStorage.getItem(TOKEN_KEY) || '';
+    let state = null;
+    let editingActivity = null;
+    let editingForm = null;
+    let letterFilter = 'all';
+    let toastTimer = null;
+
+    function toast(text) {
+      const el = $('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+
+    function showLoginMessage(text, type) {
+      const el = $('loginMessage');
+      el.className = 'auth-msg show ' + type;
+      el.textContent = text;
+    }
+
+    function clearSession() {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(ORG_KEY);
+    }
+
+    async function api(action, payload = {}) {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token: token(), ...payload })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        const error = new Error(result.error || 'Permintaan gagal.');
+        if (/sesi berakhir|token tidak valid/i.test(error.message)) {
+          clearSession();
+          showAuth();
+        }
+        throw error;
+      }
+      return result.data;
+    }
+
+    function showAuth() {
+      $('appView').classList.add('hidden');
+      $('authView').classList.remove('hidden');
+      state = null;
+    }
+
+    function showApp() {
+      $('authView').classList.add('hidden');
+      $('appView').classList.remove('hidden');
+    }
+
+    function fmtDate(value) {
+      if (!value) return '—';
+      const date = new Date(value.length <= 10 ? value + 'T00:00:00' : value);
+      if (Number.isNaN(date.getTime())) return value;
+      return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+    }
+
+    function statusBadge(status) {
+      const map = { verified: 'Terverifikasi', pending: 'Menunggu', rejected: 'Ditolak' };
+      return '<span class="badge ' + esc(status) + '">' + (map[status] || status || '—') + '</span>';
+    }
+
+    function setPage(page) {
+      document.querySelectorAll('main > section').forEach((section) => section.classList.add('hidden'));
+      const target = $('page-' + page);
+      if (target) target.classList.remove('hidden');
+      document.querySelectorAll('.tab[data-page], .bottom-nav button[data-page]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.page === page);
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.addEventListener('click', (event) => {
+      const jump = event.target.closest('[data-page]');
+      if (jump) {
+        setPage(jump.dataset.page);
+      }
+    });
+
+    // ------------------------------------------------------------------ login
+
+    $('togglePass').addEventListener('click', () => {
+      const input = $('loginPassword');
+      const visible = input.type === 'password';
+      input.type = visible ? 'text' : 'password';
+      $('togglePass').textContent = visible ? 'Sembunyikan' : 'Lihat';
+    });
+
+    $('loginForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = $('loginBtn');
+      button.disabled = true;
+      button.textContent = 'Memeriksa akun…';
+      try {
+        const data = await api('orgLogin', {
+          email: $('loginEmail').value.trim(),
+          password: $('loginPassword').value
+        });
+        sessionStorage.setItem(TOKEN_KEY, data.token);
+        sessionStorage.setItem(ORG_KEY, data.org.name);
+        showLoginMessage('Masuk berhasil. Memuat dashboard…', 'ok');
+        await loadData();
+      } catch (error) {
+        showLoginMessage(error.message, 'err');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Masuk';
+      }
+    });
+
+    function logout() {
+      api('orgLogout').catch(() => {});
+      clearSession();
+      state = null;
+      location.reload();
+    }
+
+    $('logoutBtn').addEventListener('click', logout);
+    $('logoutBtn2').addEventListener('click', logout);
+
+    // ------------------------------------------------------------------- load
+
+    async function loadData(keepPage = true) {
+      try {
+        state = await api('orgData');
+      } catch (error) {
+        toast(error.message);
+        return;
+      }
+      sessionStorage.setItem(ORG_KEY, state.org.name);
+      showApp();
+      $('topOrgName').textContent = state.org.name;
+      $('topOrgRole').textContent = state.jenjangLabel + (state.org.district ? ' · ' + state.org.district : state.org.province ? ' · ' + state.org.province : '');
+      $('topUser').textContent = state.org.email || 'Akun lembaga';
+      $('topStatus').innerHTML = statusBadge(state.org.status);
+      $('tabActivities').textContent = state.stats.published;
+      $('tabForms').textContent = state.stats.forms;
+      $('tabLetters').textContent = state.stats.unread;
+      $('tabNetwork').textContent = state.stats.networkSize;
+
+      renderBanner();
+      renderRingkasan();
+      renderActivities();
+      renderForms();
+      renderLetters();
+      renderNetwork();
+      renderProfile();
+      if (!keepPage) setPage('ringkasan');
+    }
+
+    function renderBanner() {
+      const box = $('bannerBox');
+      const org = state.org;
+      if (org.status === 'pending') {
+        box.innerHTML = '<div class="banner pending"><b>Akun menunggu verifikasi.</b> Pendaftaran Anda sedang diperiksa ' +
+          esc(org.parentName || 'atasan langsung') + '. Anda dapat melengkapi profil, tetapi kegiatan, formulir, dan surat baru aktif setelah terverifikasi.</div>';
+      } else if (org.status === 'rejected') {
+        box.innerHTML = '<div class="banner rejected"><b>Pendaftaran ditolak.</b> ' + esc(org.note || 'Hubungi atasan Anda untuk rincian.') +
+          ' Lengkapi data lalu minta verifikasi ulang.</div>';
+      } else if (org.status === 'verified') {
+        box.innerHTML = '';
+      }
+    }
+
+    const canWrite = () => state && state.org.status === 'verified';
+
+    // -------------------------------------------------------------- ringkasan
+
+    function renderRingkasan() {
+      const { stats, kpi, org } = state;
+      $('statActivities').textContent = stats.published;
+      $('statParticipants').textContent = stats.participants;
+      $('statForms').textContent = stats.forms;
+      $('statUnread').textContent = stats.unread;
+      $('ringkasanSub').textContent = org.name + ' · ' + state.jenjangLabel + ' · diperbarui otomatis dari kegiatan terbit.';
+
+      $('kpiScore').textContent = kpi.score;
+      $('kpiRing').style.setProperty('--v', kpi.score);
+      $('kpiLabel').textContent = kpi.label;
+      $('kpiTitle').textContent = kpi.label + ' (' + kpi.score + '/100)';
+      $('kpiA').textContent = kpi.activities30;
+      $('kpiP').textContent = kpi.participants90;
+      $('kpiF').textContent = kpi.forms90;
+      $('kpiABar').style.width = Math.min(100, kpi.activities30 / 4 * 100) + '%';
+      $('kpiPBar').style.width = Math.min(100, kpi.participants90 / 100 * 100) + '%';
+      $('kpiFBar').style.width = Math.min(100, kpi.forms90 / 2 * 100) + '%';
+
+      const pending = state.network.filter((item) => item.status !== 'verified' && item.canVerify);
+      $('pendingPanel').classList.toggle('hidden', pending.length === 0);
+      $('pendingList').innerHTML = pending.map((item) => (
+        '<div class="item"><div class="item-main"><h3>' + esc(item.name) + '</h3>' +
+        '<p>' + esc(item.jenjang) + ' · ' + esc([item.district, item.province].filter(Boolean).join(', ')) + ' · ' +
+        statusBadge(item.status) + '</p></div>' +
+        '<div class="item-actions"><button class="btn primary" type="button" data-verify="' + esc(item.id) + '">Verifikasi</button>' +
+        '<button class="btn danger" type="button" data-reject="' + esc(item.id) + '">Tolak</button></div></div>'
+      )).join('');
+
+      $('recentActivities').innerHTML = state.activities.slice(0, 4).map((item) => (
+        '<div class="item"><div class="item-main"><h3>' + esc(item.title) + '</h3><p>' +
+        fmtDate(item.date) + ' · ' + esc(item.category) + ' · ' + (Number(item.participants) || 0) + ' peserta</p></div></div>'
+      )).join('') || '<div class="empty">Belum ada kegiatan.</div>';
+
+      $('recentNetwork').innerHTML = state.networkActivities.slice(0, 4).map((item) => (
+        '<div class="item"><div class="item-main"><h3>' + esc(item.title) + '</h3><p>' + esc(item.orgName) + ' · ' +
+        fmtDate(item.date) + ' · ' + (Number(item.participants) || 0) + ' peserta</p></div></div>'
+      )).join('') || '<div class="empty">Belum ada kegiatan dari bawahan.</div>';
+    }
+
+    // --------------------------------------------------------------- kegiatan
+
+    function resetActivityForm() {
+      editingActivity = null;
+      $('activityForm').reset();
+      $('aId').value = '';
+      $('aDate').value = new Date().toISOString().slice(0, 10);
+      $('aStatus').value = 'published';
+      $('activityFormTitle').textContent = 'Tambah kegiatan';
+      $('activityEditor').classList.remove('hidden');
+      $('activityEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('aTitle').focus();
+    }
+
+    $('newActivity').addEventListener('click', () => {
+      if (!canWrite()) return toast('Akun belum terverifikasi.');
+      resetActivityForm();
+    });
+    $('cancelActivity').addEventListener('click', () => $('activityEditor').classList.add('hidden'));
+
+    $('activityForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = $('saveActivityBtn');
+      button.disabled = true;
+      try {
+        await api('orgSaveActivity', {
+          activity: {
+            id: $('aId').value,
+            title: $('aTitle').value.trim(),
+            category: $('aCategory').value,
+            date: $('aDate').value,
+            location: $('aLocation').value.trim(),
+            participants: Number($('aParticipants').value) || 0,
+            coverImage: $('aCover').value.trim(),
+            description: $('aDescription').value,
+            status: $('aStatus').value
+          }
+        });
+        $('activityEditor').classList.add('hidden');
+        await loadData();
+        toast('Kegiatan tersimpan.');
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    function editActivity(id) {
+      const item = state.activities.find((row) => row.id === id);
+      if (!item) return;
+      editingActivity = item;
+      $('aId').value = item.id;
+      $('aTitle').value = item.title || '';
+      $('aCategory').value = item.category || 'Kaderisasi';
+      $('aDate').value = String(item.date || '').slice(0, 10);
+      $('aLocation').value = item.location || '';
+      $('aParticipants').value = Number(item.participants) || 0;
+      $('aCover').value = item.coverImage || '';
+      $('aDescription').value = item.description || '';
+      $('aStatus').value = item.status || 'published';
+      $('activityFormTitle').textContent = 'Edit kegiatan';
+      $('activityEditor').classList.remove('hidden');
+      $('activityEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function deleteActivity(id) {
+      if (!confirm('Hapus kegiatan ini? Data KPI akan dihitung ulang.')) return;
+      try {
+        await api('orgDeleteActivity', { id });
+        await loadData();
+        toast('Kegiatan dihapus.');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    function renderActivities() {
+      const rows = state.activities;
+      $('activityList').innerHTML = rows.map((item) => (
+        '<div class="item"><div class="item-main"><h3>' + esc(item.title) + ' ' +
+        '<span class="badge ' + (item.status === 'published' ? 'verified' : 'pending') + '">' +
+        (item.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3>' +
+        '<p>' + fmtDate(item.date) + ' · ' + esc(item.category) + ' · ' + (Number(item.participants) || 0) +
+        ' peserta · ' + esc(item.location || 'Tanpa lokasi') + '</p></div>' +
+        '<div class="item-actions"><button class="btn secondary" type="button" data-edit-activity="' + esc(item.id) + '">Edit</button>' +
+        '<button class="btn danger" type="button" data-delete-activity="' + esc(item.id) + '">Hapus</button></div></div>'
+      )).join('') || '<div class="empty">Belum ada kegiatan. Tambahkan kegiatan pertama lembaga Anda.</div>';
+    }
+
+    // --------------------------------------------------------------- formulir
+
+    function renderForms() {
+      $('fActivity').innerHTML = '<option value="">Tidak terhubung kegiatan</option>' + state.activities
+        .map((item) => '<option value="' + esc(item.id) + '">' + esc(item.title) + '</option>').join('');
+
+      $('formList').innerHTML = state.forms.map((form) => (
+        '<div class="item"><div class="item-main"><h3>' + esc(form.title) + ' ' +
+        '<span class="badge ' + (form.status === 'open' ? 'verified' : 'pending') + '">' + (form.status === 'open' ? 'DIBUKA' : 'DITUTUP') + '</span></h3>' +
+        '<p>' + (form.mine ? 'Milik lembaga Anda' : esc(form.orgName)) + ' · ' + form.participantCount + ' peserta · ' +
+        fmtDate(form.createdAt) + '</p></div><div class="item-actions">' +
+        '<button class="btn secondary" type="button" data-participants="' + esc(form.id) + '">Peserta (' + form.participantCount + ')</button>' +
+        '<button class="btn secondary" type="button" data-copy-form="' + esc(form.id) + '">Salin tautan</button>' +
+        (form.mine ? '<button class="btn secondary" type="button" data-toggle-form="' + esc(form.id) + '">' +
+          (form.status === 'open' ? 'Tutup' : 'Buka') + '</button>' +
+          '<button class="btn secondary" type="button" data-edit-form="' + esc(form.id) + '">Edit</button>' : '') +
+        '</div></div>'
+      )).join('') || '<div class="empty">Belum ada formulir.</div>';
+    }
+
+    $('newForm').addEventListener('click', () => {
+      if (!canWrite()) return toast('Akun belum terverifikasi.');
+      editingForm = null;
+      $('createForm').reset();
+      $('fId').value = '';
+      $('fStatus').value = 'open';
+      $('formEditorTitle').textContent = 'Formulir baru';
+      $('formEditor').classList.remove('hidden');
+      $('formEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('fTitle').focus();
+    });
+    $('cancelForm').addEventListener('click', () => $('formEditor').classList.add('hidden'));
+
+    $('createForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await api('orgSaveForm', {
+          form: {
+            id: $('fId').value,
+            title: $('fTitle').value.trim(),
+            activityId: $('fActivity').value,
+            status: $('fStatus').value,
+            description: $('fDescription').value
+          }
+        });
+        $('formEditor').classList.add('hidden');
+        await loadData();
+        toast('Formulir tersimpan.');
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+
+    function editForm(id) {
+      const form = state.forms.find((row) => row.id === id);
+      if (!form) return;
+      editingForm = form;
+      $('fId').value = form.id;
+      $('fTitle').value = form.title || '';
+      $('fActivity').value = form.activityId || '';
+      $('fStatus').value = form.status || 'open';
+      $('fDescription').value = form.description || '';
+      $('formEditorTitle').textContent = 'Edit formulir';
+      $('formEditor').classList.remove('hidden');
+      $('formEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function toggleForm(id) {
+      const form = state.forms.find((row) => row.id === id);
+      if (!form) return;
+      try {
+        await api('orgSetFormStatus', { id, status: form.status === 'open' ? 'closed' : 'open' });
+        await loadData();
+        toast('Status formulir diperbarui.');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    function copyFormLink(id) {
+      const url = location.origin + '/formulir.html?id=' + encodeURIComponent(id);
+      const done = () => toast('Tautan disalin: ' + url);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(() => prompt('Salin tautan formulir:', url));
+      } else {
+        prompt('Salin tautan formulir:', url);
+      }
+    }
+
+    async function openParticipants(formId) {
+      try {
+        const data = await api('orgParticipants', { formId });
+        $('modalTitle').textContent = data.form.title;
+        $('modalSub').textContent = data.participants.length + ' peserta terdaftar. Data ini juga dapat diunduh sebagai CSV.';
+        $('modalBody').innerHTML = data.participants.length ? (
+          '<table><thead><tr><th>Nama</th><th>Asal</th><th>Kontak</th><th>Catatan</th><th>Tanggal</th><th></th></tr></thead><tbody>' +
+          data.participants.map((row) => (
+            '<tr><td>' + esc(row.name) + '</td><td>' + esc(row.institution) + '</td><td>' +
+            esc([row.phone, row.email].filter(Boolean).join(' · ')) + '</td><td>' + esc(row.note) + '</td><td>' +
+            fmtDate(row.createdAt) + '</td><td>' + (data.canDelete
+              ? '<button class="btn danger" type="button" data-delete-participant="' + esc(row.id) + '">Hapus</button>' : '') +
+            '</td></tr>'
+          )).join('') + '</tbody></table>'
+        ) : '<div class="empty">Belum ada peserta.</div>';
+
+        const csvButton = document.createElement('button');
+        csvButton.className = 'btn secondary';
+        csvButton.type = 'button';
+        csvButton.textContent = 'Unduh CSV';
+        csvButton.style.marginTop = '12px';
+        csvButton.addEventListener('click', () => downloadCsv(data.form.title, data.participants));
+        $('modalBody').appendChild(csvButton);
+        $('modal').classList.remove('hidden');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    function downloadCsv(title, rows) {
+      const head = ['Nama', 'Asal', 'WhatsApp', 'Email', 'Catatan', 'Tanggal'];
+      const body = rows.map((row) => [row.name, row.institution, row.phone, row.email, row.note, row.createdAt]);
+      const csv = [head].concat(body).map((line) => line.map((cell) => '"' + String(cell == null ? '' : cell).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'peserta-' + String(title || 'kegiatan').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    $('modalClose').addEventListener('click', () => $('modal').classList.add('hidden'));
+    $('modal').addEventListener('click', (event) => {
+      if (event.target === $('modal')) $('modal').classList.add('hidden');
+    });
+
+    async function deleteParticipant(id) {
+      if (!confirm('Hapus data peserta ini?')) return;
+      try {
+        await api('orgDeleteParticipant', { id });
+        toast('Peserta dihapus.');
+        $('modal').classList.add('hidden');
+        await loadData();
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    // ------------------------------------------------------------------ surat
+
+    function renderLetters() {
+      $('lTo').innerHTML = state.contacts.length
+        ? state.contacts.map((org) => '<option value="' + esc(org.id) + '">' + esc(org.name) + ' (' + esc(org.jenjang) + ')</option>').join('')
+        : '<option value="">Belum ada tujuan yang tersedia</option>';
+      $('lCategory').innerHTML = state.categories.map((category) => '<option>' + esc(category) + '</option>').join('');
+
+      const filters = ['all', 'unread'].concat(state.categories);
+      $('letterFilters').innerHTML = filters.map((value) => (
+        '<button class="chip' + (letterFilter === value ? ' active' : '') + '" type="button" data-filter="' + esc(value) + '">' +
+        (value === 'all' ? 'Semua' : value === 'unread' ? 'Belum dibaca' : value) + '</button>'
+      )).join('');
+
+      const inbox = state.letters.inbox.filter((letter) => {
+        if (letterFilter === 'all') return true;
+        if (letterFilter === 'unread') return letter.status === 'unread';
+        return letter.category === letterFilter;
+      });
+
+      $('inboxCount').textContent = state.letters.inbox.filter((letter) => letter.status === 'unread').length + ' belum dibaca';
+      $('inboxList').innerHTML = inbox.map((letter) => (
+        '<details class="letter ' + (letter.status === 'unread' ? 'unread' : '') + '">' +
+        '<summary><span class="badge cat">' + esc(letter.category) + '</span><span class="sub">' + esc(letter.subject) + '</span>' +
+        '<span class="badge ' + (letter.status === 'unread' ? 'pending' : 'verified') + '">' +
+        (letter.status === 'unread' ? 'BARU' : letter.status === 'done' ? 'SELESAI' : 'DIBACA') + '</span>' +
+        '<small style="color:#7b8898;font-size:11px">' + esc(letter.fromName) + ' · ' + fmtDate(letter.createdAt) + '</small></summary>' +
+        '<div class="body">' + esc(letter.body) + '</div>' +
+        '<div class="letter-actions">' +
+        (letter.status !== 'read' ? '<button class="btn secondary" type="button" data-letter="' + esc(letter.id) + '" data-status="read">Tandai dibaca</button>' : '') +
+        (letter.status !== 'done' ? '<button class="btn ghost" type="button" data-letter="' + esc(letter.id) + '" data-status="done">Tandai selesai</button>' : '') +
+        '</div></details>'
+      )).join('') || '<div class="empty">Tidak ada surat pada saringan ini.</div>';
+
+      $('outboxList').innerHTML = state.letters.outbox.map((letter) => (
+        '<details class="letter"><summary><span class="badge cat">' + esc(letter.category) + '</span>' +
+        '<span class="sub">' + esc(letter.subject) + '</span><small style="color:#7b8898;font-size:11px">Ke ' +
+        esc(letter.toName) + ' · ' + fmtDate(letter.createdAt) + '</small></summary>' +
+        '<div class="body">' + esc(letter.body) + '</div></details>'
+      )).join('') || '<div class="empty">Belum ada surat terkirim.</div>';
+    }
+
+    $('letterFilters').addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-filter]');
+      if (!chip) return;
+      letterFilter = chip.dataset.filter;
+      renderLetters();
+    });
+
+    $('letterForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!canWrite()) return toast('Akun belum terverifikasi.');
+      try {
+        await api('orgSendLetter', {
+          toOrgId: $('lTo').value,
+          category: $('lCategory').value,
+          subject: $('lSubject').value.trim(),
+          body: $('lBody').value
+        });
+        $('lSubject').value = '';
+        $('lBody').value = '';
+        await loadData();
+        toast('Surat terkirim.');
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+
+    async function markLetter(id, status) {
+      try {
+        await api('orgMarkLetter', { id, status });
+        await loadData();
+        toast(status === 'done' ? 'Surat ditandai selesai.' : 'Surat ditandai dibaca.');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    // --------------------------------------------------------------- jejaring
+
+    function renderNetwork() {
+      $('networkCount').textContent = state.network.length;
+      $('networkIntro').textContent = state.network.length
+        ? 'Kegiatan 30/90 hari, peserta, dan formulir dihitung dari data yang diunggah masing-masing lembaga.'
+        : 'Belum ada lembaga bawahan yang terdaftar.';
+
+      $('networkList').innerHTML = state.network.map((item) => (
+        '<div class="network-card"><div class="row"><div><h3>' + esc(item.name) + ' ' + statusBadge(item.status) + '</h3>' +
+        '<p class="meta">' + esc(item.jenjang) + ' · ' + esc([item.subdistrict, item.district, item.province].filter(Boolean).join(', ')) + '</p></div>' +
+        '<span class="badge cat">' + item.kpi.score + ' · ' + esc(item.kpi.label) + '</span></div>' +
+        '<div class="kpi-mini"><span><b>' + item.kpi.activities30 + '</b> kegiatan 30 hari</span>' +
+        '<span><b>' + item.kpi.activities90 + '</b> kegiatan 90 hari</span>' +
+        '<span><b>' + item.kpi.participants90 + '</b> peserta 90 hari</span>' +
+        '<span><b>' + item.kpi.forms90 + '</b> formulir 90 hari</span></div>' +
+        (item.status !== 'verified' && item.canVerify
+          ? '<div class="letter-actions"><button class="btn primary" type="button" data-verify="' + esc(item.id) + '">Verifikasi</button>' +
+            '<button class="btn danger" type="button" data-reject="' + esc(item.id) + '">Tolak</button></div>'
+          : '') +
+        '</div>'
+      )).join('') || '<div class="empty">Belum ada bawahan terdaftar.</div>';
+
+      $('networkActivityList').innerHTML = state.networkActivities.map((item) => (
+        '<div class="item"><div class="item-main"><h3>' + esc(item.title) + '</h3><p>' +
+        esc(item.orgName) + ' · ' + fmtDate(item.date) + ' · ' + (Number(item.participants) || 0) + ' peserta · ' + esc(item.category) + '</p></div></div>'
+      )).join('') || '<div class="empty">Belum ada kegiatan dari bawahan.</div>';
+    }
+
+    async function verifyOrg(id, decision) {
+      let note = '';
+      if (decision === 'rejected') {
+        note = prompt('Alasan penolakan (dikirim ke lembaga):', 'Data belum lengkap.');
+        if (note === null) return;
+      } else if (!confirm('Verifikasi lembaga ini sebagai akun resmi?')) {
+        return;
+      }
+      try {
+        await api('orgVerify', { id, decision, note });
+        await loadData();
+        toast(decision === 'verified' ? 'Lembaga terverifikasi.' : 'Pendaftaran ditolak.');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    // ----------------------------------------------------------------- profil
+
+    function renderProfile() {
+      const org = state.org;
+      $('profileSummary').textContent = org.name + ' — ' + state.jenjangLabel + '. Status akun: ' + (org.status === 'verified' ? 'resmi/terverifikasi' : org.status) + '.';
+      const facts = [
+        ['Jenjang', state.jenjangLabel],
+        ['Provinsi', org.province || '—'],
+        ['Kota/Kabupaten', org.district || '—'],
+        ['Kecamatan', org.subdistrict || '—'],
+        ['Induk', org.parentName || '—'],
+        ['Email', org.email || '—'],
+        ['WhatsApp', org.phone || '—'],
+        ['Diverifikasi', org.verifiedAt ? fmtDate(org.verifiedAt) + ' oleh ' + (org.verifiedBy || '—') : '—']
+      ];
+      $('profileFacts').innerHTML = facts.map(([label, value]) => (
+        '<div class="field"><span class="hint">' + esc(label) + '</span><div style="font-weight:700;color:var(--navy);font-size:13px;margin-top:2px">' + esc(value) + '</div></div>'
+      )).join('');
+      $('pPhone').value = org.phone || '';
+      $('pSkUrl').value = org.skUrl || '';
+    }
+
+    $('profileForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = $('saveProfileBtn');
+      button.disabled = true;
+      try {
+        await api('orgProfile', { phone: $('pPhone').value.trim(), skUrl: $('pSkUrl').value.trim() });
+        await loadData();
+        toast('Profil diperbarui.');
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    // ------------------------------------------------------------ event wiring
+
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      const verify = target.closest('[data-verify]');
+      if (verify) return verifyOrg(verify.dataset.verify, 'verified');
+      const reject = target.closest('[data-reject]');
+      if (reject) return verifyOrg(reject.dataset.reject, 'rejected');
+      const editA = target.closest('[data-edit-activity]');
+      if (editA) return editActivity(editA.dataset.editActivity);
+      const delA = target.closest('[data-delete-activity]');
+      if (delA) return deleteActivity(delA.dataset.deleteActivity);
+      const parts = target.closest('[data-participants]');
+      if (parts) return openParticipants(parts.dataset.participants);
+      const copy = target.closest('[data-copy-form]');
+      if (copy) return copyFormLink(copy.dataset.copyForm);
+      const toggle = target.closest('[data-toggle-form]');
+      if (toggle) return toggleForm(toggle.dataset.toggleForm);
+      const editF = target.closest('[data-edit-form]');
+      if (editF) return editForm(editF.dataset.editForm);
+      const delP = target.closest('[data-delete-participant]');
+      if (delP) return deleteParticipant(delP.dataset.deleteParticipant);
+      const letter = target.closest('[data-letter]');
+      if (letter) return markLetter(letter.dataset.letter, letter.dataset.status);
+    });
+
+    $('bottomNav').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-page]');
+      if (button) setPage(button.dataset.page);
+    });
+
+    // ------------------------------------------------------------------- boot
+
+    (async () => {
+      if (!token()) {
+        showAuth();
+        return;
+      }
+      try {
+        await loadData(false);
+        setPage('ringkasan');
+      } catch (error) {
+        showAuth();
+      }
+    })();
+  </script>
+  <script src="site.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Pendaftaran Kegiatan — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <style>
+    :root{--navy:#102b49;--blue:#176da8;--ink:#182638;--muted:#637184;--line:#e0e7ef;--soft:#f4f7fa}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(160deg,#eaf1f7,#fff 55%,#f2f6f9);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);min-height:100dvh}
+    a{color:var(--blue);text-decoration:none}
+    .wrap{width:min(100%,660px);margin:0 auto;padding:max(22px,env(safe-area-inset-top)) 18px max(40px,env(safe-area-inset-bottom))}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    .brand img{width:42px;height:50px;object-fit:contain}
+    .brand b{display:block;color:var(--navy);font-size:14px}
+    .brand small{color:var(--muted);font-size:11px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 16px 45px #102b4910}
+    .eyebrow{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--blue)}
+    h1{font-size:24px;letter-spacing:-.6px;margin:6px 0 6px;color:var(--navy);overflow-wrap:anywhere}
+    .org{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+    .desc{font-size:13px;color:#3d4d60;background:#f7fafc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:20px;white-space:pre-wrap}
+    .lbl{display:block;font-size:12.5px;font-weight:750;margin:0 0 6px}
+    .field{margin-bottom:14px}
+    input,textarea{display:block;width:100%;border:1px solid #d5e0eb;border-radius:10px;padding:12px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);outline:none}
+    textarea{resize:vertical;min-height:80px}
+    input:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
+    .hint{font-size:11px;color:var(--muted);margin-top:4px}
+    button.primary{width:100%;border:0;background:var(--navy);color:#fff;padding:14px;border-radius:11px;font:inherit;font-weight:800;margin-top:8px;cursor:pointer}
+    button.primary:hover{background:var(--blue)}
+    button.primary:disabled{opacity:.6;cursor:wait}
+    .msg{display:none;margin-bottom:14px;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.55}
+    .msg.show{display:block}
+    .msg.err{background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
+    .msg.ok{background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
+    .closed{border:1px solid #f0dfae;background:#fffaec;color:#6d5209;border-radius:11px;padding:14px;font-size:13px}
+    .success{text-align:center;padding:18px 4px}
+    .success h2{color:var(--navy);margin:0 0 8px;font-size:20px}
+    .success p{color:var(--muted);font-size:13px;margin:0 0 6px}
+    .foot{margin-top:18px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .hidden{display:none!important}
+    @media(max-width:520px){.card{padding:21px 17px;border-radius:15px}input,textarea{min-height:46px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <img src="/assets/logo-pii.png" alt="Logo PII">
+      <div><b>PB PII</b><small>Pendaftaran peserta kegiatan</small></div>
+    </div>
+
+    <main class="card">
+      <div id="loading" class="msg show ok">Memuat formulir…</div>
+      <div id="errorBox" class="msg err"></div>
+
+      <div id="formView" class="hidden">
+        <div class="eyebrow" id="formOrg">PB PII</div>
+        <h1 id="formTitle">—</h1>
+        <p class="org" id="formMeta">—</p>
+        <div class="desc" id="formDesc"></div>
+        <div id="closedBox" class="closed hidden">Formulir ini sudah ditutup. Hubungi panitia bila masih perlu mendaftar.</div>
+        <div class="msg ok" id="formMessage" role="status" aria-live="polite"></div>
+        <form id="registerForm">
+          <div class="field"><label class="lbl" for="rName">Nama lengkap *</label><input id="rName" maxlength="120" required></div>
+          <div class="field"><label class="lbl" for="rInstitution">Asal sekolah / lembaga</label><input id="rInstitution" maxlength="160"></div>
+          <div class="field"><label class="lbl" for="rPhone">Nomor WhatsApp</label><input id="rPhone" inputmode="tel" maxlength="40"></div>
+          <div class="field"><label class="lbl" for="rEmail">Email</label><input id="rEmail" type="email" maxlength="160"></div>
+          <div class="field"><label class="lbl" for="rNote">Catatan</label><textarea id="rNote" maxlength="1000" placeholder="Kebutuhan khusus, asal daerah, atau pertanyaan."></textarea></div>
+          <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
+        </form>
+      </div>
+
+      <div id="successView" class="success hidden">
+        <h2>Pendaftaran tercatat</h2>
+        <p id="successText">Terima kasih. Panitia akan menghubungi Anda melalui kontak yang diberikan.</p>
+        <p><a href="/">← Kembali ke website PB PII</a></p>
+      </div>
+
+      <div class="foot">
+        <a href="/lembaga.html">Masuk akun lembaga</a>
+        <a href="/">Halaman utama</a>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_ENDPOINT = '/api/pii';
+    const $ = (id) => document.getElementById(id);
+    const formId = new URLSearchParams(location.search).get('id') || '';
+    let formData = null;
+
+    function showError(text) {
+      $('errorBox').className = 'msg show err';
+      $('errorBox').textContent = text;
+      $('loading').classList.add('hidden');
+    }
+
+    (async () => {
+      if (!formId) return showError('Tautan formulir tidak lengkap. Minta ulang tautan kepada panitia.');
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'publicForm', id: formId })
+        });
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.error || 'Formulir tidak dapat dimuat.');
+        formData = result.data;
+
+        $('formOrg').textContent = formData.org.name;
+        $('formTitle').textContent = formData.title;
+        $('formMeta').textContent = [
+          formData.activityTitle,
+          formData.org.district || formData.org.province,
+          formData.registered + ' peserta terdaftar'
+        ].filter(Boolean).join(' · ');
+        $('formDesc').textContent = formData.description || '';
+        $('formDesc').classList.toggle('hidden', !formData.description);
+
+        $('loading').classList.add('hidden');
+        $('formView').classList.remove('hidden');
+        if (formData.status !== 'open') {
+          $('closedBox').classList.remove('hidden');
+          $('registerForm').classList.add('hidden');
+        }
+        document.title = formData.title + ' — PB PII';
+      } catch (error) {
+        showError(error.message);
+      }
+    })();
+
+    $('registerForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const name = $('rName').value.trim();
+      const phone = $('rPhone').value.trim();
+      const email = $('rEmail').value.trim();
+      if (!name) return;
+      if (!phone && !email) {
+        $('formMessage').className = 'msg show err';
+        $('formMessage').textContent = 'Isi nomor WhatsApp atau email agar panitia dapat menghubungi.';
+        return;
+      }
+
+      const button = $('submitBtn');
+      button.disabled = true;
+      button.textContent = 'Mengirim…';
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'publicRegister',
+            formId,
+            name,
+            institution: $('rInstitution').value.trim(),
+            phone,
+            email,
+            note: $('rNote').value.trim()
+          })
+        });
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.error || 'Pendaftaran gagal.');
+        $('formView').classList.add('hidden');
+        $('successView').classList.remove('hidden');
+        $('successText').textContent = 'Terima kasih, ' + name + '. Pendaftaran Anda untuk "' + formData.title + '" tercatat. Panitia akan menghubungi melalui ' + (phone ? 'WhatsApp ' + phone : 'email ' + email) + '.';
+      } catch (error) {
+        $('formMessage').className = 'msg show err';
+        $('formMessage').textContent = error.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Kirim pendaftaran';
+      }
+    });
+  </script>
+  <script src="site.js" defer></script>
+</body>
+</html>

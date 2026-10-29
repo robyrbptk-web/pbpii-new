@@ -55,6 +55,13 @@
       "description": "Kelola artikel, sambutan, dan galeri.",
       "url": "/admin.html",
       "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Dashboard lembaga",
+      "short_name": "Lembaga",
+      "description": "Akun resmi PW, PD, dan PK: kegiatan, KPI, formulir, dan surat.",
+      "url": "/lembaga.html",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

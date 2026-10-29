@@ -588,6 +588,13 @@ footer > small {
   font-size: .8rem;
 }
 
+.footer-auth {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 .empty-state {
   grid-column: 1 / -1;
   border: 1px dashed #cbd7e3;
@@ -787,9 +794,11 @@ footer > small {
     grid-row: 1;
   }
 
-  footer .admin-link {
+  footer .footer-auth {
     grid-column: 2;
     grid-row: 1;
+    justify-content: flex-end;
+    gap: 12px;
   }
 
   footer > p {

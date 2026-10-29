@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Daftar Akun Lembaga — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <style>
+    :root{--navy:#102b49;--navy-deep:#0c2948;--blue:#176da8;--ink:#182638;--muted:#637184;--line:#e0e7ef;--soft:#f4f7fa;--green:#0e7a3d;--red:#c52c35}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(160deg,#eaf1f7,#fff 55%,#f2f6f9);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);min-height:100dvh}
+    a{color:var(--blue);text-decoration:none}
+    .wrap{width:min(100%,720px);margin:0 auto;padding:max(22px,env(safe-area-inset-top)) 18px max(40px,env(safe-area-inset-bottom))}
+    .brand{display:flex;align-items:center;gap:13px;margin-bottom:20px}
+    .brand img{width:46px;height:54px;object-fit:contain}
+    .brand b{display:block;color:var(--navy);font-size:15px;letter-spacing:.4px}
+    .brand small{color:var(--muted);font-size:11px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 16px 45px #102b4910}
+    h1{font-size:24px;letter-spacing:-.5px;margin:0 0 6px;color:var(--navy)}
+    .intro{color:var(--muted);font-size:13.5px;margin:0 0 22px}
+    .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+    .seg label{border:1px solid #d5e0eb;border-radius:11px;padding:11px 10px;text-align:center;font-size:12.5px;font-weight:750;color:#4a5a6d;cursor:pointer;background:#fff}
+    .seg input{position:absolute;opacity:0;pointer-events:none}
+    .seg label.sel{background:#e8f1f8;border-color:#a9c9e2;color:var(--navy);box-shadow:inset 0 0 0 1px #a9c9e2}
+    .seg small{display:block;font-weight:600;font-size:10.5px;color:var(--muted);margin-top:3px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+    .field{min-width:0}
+    .field.full{grid-column:1/-1}
+    label.lbl{display:block;font-size:12.5px;font-weight:750;margin:0 0 6px}
+    input,select,textarea{display:block;width:100%;border:1px solid #d5e0eb;border-radius:10px;padding:12px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);outline:none}
+    textarea{resize:vertical;min-height:74px}
+    input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
+    .hint{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+    .hint.warn{color:#8a5a00}
+    .preview{margin-top:7px;padding:12px 14px;border:1px dashed #c9d7e4;border-radius:10px;background:#f8fbfd;font-size:12.5px;color:#42546a}
+    .preview b{color:var(--navy)}
+    button.primary{width:100%;border:0;background:var(--navy);color:#fff;padding:14px;border-radius:11px;font:inherit;font-weight:800;margin-top:22px;cursor:pointer;transition:background .2s,transform .2s}
+    button.primary:hover{background:var(--blue);transform:translateY(-1px)}
+    button.primary:disabled{opacity:.6;cursor:wait;transform:none}
+    .msg{display:none;margin-top:16px;padding:13px 14px;border-radius:10px;font-size:13px;line-height:1.6}
+    .msg.show{display:block}
+    .msg.err{background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
+    .msg.ok{background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
+    .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:20px;font-size:12.5px;font-weight:700}
+    @media(max-width:560px){.grid{grid-template-columns:1fr}.card{padding:21px 17px;border-radius:15px}.seg{grid-template-columns:1fr}.seg label{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:12px 14px}.seg small{margin:0}.seg small{margin-left:8px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <img src="/assets/logo-pii.png" alt="Logo PII">
+      <div><b>PB PII</b><small>Pendaftaran akun lembaga resmi</small></div>
+    </div>
+
+    <main class="card">
+      <h1>Daftar akun lembaga</h1>
+      <p class="intro">Akun untuk Pengurus Wilayah (provinsi), Pengurus Daerah (kota/kabupaten), dan Pengurus Komisariat (kecamatan). Setelah didaftarkan, atasan langsung atau PB PII akan memverifikasi agar akun berstatus resmi.</p>
+
+      <form id="registerForm" novalidate>
+        <label class="lbl">Jenjang lembaga</label>
+        <div class="seg" id="jenjangSeg">
+          <label class="sel"><input type="radio" name="jenjang" value="PW" checked>PW<small>Provinsi</small></label>
+          <label><input type="radio" name="jenjang" value="PD">PD<small>Kota/Kab.</small></label>
+          <label><input type="radio" name="jenjang" value="PK">PK<small>Kecamatan</small></label>
+        </div>
+
+        <div class="grid" style="margin-top:18px">
+          <div class="field">
+            <label class="lbl" for="province">Provinsi *</label>
+            <select id="province" required><option value="">Memuat provinsi…</option></select>
+          </div>
+          <div class="field" id="districtField" hidden>
+            <label class="lbl" for="district">Kota / Kabupaten *</label>
+            <select id="district" hidden></select>
+            <input id="districtText" placeholder="Contoh: Kota Bandung">
+          </div>
+          <div class="field" id="subdistrictField" hidden>
+            <label class="lbl" for="subdistrict">Kecamatan *</label>
+            <input id="subdistrict" placeholder="Contoh: Coblong">
+          </div>
+          <div class="field full">
+            <div class="preview" id="namePreview">Nama lembaga: <b>—</b></div>
+            <div class="hint" id="parentHint">Pilih provinsi untuk melihat induk organisasi.</div>
+          </div>
+
+          <div class="field full"><label class="lbl" for="email">Email lembaga *</label><input id="email" type="email" autocomplete="email" placeholder="sekretariat@contoh.org" required><div class="hint">Satu email untuk satu lembaga. Email ini dipakai untuk login.</div></div>
+          <div class="field"><label class="lbl" for="password">Kata sandi *</label><input id="password" type="password" autocomplete="new-password" minlength="8" placeholder="Minimal 8 karakter" required></div>
+          <div class="field"><label class="lbl" for="password2">Ulangi kata sandi *</label><input id="password2" type="password" autocomplete="new-password" minlength="8" required></div>
+          <div class="field"><label class="lbl" for="phone">Nomor WhatsApp</label><input id="phone" inputmode="tel" placeholder="08xx"></div>
+          <div class="field"><label class="lbl" for="skUrl">Tautan SK / surat tugas</label><input id="skUrl" type="url" placeholder="https://drive.google.com/..."><div class="hint">Opsional, memudahkan verifikasi.</div></div>
+          <div class="field full"><label class="lbl" for="note">Catatan untuk verifikator</label><textarea id="note" maxlength="500" placeholder="Contoh: SK periode 2025–2029, kontak sekretaris."></textarea></div>
+        </div>
+
+        <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
+        <div class="msg" id="message" role="status" aria-live="polite"></div>
+      </form>
+
+      <div class="foot">
+        <a href="/lembaga.html">Sudah punya akun? Masuk</a>
+        <a href="/">← Halaman utama</a>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_ENDPOINT = '/api/pii';
+    const LAINNYA = { PW: 'Pengurus Wilayah PII', PD: 'Pengurus Daerah PII', PK: 'Pengurus Komisariat PII' };
+    let lookup = { provinces: [], wps: [], pds: [] };
+
+    const $ = (id) => document.getElementById(id);
+    const form = $('registerForm');
+    const message = $('message');
+
+    function jenjang() {
+      return document.querySelector('input[name="jenjang"]:checked').value;
+    }
+
+    function showMessage(text, type) {
+      message.className = 'msg show ' + type;
+      message.textContent = text;
+    }
+
+    function setPreview() {
+      const level = jenjang();
+      $('districtField').hidden = level === 'PW';
+      $('subdistrictField').hidden = level !== 'PK';
+      const districtField = $('district');
+      const textField = $('districtText');
+      const useSelect = level === 'PK';
+      districtField.hidden = !useSelect;
+      textField.hidden = useSelect;
+
+      const province = $('province').value;
+      const district = useSelect ? districtField.value : textField.value.trim();
+      const subdistrict = $('subdistrict').value.trim();
+      const place = level === 'PW' ? province : level === 'PD' ? district : subdistrict;
+      $('namePreview').innerHTML = 'Nama lembaga: <b>' + (LAINNYA[level] + (place ? ' ' + place : '')) + '</b>';
+
+      const hint = $('parentHint');
+      if (!province) {
+        hint.className = 'hint';
+        hint.textContent = 'Pilih provinsi untuk melihat induk organisasi.';
+        return;
+      }
+      if (level === 'PW') {
+        hint.className = 'hint';
+        hint.textContent = 'Induk: Pengurus Besar PII. Akun PW diverifikasi oleh PB.';
+        return;
+      }
+      const wps = lookup.wps.filter((item) => item.province === province);
+      if (level === 'PD') {
+        hint.className = wps.length ? 'hint' : 'hint warn';
+        hint.textContent = wps.length
+          ? 'Induk: ' + wps[0].name + '. Akun PD diverifikasi PW provinsi.'
+          : 'Belum ada PW terverifikasi di ' + province + '. Minta PW provinsi mendaftar lebih dahulu.';
+        return;
+      }
+      const pds = lookup.pds.filter((item) => item.province === province);
+      hint.className = pds.length ? 'hint' : 'hint warn';
+      hint.textContent = pds.length
+        ? 'Induk: PD sesuai kota/kabupaten pilihan. Akun PK diverifikasi PD.'
+        : 'Belum ada PD terverifikasi di ' + province + '. Daftarkan PD kota/kabupaten lebih dahulu.';
+    }
+
+    function fillDistricts() {
+      const level = jenjang();
+      const province = $('province').value;
+      const select = $('district');
+      const pds = lookup.pds.filter((item) => item.province === province);
+      select.innerHTML = '<option value="">Pilih kota/kabupaten…</option>' + pds
+        .map((item) => '<option value="' + item.district + '">' + item.district + '</option>').join('');
+      select.value = '';
+      setPreview();
+    }
+
+    document.querySelectorAll('input[name="jenjang"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        document.querySelectorAll('#jenjangSeg label').forEach((label) => {
+          label.classList.toggle('sel', label.querySelector('input').checked);
+        });
+        if (jenjang() === 'PK') fillDistricts();
+        setPreview();
+      });
+    });
+
+    ['province', 'district', 'districtText', 'subdistrict'].forEach((id) => {
+      $(id).addEventListener('input', () => {
+        if (id === 'province' && jenjang() === 'PK') fillDistricts();
+        else setPreview();
+      });
+    });
+
+    $('province').addEventListener('change', () => {
+      if (jenjang() === 'PK') fillDistricts();
+      else setPreview();
+    });
+
+    (async () => {
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'orgLookup' })
+        });
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.error || 'Gagal memuat data wilayah.');
+        lookup = result.data;
+        $('province').innerHTML = '<option value="">Pilih provinsi…</option>' + lookup.provinces
+          .map((name) => '<option value="' + name + '">' + name + '</option>').join('');
+        setPreview();
+      } catch (error) {
+        showMessage(error.message, 'err');
+        $('province').innerHTML = '<option value="">Provinsi tidak dapat dimuat</option>';
+      }
+    })();
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const level = jenjang();
+      const password = $('password').value;
+      if (password.length < 8) return showMessage('Kata sandi minimal 8 karakter.', 'err');
+      if (password !== $('password2').value) return showMessage('Kata sandi dan ulangannya tidak sama.', 'err');
+
+      const payload = {
+        action: 'orgRegister',
+        jenjang: level,
+        province: $('province').value,
+        district: level === 'PK' ? $('district').value : $('districtText').value.trim(),
+        subdistrict: $('subdistrict').value.trim(),
+        email: $('email').value.trim(),
+        password: password,
+        phone: $('phone').value.trim(),
+        skUrl: $('skUrl').value.trim(),
+        note: $('note').value.trim()
+      };
+
+      const button = $('submitBtn');
+      button.disabled = true;
+      button.textContent = 'Mengirim pendaftaran…';
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.error || 'Pendaftaran gagal.');
+        form.reset();
+        document.querySelectorAll('#jenjangSeg label').forEach((label, index) => label.classList.toggle('sel', index === 0));
+        $('province').innerHTML = '<option value="">Pilih provinsi…</option>' + lookup.provinces
+          .map((name) => '<option value="' + name + '">' + name + '</option>').join('');
+        setPreview();
+        showMessage('Pendaftaran terkirim untuk ' + result.data.name + '. Status: menunggu verifikasi ' + result.data.parentName + '. Anda sudah bisa masuk untuk memantau status.', 'ok');
+        message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (error) {
+        showMessage(error.message, 'err');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Kirim pendaftaran';
+      }
+    });
+  </script>
+  <script src="site.js" defer></script>
+</body>
+</html>

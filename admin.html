@@ -67,6 +67,8 @@
     .badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:800;background:#f0f2f0;color:#59645c}
     .badge.published{background:#e7f6eb;color:#167334}
     .badge.draft{background:#fff4d8;color:#85620d}
+    .badge.rejected{background:#fdecec;color:#a51e27}
+    .badge.info{background:#e8f1fb;color:#1667a8}
     .empty{border:1px dashed #d3ddd4;border-radius:10px;padding:25px;text-align:center;color:var(--muted);font-size:13px}
     .hidden{display:none!important}
     .hint{font-size:11px;color:var(--muted);margin-top:5px}
@@ -95,7 +97,7 @@
     @media(max-width:850px){
       body{padding-bottom:calc(74px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
       .layout{grid-template-columns:1fr;min-height:0}
-      aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;border:0;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 96%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
+      aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;border:0;border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 96%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
       .side-label,.side-bottom{display:none}
       .tab{flex-direction:column;justify-content:center;gap:3px;min-height:52px;margin:0;padding:6px 4px;border-radius:11px;font-size:10.5px;line-height:1.2;text-align:center}
       .tab .tab-icon{font-size:16px}
@@ -148,6 +150,7 @@
       <div class="side-label">MENU UTAMA</div>
       <button class="tab active" data-page="overview"><span class="tab-icon" aria-hidden="true">▦</span><span>Ringkasan</span></button>
       <button class="tab" data-page="articles"><span class="tab-icon" aria-hidden="true">▤</span><span>Artikel</span></button>
+      <button class="tab" data-page="lembaga"><span class="tab-icon" aria-hidden="true">◉</span><span>Lembaga</span></button>
       <button class="tab" data-page="settings"><span class="tab-icon" aria-hidden="true">⚙</span><span>Pengaturan</span></button>
       <button class="tab" data-page="gallery"><span class="tab-icon" aria-hidden="true">▧</span><span>Galeri</span></button>
       <div class="side-bottom"></div>
@@ -251,6 +254,41 @@
             </div>
           </div>
           <div class="item-list" id="articleList"><div class="empty">Memuat data…</div></div>
+        </div>
+      </section>
+
+      <section id="page-lembaga" class="hidden">
+        <div class="page-head">
+          <div><h1>Lembaga</h1><p>Verifikasi akun PW, PD, dan PK serta pantau keaktifan jejaring.</p></div>
+          <button class="btn secondary" id="refreshOrgs" type="button">↻ Muat ulang</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>Total lembaga</span><strong id="orgTotal">0</strong></div>
+          <div class="stat"><span>Terverifikasi</span><strong id="orgVerified">0</strong></div>
+          <div class="stat"><span>Menunggu verifikasi</span><strong id="orgPending">0</strong></div>
+        </div>
+
+        <div class="panel" id="pbAccountPanel">
+          <h2>Akun induk PB PII</h2>
+          <p class="panel-intro">Akun PB dipakai untuk kirim surat dan verifikasi PW. Buat atau ganti kredensialnya di sini (bukan akun admin website).</p>
+          <form id="pbAccountForm">
+            <div class="form-grid">
+              <div class="field"><label for="pbEmail">Email PB</label><input id="pbEmail" type="email" placeholder="pb@pbpii.or.id" required></div>
+              <div class="field"><label for="pbPassword">Kata sandi baru</label><input id="pbPassword" type="password" minlength="8" placeholder="Minimal 8 karakter" required></div>
+            </div>
+            <div class="btn-row"><button class="btn primary" type="submit" id="savePbBtn">Simpan akun PB</button></div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="list-head"><h2>Daftar lembaga <span class="badge" id="orgCount">0</span></h2></div>
+          <div class="chips" id="orgFilters" role="group" aria-label="Saring status lembaga">
+            <button class="chip active" data-filter="all" type="button">Semua</button>
+            <button class="chip" data-filter="pending" type="button">Menunggu</button>
+            <button class="chip" data-filter="verified" type="button">Terverifikasi</button>
+            <button class="chip" data-filter="rejected" type="button">Ditolak</button>
+          </div>
+          <div class="item-list" id="orgList"><div class="empty">Memuat data…</div></div>
         </div>
       </section>
 
@@ -373,6 +411,7 @@
       document.querySelectorAll('.tab[data-page]').forEach(el =>
         el.classList.toggle('active', el.dataset.page === name)
       );
+      if (name === 'lembaga') loadOrgs();
       window.scrollTo({top:0, behavior:'smooth'});
     }
 
@@ -668,6 +707,157 @@
         el.classList.toggle('active', el === chip)
       );
       renderArticleItems();
+    });
+
+    let orgs = [];
+    let orgFilter = 'all';
+    let orgCounts = {total:0, verified:0, pending:0, rejected:0};
+
+    const STATUS_LABEL = {pending:'MENUNGGU', verified:'TERVERIFIKASI', rejected:'DITOLAK'};
+    const JENJANG_LABEL = {PB:'PB', PW:'PW', PD:'PD', PK:'PK'};
+
+    function fmtDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      return isFinite(date.getTime()) ? date.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
+    }
+
+    function orgStatusBadge(status) {
+      const type = status === 'verified' ? 'published' : status === 'pending' ? 'draft' : 'rejected';
+      return '<span class="badge ' + type + '">' + (STATUS_LABEL[status] || 'DRAFT') + '</span>';
+    }
+
+    function renderOrgs() {
+      $('orgTotal').textContent = orgCounts.total || 0;
+      $('orgVerified').textContent = orgCounts.verified || 0;
+      $('orgPending').textContent = orgCounts.pending || 0;
+
+      const rows = orgs.filter(org => orgFilter === 'all' || org.status === orgFilter);
+      $('orgCount').textContent = rows.length === orgs.length ? String(rows.length) : rows.length + '/' + orgs.length;
+
+      $('orgList').innerHTML = rows.map(org => {
+        const isPb = org.jenjang === 'PB';
+        const kpi = org.kpi || {};
+        const place = [org.district, org.province, org.subdistrict].filter(Boolean).join(' · ');
+        const meta = [
+          '<span class="badge info">' + escapeHTML(JENJANG_LABEL[org.jenjang] || org.jenjang) + '</span>',
+          orgStatusBadge(org.status),
+          place ? '<span>' + escapeHTML(place) + '</span>' : '',
+          org.email ? '<span>' + escapeHTML(org.email) + '</span>' : '<span>Tidak ada email</span>'
+        ].filter(Boolean).join('<span>·</span>');
+
+        const detail = [
+          'Indeks keaktifan ' + (kpi.score || 0) + ' (' + escapeHTML(kpi.label || 'Perlu Pembinaan') + ')',
+          (kpi.activities30 || 0) + ' kegiatan/30 hari',
+          (kpi.participants90 || 0) + ' peserta/90 hari',
+          (kpi.forms90 || 0) + ' formulir/90 hari'
+        ].join(' · ');
+
+        const history = [
+          org.createdAt ? 'Didaftarkan ' + fmtDate(org.createdAt) : '',
+          org.verifiedAt ? 'Diverifikasi ' + fmtDate(org.verifiedAt) + (org.verifiedBy ? ' oleh ' + escapeHTML(org.verifiedBy) : '') : '',
+          org.lastLoginAt ? 'Masuk terakhir ' + fmtDate(org.lastLoginAt) : ''
+        ].filter(Boolean).join(' · ');
+
+        let actions = '';
+        if (isPb) {
+          actions = '<span class="badge published">AKUN INDUK</span>';
+        } else if (org.status !== 'verified') {
+          actions =
+            '<button class="btn primary" data-org-verify="' + escapeHTML(org.id) + '">Verifikasi</button>' +
+            (org.status === 'pending'
+              ? '<button class="btn danger" data-org-reject="' + escapeHTML(org.id) + '">Tolak</button>'
+              : '');
+        } else {
+          actions = '<button class="btn secondary" data-org-revoke="' + escapeHTML(org.id) + '">Cabut verifikasi</button>';
+        }
+
+        return '<div class="item" data-status="' + (org.status === 'verified' ? 'published' : 'draft') + '">' +
+          '<div class="item-main"><h3>' + escapeHTML(org.name) + '</h3>' +
+          '<p class="meta-line">' + meta + '</p>' +
+          '<p class="meta-line">' + detail + '</p>' +
+          (history ? '<p class="meta-line">' + history + '</p>' : '') +
+          (org.note ? '<p class="meta-line">Catatan: ' + escapeHTML(org.note) + '</p>' : '') +
+          '</div><div class="item-actions">' + actions + '</div></div>';
+      }).join('') || '<div class="empty">' + (orgs.length
+        ? 'Tidak ada lembaga dengan status ini.'
+        : 'Belum ada lembaga terdaftar. Bagikan tautan /daftar.html ke PW, PD, dan PK.') + '</div>';
+    }
+
+    async function loadOrgs(showNotice=false) {
+      try {
+        const data = await api('adminOrgs');
+        orgs = data.orgs || [];
+        orgCounts = data.counts || orgCounts;
+        $('pbEmail').value = (data.pbAccount && data.pbAccount.email) || '';
+        $('pbPassword').placeholder = data.pbAccount && data.pbAccount.hasPassword
+          ? 'Sudah diatur — isi untuk mengganti'
+          : 'Belum ada kata sandi';
+        renderOrgs();
+        if (showNotice) notify('Daftar lembaga dimuat ulang.');
+      } catch (e) {
+        notify(e.message, 'err');
+      }
+    }
+
+    async function setOrgStatus(id, decision, label) {
+      try {
+        await api('adminVerifyOrg', {id, decision});
+        await loadOrgs();
+        notify(label);
+      } catch (e) { notify(e.message, 'err'); }
+    }
+
+    $('refreshOrgs').addEventListener('click', () => loadOrgs(true));
+
+    $('orgFilters').addEventListener('click', event => {
+      const chip = event.target.closest('[data-filter]');
+      if (!chip) return;
+      orgFilter = chip.dataset.filter;
+      document.querySelectorAll('#orgFilters .chip').forEach(el =>
+        el.classList.toggle('active', el === chip)
+      );
+      renderOrgs();
+    });
+
+    $('orgList').addEventListener('click', event => {
+      const verify = event.target.closest('[data-org-verify]');
+      const reject = event.target.closest('[data-org-reject]');
+      const revoke = event.target.closest('[data-org-revoke]');
+      const org = (button, attr) => orgs.find(item => item.id === button.dataset[attr]);
+
+      if (verify) {
+        const target = org(verify, 'orgVerify');
+        if (target) setOrgStatus(target.id, 'verified', target.name + ' diverifikasi sebagai akun resmi.');
+      }
+      if (reject) {
+        const target = org(reject, 'orgReject');
+        if (target && confirm('Tolak pendaftaran ' + target.name + '?')) {
+          setOrgStatus(target.id, 'rejected', target.name + ' ditolak.');
+        }
+      }
+      if (revoke) {
+        const target = org(revoke, 'orgRevoke');
+        if (target && confirm('Cabut status resmi ' + target.name + '? Akun tetap bisa masuk tetapi tidak tampil sebagai lembaga resmi.')) {
+          setOrgStatus(target.id, 'pending', 'Verifikasi ' + target.name + ' dicabut.');
+        }
+      }
+    });
+
+    $('pbAccountForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = $('savePbBtn');
+      button.disabled = true;
+      try {
+        const saved = await api('adminSavePbAccount', {
+          email: $('pbEmail').value.trim(),
+          password: $('pbPassword').value
+        });
+        $('pbPassword').value = '';
+        await loadOrgs();
+        notify('Akun PB diperbarui untuk ' + saved.email + '.');
+      } catch (e) { notify(e.message, 'err'); }
+      finally { button.disabled = false; }
     });
 
     $('checkBackend').addEventListener('click', async event => {
