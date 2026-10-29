@@ -47,7 +47,7 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan CCTV, ditambah ringkasan angka langsung di beranda.
 - **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, pengingat adzan, arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini.
 - Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
-- **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
+- **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
 
 ## D. Peta Global (PII Global View)
 
@@ -196,6 +196,28 @@ dan kota/kabupaten; pendaftaran PD/PK ditolak bila induknya belum terverifikasi,
 dengan pesan yang menjelaskan langkah berikutnya. Data disimpan sebagai baris
 datar `id` + `parentId` di sheet `Orgs` supaya mudah dipindahkan ke Supabase
 nanti (tanpa mengubah bentuk relasi).
+
+### Data wilayah resmi
+Pilihan provinsi → kota/kabupaten → kecamatan diambil dari **wilayah.id**
+(`https://wilayah.id/api/provinces.json`, `regencies/<kode provinsi>.json`,
+`districts/<kode kota>.json`). Data ini tidak mengirim header CORS, jadi browser
+memanggil proxy serverless [`api/wilayah.js`](api/wilayah.js) —
+`/api/wilayah?level=provinces|regencies|districts&parent=<kode>`. Proxy
+memvalidasi format kode (`11`, `32.73`), men-cache respons sehari di CDN, dan
+mengembalikan `{ ok, level, parent, data: [{ code, name }] }`.
+
+- Nama provinsi di data resmi sedikit berbeda dari daftar bawaan backend
+  (`Daerah Istimewa Yogyakarta` vs `DI Yogyakarta`, `Kepulauan Bangka Belitung`
+  vs `Bangka Belitung`). Keduanya dipetakan lewat `PROVINCE_ALIASES` di
+  `gas/Code.gs` dan `PROVINCE_ALIAS` di `daftar.html`, sehingga induk tetap
+  ditemukan dengan benar.
+- Kode wilayah dipakai hanya untuk mengambil daftar; yang dikirim ke backend
+  tetap nama wilayah, jadi tidak ada perubahan skema sheet.
+- Bila wilayah.id tidak dapat dihubungi, halaman otomatis memakai daftar
+  provinsi dari `orgLookup` dan mengganti pilihan kota/kecamatan menjadi kolom
+  teks, dengan petunjuk di bawah formulir. Pendaftaran tetap dapat dikirim.
+- Daftar kecamatan baru dimuat setelah kota/kabupaten dipilih; pilihan PD pada
+  mode PK berasal dari PD terverifikasi di provinsi tersebut.
 
 ### Verifikasi bertingkat + override PB
 - PB memverifikasi PW, PW memverifikasi PD, PD memverifikasi PK.

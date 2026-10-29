@@ -73,6 +73,7 @@
           <div class="field">
             <label class="lbl" for="province">Provinsi *</label>
             <select id="province" required><option value="">Memuat provinsi…</option></select>
+            <div class="hint" id="provinceHint"></div>
           </div>
           <div class="field" id="districtField" hidden>
             <label class="lbl" for="district">Kota / Kabupaten *</label>
@@ -81,11 +82,13 @@
           </div>
           <div class="field" id="subdistrictField" hidden>
             <label class="lbl" for="subdistrict">Kecamatan *</label>
+            <select id="subdistrictSelect" hidden></select>
             <input id="subdistrict" placeholder="Contoh: Coblong">
           </div>
           <div class="field full">
             <div class="preview" id="namePreview">Nama lembaga: <b>—</b></div>
             <div class="hint" id="parentHint">Pilih provinsi untuk melihat induk organisasi.</div>
+            <div class="hint" id="regionHint" hidden></div>
           </div>
 
           <div class="field full"><label class="lbl" for="email">Email lembaga *</label><input id="email" type="email" autocomplete="email" placeholder="sekretariat@contoh.org" required><div class="hint">Satu email untuk satu lembaga. Email ini dipakai untuk login.</div></div>
@@ -110,11 +113,21 @@
   <script>
     const API_ENDPOINT = '/api/pii';
     const LAINNYA = { PW: 'Pengurus Wilayah PII', PD: 'Pengurus Daerah PII', PK: 'Pengurus Komisariat PII' };
+    const PROVINCE_ALIAS = {
+      'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+      'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA'
+    };
     let lookup = { provinces: [], wps: [], pds: [] };
+    let wilayah = { province: '', regencies: [], regencyCodeByName: {}, districts: [], districtsRegency: '' };
+    const wilayahCache = new Map();
 
     const $ = (id) => document.getElementById(id);
     const form = $('registerForm');
     const message = $('message');
+    const norm = (value) => String(value == null ? '' : value).trim().toUpperCase();
+    const provKey = (value) => PROVINCE_ALIAS[norm(value)] || norm(value);
+    const escapeHTML = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     function jenjang() {
       return document.querySelector('input[name="jenjang"]:checked').value;
@@ -125,21 +138,190 @@
       message.textContent = text;
     }
 
-    function setPreview() {
+    async function fetchWilayah(level, parent) {
+      const key = level + ':' + (parent || '');
+      if (!wilayahCache.has(key)) {
+        const query = '/api/wilayah?level=' + level + (parent ? '&parent=' + encodeURIComponent(parent) : '');
+        const request = fetch(query)
+          .then(async (response) => {
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.ok) throw new Error(result.error || 'Data wilayah tidak tersedia.');
+            return result.data || [];
+          })
+          .catch((error) => { wilayahCache.delete(key); throw error; });
+        wilayahCache.set(key, request);
+      }
+      return wilayahCache.get(key);
+    }
+
+    async function loadProvinces() {
+      const select = $('province');
+      const previous = select.value;
+      let provinces = [];
+      try {
+        provinces = await fetchWilayah('provinces');
+        $('provinceHint').textContent = 'Data wilayah resmi: wilayah.id';
+      } catch (error) {
+        provinces = lookup.provinces.map((name) => ({ code: '', name }));
+        $('provinceHint').textContent = provinces.length
+          ? 'Data wilayah resmi tidak tersedia; memakai daftar provinsi bawaan.'
+          : '';
+      }
+      select.innerHTML = provinces.length
+        ? '<option value="">Pilih provinsi…</option>' + provinces.map((item) =>
+            '<option value="' + escapeHTML(item.name) + '" data-code="' + escapeHTML(item.code) + '">' +
+            escapeHTML(item.name) + '</option>').join('')
+        : '<option value="">Provinsi tidak dapat dimuat</option>';
+      if (previous && provinces.some((item) => item.name === previous)) select.value = previous;
+    }
+
+    function provinceCode(name) {
+      const option = Array.from($('province').options).find((item) => item.value === name);
+      return option ? option.dataset.code || '' : '';
+    }
+
+    async function ensureRegencies(province) {
+      if (!province) {
+        wilayah.province = '';
+        wilayah.regencies = [];
+        wilayah.regencyCodeByName = {};
+        return;
+      }
+      if (wilayah.province === province && (wilayah.regencies.length || !provinceCode(province))) return;
+      const code = provinceCode(province);
+      wilayah.province = province;
+      wilayah.regencies = [];
+      wilayah.regencyCodeByName = {};
+      wilayah.districts = [];
+      wilayah.districtsRegency = '';
+      if (!code) return;
+      let data = [];
+      try {
+        data = await fetchWilayah('regencies', code);
+      } catch (error) {
+        data = [];
+      }
+      if (wilayah.province !== province) return;
+      wilayah.regencies = data;
+      wilayah.regencyCodeByName = data.reduce((map, item) => {
+        map[norm(item.name)] = item.code;
+        return map;
+      }, {});
+    }
+
+    function fillRegencies() {
+      const select = $('district');
+      select.innerHTML = wilayah.regencies.length
+        ? '<option value="">Pilih kota/kabupaten…</option>' + wilayah.regencies.map((item) =>
+            '<option value="' + escapeHTML(item.name) + '">' + escapeHTML(item.name) + '</option>').join('')
+        : '<option value="">Kota/kabupaten tidak dapat dimuat</option>';
+      select.value = '';
+    }
+
+    async function ensureDistricts(regencyName) {
+      if (!regencyName) {
+        wilayah.districts = [];
+        wilayah.districtsRegency = '';
+        renderSubdistricts('');
+        return;
+      }
+      if (wilayah.districtsRegency === regencyName) {
+        renderSubdistricts(regencyName);
+        return;
+      }
+      const code = wilayah.regencyCodeByName[norm(regencyName)] || '';
+      wilayah.districtsRegency = regencyName;
+      wilayah.districts = [];
+      if (code) {
+        try {
+          const data = await fetchWilayah('districts', code);
+          if (wilayah.districtsRegency !== regencyName) return;
+          wilayah.districts = data;
+        } catch (error) {
+          wilayah.districts = [];
+        }
+      }
+      if (wilayah.districtsRegency !== regencyName) return;
+      renderSubdistricts(regencyName);
+    }
+
+    function renderSubdistricts(regencyName) {
+      const select = $('subdistrictSelect');
+      select.innerHTML = wilayah.districts.length
+        ? '<option value="">Pilih kecamatan…</option>' + wilayah.districts.map((item) =>
+            '<option value="' + escapeHTML(item.name) + '">' + escapeHTML(item.name) + '</option>').join('')
+        : '';
+      select.value = '';
+      if (!wilayah.districts.length && regencyName) {
+        $('subdistrict').value = '';
+      }
+    }
+
+    function fillDistricts() {
+      const level = jenjang();
+      const province = $('province').value;
+      const select = $('district');
+      const pds = lookup.pds.filter((item) => provKey(item.province) === provKey(province));
+      select.innerHTML = pds.length
+        ? '<option value="">Pilih kota/kabupaten…</option>' + pds
+            .map((item) => '<option value="' + escapeHTML(item.district) + '">' + escapeHTML(item.district) + '</option>').join('')
+        : '<option value="">Belum ada PD terverifikasi</option>';
+      select.value = '';
+      wilayah.districts = [];
+      wilayah.districtsRegency = '';
+      $('subdistrictSelect').innerHTML = '';
+      $('subdistrictSelect').value = '';
+      if (level !== 'PK') setPreview();
+    }
+
+    function currentDistrict() {
+      const level = jenjang();
+      if (level === 'PK') return $('district').value;
+      return $('district').hidden ? $('districtText').value.trim() : $('district').value;
+    }
+
+    function currentSubdistrict() {
+      return $('subdistrictSelect').hidden ? $('subdistrict').value.trim() : $('subdistrictSelect').value;
+    }
+
+    function syncRegionControls() {
       const level = jenjang();
       $('districtField').hidden = level === 'PW';
       $('subdistrictField').hidden = level !== 'PK';
-      const districtField = $('district');
-      const textField = $('districtText');
-      const useSelect = level === 'PK';
-      districtField.hidden = !useSelect;
-      textField.hidden = useSelect;
 
+      if (level === 'PK') {
+        $('district').hidden = false;
+        $('districtText').hidden = true;
+      } else {
+        const useRegencySelect = wilayah.regencies.length > 0;
+        $('district').hidden = !useRegencySelect;
+        $('districtText').hidden = useRegencySelect;
+      }
+
+      const useDistrictSelect = level === 'PK' && wilayah.districts.length > 0;
+      $('subdistrictSelect').hidden = !useDistrictSelect;
+      $('subdistrict').hidden = useDistrictSelect;
+
+      const hint = $('regionHint');
+      if (level === 'PD' && !wilayah.regencies.length) {
+        hint.hidden = false;
+        hint.textContent = 'Daftar kota/kabupaten tidak tersedia; tulis nama sesuai wilayah resmi.';
+      } else if (level === 'PK' && $('district').value && !wilayah.districts.length) {
+        hint.hidden = false;
+        hint.textContent = 'Daftar kecamatan tidak tersedia; tulis nama kecamatan.';
+      } else {
+        hint.hidden = true;
+        hint.textContent = '';
+      }
+    }
+
+    function setPreview() {
+      const level = jenjang();
       const province = $('province').value;
-      const district = useSelect ? districtField.value : textField.value.trim();
-      const subdistrict = $('subdistrict').value.trim();
+      const district = currentDistrict();
+      const subdistrict = currentSubdistrict();
       const place = level === 'PW' ? province : level === 'PD' ? district : subdistrict;
-      $('namePreview').innerHTML = 'Nama lembaga: <b>' + (LAINNYA[level] + (place ? ' ' + place : '')) + '</b>';
+      $('namePreview').innerHTML = 'Nama lembaga: <b>' + escapeHTML(LAINNYA[level] + (place ? ' ' + place : '')) + '</b>';
 
       const hint = $('parentHint');
       if (!province) {
@@ -152,7 +334,7 @@
         hint.textContent = 'Induk: Pengurus Besar PII. Akun PW diverifikasi oleh PB.';
         return;
       }
-      const wps = lookup.wps.filter((item) => item.province === province);
+      const wps = lookup.wps.filter((item) => provKey(item.province) === provKey(province));
       if (level === 'PD') {
         hint.className = wps.length ? 'hint' : 'hint warn';
         hint.textContent = wps.length
@@ -160,44 +342,47 @@
           : 'Belum ada PW terverifikasi di ' + province + '. Minta PW provinsi mendaftar lebih dahulu.';
         return;
       }
-      const pds = lookup.pds.filter((item) => item.province === province);
+      const pds = lookup.pds.filter((item) => provKey(item.province) === provKey(province));
       hint.className = pds.length ? 'hint' : 'hint warn';
       hint.textContent = pds.length
         ? 'Induk: PD sesuai kota/kabupaten pilihan. Akun PK diverifikasi PD.'
         : 'Belum ada PD terverifikasi di ' + province + '. Daftarkan PD kota/kabupaten lebih dahulu.';
     }
 
-    function fillDistricts() {
-      const level = jenjang();
-      const province = $('province').value;
-      const select = $('district');
-      const pds = lookup.pds.filter((item) => item.province === province);
-      select.innerHTML = '<option value="">Pilih kota/kabupaten…</option>' + pds
-        .map((item) => '<option value="' + item.district + '">' + item.district + '</option>').join('');
-      select.value = '';
-      setPreview();
-    }
-
     document.querySelectorAll('input[name="jenjang"]').forEach((input) => {
-      input.addEventListener('change', () => {
+      input.addEventListener('change', async () => {
         document.querySelectorAll('#jenjangSeg label').forEach((label) => {
           label.classList.toggle('sel', label.querySelector('input').checked);
         });
-        if (jenjang() === 'PK') fillDistricts();
+        const level = jenjang();
+        const province = $('province').value;
+        if ((level === 'PD' || level === 'PK') && province) await ensureRegencies(province);
+        if (level === 'PD') fillRegencies();
+        if (level === 'PK') fillDistricts();
+        syncRegionControls();
         setPreview();
       });
     });
 
-    ['province', 'district', 'districtText', 'subdistrict'].forEach((id) => {
-      $(id).addEventListener('input', () => {
-        if (id === 'province' && jenjang() === 'PK') fillDistricts();
-        else setPreview();
-      });
+    $('province').addEventListener('change', async () => {
+      const level = jenjang();
+      const province = $('province').value;
+      if (level === 'PD' || level === 'PK') await ensureRegencies(province);
+      if (level === 'PD') fillRegencies();
+      if (level === 'PK') fillDistricts();
+      syncRegionControls();
+      setPreview();
     });
 
-    $('province').addEventListener('change', () => {
-      if (jenjang() === 'PK') fillDistricts();
-      else setPreview();
+    $('district').addEventListener('change', async () => {
+      if (jenjang() === 'PK') await ensureDistricts($('district').value);
+      syncRegionControls();
+      setPreview();
+    });
+
+    ['districtText', 'subdistrict', 'subdistrictSelect'].forEach((id) => {
+      $(id).addEventListener('input', setPreview);
+      $(id).addEventListener('change', setPreview);
     });
 
     (async () => {
@@ -210,28 +395,37 @@
         const result = await response.json();
         if (!result.ok) throw new Error(result.error || 'Gagal memuat data wilayah.');
         lookup = result.data;
-        $('province').innerHTML = '<option value="">Pilih provinsi…</option>' + lookup.provinces
-          .map((name) => '<option value="' + name + '">' + name + '</option>').join('');
-        setPreview();
       } catch (error) {
-        showMessage(error.message, 'err');
-        $('province').innerHTML = '<option value="">Provinsi tidak dapat dimuat</option>';
+        lookup = { provinces: [], wps: [], pds: [] };
+        showMessage(error.message + ' Pendaftaran tetap dapat dikirim, tetapi data induk belum dapat diperiksa.', 'err');
       }
+      await loadProvinces();
+      syncRegionControls();
+      setPreview();
     })();
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const level = jenjang();
+      const province = $('province').value;
+      const district = currentDistrict();
+      const subdistrict = currentSubdistrict();
       const password = $('password').value;
+
+      if (!province) return showMessage('Pilih provinsi terlebih dahulu.', 'err');
+      if (level !== 'PW' && !district) {
+        return showMessage(level === 'PD' ? 'Pilih kota/kabupaten terlebih dahulu.' : 'Pilih kota/kabupaten induk PD.', 'err');
+      }
+      if (level === 'PK' && !subdistrict) return showMessage('Pilih atau tulis nama kecamatan.', 'err');
       if (password.length < 8) return showMessage('Kata sandi minimal 8 karakter.', 'err');
       if (password !== $('password2').value) return showMessage('Kata sandi dan ulangannya tidak sama.', 'err');
 
       const payload = {
         action: 'orgRegister',
         jenjang: level,
-        province: $('province').value,
-        district: level === 'PK' ? $('district').value : $('districtText').value.trim(),
-        subdistrict: $('subdistrict').value.trim(),
+        province,
+        district,
+        subdistrict,
         email: $('email').value.trim(),
         password: password,
         phone: $('phone').value.trim(),
@@ -252,8 +446,11 @@
         if (!result.ok) throw new Error(result.error || 'Pendaftaran gagal.');
         form.reset();
         document.querySelectorAll('#jenjangSeg label').forEach((label, index) => label.classList.toggle('sel', index === 0));
-        $('province').innerHTML = '<option value="">Pilih provinsi…</option>' + lookup.provinces
-          .map((name) => '<option value="' + name + '">' + name + '</option>').join('');
+        wilayah = { province: '', regencies: [], regencyCodeByName: {}, districts: [], districtsRegency: '' };
+        $('district').innerHTML = '';
+        $('subdistrictSelect').innerHTML = '';
+        await loadProvinces();
+        syncRegionControls();
         setPreview();
         showMessage('Pendaftaran terkirim untuk ' + result.data.name + '. Status: menunggu verifikasi ' + result.data.parentName + '. Anda sudah bisa masuk untuk memantau status.', 'ok');
         message.scrollIntoView({ behavior: 'smooth', block: 'center' });

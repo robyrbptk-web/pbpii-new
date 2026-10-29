@@ -64,6 +64,12 @@ const PROVINCES = [
   'Papua Pegunungan', 'Papua Selatan'
 ];
 
+// Nama resmi wilayah.id yang berbeda dari penulisan di PROVINCES.
+const PROVINCE_ALIASES = {
+  'KEPULAUAN BANGKA BELITUNG': 'Bangka Belitung',
+  'DAERAH ISTIMEWA YOGYAKARTA': 'DI Yogyakarta'
+};
+
 const ARTICLE_HEADERS = [
   'id', 'title', 'slug', 'category', 'excerpt', 'content',
   'coverImage', 'author', 'status', 'createdAt', 'updatedAt'
@@ -1369,6 +1375,8 @@ function orgSetCell_(sheetNameOrId, id, header, value) {
 
 function canonicalProvince_(value) {
   const wanted = normText_(value);
+  const alias = PROVINCE_ALIASES[wanted];
+  if (alias) return alias;
   for (let i = 0; i < PROVINCES.length; i++) {
     if (normText_(PROVINCES[i]) === wanted) return PROVINCES[i];
   }
