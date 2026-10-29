@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Peta global interaktif PB PII: satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan CCTV dalam satu globe.">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Peta PB PII">
+  <title>Peta Global — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="peta-page">
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="/assets/logo-pii.png" alt="Logo Pelajar Islam Indonesia" onerror="this.onerror=null;this.src='public/assets/logo-pii.png'">
+      <span><b>PB PII</b><small>PII Global View</small></span>
+    </a>
+    <nav id="nav" aria-label="Navigasi utama">
+      <a href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Berita</span></a>
+      <a href="index.html#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Ketua</span></a>
+      <a href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
+      <a href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
+      <a href="peta.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+    </nav>
+  </header>
+
+  <main class="globe-shell">
+    <div class="globe-toolbar">
+      <div>
+        <b>PII Global View</b>
+        <span>Pemantauan bumi dan Indonesia secara langsung</span>
+      </div>
+      <a class="globe-fullscreen" href="/peta/" target="_blank" rel="noopener">Layar penuh ↗</a>
+    </div>
+    <iframe
+      class="globe-frame"
+      src="/peta/"
+      title="PII Global View — globe interaktif PB PII"
+      loading="eager"
+      allow="fullscreen; clipboard-write"
+      referrerpolicy="same-origin"></iframe>
+  </main>
+</body>
+</html>

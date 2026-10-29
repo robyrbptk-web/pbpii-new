@@ -1,0 +1,2 @@
+# peta/ is vendored build output; never rewrite its line endings.
+peta/** -text

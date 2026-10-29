@@ -2,9 +2,36 @@
   "functions": {
     "api/pii.js": {
       "maxDuration": 10
+    },
+    "api/sekolah.js": {
+      "maxDuration": 30
+    },
+    "api/volcanoes.js": {
+      "maxDuration": 15
+    },
+    "api/indonesia/hospitals.js": {
+      "maxDuration": 30
+    },
+    "api/indonesia/transjakarta.js": {
+      "maxDuration": 30
+    },
+    "api/celestrak.js": {
+      "maxDuration": 20
     }
   },
   "rewrites": [
+    {
+      "source": "/api/celestrak/:group",
+      "destination": "/api/celestrak?group=:group"
+    },
+    {
+      "source": "/models/:file",
+      "destination": "/peta/models/:file"
+    },
+    {
+      "source": "/mic.svg",
+      "destination": "/peta/mic.svg"
+    },
     {
       "source": "/",
       "destination": "/index.html"

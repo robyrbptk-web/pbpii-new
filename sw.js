@@ -1,7 +1,8 @@
-const CACHE_NAME = 'pbpii-shell-v1';
+const CACHE_NAME = 'pbpii-shell-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/peta.html',
   '/login.html',
   '/admin.html',
   '/offline.html',
@@ -35,6 +36,8 @@ self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
   if (event.request.method !== 'GET' || requestUrl.origin !== self.location.origin) return;
   if (requestUrl.pathname.startsWith('/api/')) return;
+  // The globe ships its own hashed build; cache-first would pin an old bundle.
+  if (requestUrl.pathname.startsWith('/peta/')) return;
 
   if (event.request.mode === 'navigate') {
     event.respondWith(

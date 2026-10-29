@@ -109,6 +109,49 @@ function showLoadError(title, description) {
     </div>`;
 }
 
+async function loadDataStrip() {
+  const note = $('#dataStripNote');
+  const sources = [
+    ['schools', '/api/sekolah', (body) => body?.data],
+    ['volcanoes', '/api/volcanoes', (body) => (Array.isArray(body) ? body : body?.data)],
+    ['hospitals', '/api/indonesia/hospitals', (body) => body?.data],
+    ['transjakarta', '/api/indonesia/transjakarta', (body) => body?.data]
+  ];
+  const targets = sources
+    .map(([key, url, pickRows]) => ({ key, url, pickRows, cell: document.querySelector(`[data-stat="${key}"]`) }))
+    .filter((target) => target.cell);
+  if (!targets.length) return;
+
+  let answered = 0;
+
+  await Promise.all(targets.map(async ({ url, pickRows, cell }) => {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(45000) });
+      const body = await response.json().catch(() => null);
+      const rows = pickRows(body);
+      if (!response.ok || !Array.isArray(rows) || !rows.length) {
+        throw new Error(body?.error || `HTTP ${response.status}`);
+      }
+      cell.querySelector('strong').textContent = rows.length.toLocaleString('id-ID');
+      answered += 1;
+    } catch {
+      // A missing key or an offline upstream must not look like a real zero.
+      cell.classList.add('is-muted');
+      cell.querySelector('strong').textContent = '—';
+    }
+  }));
+
+  if (!note) return;
+  const time = new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Jakarta'
+  });
+  note.textContent = answered === targets.length
+    ? `Diperbarui ${time} WIB dari ${answered} sumber data publik.`
+    : `${answered} dari ${targets.length} sumber data aktif per ${time} WIB; sisanya belum dapat dihubungi.`;
+}
+
 async function init() {
   $('#year').textContent = new Date().getFullYear();
 
@@ -126,6 +169,8 @@ async function init() {
     );
     return;
   }
+
+  loadDataStrip();
 
   try {
     const data = await callApi('public');

@@ -1055,7 +1055,7 @@ footer {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0;
     border: 0;
     border-top: 1px solid #e5ebf0;
@@ -1246,5 +1246,132 @@ footer {
   .install-app {
     padding: 0 9px;
     font-size: .7rem;
+  }
+}
+
+/* PII Global View — an embedded globe page, not a separate product. */
+body.peta-page {
+  display: flex;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.globe-shell {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: #06121c;
+}
+
+.globe-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px max(5vw, 20px);
+  background: var(--navy);
+  color: #eaf5ff;
+}
+
+.globe-toolbar b {
+  display: block;
+  font-size: .95rem;
+  letter-spacing: .02em;
+}
+
+.globe-toolbar span {
+  font-size: .78rem;
+  color: #a8c6dd;
+}
+
+.globe-fullscreen {
+  flex: 0 0 auto;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 999px;
+  padding: 7px 14px;
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.globe-fullscreen:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+.globe-frame {
+  display: block;
+  min-height: 0;
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #06121c;
+}
+
+@media (max-width: 680px) {
+  body.peta-page {
+    padding-bottom: 0;
+  }
+
+  .globe-shell {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .globe-toolbar span {
+    display: none;
+  }
+}
+
+/* Live data strip fed by the same proxies the globe uses. */
+.data-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.data-stat {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  background: #fff;
+}
+
+.data-stat strong {
+  display: block;
+  color: var(--navy);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-stat span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.data-stat.is-muted strong {
+  color: #9aa8b7;
+}
+
+.data-strip-note {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+@media (max-width: 900px) {
+  .data-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 380px) {
+  .data-strip {
+    grid-template-columns: 1fr;
   }
 }

@@ -27,6 +27,7 @@ Jika menu **PB PII** belum terlihat, pastikan kedua file sudah disimpan dan muat
 3. Gunakan framework **Other** / tanpa framework, tanpa Build Command, dan jangan mengatur Output Directory ke `public`; halaman HTML berada di root repository. `vercel.json` memetakan `/` langsung ke `index.html` dan mempertahankan fungsi `api/pii.js`.
 4. Proxy sudah memakai URL deployment yang diberikan sebagai nilai bawaan. Jika `GAS_WEB_APP_URL` sudah tersimpan di Vercel, nilainya harus sama dengan URL `/exec` terbaru; Environment Variable akan mengesampingkan URL bawaan.
 5. Pilih **Deploy** atau **Redeploy** setelah commit terbaru berstatus tersedia. Tes `/`, `/login.html`, `/admin.html`, `/manifest.json`, dan login admin. Jika masih 404, periksa **Project Settings > Build and Deployment > Root Directory** menunjuk ke root repository dan tunggu deployment branch `main` selesai.
+6. Fungsi di `api/` (proxy data untuk peta) ikut ter-deploy otomatis. Tambahkan `API_INDONESIA_KEY` di **Project Settings > Environment Variables** agar lapisan rumah sakit dan halte Transjakarta aktif; tanpa kunci, keduanya hanya menampilkan pesan belum diatur.
 
 ### Instal sebagai aplikasi
 - Halaman depan menyediakan manifest PWA, ikon Android/iOS, navigasi bawah yang nyaman disentuh, serta cache app-shell dan halaman offline.
@@ -41,6 +42,50 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 - Pengaturan: judul dan teks hero, nama/jabatan/foto Ketua Umum, sambutan, tampil/sembunyikan sambutan, profil ringkas, footer, email, dan tautan media sosial.
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.
 - Login admin dengan token sesi sementara di CacheService.
+- **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan CCTV, ditambah ringkasan angka langsung di beranda.
+
+## D. Peta Global (PII Global View)
+
+Peta adalah fitur dari website ini, bukan aplikasi terpisah. Halaman `/peta.html`
+memakai header dan navigasi PB PII, lalu menampilkan globe di dalam bingkai;
+tombol **Layar penuh** membuka `/peta/` langsung.
+
+Struktur:
+
+- `peta/` — hasil build aplikasi globe (Vite + CesiumJS). Semua aset memakai
+  path relatif, jadi folder ini bisa disajikan dari subpath mana pun.
+- `api/sekolah.js`, `api/volcanoes.js`, `api/indonesia/*.js`, `api/celestrak.js` —
+  proxy serverless supaya lapisan peta bisa memanggil API data dari domain yang
+  sama (tanpa CORS, tanpa kunci di browser).
+- `lib/` — cache TTL dan helper yang dipakai proxy tersebut.
+
+Proxy yang tersedia:
+
+| Endpoint | Sumber | Kunci |
+| --- | --- | --- |
+| `/api/sekolah` | api-sekolah (sampel 38 provinsi) | tidak perlu |
+| `/api/volcanoes` | indonesia-public-static-api | tidak perlu |
+| `/api/celestrak/:group` | CelesTrak TLE | tidak perlu |
+| `/api/indonesia/hospitals` | API Indonesia | `API_INDONESIA_KEY` |
+| `/api/indonesia/transjakarta` | API Indonesia | `API_INDONESIA_KEY` |
+
+Lapisan peta lain (FIRMS, Google Places, ringkasan AI, CCTV, penerbangan) tetap
+membutuhkan proxy dan kunci dari aplikasi globe aslinya; bila kunci belum ada,
+lapisan itu menampilkan pesan tidak tersedia dan sisa peta tetap berjalan.
+
+### Memperbarui peta
+
+```bash
+# di repo gods-eye-view
+npm run build
+# salin dist/ menjadi peta/ di repo ini
+rm -rf peta && cp -r dist peta
+```
+
+Kunci `API_INDONESIA_KEY` diisi di Environment Variables Vercel (atau `.env`
+untuk `vercel dev`). Kunci tidak pernah dikirim ke browser; proxy menambahkannya
+di sisi server. Lihat `.env.example`.
+
 
 Untuk membuat atau mengganti akun admin, ikuti langkah A di atas. Formulir password memakai kolom tersembunyi dan menyimpan nilainya ke Script Properties tanpa menuliskannya ke source code.
 
