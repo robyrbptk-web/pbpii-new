@@ -2,27 +2,59 @@
   "id": "/",
   "name": "Pengurus Besar Pelajar Islam Indonesia",
   "short_name": "PB PII",
-  "description": "Kabar, gagasan, dan kegiatan Pengurus Besar Pelajar Islam Indonesia.",
+  "description": "Kabar, gagasan, dan kegiatan PB PII, jadwal sholat se-Indonesia, Al-Qur'an, serta peta global.",
   "lang": "id",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#f8fafb",
-  "theme_color": "#102b49",
-    "icons": [
-      {
-        "src": "public/assets/logo-pii.png",
-        "sizes": "192x192",
-        "type": "image/png",
-        "purpose": "any"
-      },
-      {
-        "src": "public/assets/logo-pii.png",
-        "sizes": "512x512",
-        "type": "image/png",
-        "purpose": "maskable"
-      }
-    ]
+  "background_color": "#0c2948",
+  "theme_color": "#0c2948",
+  "categories": ["education", "news", "lifestyle"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ruang Ibadah",
+      "short_name": "Ibadah",
+      "description": "Jadwal sholat, adzan, kiblat, dan Al-Qur'an.",
+      "url": "/ibadah.html",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Peta Global",
+      "short_name": "Peta",
+      "description": "Globe interaktif data Indonesia dan dunia.",
+      "url": "/peta.html",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Dashboard admin",
+      "short_name": "Kelola",
+      "description": "Kelola artikel, sambutan, dan galeri.",
+      "url": "/admin.html",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
 }

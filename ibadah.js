@@ -11,7 +11,16 @@
 
   const API = '/api/muslim';
   const ADZAN_SRC = 'https://www.islamcan.com/audio/adhan/azan1.mp3';
-  const STORE = { city: 'pbpii:ibadah-city', adzan: 'pbpii:ibadah-adzan', surah: 'pbpii:ibadah-surah' };
+  const NETWORK_GEO = 'https://ipwho.is/';
+  const REVERSE_GEO = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
+  const AUTO_REFRESH_MS = 7 * 24 * 3600 * 1000;
+  const STORE = {
+    city: 'pbpii:ibadah-city',
+    citySource: 'pbpii:ibadah-city-source',
+    cityAt: 'pbpii:ibadah-city-at',
+    adzan: 'pbpii:ibadah-adzan',
+    surah: 'pbpii:ibadah-surah',
+  };
 
   const DEFAULT_CITY = Object.freeze({ id: '58a2fc6ed39fd083f55d4182bf88826d', name: 'Kota Jakarta', prov: 'DKI Jakarta' });
   const SECRETARIAT = Object.freeze({ label: 'Sekretariat PB PII', lat: -6.1844917, lon: 106.8344897 });
@@ -27,12 +36,53 @@
   const WIT_PROVINCES = new Set(['PAPUA', 'PAPUA BARAT', 'PAPUA BARAT DAYA', 'PAPUA TENGAH', 'PAPUA PEGUNUNGAN', 'PAPUA SELATAN', 'MALUKU', 'MALUKU UTARA']);
   const WITA_PROVINCES = new Set([
     'BALI', 'NUSA TENGGARA BARAT', 'NUSA TENGGARA TIMUR',
-    'KALIMANTAN BARAT', 'KALIMANTAN TENGAH', 'KALIMANTAN SELATAN', 'KALIMANTAN TIMUR', 'KALIMANTAN UTARA',
+    'KALIMANTAN SELATAN', 'KALIMANTAN TIMUR', 'KALIMANTAN UTARA',
     'SULAWESI UTARA', 'GORONTALO', 'SULAWESI TENGAH', 'SULAWESI BARAT', 'SULAWESI SELATAN', 'SULAWESI TENGGARA',
   ]);
   const TZ_LABEL = { 'Asia/Jakarta': 'WIB', 'Asia/Makassar': 'WITA', 'Asia/Jayapura': 'WIT' };
 
+  /* ipwho.is and BigDataCloud answer with English province names; map them back
+     to the Indonesian names the city list uses before falling back to a capital. */
+  const PROVINCE_ALIASES = {
+    ACEH: 'ACEH', 'NANGGROE ACEH DARUSSALAM': 'ACEH', 'SPECIAL REGION OF ACEH': 'ACEH',
+    'NORTH SUMATRA': 'SUMATERA UTARA', 'WEST SUMATRA': 'SUMATERA BARAT',
+    'SOUTH SUMATRA': 'SUMATERA SELATAN',
+    'RIAU ISLANDS': 'KEPULAUAN RIAU', 'BANGKA BELITUNG': 'KEPULAUAN BANGKA BELITUNG',
+    JAKARTA: 'DKI JAKARTA', 'SPECIAL CAPITAL REGION OF JAKARTA': 'DKI JAKARTA',
+    'WEST JAVA': 'JAWA BARAT', 'CENTRAL JAVA': 'JAWA TENGAH', 'EAST JAVA': 'JAWA TIMUR',
+    YOGYAKARTA: 'DI YOGYAKARTA', 'SPECIAL REGION OF YOGYAKARTA': 'DI YOGYAKARTA',
+    'WEST NUSA TENGGARA': 'NUSA TENGGARA BARAT', 'EAST NUSA TENGGARA': 'NUSA TENGGARA TIMUR',
+    'WEST KALIMANTAN': 'KALIMANTAN BARAT', 'CENTRAL KALIMANTAN': 'KALIMANTAN TENGAH',
+    'SOUTH KALIMANTAN': 'KALIMANTAN SELATAN', 'EAST KALIMANTAN': 'KALIMANTAN TIMUR',
+    'NORTH KALIMANTAN': 'KALIMANTAN UTARA',
+    'NORTH SULAWESI': 'SULAWESI UTARA', 'CENTRAL SULAWESI': 'SULAWESI TENGAH',
+    'WEST SULAWESI': 'SULAWESI BARAT', 'SOUTH SULAWESI': 'SULAWESI SELATAN',
+    'SOUTHEAST SULAWESI': 'SULAWESI TENGGARA',
+    'NORTH MALUKU': 'MALUKU UTARA',
+    'WEST PAPUA': 'PAPUA BARAT', 'SOUTHWEST PAPUA': 'PAPUA BARAT DAYA',
+    'SOUTH PAPUA': 'PAPUA SELATAN', 'CENTRAL PAPUA': 'PAPUA TENGAH',
+    'HIGHLAND PAPUA': 'PAPUA PEGUNUNGAN',
+  };
+
+  const PROVINCE_CAPITALS = {
+    ACEH: 'Banda Aceh', 'SUMATERA UTARA': 'Medan', 'SUMATERA BARAT': 'Padang', RIAU: 'Pekanbaru',
+    JAMBI: 'Jambi', 'SUMATERA SELATAN': 'Palembang', BENGKULU: 'Bengkulu', LAMPUNG: 'Bandar Lampung',
+    'KEPULAUAN BANGKA BELITUNG': 'Pangkal Pinang', 'KEPULAUAN RIAU': 'Tanjung Pinang',
+    'DKI JAKARTA': 'Jakarta', 'JAWA BARAT': 'Bandung', 'JAWA TENGAH': 'Semarang',
+    'DI YOGYAKARTA': 'Yogyakarta', 'JAWA TIMUR': 'Surabaya', BANTEN: 'Serang', BALI: 'Denpasar',
+    'NUSA TENGGARA BARAT': 'Mataram', 'NUSA TENGGARA TIMUR': 'Kupang',
+    'KALIMANTAN BARAT': 'Pontianak', 'KALIMANTAN TENGAH': 'Palangka Raya',
+    'KALIMANTAN SELATAN': 'Banjarmasin', 'KALIMANTAN TIMUR': 'Samarinda',
+    'KALIMANTAN UTARA': 'Tanjung Selor', 'SULAWESI UTARA': 'Manado', GORONTALO: 'Gorontalo',
+    'SULAWESI TENGAH': 'Palu', 'SULAWESI BARAT': 'Mamuju', 'SULAWESI SELATAN': 'Makassar',
+    'SULAWESI TENGGARA': 'Kendari', MALUKU: 'Ambon', 'MALUKU UTARA': 'Ternate',
+    PAPUA: 'Jayapura', 'PAPUA BARAT': 'Manokwari', 'PAPUA BARAT DAYA': 'Sorong',
+    'PAPUA SELATAN': 'Merauke', 'PAPUA TENGAH': 'Nabire', 'PAPUA PEGUNUNGAN': 'Wamena',
+  };
+
   let schedule = null;
+  let activeCity = null;
+  let locationToken = 0;
   let lastPrayer;
   let lastDayCheck = 0;
   let clockTimer = null;
@@ -70,7 +120,7 @@
     }
   }
 
-  function storedCity() {
+  function savedCity() {
     try {
       const saved = JSON.parse(storageGet(STORE.city, 'null'));
       if (saved && /^[a-f0-9]{32}$/i.test(String(saved.id || ''))) {
@@ -79,7 +129,201 @@
     } catch {
       /* fall through to the default */
     }
-    return { ...DEFAULT_CITY };
+    return null;
+  }
+
+  function markSource(source) {
+    storageSet(STORE.citySource, source);
+    storageSet(STORE.cityAt, String(Date.now()));
+  }
+
+  function setLocationNote(message, tone = '') {
+    each('#locationNote, [data-location-note]', (note) => {
+      note.textContent = message;
+      note.dataset.tone = tone;
+    });
+  }
+
+  function normalizePlace(value = '') {
+    return String(value).toUpperCase()
+      .replace(/PROVINSI|PROVINCE|SPECIAL REGION OF|SPECIAL CAPITAL REGION OF/g, ' ')
+      .replace(/\b(KABUPATEN|KAB|KOTA|KOTAMADYA|ADMINISTRASI|REGENCY|CITY)\b\.?/g, ' ')
+      .replace(/[^A-Z ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function provinceKey(value = '') {
+    const name = normalizePlace(value);
+    return PROVINCE_ALIASES[name] || name;
+  }
+
+  /** Highest-scoring kab/kota from the 517-row list for a free-text place name. */
+  function pickCity(rows, query) {
+    let best = null;
+    for (const row of rows) {
+      const name = normalizePlace(row?.lokasi);
+      if (!name || !/^[a-f0-9]{32}$/i.test(String(row?.id || ''))) continue;
+      let score = 0;
+      if (name === query) score = 100;
+      else if (name.startsWith(`${query} `)) score = 80;
+      else if (name.includes(query)) score = 55;
+      else if (query.includes(name)) score = 45;
+      else continue;
+      if (/^KOTA\b/i.test(String(row.lokasi))) score += 10;
+      if (!best || score > best.score) {
+        best = { score, city: { id: row.id, name: prettyPlace(row.lokasi), prov: '' } };
+      }
+    }
+    return best?.city || null;
+  }
+
+  const cityMatchCache = new Map();
+
+  /**
+   * Match a place name against the 517 kab/kota rows. IP geolocation often
+   * returns a kecamatan ("Pontianak Tenggara"), so retry with fewer words and
+   * score both directions (the row name inside the query and vice versa).
+   */
+  async function matchCity(name) {
+    const query = normalizePlace(name);
+    if (query.length < 3) return null;
+    if (query === 'JAKARTA') return { ...DEFAULT_CITY };
+    if (cityMatchCache.has(query)) return cityMatchCache.get(query);
+
+    const words = query.split(' ');
+    let match = null;
+    for (let length = words.length; length >= 1 && !match; length -= 1) {
+      const attempt = words.slice(0, length).join(' ');
+      if (attempt.length < 3) continue;
+      const body = await getJson(`${API}/kota?q=${encodeURIComponent(attempt)}`);
+      const rows = Array.isArray(body.data) ? body.data : [];
+      match = pickCity(rows, query) || pickCity(rows, attempt);
+    }
+
+    cityMatchCache.set(query, match);
+    return match;
+  }
+
+  async function fetchPlace(url, timeout = 8000) {
+    const response = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }
+
+  /** Approximate position from the network, no permission prompt needed. */
+  async function networkPlace() {
+    // BigDataCloud answers from the caller IP when no coordinates are sent.
+    const geo = await fetchPlace(`${REVERSE_GEO}?localityLanguage=id`).catch(() => null);
+    if (geo && (!geo.countryCode || geo.countryCode === 'ID')) {
+      return {
+        country: String(geo.countryCode || 'ID'),
+        city: String(geo.city || ''),
+        locality: String(geo.locality || ''),
+        region: String(geo.principalSubdivision || ''),
+      };
+    }
+    if (geo) {
+      return { country: String(geo.countryCode || ''), city: '', locality: '', region: '' };
+    }
+
+    const data = await fetchPlace(NETWORK_GEO).catch(() => null);
+    if (!data || data.success === false) return null;
+    return {
+      country: String(data.country_code || ''),
+      city: String(data.city || ''),
+      locality: String(data.city || ''),
+      region: String(data.region || ''),
+    };
+  }
+
+  function devicePosition() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({ lat: position.coords.latitude, lon: position.coords.longitude }),
+        () => resolve(null),
+        { timeout: 10000, maximumAge: 600000 },
+      );
+    });
+  }
+
+  /** Precise position from the device, reverse-geocoded to an Indonesian place. */
+  async function devicePlace() {
+    const position = await devicePosition();
+    if (!position) return null;
+    const geo = await fetchPlace(
+      `${REVERSE_GEO}?latitude=${position.lat}&longitude=${position.lon}&localityLanguage=id`,
+    ).catch(() => null);
+    if (!geo) return null;
+    return {
+      country: String(geo.countryCode || (geo.countryName === 'Indonesia' ? 'ID' : '')),
+      city: String(geo.city || ''),
+      locality: String(geo.locality || ''),
+      region: String(geo.principalSubdivision || ''),
+    };
+  }
+
+  /** Resolve a detected place to a kab/kota id, capital of the province last. */
+  async function locateCity(place) {
+    if (!place || (place.country && place.country !== 'ID')) return null;
+
+    for (const name of [place.city, place.locality]) {
+      const city = await matchCity(name).catch(() => null);
+      if (city) return { city, place };
+    }
+
+    const capital = PROVINCE_CAPITALS[provinceKey(place.region)];
+    if (capital) {
+      const city = await matchCity(capital).catch(() => null);
+      if (city) return { city, place, viaProvince: true };
+    }
+    return null;
+  }
+
+  async function autoLocateOnce(firstVisit) {
+    const source = storageGet(STORE.citySource);
+    if (source === 'manual') return;
+
+    if (source) {
+      const detectedAt = Number(storageGet(STORE.cityAt, '0')) || 0;
+      if (Date.now() - detectedAt < AUTO_REFRESH_MS) return;
+    } else if (!firstVisit) {
+      // A city saved before location tracking existed: respect that choice.
+      markSource('manual');
+      const saved = savedCity();
+      setLocationNote(`Jadwal mengikuti ${saved ? saved.name : 'kota tersimpan'} yang tersimpan di perangkat ini. Ketuk “Deteksi lokasi saya” untuk menyesuaikan otomatis.`, 'manual');
+      return;
+    }
+
+    setLocationNote('Menyesuaikan jadwal dengan lokasi Anda…', 'busy');
+    const place = await networkPlace();
+    const found = await locateCity(place);
+
+    if (!found) {
+      setLocationNote(place && place.country && place.country !== 'ID'
+        ? 'Anda berada di luar Indonesia, jadi jadwal mengikuti Kota Jakarta (WIB).'
+        : 'Lokasi tidak dikenali otomatis, jadi jadwal mengikuti Kota Jakarta. Pilih kota lewat kolom pencarian atau ketuk “Deteksi lokasi saya”.', 'muted');
+      return;
+    }
+    await applyDetected(found, 'auto');
+  }
+
+  async function applyDetected(found, origin) {
+    const token = ++locationToken;
+    markSource(origin);
+    await refreshSchedule(found.city);
+    if (token !== locationToken) return false;
+
+    const region = schedule?.city?.prov || '';
+    const from = origin === 'device' ? 'lokasi perangkat Anda' : 'jaringan internet Anda';
+    setLocationNote(found.viaProvince
+      ? `${found.city.name} dipakai karena ${region || 'lokasi Anda'} berada di provinsi yang sama. Pilih kabupaten/kota lain lewat pencarian bila perlu.`
+      : `${found.city.name} otomatis dipilih dari ${from}${region ? ` (${region})` : ''}. Pilih kabupaten/kota lain lewat pencarian bila perlu.`, 'auto');
+    return true;
   }
 
   async function getJson(url) {
@@ -260,7 +504,7 @@
     const now = Date.now();
     if (now - lastDayCheck > 300000) {
       lastDayCheck = now;
-      if (schedule.dayKey !== dateKeyIn(schedule.tz)) refreshSchedule(storedCity());
+      if (schedule.dayKey !== dateKeyIn(schedule.tz)) refreshSchedule(activeCity || DEFAULT_CITY);
     }
   }
 
@@ -278,6 +522,7 @@
     if (status) status.textContent = 'Memuat jadwal sholat…';
     try {
       schedule = await fetchSchedule(city);
+      activeCity = schedule.city;
       lastPrayer = undefined;
       storageSet(STORE.city, JSON.stringify(schedule.city));
       paintSchedule();
@@ -331,6 +576,37 @@
     if (button) button.addEventListener('click', () => playAdzan(''));
   }
 
+  // ------------------------------------------------------------- lokasi sholat
+
+  function initLocationButton() {
+    const button = document.querySelector('#cityDetect');
+    if (!button) return;
+
+    button.addEventListener('click', async () => {
+      if (button.disabled) return;
+      const label = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Mendeteksi…';
+      setLocationNote('Mendeteksi lokasi Anda…', 'busy');
+
+      let found = await locateCity(await devicePlace());
+      let origin = 'device';
+      if (!found) {
+        found = await locateCity(await networkPlace());
+        origin = 'auto';
+      }
+
+      if (found) {
+        await applyDetected(found, origin);
+      } else {
+        setLocationNote('Lokasi tidak dapat dibaca. Pilih kabupaten/kota lewat kolom pencarian di atas.', 'muted');
+      }
+
+      button.disabled = false;
+      button.textContent = label;
+    });
+  }
+
   // --------------------------------------------------------------- city search
 
   function initCitySearch() {
@@ -358,10 +634,13 @@
       const button = event.target.closest('button[data-id]');
       if (!button) return;
       const city = { id: button.dataset.id, name: button.dataset.name, prov: '' };
+      locationToken += 1;
+      markSource('manual');
       storageSet(STORE.city, JSON.stringify(city));
       input.value = '';
       close();
       paintCity(city);
+      setLocationNote(`Jadwal mengikuti ${city.name} pilihan Anda. Ketuk “Deteksi lokasi saya” untuk kembali ke lokasi otomatis.`, 'manual');
       refreshSchedule(city);
     });
 
@@ -638,10 +917,25 @@
 
     const hasPrayerUi = Boolean(document.querySelector('#prayerGrid') || document.querySelector('[data-ibadah-widget]'));
     if (hasPrayerUi) {
-      paintCity(storedCity());
-      refreshSchedule(storedCity());
+      const saved = savedCity();
+      activeCity = saved || { ...DEFAULT_CITY };
+      paintCity(activeCity);
+      refreshSchedule(activeCity).then(() => {
+        const source = storageGet(STORE.citySource);
+        if (source === 'manual') {
+          setLocationNote(`Jadwal mengikuti ${activeCity.name} pilihan Anda. Ketuk “Deteksi lokasi saya” untuk menyesuaikan otomatis.`, 'manual');
+          return;
+        }
+        if (source) {
+          const from = source === 'device' ? 'lokasi perangkat' : 'jaringan internet';
+          setLocationNote(`Jadwal mengikuti ${activeCity.name} dari ${from} yang tersimpan. Ketuk “Deteksi lokasi saya” untuk memperbarui.`, 'auto');
+          return;
+        }
+        return autoLocateOnce(!saved);
+      });
       initAdzan();
       initCitySearch();
+      initLocationButton();
     }
     if (document.querySelector('#quranReader')) initQuran();
     if (document.querySelector('#qiblaDegrees')) initQibla();

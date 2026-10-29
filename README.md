@@ -30,9 +30,11 @@ Jika menu **PB PII** belum terlihat, pastikan kedua file sudah disimpan dan muat
 6. Fungsi di `api/` (proxy data untuk peta) ikut ter-deploy otomatis. Tambahkan `API_INDONESIA_KEY` di **Project Settings > Environment Variables** agar lapisan rumah sakit dan halte Transjakarta aktif; tanpa kunci, keduanya hanya menampilkan pesan belum diatur.
 
 ### Instal sebagai aplikasi
-- Halaman depan menyediakan manifest PWA, ikon Android/iOS, navigasi bawah yang nyaman disentuh, serta cache app-shell dan halaman offline.
+- `manifest.json` memakai mode `standalone`, ikon 192/512 biasa dan 512 `maskable`, plus pintasan ke Ruang Ibadah, Peta, dan Dashboard. Semua halaman memuat `site.js` yang mendaftarkan service worker dan menampilkan tombol **Instal aplikasi** ketika browser mendukung.
+- `sw.js` menyimpan app-shell (halaman, `styles.css`, `app.js`, `ibadah.js`, `site.js`, ikon). Navigasi dan berkas JS/CSS selalu diambil dari jaringan lebih dulu agar pembaruan deploy langsung terpakai; gambar memakai cache lebih dulu. `/api/` dan `/peta/` tidak pernah di-cache. Jika jaringan putus, navigasi jatuh ke halaman `offline.html`.
 - Buka website lewat HTTPS. Di Android/Chrome gunakan tombol **Instal aplikasi** saat tersedia atau menu browser **Install app / Add to Home screen**. Di iPhone/iPad, gunakan **Share > Add to Home Screen**.
 - Konten API dan perubahan dashboard tidak disimpan offline; cache hanya untuk kerangka halaman/aset statis.
+- Ikon dibuat dari `public/assets/logo-pii.png` dengan `node scripts/make-icons.mjs` (tanpa dependensi biner). Jalankan ulang setelah logo diganti, lalu naikkan `CACHE_NAME` di `sw.js` supaya pengunjung menerima versi baru.
 
 Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -g vercel` dan `vercel dev`. Halaman juga bisa dibuka langsung untuk melihat tata letak, tetapi panggilan API memerlukan proxy Vercel dan URL Apps Script yang sudah dikonfigurasi.
 
@@ -43,7 +45,8 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.
 - Login admin dengan token sesi sementara di CacheService.
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan CCTV, ditambah ringkasan angka langsung di beranda.
-- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), hitung mundur waktu sholat berikutnya, pengingat adzan, arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini.
+- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, pengingat adzan, arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini.
+- Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
 
 ## D. Peta Global (PII Global View)
 
@@ -108,8 +111,20 @@ pengunjung tanpa membanjiri API publik.
 - Jadwal yang dikirim API sudah berupa waktu setempat untuk kota tersebut; zona
   WIB/WITA/WIT di layar diturunkan dari nama provinsi, dan hitung mundur dihitung
   memakai jam kota itu, bukan jam perangkat.
-- Pilihan kota, surat terakhir, dan status adzan disimpan di `localStorage`
-  (`pbpii:ibadah-city`, `pbpii:ibadah-surah`, `pbpii:ibadah-adzan`).
+- **Lokasi otomatis:** bawaan template adalah Kota Jakarta. Saat pengunjung
+  pertama kali membuka halaman, alamat IP-nya dipetakan ke kabupaten/kota lewat
+  BigDataCloud (`api.bigdatacloud.net`) dengan cadangan `ipwho.is` — keduanya
+  tanpa kunci. Nama kota/kecamatan dicocokkan ke daftar 517 kab/kota, lalu
+  jadwal dimuat untuk kota itu. Bila nama tidak dikenali, dipakai ibu kota
+  provinsi; bila provinsi juga tidak dikenali, kembali ke Jakarta. Tombol
+  **Deteksi lokasi saya** meminta izin geolocation untuk hasil yang lebih tepat.
+- Pilihan kota, sumber lokasi (`manual`/`auto`/`device`), waktu deteksi, surat
+  terakhir, dan status adzan disimpan di `localStorage`
+  (`pbpii:ibadah-city`, `pbpii:ibadah-city-source`, `pbpii:ibadah-city-at`,
+  `pbpii:ibadah-surah`, `pbpii:ibadah-adzan`). Pilihan manual selalu menang dan
+  tidak ditimpa; deteksi otomatis diperbarui paling sering sekali per 7 hari.
+  Tidak ada koordinat yang dikirim ke server PB PII — pencarian lokasi terjadi
+  di browser dan ke layanan geolokasi publik tadi.
 - Berkas adzan berasal dari islamcan.com. Browser memblokir audio otomatis
   sebelum ada interaksi, jadi pengunjung perlu menekan **Putar adzan** sekali;
   setelah itu bunyi otomatis pada Subuh, Dzuhur, Ashar, Maghrib, dan Isya aktif
@@ -118,11 +133,41 @@ pengunjung tanpa membanjiri API publik.
   lokasi saya** memakai geolocation (perlu HTTPS atau `localhost`).
 
 
-Untuk membuat atau mengganti akun admin, ikuti langkah A di atas. Formulir password memakai kolom tersembunyi dan menyimpan nilainya ke Script Properties tanpa menuliskannya ke source code.
+## F. Lokasi database dan pemulihan akun admin
+
+Semua konten website tidak disimpan di repository ini dan tidak di Vercel. Data
+berada di **satu Google Spreadsheet** yang terhubung ke Apps Script:
+
+| Yang dicari | Di mana |
+| --- | --- |
+| Artikel | Spreadsheet → sheet `Articles` |
+| Sambutan, hero, kontak, footer | Spreadsheet → sheet `Settings` |
+| Foto galeri | Spreadsheet → sheet `Gallery` |
+| ID spreadsheet | Apps Script → **Project Settings → Script Properties → `SPREADSHEET_ID`** |
+| Username admin | Script Properties → `ADMIN_USERNAME` (bawaan `admin`) |
+| Password admin | Script Properties → `ADMIN_PASSWORD` (tersimpan di akun Google, bukan di repo) |
+| URL backend | Environment Variable `GAS_WEB_APP_URL` di Vercel (opsional; ada nilai bawaan di `api/pii.js`) |
+
+Jika lupa spreadsheet-nya: buka Google Drive dan cari berkas dengan nama yang
+dipakai saat membuat database, atau buka Apps Script yang pernah dipakai lalu
+lihat properti `SPREADSHEET_ID`. Membuka URL itu (`docs.google.com/spreadsheets/d/<ID>/edit`)
+langsung menuju database. Jangan membuat spreadsheet baru, karena website akan
+membaca berkas lama.
+
+Jika lupa password: buka spreadsheet → menu **PB PII → Atur akun admin** → isi
+password baru dua kali. Bila menu belum muncul, jalankan `setup()` pada editor
+Apps Script lalu muat ulang spreadsheet. Username tetap `admin` kecuali diubah
+manual di Script Properties. Halaman `/login.html` dan panel bantuan dashboard
+memuat ringkasan langkah yang sama agar bisa dibuka tanpa README.
+
+Tombol **Periksa koneksi data** pada dashboard memanggil endpoint publik dan
+menampilkan jumlah artikel terbit/galeri, sehingga bisa dipakai memastikan
+frontend masih tersambung ke Apps Script sebelum menyalahkan akun.
 
 ## Penting untuk keamanan dan produksi
 - Ini starter/MVP, belum audit keamanan produksi. Gunakan hanya akun admin tepercaya, password kuat, batasi akses editor, dan jangan bagikan URL deployment atau kredensial.
 - Endpoint Apps Script harus dapat dipanggil oleh proxy Vercel. Jangan menaruh `ADMIN_PASSWORD` atau URL rahasia lain di frontend atau repository.
 - Foto galeri dan sampul menggunakan URL gambar publik; upload file langsung belum tersedia.
 - Token sesi disimpan di `sessionStorage` browser dan berlaku sementara; sesi dapat berakhir saat cache dibersihkan.
+- `saveAdminPassword` menyimpan password admin apa adanya di Script Properties (bukan hash). Gunakan password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
 - Untuk penggunaan resmi, tambahkan backup spreadsheet, logging, rate limiting, perlindungan CSRF sesuai kebutuhan, validasi HTML artikel, dan tinjauan keamanan sebelum menerima banyak admin.

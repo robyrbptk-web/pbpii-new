@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <style>
     :root{--green:#087a36;--dark:#075c2b;--ink:#17251c;--muted:#6b786e;--line:#e3e9e4;--soft:#f5f8f5;--red:#c52c35}
@@ -71,56 +71,62 @@
     .hidden{display:none!important}
     .hint{font-size:11px;color:var(--muted);margin-top:5px}
     .mobile-menu{display:none}
+    .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+    .toolbar .search{flex:1 1 220px;min-width:0}
+    .toolbar .search input{width:100%}
+    .chips{display:flex;gap:6px;flex-wrap:wrap}
+    .chip{border:1px solid var(--line);border-radius:999px;padding:7px 13px;background:#fff;color:#58665c;font-size:11px;font-weight:750;cursor:pointer}
+    .chip.active{background:#eaf6ed;border-color:#c9e3d1;color:var(--green)}
+    .item-main{min-width:0;flex:1}
+    .item[data-status="draft"]{border-left:3px solid #e9c45b}
+    .item[data-status="published"]{border-left:3px solid #4aa96c}
+    .item .meta-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+    .help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+    .help-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fbfdfb}
+    .help-card h3{margin:0 0 6px;font-size:13px}
+    .help-card p{margin:0 0 8px;color:var(--muted);font-size:12px}
+    .help-card ol,.help-card ul{margin:0;padding-left:17px;color:var(--muted);font-size:12px}
+    .help-card li{margin-bottom:4px}
+    .help-card code{background:#eef3ee;border-radius:5px;padding:1px 5px;font-size:11px;color:#1f4030}
+    .session-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;color:var(--muted);font-size:11px}
+    .session-line .dot{width:7px;height:7px;border-radius:50%;background:#4aa96c}
+    .message{position:fixed;z-index:60;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));width:min(94vw,520px);margin:0;box-shadow:0 16px 44px #0f241733;opacity:0;transform:translate(-50%,14px);pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+    .message.show{opacity:1;transform:translate(-50%,0)}
     @media(max-width:850px){
-      .layout{grid-template-columns:1fr}
-      aside{border-right:0;border-bottom:1px solid var(--line);padding:10px 15px;display:flex;gap:6px;overflow-x:auto}
+      body{padding-bottom:calc(74px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
+      .layout{grid-template-columns:1fr;min-height:0}
+      aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;border:0;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 96%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
       .side-label,.side-bottom{display:none}
-      .tab{white-space:nowrap;width:auto;margin:0;padding:10px}
-      main{padding:22px}
-      .topbar{padding:0 18px}
+      .tab{flex-direction:column;justify-content:center;gap:3px;min-height:52px;margin:0;padding:6px 4px;border-radius:11px;font-size:10.5px;line-height:1.2;text-align:center}
+      .tab .tab-icon{font-size:16px}
+      .tab.active{background:#eaf6ed}
+      main{padding:20px 16px calc(28px + env(safe-area-inset-bottom))}
+      .topbar{height:auto;min-height:60px;padding:max(8px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left))}
       .user-name{display:none}
+      input,select,textarea{font-size:16px}
+      .message{bottom:calc(88px + env(safe-area-inset-bottom))}
+      .btn,.chip,.tab{min-height:40px}
     }
     @media(max-width:560px){
-      main{padding:16px 12px}
-      .topbar{height:62px;padding:0 12px}
-      .brand img{width:32px;height:38px      }
-      @media(max-width:850px){
-        body{padding-bottom:env(safe-area-inset-bottom)}
-        .topbar{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
-        .layout{min-height:calc(100dvh - 70px)}
-        aside{position:sticky;top:62px;z-index:8;scrollbar-width:none;background:rgb(255 255 255 / 94%);backdrop-filter:blur(14px);padding:8px max(12px,env(safe-area-inset-left))}
-        aside::-webkit-scrollbar{display:none}
-        .tab{min-height:42px}
-        main{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-      }
-      @media(max-width:560px){
-        body{font-size:14px}
-        .topbar{height:60px}
-        .brand img{width:35px;height:40px}
-        .layout{min-height:calc(100dvh - 60px)}
-        aside{top:60px}
-        main{padding:18px 14px calc(28px + env(safe-area-inset-bottom))}
-        .page-head{align-items:center}
-        .page-head h1{font-size:24px}
-        .panel{border-radius:13px;padding:18px 15px}
-        .stat{border-radius:11px}
-        .item{flex-direction:column;gap:10px}
-        .top-actions{gap:6px}
-      }
-      .brand{font-size:11px;gap:7px}
-      .brand small{font-size:8px}
-      .top-actions .btn{padding:8px;font-size:11px}
-      .page-head h1{font-size:24px}
-      .page-head{align-items:center}
-      .panel{padding:17px}
+      .brand img{width:34px;height:38px}
+      .brand{gap:8px;font-size:12px}
+      .brand small{font-size:8px;letter-spacing:.4px}
+      .top-actions .btn{padding:8px 10px;font-size:11px}
+      .page-head{flex-direction:column;align-items:stretch;gap:12px}
+      .page-head h1{font-size:23px}
+      .page-head .btn{width:100%}
+      .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+      .stat{padding:12px 10px}
+      .stat strong{font-size:21px}
+      .stat span{font-size:10px}
+      .panel{padding:16px 14px;border-radius:13px}
       .form-grid{grid-template-columns:1fr}
       .field.full{grid-column:auto}
-      .stats{gap:7px}
-      .stat{padding:12px}
-      .stat strong{font-size:22px}
-      .stat span{font-size:10px}
-      .item{flex-direction:column}
-      .item-actions{justify-content:flex-start}
+      .item{flex-direction:column;gap:10px}
+      .item-actions{justify-content:flex-start;width:100%}
+      .item-actions .btn{flex:1 1 auto}
+      .list-head{flex-wrap:wrap}
+      .toolbar .search{flex:1 1 100%}
     }
   </style>
 </head>
@@ -140,10 +146,10 @@
   <div class="layout">
     <aside>
       <div class="side-label">MENU UTAMA</div>
-      <button class="tab active" data-page="overview">▦ Ringkasan</button>
-      <button class="tab" data-page="articles">▤ Artikel</button>
-      <button class="tab" data-page="settings">⚙ Sambutan & Pengaturan</button>
-      <button class="tab" data-page="gallery">▧ Galeri</button>
+      <button class="tab active" data-page="overview"><span class="tab-icon" aria-hidden="true">▦</span><span>Ringkasan</span></button>
+      <button class="tab" data-page="articles"><span class="tab-icon" aria-hidden="true">▤</span><span>Artikel</span></button>
+      <button class="tab" data-page="settings"><span class="tab-icon" aria-hidden="true">⚙</span><span>Pengaturan</span></button>
+      <button class="tab" data-page="gallery"><span class="tab-icon" aria-hidden="true">▧</span><span>Galeri</span></button>
       <div class="side-bottom"></div>
     </aside>
 
@@ -165,8 +171,38 @@
           <div class="item-list" id="recentArticles"><div class="empty">Memuat data…</div></div>
         </div>
         <div class="panel">
-          <h2>Catatan pengelola</h2>
-          <p class="panel-intro">Pastikan judul, nama penulis, tanggal, dan isi berita sudah diperiksa sebelum artikel diterbitkan. Sambutan Ketua Umum juga perlu mendapatkan persetujuan sebelum ditampilkan sebagai pernyataan resmi.</p>
+          <div class="list-head"><h2>Pusat bantuan</h2><button class="btn secondary" id="checkBackend" type="button">Periksa koneksi data</button></div>
+          <p class="panel-intro">Ringkasan tempat data dan akun website disimpan, agar mudah ditemukan lagi.</p>
+          <div class="help-grid">
+            <div class="help-card">
+              <h3>Di mana database disimpan?</h3>
+              <p>Semua konten tersimpan di satu Google Spreadsheet yang terhubung ke Apps Script website.</p>
+              <ol>
+                <li>Buka spreadsheet yang pernah dipakai, lalu <code>Extensions &gt; Apps Script</code>.</li>
+                <li>Sheet <code>Articles</code>, <code>Settings</code>, dan <code>Gallery</code> adalah tabel datanya.</li>
+                <li>ID spreadsheet tersimpan di <code>Script Properties</code> sebagai <code>SPREADSHEET_ID</code>.</li>
+              </ol>
+            </div>
+            <div class="help-card">
+              <h3>Akun admin</h3>
+              <p>Username selalu <code>admin</code>. Password tidak pernah disimpan di website.</p>
+              <ol>
+                <li>Buka spreadsheet dan tunggu menu <code>PB PII</code> muncul.</li>
+                <li>Pilih <code>Atur akun admin</code>, isi password baru dua kali, lalu simpan.</li>
+                <li>Bila menu belum ada, jalankan <code>setup()</code> di Apps Script lalu muat ulang spreadsheet.</li>
+              </ol>
+            </div>
+            <div class="help-card">
+              <h3>Jika login gagal</h3>
+              <p>Password hanya tersimpan di Script Properties Google, jadi tidak dapat dilihat dari dashboard.</p>
+              <ul>
+                <li>Atur ulang lewat <code>PB PII &gt; Atur akun admin</code>.</li>
+                <li>Pastikan URL deployment Apps Script di <code>api/pii.js</code> masih aktif.</li>
+                <li>Sesi login berlaku 6 jam, lalu masuk kembali.</li>
+              </ul>
+            </div>
+          </div>
+          <p class="session-line"><span class="dot" aria-hidden="true"></span> Masuk sebagai <b id="sessionUser">Administrator</b> · sesi berakhir otomatis setelah 6 jam.</p>
         </div>
       </section>
 
@@ -203,7 +239,17 @@
         </div>
 
         <div class="panel">
-          <div class="list-head"><h2>Semua artikel</h2><button class="btn secondary" id="refreshArticles">↻ Muat ulang</button></div>
+          <div class="list-head"><h2>Semua artikel <span class="badge" id="articleCount">0</span></h2><button class="btn secondary" id="refreshArticles">↻ Muat ulang</button></div>
+          <div class="toolbar">
+            <div class="search">
+              <input id="articleSearch" type="search" placeholder="Cari judul, kategori, atau penulis" autocomplete="off">
+            </div>
+            <div class="chips" id="articleFilters" role="group" aria-label="Saring status artikel">
+              <button class="chip active" data-filter="all" type="button">Semua</button>
+              <button class="chip" data-filter="published" type="button">Terbit</button>
+              <button class="chip" data-filter="draft" type="button">Draft</button>
+            </div>
+          </div>
           <div class="item-list" id="articleList"><div class="empty">Memuat data…</div></div>
         </div>
       </section>
@@ -298,7 +344,8 @@
       const el = $('globalMessage');
       el.textContent = text;
       el.className = 'message show ' + (type === 'err' ? 'err' : 'ok');
-      window.scrollTo({top:0, behavior:'smooth'});
+      clearTimeout(notify.timer);
+      notify.timer = setTimeout(() => { el.className = 'message'; }, 4200);
     }
 
     async function api(action, extra={}) {
@@ -326,6 +373,7 @@
       document.querySelectorAll('.tab[data-page]').forEach(el =>
         el.classList.toggle('active', el.dataset.page === name)
       );
+      window.scrollTo({top:0, behavior:'smooth'});
     }
 
     document.querySelectorAll('.tab[data-page]').forEach(button =>
@@ -337,6 +385,19 @@
     );
 
     $('userName').textContent = sessionStorage.getItem('pbpii_admin_username') || 'Administrator';
+    $('sessionUser').textContent = $('userName').textContent;
+
+    let articleQuery = '';
+    let articleFilter = 'all';
+
+    function articleMatches(article) {
+      if (articleFilter !== 'all' && (article.status === 'published' ? 'published' : 'draft') !== articleFilter) {
+        return false;
+      }
+      if (!articleQuery) return true;
+      return [article.title, article.category, article.author, article.excerpt]
+        .join(' ').toLowerCase().includes(articleQuery);
+    }
 
     function updateStats() {
       $('totalArticles').textContent = state.articles.length;
@@ -345,20 +406,34 @@
     }
 
     function renderArticleItems() {
-      const html = state.articles.map(a => {
+      const rows = state.articles.filter(articleMatches);
+      $('articleCount').textContent = rows.length === state.articles.length
+        ? String(rows.length)
+        : rows.length + '/' + state.articles.length;
+
+      $('articleList').innerHTML = rows.map(a => {
         const status = a.status === 'published' ? 'published' : 'draft';
         const date = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('id-ID') : '';
-        return '<div class="item"><div><h3>' + escapeHTML(a.title) + '</h3><p>' +
-          escapeHTML(a.category || 'Berita') + ' · ' + escapeHTML(date) + ' · ' +
-          '<span class="badge ' + status + '">' + (status === 'published' ? 'TERBIT' : 'DRAFT') +
-          '</span></p></div><div class="item-actions"><button class="btn secondary" data-edit-article="' +
-          escapeHTML(a.id) + '">Edit</button><button class="btn danger" data-delete-article="' +
-          escapeHTML(a.id) + '">Hapus</button></div></div>';
-      }).join('') || '<div class="empty">Belum ada artikel. Klik “Artikel baru” untuk mulai menulis.</div>';
+        const cover = safeUrl(a.coverImage);
+        const thumb = cover
+          ? '<img src="' + escapeHTML(cover) + '" alt="" loading="lazy" style="width:64px;height:52px;object-fit:cover;border-radius:8px;flex:0 0 auto">'
+          : '';
+        return '<div class="item" data-status="' + status + '">' + thumb +
+          '<div class="item-main"><h3>' + escapeHTML(a.title) + '</h3><p class="meta-line">' +
+          '<span>' + escapeHTML(a.category || 'Berita') + '</span><span>·</span>' +
+          '<span>' + escapeHTML(date) + '</span>' +
+          '<span class="badge ' + status + '">' + (status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></p></div>' +
+          '<div class="item-actions">' +
+          '<button class="btn secondary" data-toggle-article="' + escapeHTML(a.id) + '">' +
+          (status === 'published' ? 'Tarik ke draft' : 'Terbitkan') + '</button>' +
+          '<button class="btn secondary" data-edit-article="' + escapeHTML(a.id) + '">Edit</button>' +
+          '<button class="btn danger" data-delete-article="' + escapeHTML(a.id) + '">Hapus</button></div></div>';
+      }).join('') || '<div class="empty">' + (state.articles.length
+        ? 'Tidak ada artikel yang cocok dengan pencarian atau saringan.'
+        : 'Belum ada artikel. Klik “Artikel baru” untuk mulai menulis.') + '</div>';
 
-      $('articleList').innerHTML = html;
       $('recentArticles').innerHTML = state.articles.slice(0,5).map(a =>
-        '<div class="item"><div><h3>' + escapeHTML(a.title) + '</h3><p>' +
+        '<div class="item"><div class="item-main"><h3>' + escapeHTML(a.title) + '</h3><p class="meta-line">' +
         escapeHTML(a.category || 'Berita') + ' · ' +
         '<span class="badge ' + (a.status === 'published' ? 'published' : 'draft') + '">' +
         (a.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></p></div></div>'
@@ -452,6 +527,23 @@
     $('articleList').addEventListener('click', async event => {
       const edit = event.target.closest('[data-edit-article]');
       const del = event.target.closest('[data-delete-article]');
+      const toggle = event.target.closest('[data-toggle-article]');
+
+      if (toggle) {
+        const a = state.articles.find(item => item.id === toggle.dataset.toggleArticle);
+        if (!a) return;
+        const nextStatus = a.status === 'published' ? 'draft' : 'published';
+        toggle.disabled = true;
+        try {
+          await api('saveArticle', {article:{...a, status:nextStatus}});
+          await loadData();
+          notify(nextStatus === 'published' ? 'Artikel diterbitkan.' : 'Artikel ditarik kembali ke draft.');
+        } catch (e) {
+          notify(e.message, 'err');
+          toggle.disabled = false;
+        }
+        return;
+      }
 
       if (edit) {
         const a = state.articles.find(item => item.id === edit.dataset.editArticle);
@@ -563,6 +655,38 @@
     $('refreshArticles').addEventListener('click', () => loadData(true));
     $('refreshGallery').addEventListener('click', () => loadData(true));
 
+    $('articleSearch').addEventListener('input', event => {
+      articleQuery = event.target.value.trim().toLowerCase();
+      renderArticleItems();
+    });
+
+    $('articleFilters').addEventListener('click', event => {
+      const chip = event.target.closest('[data-filter]');
+      if (!chip) return;
+      articleFilter = chip.dataset.filter;
+      document.querySelectorAll('#articleFilters .chip').forEach(el =>
+        el.classList.toggle('active', el === chip)
+      );
+      renderArticleItems();
+    });
+
+    $('checkBackend').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Memeriksa…';
+      try {
+        const data = await api('public');
+        const published = (data.articles || []).length;
+        const gallery = (data.gallery || []).length;
+        notify('Koneksi data aktif · ' + published + ' artikel terbit · ' + gallery + ' foto galeri.');
+      } catch (e) {
+        notify(e.message, 'err');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Periksa koneksi data';
+      }
+    });
+
     $('logoutButton').addEventListener('click', async () => {
       try { await api('logout'); } catch (e) {}
       sessionStorage.removeItem('pbpii_admin_token');
@@ -580,5 +704,6 @@
 
     start();
   </script>
+  <script src="site.js" defer></script>
 </body>
 </html>

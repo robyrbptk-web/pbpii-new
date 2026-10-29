@@ -2238,3 +2238,224 @@ body.peta-page {
     flex: 1 1 45%;
   }
 }
+
+/* ---------------------------------------------------------------- app shell
+   Rules that make the installed web app behave like a native app on phones:
+   no tap flash, no rubber-band on the shell, thumb-sized targets and a
+   highlighted current page in the bottom bar. */
+
+.location-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+}
+
+.location-pin {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 0 4px #176da814;
+}
+
+.location-note {
+  flex: 1 1 240px;
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+.location-note[data-tone='auto'] {
+  color: #14603a;
+}
+
+.location-note[data-tone='busy'] {
+  color: var(--blue);
+}
+
+.location-note[data-tone='manual'] {
+  color: var(--navy);
+}
+
+.location-detect {
+  min-height: 36px;
+  border: 1px solid #cfe0ee;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 750;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.location-detect:hover {
+  border-color: #a7c3da;
+  background: #f5f9fc;
+}
+
+.location-detect:disabled {
+  opacity: .6;
+  cursor: progress;
+}
+
+@media (max-width: 680px) {
+  .location-detect {
+    width: 100%;
+    min-height: 42px;
+  }
+}
+
+body {
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+a,
+button,
+summary,
+label,
+.tab,
+nav a {
+  touch-action: manipulation;
+}
+
+.button,
+.install-app,
+.adzan-bar .button,
+.reader-pager button,
+.ayah-play,
+.city-results button,
+.surah-item {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.button:active,
+.install-app:active,
+.reader-pager button:active,
+.ayah-play:active,
+.surah-item:active {
+  transform: scale(.975);
+}
+
+.site-header {
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+
+.hero,
+.ibadah-hero {
+  scroll-margin-top: 0;
+}
+
+.surah-list,
+.city-results,
+.prayer-grid {
+  -webkit-overflow-scrolling: touch;
+}
+
+nav a[aria-current='page'] {
+  color: var(--navy);
+  font-weight: 800;
+}
+
+nav a[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--blue);
+  transform: translateX(-50%);
+}
+
+.is-standalone .install-app {
+  display: none;
+}
+
+.is-standalone .site-header {
+  padding-top: max(6px, env(safe-area-inset-top));
+}
+
+.is-standalone nav {
+  padding-bottom: max(7px, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 680px) {
+  /* 16px keeps iOS from zooming the viewport when a field gets focus. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  nav a {
+    min-height: 52px;
+    gap: 4px;
+    font-size: .68rem;
+    transition: color .16s ease, background-color .16s ease;
+  }
+
+  nav a:active {
+    background: #e9f1f8;
+    transform: scale(.94);
+  }
+
+  nav a[aria-current='page']::after {
+    bottom: 3px;
+    width: 16px;
+    height: 3px;
+    border-radius: 99px;
+    background: currentColor;
+  }
+
+  .site-header {
+    padding-top: max(7px, env(safe-area-inset-top));
+  }
+
+  main {
+    animation: shell-enter .32s ease both;
+  }
+
+  .prayer-card {
+    border-radius: 13px;
+  }
+
+  .ibadah-hero,
+  .section,
+  .teaser,
+  .qibla-section {
+    padding-bottom: calc(28px + env(safe-area-inset-bottom) / 2);
+  }
+}
+
+@keyframes shell-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main {
+    animation: none;
+  }
+}

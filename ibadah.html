@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Ibadah PB PII">
   <title>Ruang Ibadah — PB PII</title>
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -66,6 +66,11 @@
           <input id="citySearch" type="search" placeholder="Contoh: Yogyakarta" autocomplete="off" enterkeyhint="search">
         </label>
         <p class="ibadah-status" id="jadwalStatus" role="status" aria-live="polite">Memuat jadwal sholat…</p>
+      </div>
+      <div class="location-line">
+        <span class="location-pin" aria-hidden="true"></span>
+        <p class="location-note" id="locationNote" role="status" aria-live="polite">Jadwal mengikuti lokasi Anda; bila lokasi belum dikenali, dipakai Kota Jakarta.</p>
+        <button class="location-detect" id="cityDetect" type="button">Deteksi lokasi saya</button>
       </div>
       <ul class="city-results" id="cityResults" hidden></ul>
 
@@ -150,5 +155,6 @@
   </footer>
 
   <script src="ibadah.js" defer></script>
+  <script src="site.js" defer></script>
 </body>
 </html>
