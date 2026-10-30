@@ -477,19 +477,120 @@ nav a:hover,
   font-size: .9rem;
 }
 
-.article-body details {
-  font-size: .88rem;
+.article-open {
+  margin-top: 14px;
+  align-self: flex-start;
 }
 
-.article-body summary {
-  color: var(--blue);
+/* Pembaca artikel layar penuh — dialog, bukan ekspansi di dalam kartu. */
+body.is-locked {
+  overflow: hidden;
+}
+
+.article-reader {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #fff;
+  color: var(--ink);
+}
+
+.article-reader::backdrop {
+  background: rgb(8 20 35 / 72%);
+}
+
+.article-reader[open] {
+  display: flex;
+}
+
+.reader-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.reader-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px max(18px, env(safe-area-inset-left)) 12px max(18px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.reader-bar button {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 15px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: .86rem;
   font-weight: 700;
   cursor: pointer;
 }
 
-.article-full {
-  padding-top: 12px;
-  white-space: pre-line;
+.reader-bar button:hover {
+  border-color: #a7c3da;
+  background: var(--soft);
+}
+
+.reader-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.reader-cover {
+  display: block;
+  width: 100%;
+  max-height: 46vh;
+  object-fit: cover;
+}
+
+.reader-article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 30px 22px calc(70px + env(safe-area-inset-bottom));
+}
+
+.reader-article h2 {
+  margin: 14px 0 16px;
+  color: var(--navy);
+  font-size: clamp(1.5rem, 1.1rem + 2vw, 2.3rem);
+  line-height: 1.22;
+}
+
+.reader-article p {
+  margin: 0 0 18px;
+  font-size: 1.06rem;
+  line-height: 1.75;
+}
+
+.reader-lead {
+  color: var(--navy);
+  font-size: 1.12rem !important;
+  font-weight: 600;
+}
+
+.reader-byline {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .88rem !important;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+/* Yang fullscreen adalah dokumen, dialog-nya tetap di atas — jaga agar dasarnya putih. */
+:root:fullscreen .article-reader {
+  background: #fff;
 }
 
 .greeting-section {
@@ -2942,5 +3043,56 @@ nav a[aria-current='page']::after {
     left: 12px;
     width: auto;
     max-height: min(66vh, 520px);
+  }
+}
+
+/* ---------- sentuhan ponsel: target kecil diperbesar, pembaca dirapikan ---------- */
+
+@media (max-width: 680px) {
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* Tautan yang menyatu dalam kalimat jangan sampai meninggalkan baris kosong. */
+  p .text-link {
+    display: inline;
+    min-height: 0;
+  }
+
+  .ayah-play,
+  .adzan-bar .button,
+  .reader-bar button {
+    min-height: 44px;
+  }
+
+  .reader-bar {
+    gap: 8px;
+    padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
+  }
+
+  .reader-bar button {
+    flex: 0 1 auto;
+    font-size: .8rem;
+  }
+
+  /* Sampul dipangkas supaya judul tetap terbaca di layar pendek. */
+  .reader-cover {
+    max-height: 32vh;
+  }
+
+  .reader-article {
+    padding: 24px 18px calc(60px + env(safe-area-inset-bottom));
+  }
+
+  .reader-article p {
+    font-size: 1.02rem;
+    line-height: 1.72;
+  }
+
+  .article-open {
+    width: 100%;
+    justify-content: space-between;
   }
 }

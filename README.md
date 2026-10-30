@@ -112,10 +112,40 @@ langsung dan `/api/_gw?r=...` — dijamin memberi hasil yang sama.
 
 ### Instal sebagai aplikasi
 - `manifest.json` memakai mode `standalone`, ikon 192/512 biasa dan 512 `maskable`, plus pintasan ke Ruang Ibadah, Peta, dan Dashboard. Semua halaman memuat `site.js` yang mendaftarkan service worker dan menampilkan tombol **Instal aplikasi** ketika browser mendukung.
-- `sw.js` menyimpan app-shell (halaman, `styles.css`, `app.js`, `ibadah.js`, `site.js`, ikon). Navigasi dan berkas JS/CSS selalu diambil dari jaringan lebih dulu agar pembaruan deploy langsung terpakai; gambar memakai cache lebih dulu. `/api/` dan `/peta/` tidak pernah di-cache. Jika jaringan putus, navigasi jatuh ke halaman `offline.html`.
+- `sw.js` menyimpan app-shell (halaman, `styles.css`, `app.js`, `ibadah.js`, `site.js`, ikon, plus `assets/quran-surah.json` dan `assets/ibadah-kota.json`). Navigasi dan berkas JS/CSS selalu diambil dari jaringan lebih dulu agar pembaruan deploy langsung terpakai; gambar memakai cache lebih dulu. `/api/` dan `/peta/` tidak pernah di-cache. Jika jaringan putus, navigasi jatuh ke halaman `offline.html`.
 - Buka website lewat HTTPS. Di Android/Chrome gunakan tombol **Instal aplikasi** saat tersedia atau menu browser **Install app / Add to Home screen**. Di iPhone/iPad, gunakan **Share > Add to Home Screen**.
 - Konten API dan perubahan dashboard tidak disimpan offline; cache hanya untuk kerangka halaman/aset statis.
 - Ikon dibuat dari `assets/logo-pii.png` dengan `node scripts/make-icons.mjs` (tanpa dependensi biner). Jalankan ulang setelah logo diganti, lalu naikkan `CACHE_NAME` di `sw.js` supaya pengunjung menerima versi baru.
+
+### Mat tampilan mobile
+
+Ukuran-ukuran ini sudah diukur pada lebar 390, 360, dan 320 px (bukan hanya
+dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
+
+- Tidak ada gulir horizontal: `document.scrollWidth` sama dengan lebar viewport di
+  ketiga lebar itu. Satu-satunya baris yang boleh melebar adalah kartu statistik
+  beranda, yang memang sengaja bisa digeser (`scroll-snap`).
+- Target sentuhan minimal 44 px: navigasi bawah (67 px + *safe area*), tombol
+  **Baca selengkapnya**, tombol ✕/⤢ di pembaca artikel, **Putar adzan**, **Putar**
+  murattal, kolom cari kota, dan tiap tautan section. Pengecualian: tautan yang
+  menyatu dalam kalimat (`.office-address`) tetap inline supaya paragraf tidak
+  bolong.
+- Navigasi bawah tidak menutupi konten: `body` menyisakan 76 px dan bar memakai
+  `env(safe-area-inset-bottom)`; pada layar kecil `backdrop-filter` hanya dipakai di
+  dalam header yang tidak lagi menjadi containing block elemen tetap.
+- Pembaca artikel memakai `100dvh` (tinggi visual yang sebenarnya, jadi tidak
+  terpotong saat bar alamat HP hilang saat menggulir), isi bergulir sendiri dengan
+  `overscroll-behavior: contain` sehingga halaman di belakangnya tidak ikut goyang,
+  dan sampul dibatasi 32vh di HP agar judul tetap terlihat tanpa menggulir.
+- Dashboard: tab bawah 5 kolom `minmax(0,1fr)` (label pendek, tidak pernah terpotong),
+  form satu kolom, panel selebar kartu, dan input 16 px supaya Safari tidak
+  melakukan zoom otomatis.
+- Pada perangkat sentuh, panel unggah foto menulis ulang petunjuknya menjadi
+  "Ketuk untuk memilih dari galeri atau kamera" (`@media (hover:none) and (pointer:coarse)`).
+
+Perlu diingat: perbesaran layar penuh browser (`requestFullscreen`) dipanggil pada
+`document.documentElement`, bukan pada elemen `<dialog>` — Chrome menolak dialog
+sebagai target layar penuh.
 
 ### Menjalankan semuanya secara lokal
 
@@ -175,13 +205,34 @@ Yang benar adalah repository di dalam `pbpii-web` (`.git` milik sendiri);
 
 ## C. Fitur yang ada
 - Halaman depan responsif untuk desktop, tablet, dan HP; pada layar kecil memakai navigasi bawah bergaya aplikasi.
-- Artikel: tambah, edit, hapus, draft/published, kategori, ringkasan, isi, URL gambar sampul.
-- Pengaturan: judul dan teks hero, nama/jabatan/foto Ketua Umum, sambutan, tampil/sembunyikan sambutan, profil ringkas, footer, email, dan tautan media sosial.
-- Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.
+- Artikel: tambah, edit, hapus, draft/published, kategori, ringkasan, isi, dan **unggah foto sampul langsung dari dashboard** (link HTTPS tetap tersedia sebagai opsi). Pembaca di situs membuka artikel pada layar penuh.
+- Pengaturan: judul dan teks hero, nama/jabatan/foto Ketua Umum (foto bisa diunggah), sambutan, tampil/sembunyikan sambutan, profil ringkas, footer, email, dan tautan media sosial.
+- Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan, dengan unggah foto langsung.
 - Login admin dan lembaga dengan token sesi persisten di sheet `Sessions` (bukan lagi `CacheService`, yang diam-diam memotong umur token menjadi 10 menit).
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan kamera CCTV Dishub Jakarta, Bandung, Tasikmalaya, serta Kabupaten Bandung, ditambah ringkasan angka langsung di beranda.
-- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, **adzan otomatis** (berbunyi sendiri saat waktunya tiba tanpa menekan apa pun; ada sakelar untuk mematikannya di halaman itu dan pilihannya tersimpan di perangkat), arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini dan ikut memutar adzan selama halaman terbuka.
+- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, **adzan otomatis** (berbunyi sendiri saat waktunya tiba tanpa menekan apa pun; ada sakelar untuk mematikannya di halaman itu dan pilihannya tersimpan di perangkat), arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini dan ikut memutar adzan selama halaman terbuka. **Semuanya tampil sejak halaman baru dibuka**: jadwal terakhir hari itu dibaca dari penyimpanan perangkat, daftar surat dan daftar kota ikut terbundel di aplikasi, dan jaringan hanya dipakai memperbarui di latar belakang (lihat bagian E).
 - Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
+
+### Unggah foto dari dashboard (tanpa link)
+
+Sampul artikel, foto Ketua Umum, dan foto galeri bisa langsung diunggah dari
+`/admin.html` — tidak perlu menyalin link dari Google Drive lagi. Alurnya:
+
+1. Foto dipilih atau diseret ke panel unggah, lalu **dikecilkan di browser**
+   (sisi terpanjang 1600 px, JPEG kualitas 0,82, latar putih untuk PNG transparan),
+   sehingga kiriman hanya ±150–300 KB dan aman untuk koneksi HP.
+2. Berkas dikirim dengan aksi `uploadImage` ke Apps Script melalui `/api/pii`.
+3. Apps Script menyimpannya di folder Drive **PB PII Media** (dibuat otomatis saat
+   `setup()`, ID-nya tersimpan di Script Properties sebagai `MEDIA_FOLDER_ID`),
+   membagikannya *anyone with link*, dan mengembalikan
+   `https://lh3.googleusercontent.com/d/<id>=w1600`.
+4. URL itu masuk ke kolom `coverImage` / `imageUrl` yang sudah ada — jadi **tidak
+   ada perubahan struktur sheet** dan artikel lama tetap jalan.
+
+Butuh backend versi `2026-10-30.3` atau lebih baru: bila deployment Apps Script
+masih lama, dashboard menampilkan pesan
+*"Backend belum mengenal unggah foto…"*. Maksimal 3 MB per berkas dan hanya
+JPEG/PNG/WebP (dicek dari tanda tangan byte, bukan dari nama file).
 - **Tanya PII** — tombol mengambang di beranda, Ruang Ibadah, dashboard admin, dashboard lembaga, dan formulir yang membuka asisten AI khusus kader. Tamu hanya melihat pesan penguncian beserta tautan login/daftar. Lihat bagian H.
 - **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
 
@@ -324,6 +375,28 @@ kunci. Proxy di `api/muslim/` menyimpan hasilnya di cache: jadwal sholat 1 jam,
 daftar kabupaten/kota 7 hari, daftar surat dan ayat 30 hari, arah kiblat 30 hari,
 tanggal Hijriah 1 jam. Dengan begitu satu instance hangat melayani banyak
 pengunjung tanpa membanjiri API publik.
+
+**Tampil instan sejak halaman dibuka.** Di samping cache server, halaman memakai
+tiga lapisan di sisi pengunjung:
+
+- `assets/quran-surah.json` (114 surat) dan `assets/ibadah-kota.json` (517 kota)
+  ikut terbundel dalam aplikasi dan ikut di-*precache* service worker, jadi daftar
+  surat dan pencarian kota tidak menunggu jaringan sama sekali. Regenerasi bila
+  data resmi berubah: jalankan `npm run dev`, lalu
+  `node scripts/make-ibadah-static.mjs`.
+- Jadwal terakhir hari itu disimpan di `localStorage`
+  (`pbpii:ibadah-cache:v1:jadwal:<id kota>`). Saat halaman dibuka, jadwal itu yang
+  dilukis lebih dulu sehingga hitung mundur langsung berjalan; permintaan jaringan
+  berikutnya hanya menyegarkan angka. Cache dibuang kalau `dayKey`-nya sudah bukan
+  hari ini di zona kota tersebut.
+- Ayat yang pernah dibuka disimpan per surat+halaman
+  (`pbpii:ibadah-cache:v1:quran:<surah>:<halaman>`, indeks LRU maksimal 30 entri
+  dan otomatis membersihkan yang terlama kalau kuota penyimpanan penuh). Membuka
+  kembali Al-Kahf, misalnya, tidak lagi memanggil API sama sekali.
+
+Berkas audio adzan disiapkan begitu halaman dibuka (bukan saat waktunya tiba),
+dan sentuhan pertama di halaman dipakai untuk membuka izin suara, jadi adzan bisa
+berbunyi sendiri tanpa tombol yang perlu ditekan.
 
 - Jadwal yang dikirim API sudah berupa waktu setempat untuk kota tersebut; zona
   WIB/WITA/WIT di layar diturunkan dari nama provinsi, dan hitung mundur dihitung

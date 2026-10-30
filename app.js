@@ -64,7 +64,7 @@ async function callApi(action) {
   return result.data;
 }
 
-function renderArticle(article) {
+function renderArticle(article, index) {
   const title = escapeHTML(article.title);
   const cover = article.coverImage
     ? `<img class="article-cover" src="${safeImageUrl(article.coverImage)}" alt="${title}" loading="lazy" onerror="this.onerror=null;this.src='${LOGO_URL}'">`
@@ -87,13 +87,118 @@ function renderArticle(article) {
         </div>
         <h3>${title}</h3>
         <p>${escapeHTML(article.excerpt || 'Baca kabar dan gagasan terbaru dari Pelajar Islam Indonesia.')}</p>
-        <details>
-          <summary>Baca artikel</summary>
-          <div class="article-full">${formatLines(article.content || article.excerpt || '')}</div>
-        </details>
+        <button class="button button-ghost article-open" type="button" data-index="${index}">
+          Baca selengkapnya <span aria-hidden="true">↗</span>
+        </button>
       </div>
     </article>`;
 }
+
+/* ------------------------------------------------------ pembaca layar penuh */
+
+let publishedArticles = [];
+
+function articleParagraphs(content) {
+  return String(content || '')
+    .split(/\n{2,}|\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${formatLines(paragraph)}</p>`)
+    .join('');
+}
+
+function readerDialog() {
+  let dialog = document.querySelector('#articleReader');
+  if (dialog) return dialog;
+
+  dialog = document.createElement('dialog');
+  dialog.id = 'articleReader';
+  dialog.className = 'article-reader';
+  dialog.innerHTML = `
+    <div class="reader-shell">
+      <header class="reader-bar">
+        <button class="reader-close" type="button" aria-label="Tutup artikel">✕ Tutup</button>
+        <button class="reader-expand" type="button" aria-pressed="false">⤢ Layar penuh</button>
+      </header>
+      <div class="reader-scroll"></div>
+    </div>`;
+  document.body.appendChild(dialog);
+
+  // Sebagian WebView (Electron) tidak memasang event "open"/"close" pada <dialog>,
+  // jadi status buka selalu diselesaikan sendiri, bukan menunggu event.
+  const shutdown = () => {
+    if (dialog.open) dialog.close();
+    document.body.classList.remove('is-locked');
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  };
+
+  dialog.querySelector('.reader-close').addEventListener('click', shutdown);
+  const expand = dialog.querySelector('.reader-expand');
+  // Elemen <dialog> tidak boleh dijadikan target fullscreen, jadi yang diperbesar
+  // adalah dokumen; dialog tetap tampil karena berada di top layer.
+  if (!document.documentElement.requestFullscreen) expand.hidden = true;
+  expand.addEventListener('click', () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+      return;
+    }
+    document.documentElement.requestFullscreen().catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const on = Boolean(document.fullscreenElement);
+    expand.textContent = on ? '⤡ Keluar layar penuh' : '⤢ Layar penuh';
+    expand.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  // Clicking the dimmed edge closes the reader, the way a modal is expected to.
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) shutdown();
+  });
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      shutdown();
+    }
+  });
+  return dialog;
+}
+
+function openReader(index) {
+  const article = publishedArticles[index];
+  if (!article) return;
+  const dialog = readerDialog();
+  const date = article.createdAt
+    ? new Date(article.createdAt).toLocaleDateString('id-ID', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    })
+    : '';
+
+  const scroll = dialog.querySelector('.reader-scroll');
+  scroll.innerHTML = `
+    ${article.coverImage
+      ? `<img class="reader-cover" src="${safeImageUrl(article.coverImage)}" alt="${escapeHTML(article.title)}">`
+      : ''}
+    <div class="reader-article">
+      <div class="article-meta">
+        <span>${escapeHTML(article.category || 'Berita')}</span>
+        <span>${escapeHTML(date)}</span>
+      </div>
+      <h2>${escapeHTML(article.title)}</h2>
+      ${article.excerpt ? `<p class="reader-lead">${escapeHTML(article.excerpt)}</p>` : ''}
+      ${articleParagraphs(article.content || article.excerpt || '')}
+      <p class="reader-byline">${escapeHTML(article.author || 'Redaksi PB PII')}</p>
+    </div>`;
+  if (dialog.open) dialog.close();
+  dialog.showModal();
+  document.body.classList.add('is-locked');
+  scroll.scrollTop = 0;
+}
+
+function bindArticleReader() {
+  document.querySelectorAll('.article-open').forEach((button) => {
+    button.addEventListener('click', () => openReader(Number(button.dataset.index)));
+  });
+}
+
 
 function showLoadError(title, description) {
   $('#articles').innerHTML = `
@@ -199,10 +304,12 @@ async function init() {
       ? safeImageUrl(settings.chairmanPhoto)
       : LOGO_URL;
 
-    const articles = Array.isArray(data.articles) ? data.articles : [];
+    const articles = Array.isArray(data.articles) ? data.articles.slice(0, 6) : [];
+    publishedArticles = articles;
     $('#articles').innerHTML = articles.length
-      ? articles.slice(0, 6).map(renderArticle).join('')
+      ? articles.map(renderArticle).join('')
       : `<div class="empty-state"><h3>Artikel segera hadir</h3><p>Ruang ini akan memuat berita, opini, dan kabar kegiatan PB PII.</p></div>`;
+    bindArticleReader();
 
     const gallery = Array.isArray(data.gallery) ? data.gallery : [];
     $('#gallery').innerHTML = gallery.length

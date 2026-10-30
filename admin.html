@@ -130,6 +130,29 @@
       .list-head{flex-wrap:wrap}
       .toolbar .search{flex:1 1 100%}
     }
+
+    .uploader{display:grid;gap:8px;margin-bottom:8px}
+    .upload-drop{
+      display:block;padding:18px 14px;border:1.5px dashed #b6c8d8;border-radius:12px;
+      background:#f7fafc;color:#41566b;font-size:13px;text-align:center;cursor:pointer;
+      transition:border-color .15s,background .15s
+    }
+    .upload-drop:hover,.upload-drop.is-over{border-color:#176da8;background:#eaf5ff;color:#102b49}
+    .upload-preview{max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;border:1px solid #e0e7ef;background:#fff}
+    .upload-status{margin:0;font-size:12px;color:#637184}
+    .upload-link{font-size:13px;color:#637184}
+    .upload-link summary{cursor:pointer;padding:2px 0}
+    .upload-link input{margin-top:6px}
+    .drop-touch{display:none}
+    @media(hover:none) and (pointer:coarse){
+      .drop-pointer{display:none}
+      .drop-touch{display:block}
+    }
+    @media(max-width:560px){
+      .upload-drop{display:flex;align-items:center;justify-content:center;min-height:100px;padding:20px 14px;font-size:13.5px}
+      .upload-preview{max-height:180px}
+      .upload-status,.upload-link summary{min-height:26px}
+    }
   </style>
 </head>
 <body>
@@ -230,7 +253,19 @@
               <div class="field"><label for="articleAuthor">Penulis / Redaksi</label><input id="articleAuthor" value="Redaksi PB PII"></div>
               <div class="field full"><label for="articleSlug">Slug URL (opsional)</label><input id="articleSlug" placeholder="otomatis-dari-judul"><div class="hint">Gunakan huruf kecil dan tanda hubung. Slug akan dibuat otomatis jika dikosongkan.</div></div>
               <div class="field full"><label for="articleExcerpt">Ringkasan artikel</label><textarea id="articleExcerpt" rows="3" maxlength="500" placeholder="Ringkasan singkat untuk kartu berita"></textarea></div>
-              <div class="field full"><label for="articleCover">URL gambar sampul</label><input id="articleCover" type="url" placeholder="https://..."><div class="hint">Untuk versi ini, gunakan URL gambar HTTPS yang dapat diakses publik.</div></div>
+              <div class="field full"><label for="articleCover">Sampul artikel</label>
+                <div class="uploader" data-upload-for="articleCover">
+                  <label class="upload-drop">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan sendiri</span>
+                    <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
+                  </label>
+                  <img class="upload-preview" alt="" hidden>
+                  <p class="upload-status" role="status"></p>
+                </div>
+                <details class="upload-link"><summary>Pakai link gambar (opsional)</summary><input id="articleCover" type="url" placeholder="https://..."></details>
+                <div class="hint">Foto unggahan tampil lebih cepat dan tidak hilang saat link luar mati.</div>
+              </div>
               <div class="field full"><label for="articleContent">Isi artikel *</label><textarea id="articleContent" rows="12" required placeholder="Tulis isi artikel di sini. Gunakan paragraf yang jelas."></textarea></div>
               <div class="field"><label for="articleStatus">Status</label><select id="articleStatus"><option value="draft">Draft</option><option value="published">Terbitkan</option></select></div>
             </div>
@@ -312,7 +347,18 @@
             <div class="form-grid">
               <div class="field"><label for="chairmanName">Nama Ketua Umum</label><input id="chairmanName" name="chairmanName"></div>
               <div class="field"><label for="chairmanRole">Jabatan</label><input id="chairmanRole" name="chairmanRole"></div>
-              <div class="field full"><label for="chairmanPhoto">URL foto Ketua Umum</label><input id="chairmanPhoto" name="chairmanPhoto" type="url" placeholder="https://..."></div>
+              <div class="field full"><label for="chairmanPhoto">Foto Ketua Umum</label>
+                <div class="uploader" data-upload-for="chairmanPhoto">
+                  <label class="upload-drop">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan sendiri</span>
+                    <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
+                  </label>
+                  <img class="upload-preview" alt="" hidden>
+                  <p class="upload-status" role="status"></p>
+                </div>
+                <details class="upload-link"><summary>Pakai link gambar (opsional)</summary><input id="chairmanPhoto" name="chairmanPhoto" type="url" placeholder="https://..."></details>
+              </div>
               <div class="field full"><label for="chairmanGreeting">Isi sambutan</label><textarea id="chairmanGreeting" name="chairmanGreeting" rows="12"></textarea></div>
               <div class="field full">
                 <label class="checkline"><input type="checkbox" id="chairmanGreetingVisible" name="chairmanGreetingVisible"> Tampilkan sambutan Ketua Umum di halaman utama</label>
@@ -336,12 +382,23 @@
         <div class="page-head"><div><h1>Galeri</h1><p>Pilih dokumentasi yang ingin ditampilkan pada halaman utama.</p></div></div>
         <div class="panel" id="galleryEditor">
           <h2 id="galleryFormTitle">Tambah foto galeri</h2>
-          <p class="panel-intro">Masukkan URL foto publik yang diawali HTTPS.</p>
+          <p class="panel-intro">Seret foto dari ponsel atau laptop — ukurannya diperkecil sendiri lalu tersimpan di Drive organisasi.</p>
           <form id="galleryForm">
             <input type="hidden" id="galleryId">
             <div class="form-grid">
               <div class="field full"><label for="galleryTitle">Judul foto *</label><input id="galleryTitle" required maxlength="160"></div>
-              <div class="field full"><label for="galleryUrl">URL foto *</label><input id="galleryUrl" type="url" required placeholder="https://..."></div>
+              <div class="field full"><label for="galleryUrl">Foto</label>
+                <div class="uploader" data-upload-for="galleryUrl">
+                  <label class="upload-drop">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan sendiri</span>
+                    <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
+                  </label>
+                  <img class="upload-preview" alt="" hidden>
+                  <p class="upload-status" role="status"></p>
+                </div>
+                <details class="upload-link"><summary>Pakai link gambar (opsional)</summary><input id="galleryUrl" type="url" required placeholder="https://..."></details>
+              </div>
               <div class="field full"><label for="galleryCaption">Keterangan foto</label><textarea id="galleryCaption" rows="2"></textarea></div>
               <div class="field"><label for="galleryOrder">Urutan tampilan</label><input id="galleryOrder" type="number" value="0"></div>
               <div class="field"><label class="checkline"><input id="galleryFeatured" type="checkbox"> Tampilkan di halaman utama</label></div>
@@ -404,6 +461,104 @@
       }
       return result.data;
     }
+
+    /* ------------------------------------------------------------ unggah foto */
+
+    const UPLOAD_MAX_EDGE = 1600;
+    const UPLOAD_QUALITY = 0.82;
+
+    /**
+     * Foto dikecilkan di browser sebelum dikirim: unggahan 200 KB berhasil di
+     * semua koneksi, sedangkan foto kamera 6 MB sering mati di tengah jalan.
+     */
+    async function prepareImage(file) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+        throw new Error('Pilih berkas JPEG, PNG, atau WebP.');
+      }
+      if (!('createImageBitmap' in window)) {
+        throw new Error('Browser ini tidak mendukung pemrosesan foto; pakai link gambar HTTPS.');
+      }
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (bitmap.close) bitmap.close();
+      const dataUrl = canvas.toDataURL('image/jpeg', UPLOAD_QUALITY);
+      return {
+        name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg',
+        data: dataUrl.split(',')[1],
+        bytes: Math.round(dataUrl.length * 0.75)
+      };
+    }
+
+    /** Tampilkan kembali gambar yang tersimpan di kolom saat form diisi. */
+    function refreshUploader(inputId) {
+      const box = document.querySelector('[data-upload-for="' + inputId + '"]');
+      const target = $(inputId);
+      if (!box || !target) return;
+      const preview = box.querySelector('.upload-preview');
+      const url = String(target.value || '');
+      // src kosong tetap bernilai URL halaman kalau tidak dilepas, jadi ikonnya
+      // muncul sebagai gambar rusak.
+      if (/^https:\/\//i.test(url)) {
+        preview.src = url;
+        preview.hidden = false;
+      } else {
+        preview.removeAttribute('src');
+        preview.hidden = true;
+      }
+    }
+
+    function bindUploaders() {
+      document.querySelectorAll('[data-upload-for]').forEach(box => {
+        const input = box.querySelector('input[type=file]');
+        const drop = box.querySelector('.upload-drop');
+        const preview = box.querySelector('.upload-preview');
+        const status = box.querySelector('.upload-status');
+        const target = $(box.dataset.uploadFor);
+
+        const run = async (file) => {
+          if (!file) return;
+          status.textContent = 'Mengunggah foto…';
+          try {
+            const prepared = await prepareImage(file);
+            const saved = await api('uploadImage', { name: prepared.name, data: prepared.data });
+            target.value = saved.url;
+            preview.src = saved.url;
+            preview.hidden = false;
+            status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan tombol simpan untuk menempelkannya.';
+            notify('Foto berhasil diunggah.');
+          } catch (error) {
+            const pesan = /aksi tidak dikenal/i.test(error.message)
+              ? 'Backend belum mengenal unggah foto. Tempel gas/Code.gs versi terbaru, jalankan setup(), lalu Deploy ▸ Kelola deployment ▸ New version.'
+              : error.message;
+            status.textContent = pesan;
+            notify('Unggahan gagal: ' + pesan, 'err');
+          } finally {
+            input.value = '';
+          }
+        };
+
+        input.addEventListener('change', () => run(input.files[0]));
+        ['dragenter', 'dragover'].forEach(type => drop.addEventListener(type, event => {
+          event.preventDefault();
+          drop.classList.add('is-over');
+        }));
+        ['dragleave', 'drop'].forEach(type => drop.addEventListener(type, event => {
+          event.preventDefault();
+          drop.classList.remove('is-over');
+        }));
+        drop.addEventListener('drop', event => run(event.dataTransfer && event.dataTransfer.files[0]));
+      });
+      ['articleCover', 'chairmanPhoto', 'galleryUrl'].forEach(refreshUploader);
+    }
+
+    bindUploaders();
 
     function showPage(name) {
       document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
@@ -521,6 +676,7 @@
       });
       $('chairmanGreetingVisible').checked =
         String(settings.chairmanGreetingVisible == null ? 'true' : settings.chairmanGreetingVisible).toLowerCase() !== 'false';
+      refreshUploader('chairmanPhoto');
     }
 
     function resetArticleForm() {
@@ -529,6 +685,7 @@
       $('articleAuthor').value = 'Redaksi PB PII';
       $('articleStatus').value = 'draft';
       $('articleFormTitle').textContent = 'Tulis artikel baru';
+      refreshUploader('articleCover');
       $('articleEditor').classList.remove('hidden');
       $('articleTitle').focus();
     }
@@ -599,6 +756,7 @@
         $('articleCover').value = a.coverImage || '';
         $('articleContent').value = a.content || '';
         $('articleStatus').value = a.status || 'draft';
+        refreshUploader('articleCover');
         window.scrollTo({top:0,behavior:'smooth'});
       }
 
@@ -639,6 +797,7 @@
       $('galleryId').value = '';
       $('galleryOrder').value = 0;
       $('galleryFormTitle').textContent = 'Tambah foto galeri';
+      refreshUploader('galleryUrl');
     }
 
     $('cancelGallery').addEventListener('click', resetGalleryForm);
@@ -677,6 +836,7 @@
         $('galleryOrder').value = Number(g.sortOrder) || 0;
         $('galleryFeatured').checked = String(g.featured) === 'true';
         $('galleryFormTitle').textContent = 'Edit foto galeri';
+        refreshUploader('galleryUrl');
         window.scrollTo({top:0,behavior:'smooth'});
       }
 

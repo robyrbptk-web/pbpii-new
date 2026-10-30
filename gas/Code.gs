@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-10-30.2';
+const BACKEND_VERSION = '2026-10-30.3';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -34,6 +34,7 @@ const APP = {
   PROP_AI_KEY: 'AI_API_KEY',
   PROP_AI_URL: 'AI_CHAT_URL',
   PROP_AI_MODEL: 'AI_MODEL',
+  PROP_MEDIA_FOLDER: 'MEDIA_FOLDER_ID',
   PB_ORG_ID: 'pb-pii',
   PB_ORG_NAME: 'Pengurus Besar PII'
 };
@@ -518,6 +519,8 @@ function adminAction_(action, body) {
       return deleteRowById_(APP.SHEET_ARTICLES, body.id);
     case 'saveGalleryItem':
       return saveGalleryItem_(body.item || {});
+    case 'uploadImage':
+      return uploadImage_(body);
     case 'deleteGalleryItem':
       return deleteRowById_(APP.SHEET_GALLERY, body.id);
     case 'adminOrgs':
@@ -1120,6 +1123,84 @@ function slugify_(value) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 120) || Utilities.getUuid();
+}
+
+const MEDIA_FOLDER_NAME = 'PB PII Media';
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
+/**
+ * Folder Drive untuk foto yang diunggah dari dashboard. Id-nya disimpan sebagai
+ * Script Property supaya dua orang yang menyimpan bersamaan tidak membuat dua
+ * folder berbeda.
+ */
+function mediaFolder_() {
+  const properties = PropertiesService.getScriptProperties();
+  const stored = properties.getProperty(APP.PROP_MEDIA_FOLDER);
+  if (stored) {
+    try {
+      return DriveApp.getFolderById(stored);
+    } catch (error) {
+      // Folder dihapus manual dari Drive: dibuat ulang di bawah.
+    }
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const found = DriveApp.getFoldersByName(MEDIA_FOLDER_NAME);
+    const folder = found.hasNext() ? found.next() : DriveApp.createFolder(MEDIA_FOLDER_NAME);
+    properties.setProperty(APP.PROP_MEDIA_FOLDER, folder.getId());
+    return folder;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Jenis berkas dibaca dari tanda tangan byte, bukan dari label yang dikirim browser. */
+function imageKind_(bytes) {
+  const fourCC = (offset) => String.fromCharCode.apply(null, bytes.slice(offset, offset + 4));
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+  if (fourCC(0) === 'RIFF' && fourCC(8) === 'WEBP') return 'image/webp';
+  return '';
+}
+
+/**
+ * Menyimpan foto langsung ke Drive dan membalas URL publik, jadi pengurus cukup
+ * menyeret berkas dari ponsel alih-alih menaruh gambarnya di tempat lain dulu.
+ */
+function uploadImage_(body) {
+  const raw = String(body.data || '').replace(/^data:[^,]*;base64,/i, '').replace(/\s/g, '');
+  if (!raw) {
+    throw new Error('Tidak ada berkas gambar yang dikirim.');
+  }
+
+  let bytes;
+  try {
+    bytes = Utilities.base64Decode(raw);
+  } catch (error) {
+    throw new Error('Data gambar tidak terbaca sebagai base64.');
+  }
+
+  const mime = imageKind_(bytes);
+  if (!mime) {
+    throw new Error('Hanya berkas JPEG, PNG, atau WebP yang diterima.');
+  }
+  if (bytes.length > MAX_UPLOAD_BYTES) {
+    throw new Error('Ukuran foto melebihi 3 MB. Kecilkan terlebih dahulu.');
+  }
+
+  const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : 'webp';
+  const name = slugify_(body.name || 'foto') + '-' + Utilities.getUuid().slice(0, 8) + '.' + extension;
+  const file = mediaFolder_().createFile(name, bytes, mime);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.LIMITED);
+
+  return {
+    url: 'https://lh3.googleusercontent.com/d/' + file.getId() + '=w1600',
+    fileId: file.getId(),
+    bytes: bytes.length,
+    mime: mime
+  };
 }
 
 function safeUrl_(value) {

@@ -120,6 +120,79 @@
     }
   }
 
+  /* ---------------------------------------------------------------- caches
+     Data ibadah bersifat tetap (isi surat) atau berubah sekali sehari (jadwal),
+     sedangkan proxy di Vercel mulai dingin setiap kali instance baru muncul.
+     Menyimpan jawaban terakhir di perangkat membuat halaman terisi begitu
+     dibuka dan jaringan hanya dipakai untuk memperbarui di latar belakang. */
+
+  const CACHE_PREFIX = 'pbpii:ibadah-cache:v1:';
+  const QURAN_CACHE_LIMIT = 30;
+  const QURAN_INDEX_KEY = 'pbpii:ibadah-cache:v1:quran-index';
+
+  function cacheRead(key) {
+    try {
+      const raw = localStorage.getItem(CACHE_PREFIX + key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function cacheWrite(key, value) {
+    try {
+      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Simpan surat dengan urutan pemakaian: yang paling lama dibuang lebih dulu. */
+  function quranCacheWrite(surahKey, payload) {
+    let index = [];
+    try {
+      index = JSON.parse(storageGet(QURAN_INDEX_KEY, '[]')) || [];
+    } catch {
+      index = [];
+    }
+    index = index.filter((entry) => entry !== surahKey);
+    index.push(surahKey);
+    while (index.length > QURAN_CACHE_LIMIT) {
+      const stale = index.shift();
+      try {
+        localStorage.removeItem(CACHE_PREFIX + stale);
+      } catch {
+        /* nothing else to do */
+      }
+    }
+    if (!cacheWrite(surahKey, payload) && index.length > 1) {
+      // Penyimpanan penuh: buang separuh terlama, lalu coba sekali lagi.
+      for (const dropped of index.slice(0, Math.ceil(index.length / 2))) {
+        try {
+          localStorage.removeItem(CACHE_PREFIX + dropped);
+        } catch {
+          /* ignore */
+        }
+      }
+      index = index.slice(Math.ceil(index.length / 2));
+      cacheWrite(surahKey, payload);
+    }
+    storageSet(QURAN_INDEX_KEY, JSON.stringify(index));
+  }
+
+  const staticCache = new Map();
+
+  /** Berkas statis hasil scripts/make-ibadah-static.mjs — tanpa API Muslim. */
+  async function staticRows(name) {
+    if (staticCache.has(name)) return staticCache.get(name);
+    const response = await fetch(`assets/${name}`);
+    if (!response.ok) throw new Error(`${name} tidak tersedia (${response.status}).`);
+    const rows = await response.json();
+    staticCache.set(name, rows);
+    return rows;
+  }
+
   function savedCity() {
     try {
       const saved = JSON.parse(storageGet(STORE.city, 'null'));
@@ -184,6 +257,10 @@
    * Match a place name against the 517 kab/kota rows. IP geolocation often
    * returns a kecamatan ("Pontianak Tenggara"), so retry with fewer words and
    * score both directions (the row name inside the query and vice versa).
+   *
+   * Daftar kotanya dibundel (assets/ibadah-kota.json), jadi pencocokan berjalan
+   * lokal: tanpa dua sampai empat permintaan proxy yang membuat lokasi baru
+   * tampil beberapa detik setelah halaman terbuka.
    */
   async function matchCity(name) {
     const query = normalizePlace(name);
@@ -191,14 +268,21 @@
     if (query === 'JAKARTA') return { ...DEFAULT_CITY };
     if (cityMatchCache.has(query)) return cityMatchCache.get(query);
 
+    let rows = [];
+    try {
+      rows = await staticRows('ibadah-kota.json');
+    } catch {
+      const body = await getJson(`${API}/kota`).catch(() => null);
+      rows = Array.isArray(body?.data) ? body.data : [];
+    }
+
     const words = query.split(' ');
     let match = null;
     for (let length = words.length; length >= 1 && !match; length -= 1) {
       const attempt = words.slice(0, length).join(' ');
       if (attempt.length < 3) continue;
-      const body = await getJson(`${API}/kota?q=${encodeURIComponent(attempt)}`);
-      const rows = Array.isArray(body.data) ? body.data : [];
-      match = pickCity(rows, query) || pickCity(rows, attempt);
+      const hits = rows.filter((row) => normalizePlace(row.lokasi).includes(attempt));
+      match = pickCity(hits, query) || pickCity(hits, attempt);
     }
 
     cityMatchCache.set(query, match);
@@ -525,6 +609,7 @@
       activeCity = schedule.city;
       lastPrayer = undefined;
       storageSet(STORE.city, JSON.stringify(schedule.city));
+      cacheWrite(`jadwal:${schedule.city.id}`, schedule);
       paintSchedule();
       startClock();
       if (status) {
@@ -535,6 +620,22 @@
       if (status) status.textContent = error.message;
       setText('[data-ibadah-note]', error.message);
     }
+  }
+
+  /**
+   * Pakai jadwal yang terakhir diambil hari ini sebelum jaringan menjawab, jadi
+   * hitungan mundur sudah berjalan saat halaman baru saja terbuka.
+   */
+  function useCachedSchedule(city) {
+    const cached = cacheRead(`jadwal:${city.id}`);
+    if (!cached?.times || !cached?.tz) return false;
+    if (cached.dayKey !== dateKeyIn(cached.tz)) return false;
+    schedule = cached;
+    activeCity = cached.city || city;
+    lastPrayer = undefined;
+    paintSchedule();
+    startClock();
+    return true;
   }
 
   // --------------------------------------------------------------------- adzan
@@ -705,6 +806,10 @@
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && adzanPending && adzanEnabled()) playAdzan(adzanPending);
     });
+
+    // Unduh berkas adzan di latar belakang sejak halaman dibuka, supaya suaranya
+    // langsung keluar pada menit waktu sholat, bukan setelah buffer selesai.
+    if (adzanEnabled()) ensureAdzanAudio();
   }
 
   // ------------------------------------------------------------- lokasi sholat
@@ -789,18 +894,27 @@
 
   async function searchCities(query, results) {
     results.hidden = false;
-    results.innerHTML = '<li class="city-empty">Mencari kabupaten/kota…</li>';
-    try {
-      const body = await getJson(`${API}/kota?q=${encodeURIComponent(query)}`);
-      const rows = (Array.isArray(body.data) ? body.data : []).slice(0, 12);
+    const needle = normalizePlace(query);
+    const render = (rows) => {
       results.innerHTML = rows.length
         ? rows.map((row) => {
           const name = prettyPlace(row.lokasi);
           return `<li><button type="button" data-id="${escapeHTML(row.id)}" data-name="${escapeHTML(name)}">${escapeHTML(name)}</button></li>`;
         }).join('')
         : '<li class="city-empty">Kabupaten/kota tidak ditemukan. Coba kata lain.</li>';
-    } catch (error) {
-      results.innerHTML = `<li class="city-empty">${escapeHTML(error.message)}</li>`;
+    };
+
+    try {
+      const rows = await staticRows('ibadah-kota.json');
+      render(rows.filter((row) => normalizePlace(row.lokasi).includes(needle)).slice(0, 12));
+    } catch {
+      results.innerHTML = '<li class="city-empty">Mencari kabupaten/kota…</li>';
+      try {
+        const body = await getJson(`${API}/kota?q=${encodeURIComponent(query)}`);
+        render((Array.isArray(body.data) ? body.data : []).slice(0, 12));
+      } catch (error) {
+        results.innerHTML = `<li class="city-empty">${escapeHTML(error.message)}</li>`;
+      }
     }
   }
 
@@ -990,12 +1104,24 @@
     async function openSurah(number, page = 1) {
       if (!Number.isInteger(number) || number < 1 || number > 114) return;
       stopAudio();
+      const cacheKey = `quran:${number}:${page}`;
+      const cached = cacheRead(cacheKey);
+      if (cached) {
+        reader = cached;
+        currentSurah = number;
+        storageSet(STORE.surah, String(number));
+        each('.surah-item', (item) => item.setAttribute('aria-current', item.dataset.surah === String(number) ? 'true' : 'false'));
+        renderReader();
+        return;
+      }
       readerEl.innerHTML = `<p class="muted">Memuat surat ${number}…</p>`;
       try {
         const body = await getJson(`${API}/quran?nomor=${number}&page=${page}&limit=100`);
         reader = { number, page, data: body.data || {}, pagination: body.meta?.pagination || null };
         currentSurah = number;
         storageSet(STORE.surah, String(number));
+        // Teks ayat tidak berubah, jadi cukup sekali diunduh per perangkat.
+        quranCacheWrite(cacheKey, reader);
         each('.surah-item', (item) => item.setAttribute('aria-current', item.dataset.surah === String(number) ? 'true' : 'false'));
         renderReader();
       } catch (error) {
@@ -1030,13 +1156,17 @@
 
     (async () => {
       try {
-        const body = await getJson(`${API}/quran`);
-        surahs = Array.isArray(body.data) ? body.data : [];
-        renderSurahList(searchInput?.value || '');
-        if (currentSurah) openSurah(currentSurah, 1);
-      } catch (error) {
-        list.innerHTML = `<li class="surah-empty">${escapeHTML(error.message)}</li>`;
+        surahs = await staticRows('quran-surah.json');
+      } catch {
+        const body = await getJson(`${API}/quran`).catch(() => null);
+        surahs = Array.isArray(body?.data) ? body.data : [];
       }
+      if (!surahs.length) {
+        list.innerHTML = '<li class="surah-empty">Daftar surat belum dapat dimuat.</li>';
+        return;
+      }
+      renderSurahList(searchInput?.value || '');
+      if (currentSurah) openSurah(currentSurah, 1);
     })();
   }
 
@@ -1051,6 +1181,7 @@
       const saved = savedCity();
       activeCity = saved || { ...DEFAULT_CITY };
       paintCity(activeCity);
+      useCachedSchedule(activeCity);
       refreshSchedule(activeCity).then(() => {
         const source = storageGet(STORE.citySource);
         if (source === 'manual') {
