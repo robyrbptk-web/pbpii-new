@@ -8,7 +8,7 @@
 import { createTtlCache } from '../lib/proxy.js';
 
 const TTL_MS = 6 * 3600_000;
-const USER_AGENT = 'pii-global-view/1.0 (+https://pbpii.or.id)';
+const USER_AGENT = 'pii-global-view/1.0';
 
 const cache = createTtlCache(TTL_MS);
 

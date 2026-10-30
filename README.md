@@ -6,6 +6,8 @@ Fondasi website publik PB PII dengan artikel, sambutan Ketua Umum yang bisa diub
 
 Naskah halaman depan mengikuti susunan dan bahasa situs resmi PB PII, https://pbpii.or.id/ — khususnya https://pbpii.or.id/profil-organisasi/, https://pbpii.or.id/misi-dan-eksistensi-pii/, https://pbpii.or.id/tujuan-pelajar-islam-indonesia/, dan https://pbpii.or.id/sejarah-perjuangan-pelajar-islam-indonesia/. PII berdiri di Yogyakarta pada 4 Mei 1947 dan bergerak dalam pendidikan serta kebudayaan sesuai Islam; tagline resmi yang dipakai **#BergerakBerjamaah**. Bagian "Arah Gerakan" menautkan program yang diumumkan PB PII (PII Level Up, Komunitas Pelajar Literasi, kelembagaan dan data keaktifan).
 
+Tautan di website ini sengaja tidak ada yang menunjuk ke `pbpii.or.id`: alamat tersebut hanya sumber copywriting, bukan tautan yang ditampilkan pengunjung. Semua tautan bersifat internal (`#gerakan`, `#berita`, `lembaga.html`, `peta.html`), dan satu-satunya tautan keluar di beranda adalah Google Maps lokasi sekretariat.
+
 Sambutan Ketua Umum pada starter ini adalah naskah editorial awal, bukan kutipan atau pernyataan resmi Ketua Umum, dan `chairmanName` masih placeholder. Admin perlu menyunting dan menyetujuinya sebelum dipublikasikan. Nama, foto, periode, dan teks sambutan diubah dari dashboard.
 
 Teks bawaan disimpan di sheet `Settings` dan hanya ditambahkan bila kuncinya belum ada. Untuk menyisipkan kunci copywriting baru ke spreadsheet yang sudah jalan tanpa menimpa hasil suntingan redaksi, jalankan **PB PII > Segarkan teks resmi website** di menu spreadsheet (atau `segarkanTeksResmi(true)` dari Apps Script untuk memaksa semua nilai kembali ke salinan resmi).
@@ -21,9 +23,30 @@ Jika spreadsheet dan Apps Script sudah dibuat sebelumnya, mulai dari langkah 2. 
 6. Kembali ke spreadsheet dan muat ulang halaman. Klik menu baru **PB PII > Atur akun admin**.
 7. Masukkan password admin yang Anda inginkan dua kali di dialog, lalu klik **Simpan akun admin**. Password disimpan di Script Properties Google, bukan di file website.
 8. Di Apps Script pilih **Deploy > Manage deployments**. Klik ikon pensil pada deployment Web App, pilih **New version**, lalu klik **Deploy**. Jika diminta, izinkan kembali akses yang diperlukan.
-9. Gunakan URL deployment Web App yang berakhiran `/exec`. Proxy proyek sudah memiliki URL Apps Script yang diberikan sebelumnya sebagai nilai bawaan.
+9. Gunakan URL deployment Web App yang berakhiran `/exec`. Cara paling aman mengambilnya: di spreadsheet pilih **PB PII > Salin URL backend (/exec)** — menu itu membaca `ScriptApp.getService().getUrl()` milik project ini, jadi tidak mungkin tertukar dengan project lain. Proxy proyek sudah memiliki URL Apps Script yang diberikan sebelumnya sebagai nilai bawaan.
 
 Jika menu **PB PII** belum terlihat, pastikan kedua file sudah disimpan dan muat ulang spreadsheet. Langkah membuat/menyimpan akun cukup diulang dari langkah 6 jika ingin mengganti password.
+
+### Memastikan website membaca project Apps Script yang benar
+
+Backend satu-satunya dibaca dari satu tempat: `api/pii.js` memakai
+`process.env.GAS_WEB_APP_URL` dan jatuh ke konstanta bawaan bila environment
+variable belum diisi. Karena itu, memindahkan situs ke project lain (misalnya
+"PB PII APP V2") cukup dilakukan di satu titik:
+
+1. Di Apps Script project tujuan, pilih **Deploy > Manage deployments** dan salin
+   URL `/exec` deployment Web App aktif. Bila dialog deployment sulit dibuka,
+   jalankan **PB PII > Salin URL backend (/exec)** dari menu spreadsheet —
+   nilainya berasal dari project itu sendiri.
+2. Isi URL itu sebagai `GAS_WEB_APP_URL` di **Vercel > Project Settings >
+   Environment Variables**, lalu redeploy. Alternatifnya, ganti nilai bawaan di
+   baris `DEFAULT_GAS_WEB_APP_URL` pada `api/pii.js`.
+3. Uji dengan `POST` `{action:"public"}` ke URL `/exec` (Node `fetch`; `curl`
+   perlu `-L --post301 --post302`). Balasan `{ok:true,data:{settings,articles,…}}`
+   membuktikan backend hidup; bandingkan isi `settings` dengan dashboard untuk
+   memastikan project yang benar — sheet milik tiap project berbeda.
+4. Kalau URL sudah benar tetapi datanya masih salinan lama, project itu belum
+   dijalankan: urutkan langkah 1–5 pada bagian "Menyinkronkan deployment lama".
 
 ### Menyinkronkan deployment lama dengan kode terbaru
 
@@ -79,15 +102,24 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 ## D. Peta Global (PII Global View)
 
 Peta adalah fitur dari website ini, bukan aplikasi terpisah. Halaman `/peta.html`
-memakai header dan navigasi PB PII, lalu menampilkan globe di dalam bingkai;
-tombol **Layar penuh** membuka `/peta/` langsung.
+memakai header dan navigasi PB PII, lalu menampilkan globe di dalam bingkai yang
+sudah dapat dipakai penuh tanpa menekan layar penuh: bar judul hanya setinggi
+satu baris (ikon `⛶` membuka `/peta/` di tab baru untuk yang benar-benar ingin
+layar penuh), branding ganda di dalam iframe disembunyikan, dan pada layar kecil
+bingkai melebar sampai ±660 px serta halaman bisa digulir, sehingga panel CCTV,
+pemilih kamera, dan ringkasan tetap terjangkau. Tombol **?** di bar judul
+menampilkan kartu pendek cara memakai lapisan peta.
 
 Bingkai globe memeriksa sendiri apakah aplikasi benar-benar termuat (ada canvas
-Cesium). Bila pemuatan pertama gagal — misalnya server baru hidup atau koneksi
-terputus saat mengunduh aset Cesium — halaman mencoba ulang sekali secara
-otomatis, lalu menampilkan panel "Globe belum dapat dimuat" dengan tombol muat
-ulang dan tautan layar penuh. Jadi kegagalan sementara tidak lagi menyisakan
-bingkai kosong.
+Cesium). Bila pemuatan gagal, panel "Globe belum dapat dimuat" muncul dengan
+tombol muat ulang dan tautan layar penuh; selama aset masih diunduh panel itu
+tidak muncul lebih dulu, jadi kegagalan sementara tidak menyisakan bingkai kosong.
+
+Di ponsel (pointer kasar dan sisi terpendek < 620 px) halaman menampilkan
+pemberitahuan bahwa PII Global View dirancang untuk PC/laptop — citra satelit,
+penerbangan, dan CCTV memberatkan layar dan kuota ponsel. Pengunjung tetap bisa
+memilih **Tetap buka globe**; pilihan itu disimpan di perangkat (`localStorage`)
+sehingga tidak ditanyakan lagi.
 
 Struktur:
 

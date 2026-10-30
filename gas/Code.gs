@@ -173,6 +173,32 @@ function aturUlangPasswordAdmin() {
 }
 
 /**
+ * Menampilkan URL Web App (/exec) milik project ini supaya mudah disalin ke
+ * Vercel (GAS_WEB_APP_URL) atau dibandingkan dengan URL yang dipakai website.
+ * Bila deployment Web App belum ada, Apps Script mengembalikan URL yang baru
+ * valid setelah deployment dibuat di menu Deploy.
+ */
+function tampilkanUrlBackend() {
+  let url = '';
+  try {
+    url = ScriptApp.getService().getUrl();
+  } catch (error) {
+    url = 'URL service belum tersedia: ' + error.message;
+  }
+  const message =
+    'URL backend website (Tempel di Vercel > Environment Variables > GAS_WEB_APP_URL):\n\n' + url +
+    '\n\nSitus membaca satu titik saja di api/pii.js, jadi cukup ganti nilai ini.' +
+    '\nBila URL kosong atau belum bisa diakses, pilih Deploy > Manage deployments > New version.';
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (error) {
+    // Dipanggil dari editor Apps Script: hasil tampil di panel eksekusi.
+    Logger.log(message);
+  }
+  return url;
+}
+
+/**
  * Tambahkan menu pengaturan akun pada spreadsheet saat dibuka.
  */
 function onOpen() {
@@ -180,6 +206,7 @@ function onOpen() {
     .createMenu('PB PII')
     .addItem('Atur akun admin', 'configureAdmin')
     .addItem('Setel ulang password admin', 'aturUlangPasswordAdmin')
+    .addItem('Salin URL backend (/exec)', 'tampilkanUrlBackend')
     .addItem('Segarkan teks resmi website', 'segarkanTeksResmi')
     .addItem('Ganti teks dengan salinan resmi', 'paksaTeksResmi')
     .addToUi();

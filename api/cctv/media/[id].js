@@ -8,7 +8,7 @@
 import { findSource, isVideoFeedType, normalizeFeedType, rewriteHlsPlaylist } from '../../../lib/cctv.js';
 
 const UPSTREAM_TIMEOUT_MS = 15000;
-const UPSTREAM_AGENT = 'pii-global-view/1.0 (+https://pbpii.or.id)';
+const UPSTREAM_AGENT = 'pii-global-view/1.0';
 
 const json = (res, status, error, headers = {}) => {
   res.writeHead(status, {

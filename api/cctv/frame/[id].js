@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
   try {
     const upstream = await fetch(url, {
-      headers: { 'User-Agent': 'pii-global-view/1.0 (+https://pbpii.or.id)' },
+      headers: { 'User-Agent': 'pii-global-view/1.0' },
       redirect: 'follow',
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });

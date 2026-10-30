@@ -33,94 +33,178 @@
 
   <main class="globe-shell">
     <div class="globe-toolbar">
-      <div>
+      <div class="globe-toolbar-title">
         <b>PII Global View</b>
-        <span>Pemantauan bumi dan Indonesia secara langsung</span>
+        <span>Sekretariat PB PII · Jl. Menteng Raya No. 58, Jakarta Pusat · <a href="index.html#data">sumber data terbuka</a></span>
       </div>
       <div class="globe-toolbar-actions">
-        <a class="globe-fullscreen" href="https://www.google.com/maps/search/?api=1&amp;query=-6.1844917,106.8344897" target="_blank" rel="noopener noreferrer">Sekretariat PB PII<span class="globe-toolbar-address"> · Jl. Menteng Raya No. 58</span> ↗</a>
-        <a class="globe-fullscreen" href="/peta/" target="_blank" rel="noopener">Layar penuh ↗</a>
+        <button type="button" class="globe-icon-btn" id="globeLayersHelp" title="Cara memakai globe" aria-label="Cara memakai globe">?</button>
+        <a class="globe-icon-btn" href="/peta/" target="_blank" rel="noopener" title="Layar penuh" aria-label="Buka layar penuh">⛶</a>
       </div>
     </div>
+
     <div class="globe-stage">
       <iframe
         id="globeFrame"
         class="globe-frame"
-        src="/peta/"
         title="PII Global View — globe interaktif PB PII"
-        loading="eager"
         allow="fullscreen; clipboard-write"
         referrerpolicy="same-origin"></iframe>
-      <div class="globe-fallback" id="globeFallback" hidden>
-        <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.4 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.4-4-9s1.4-6.6 4-9Z"/></svg>
-        <b>Globe belum dapat dimuat</b>
-        <p>Mesin globe tidak merespons. Biasanya karena koneksi terputus saat memuat aset Cesium.</p>
-        <div class="globe-fallback-actions">
-          <button type="button" id="globeRetry">Muat ulang globe</button>
-          <a href="/peta/" target="_blank" rel="noopener">Buka di layar penuh ↗</a>
-        </div>
-      </div>
     </div>
   </main>
+
+  <!-- Kept outside <main> because `main` carries a transform, which would make a
+       fixed overlay stick to the stage instead of the phone or window viewport. -->
+  <div class="globe-fallback" id="globeFallback" hidden>
+    <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.4 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.4-4-9s1.4-6.6 4-9Z"/></svg>
+    <b>Globe belum dapat dimuat</b>
+    <p>Mesin globe tidak merespons. Biasanya karena koneksi terputus saat memuat aset Cesium.</p>
+    <div class="globe-fallback-actions">
+      <button type="button" id="globeRetry">Muat ulang globe</button>
+      <a href="/peta/" target="_blank" rel="noopener">Buka di layar penuh ↗</a>
+    </div>
+  </div>
+
+  <div class="globe-fallback globe-phone-gate" id="phoneGate" hidden>
+    <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.75" width="10" height="18.5" rx="2.25"/><path d="M11 18.6h2"/></svg>
+    <b>PII Global View dirancang untuk PC/laptop</b>
+    <p>Globe ini memuat citra satelit, penerbangan, dan CCTV secara langsung. Layar dan kontrol ponsel membuat fitur tersebut tidak dapat dipakai secara maksimal, dan kuota datanya besar.</p>
+    <div class="globe-fallback-actions">
+      <button type="button" id="phoneGateOpen">Tetap buka globe</button>
+      <a href="index.html">Kembali ke beranda</a>
+    </div>
+    <small class="phone-gate-hint">Pilihan Anda di perangkat ini kami ingat.</small>
+  </div>
+
+  <div class="globe-help" id="globeHelp" hidden>
+    <b>Cara memakai</b>
+    <ul>
+      <li><span>1</span>Geser untuk menjelajah, gulir atau cubit untuk mendekat, klik objek untuk detail.</li>
+      <li><span>2</span>Pilih lapisan data lewat menu ikon di kiri (sekolah, RS, gunung berapi, penerbangan, CCTV).</li>
+      <li><span>3</span>Untuk CCTV: nyalakan tombol <b>CCTV</b> lalu pilih kamera terdekat dengan tombol target.</li>
+      <li><span>4</span>Perlu ruang lebih lega? Pakai ikon ⛶ di kanan atas untuk layar penuh.</li>
+    </ul>
+    <button type="button" id="globeHelpClose">Mengerti</button>
+  </div>
   <script>
     (function () {
       const frame = document.getElementById('globeFrame');
       const fallback = document.getElementById('globeFallback');
       const retry = document.getElementById('globeRetry');
-      let attempt = 0;
+      const phoneGate = document.getElementById('phoneGate');
+      const phoneGateOpen = document.getElementById('phoneGateOpen');
+      const help = document.getElementById('globeHelp');
+      const helpBtn = document.getElementById('globeLayersHelp');
+      const helpClose = document.getElementById('globeHelpClose');
+      const CONSENT_KEY = 'pii-globe-phone-consent';
+      let started = false;
       let timer = 0;
+
+      /* The globe lays its panels beside the map only on a wide, tall viewport;
+         below that it stacks them in flow, which a locked 100dvh frame would clip.
+         Compact mode lets the page scroll so every control stays reachable
+         without pressing fullscreen. */
+      function applyStageMode() {
+        const compact = window.innerWidth < 760 || window.innerHeight < 620;
+        document.body.classList.toggle('globe-compact', compact);
+        frame.style.height = compact ? '' : '';
+        return compact;
+      }
+
+      function isPhone() {
+        return window.matchMedia('(pointer: coarse)').matches &&
+          Math.min(window.innerWidth, window.innerHeight) < 620;
+      }
+
+      function remembered() {
+        try { return localStorage.getItem(CONSENT_KEY) === '1'; } catch (error) { return false; }
+      }
+
+      /* The globe ships its own title bar and credit line; inside the site the
+         PB PII header already carries the brand, so the embedded copy is hidden
+         and the map gets every pixel it can. */
+      function dressUp() {
+        try {
+          const doc = frame.contentDocument;
+          if (!doc || !doc.head) return;
+          let style = doc.getElementById('pii-embed-tune');
+          if (!style) {
+            style = doc.createElement('style');
+            style.id = 'pii-embed-tune';
+            doc.head.appendChild(style);
+          }
+          style.textContent = [
+            '#title-bar{display:none!important}',
+            'html,body{background:#06121c}',
+            '.cesium-viewer-bottom,.cesium-widget-credits{display:none!important}',
+          ].join('\n');
+        } catch (error) {
+          /* same-origin in production; losing the cosmetics is not fatal */
+        }
+      }
 
       function globeAlive() {
         try {
           const doc = frame.contentDocument;
-          return !!(doc && doc.body && doc.body.childElementCount > 0 &&
-            (doc.querySelector('canvas') || doc.querySelector('.cesium-widget')));
+          return !!(doc && doc.body && (doc.querySelector('canvas') || doc.querySelector('.cesium-widget')));
         } catch (error) {
           return false;
         }
       }
 
-      function showFallback() {
-        clearTimeout(timer);
-        fallback.hidden = false;
+      function pollUntilAlive(deadlineMs) {
+        clearInterval(timer);
+        const until = Date.now() + deadlineMs;
+        timer = setInterval(() => {
+          if (globeAlive()) {
+            clearInterval(timer);
+            fallback.hidden = true;
+            dressUp();
+            return;
+          }
+          if (Date.now() > until) {
+            clearInterval(timer);
+            fallback.hidden = false;
+          }
+        }, 1200);
       }
 
-      function load() {
+      function load(first) {
         fallback.hidden = true;
-        frame.src = '/peta/?retry=' + Date.now();
-        watch();
-      }
-
-      function failed() {
-        if (attempt < 1) {
-          attempt += 1;
-          load();
-          return;
-        }
-        showFallback();
-      }
-
-      function watch() {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          if (!globeAlive()) failed();
-        }, 15000);
+        frame.src = first ? '/peta/' : '/peta/?retry=' + Date.now();
+        pollUntilAlive(first ? 30000 : 24000);
       }
 
       frame.addEventListener('load', () => {
-        clearTimeout(timer);
-        setTimeout(() => {
-          if (globeAlive()) fallback.hidden = true;
-          else failed();
-        }, 2500);
+        dressUp();
+        if (globeAlive()) {
+          clearInterval(timer);
+          fallback.hidden = true;
+          return;
+        }
+        pollUntilAlive(20000);
       });
 
-      retry.addEventListener('click', () => {
-        attempt = 0;
-        load();
+      window.addEventListener('resize', applyStageMode);
+
+      retry.addEventListener('click', () => load(false));
+      helpBtn.addEventListener('click', () => { help.hidden = !help.hidden; });
+      helpClose.addEventListener('click', () => { help.hidden = true; });
+      phoneGateOpen.addEventListener('click', () => {
+        try { localStorage.setItem(CONSENT_KEY, '1'); } catch (error) { /* private mode */ }
+        startGlobe();
       });
 
-      watch();
+      function startGlobe() {
+        if (started) return;
+        started = true;
+        phoneGate.hidden = true;
+        load(true);
+      }
+
+      applyStageMode();
+      if (isPhone() && !remembered()) phoneGate.hidden = false;
+      else startGlobe();
     })();
   </script>
   <script src="site.js" defer></script>
