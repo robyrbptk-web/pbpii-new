@@ -1,130 +1,13 @@
 {
   "functions": {
     "api/[...path].js": {
-      "maxDuration": 10
-    },
-    "api/adsbdb/route/[code].js": {
-      "maxDuration": 15
-    },
-    "api/adsbdb/type/[type].js": {
-      "maxDuration": 15
-    },
-    "api/adsblol/mil.js": {
-      "maxDuration": 15
-    },
-    "api/adsblol/trace.js": {
-      "maxDuration": 15
-    },
-    "api/cctv/frame/[id].js": {
-      "maxDuration": 15
-    },
-    "api/cctv/health.js": {
-      "maxDuration": 30
-    },
-    "api/cctv/media/[id].js": {
-      "maxDuration": 30
-    },
-    "api/cctv/sources.js": {
-      "maxDuration": 30
-    },
-    "api/celestrak.js": {
-      "maxDuration": 20
-    },
-    "api/celestrak/[group].js": {
-      "maxDuration": 20
-    },
-    "api/chat.js": {
       "maxDuration": 60
-    },
-    "api/firms.js": {
-      "maxDuration": 30
-    },
-    "api/gbfs/[slug].js": {
-      "maxDuration": 15
-    },
-    "api/geocode/json.js": {
-      "maxDuration": 15
-    },
-    "api/indonesia/hospitals.js": {
-      "maxDuration": 30
-    },
-    "api/indonesia/transjakarta.js": {
-      "maxDuration": 30
-    },
-    "api/launches.js": {
-      "maxDuration": 25
-    },
-    "api/military-installations.js": {
-      "maxDuration": 30
-    },
-    "api/muslim/jadwal.js": {
-      "maxDuration": 20
-    },
-    "api/muslim/kalender.js": {
-      "maxDuration": 20
-    },
-    "api/muslim/kota.js": {
-      "maxDuration": 20
-    },
-    "api/muslim/qibla.js": {
-      "maxDuration": 20
-    },
-    "api/muslim/quran.js": {
-      "maxDuration": 20
-    },
-    "api/openai/hud-summary.js": {
-      "maxDuration": 15
-    },
-    "api/opensky-track.js": {
-      "maxDuration": 15
-    },
-    "api/opensky.js": {
-      "maxDuration": 25
-    },
-    "api/overpass.js": {
-      "maxDuration": 25
     },
     "api/pii.js": {
       "maxDuration": 30
     },
-    "api/radio/click/[id].js": {
-      "maxDuration": 10
-    },
-    "api/radio/stations.js": {
-      "maxDuration": 30
-    },
-    "api/regional-brief.js": {
-      "maxDuration": 30
-    },
-    "api/route.js": {
-      "maxDuration": 15
-    },
-    "api/sekolah.js": {
-      "maxDuration": 30
-    },
-    "api/setup/keys.js": {
-      "maxDuration": 15
-    },
-    "api/setup/status.js": {
-      "maxDuration": 15
-    },
-    "api/terrain/heights.js": {
-      "maxDuration": 14
-    },
-    "api/tomtom/flow/[z]/[x]/[y].js": {
-      "maxDuration": 15
-    },
-    "api/tomtom/status.js": {
-      "maxDuration": 15
-    },
-    "api/volcanoes.js": {
-      "maxDuration": 15
-    },
-    "api/weather-effects.js": {
-      "maxDuration": 15
-    },
-    "api/wilayah.js": {
-      "maxDuration": 15
+    "api/chat.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
