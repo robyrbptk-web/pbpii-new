@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Jalankan situs (dev:site)",
+      "detail": "Server lokal di http://127.0.0.1:4173 dengan semua /api/* hidup",
+      "type": "npm",
+      "script": "dev:site",
+      "isBackground": true,
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "group": "pbpii",
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      },
+      "problemMatcher": {
+        "owner": "pbpii-dev-server",
+        "fileLocation": "absolute",
+        "pattern": [
+          {
+            "regexp": "^$",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "endpoint api/"
+        }
+      }
+    },
+    {
+      "label": "Cek backend Apps Script",
+      "detail": "Bandingkan versi /exec yang melayani publik dengan gas/Code.gs di repo",
+      "type": "npm",
+      "script": "check:backend",
+      "presentation": {
+        "group": "pbpii",
+        "panel": "shared",
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Nyalakan situs lalu cek backend",
+      "detail": "Task sekali jalan untuk membuka http://127.0.0.1:4173 dengan percaya diri",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Jalankan situs (dev:site)",
+        "Cek backend Apps Script"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

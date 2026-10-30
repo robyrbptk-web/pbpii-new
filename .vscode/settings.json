@@ -1,0 +1,10 @@
+{
+  "liveServer.settings.root": "/",
+  "liveServer.settings.port": 5501,
+  "files.eol": "\n",
+  "git.autoRepositoryDetection": "openEditors",
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/peta/assets": true
+  }
+}

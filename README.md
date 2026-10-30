@@ -109,6 +109,46 @@ curl http://127.0.0.1:4173/api/__routes   # daftar rute yang sedang aktif
 Server statis biasa (Live Preview/http-server) TIDAK cukup untuk menguji fitur: tanpa
 runtunan fungsi, semua `/api/*` akan membalas `Cannot GET`.
 
+### Membuka project ini di VSCode
+
+Buka **folder `pbpii-web` ini** sebagai workspace (File ▸ Open Folder), bukan
+`pbpii-website-starter` dan bukan `pbpii-app`. Alasannya teknis: semua halaman
+memakai path absolut (`/assets/logo-pii.png`, `/styles.css`), sedangkan Live
+Server menjadikan *akar workspace* sebagai akar dokumen. Kalau yang dibuka folder
+induk, `/assets/logo-pii.png` dicari di luar project, logo dan CSS 404, dan
+halaman tampak kosong meskipun kodenya baik. Isi `.vscode/` sudah menyesuaikan
+itu, dan folder `pbpii-app` ikut diberi `.vscode` penyelamat untuk kasus terlanjur
+dibuka.
+
+Setelah folder yang benar terbuka, tidak perlu mengetik apa pun:
+
+| Tekan | Hasil |
+| --- | --- |
+| `Ctrl`+`Shift`+`B` | menjalankan `npm run dev:site` (task default) di `http://127.0.0.1:4173` dan biarkan berjalan di panel Terminal |
+| `F5` | menjalankan task itu lebih dulu, lalu membuka Chrome/Edge dengan dev server; debugger melekat ke `app.js`, `ibadah.js`, `tanya.js` |
+| `Ctrl`+`Shift`+`P` ▸ Run Task ▸ **Cek backend Apps Script** | `npm run check:backend` |
+
+Tombol **Open with Live Server** tetap ada dan tidak merusak apa pun, tapi hanya
+cocok untuk melihat tampilan statis: ia tidak menjalankan `api/*.js`, jadi berita,
+pengaturan, login, dan Tanya PII tidak akan pernah terisi.
+
+`scripts/check-backend.mjs` membandingkan `BACKEND_VERSION` di `gas/Code.gs`
+dengan versi yang benar-benar dijawab `/exec` (lewat Apps Script langsung dan
+lewat proxy lokal). Balasan `"Sesi berakhir atau token tidak valid."` untuk aksi
+`health` adalah sidik jari deployment lama: aksi itu belum ada sehingga `doPost`
+jatuh ke `requireAuth_`. Keluaran prosesnya `1` selama belum ada backend yang
+cocok, jadi checker ini bisa dipakai sebagai gerbang sebelum klaim "sudah deploy".
+
+**Jangan pernah commit/push dari folder `pbpii-app`.** Folder itu diam-diam juga
+repository Git dengan `origin` yang sama (`pbpii-new`) tetapi hanya melacak
+`pbpii-website-starter.zip` dan `pbpii-web` sebagai *gitlink* (entri `160000`),
+bukan sebagai isi project. Mendorongnya ke `main` akan membuat Vercel meng-clone
+repository yang folder `pbpii-web`-nya kosong — situs hidup tanpa satu berkas pun.
+Yang benar adalah repository di dalam `pbpii-web` (`.git` milik sendiri);
+`git rev-parse --show-toplevel` dari folder itu harus mengembalikan
+`…/pbpii-website-starter/pbpii-web`. Pengaturan `git.autoRepositoryDetection` di
+`.vscode` membuat panel Source Control memakai repository dalam `pbpii-web` saja.
+
 ## C. Fitur yang ada
 - Halaman depan responsif untuk desktop, tablet, dan HP; pada layar kecil memakai navigasi bawah bergaya aplikasi.
 - Artikel: tambah, edit, hapus, draft/published, kategori, ringkasan, isi, URL gambar sampul.

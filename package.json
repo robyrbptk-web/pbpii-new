@@ -1,1 +1,11 @@
-{"name": "pbpii-website", "version": "1.0.0", "private": true, "type": "module", "scripts": {"dev": "vercel dev", "dev:site": "node scripts/dev-server.mjs"}}
+{
+  "name": "pbpii-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "dev:site": "node scripts/dev-server.mjs",
+    "check:backend": "node scripts/check-backend.mjs"
+  }
+}

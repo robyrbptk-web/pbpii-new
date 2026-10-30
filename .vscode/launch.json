@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PB PII — Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:4173",
+      "webRoot": "${workspaceFolder}",
+      "sourceMaps": false,
+      "timeout": 25000,
+      "preLaunchTask": "Jalankan situs (dev:site)"
+    },
+    {
+      "name": "PB PII — Edge",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://127.0.0.1:4173",
+      "webRoot": "${workspaceFolder}",
+      "sourceMaps": false,
+      "timeout": 25000,
+      "preLaunchTask": "Jalankan situs (dev:site)"
+    }
+  ]
+}
