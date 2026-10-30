@@ -5,10 +5,13 @@
  * Cara pasang:
  * 1. Jalankan setup() dari spreadsheet yang terhubung.
  * 2. Tambahkan file HTML bernama AdminSetup dari AdminSetup.html.
- * 3. Password awal admin: tauhid12 (ganti lewat menu PB PII > Atur akun admin).
- *    Bila password hilang, jalankan aturUlangPasswordAdmin() lalu ganti lagi.
+ * 3. Atur password lewat menu PB PII > Atur akun admin. Bila hilang, jalankan
+ *    aturUlangPasswordAdmin() lalu ganti lagi.
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
+ * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
+const BACKEND_VERSION = '2026-10-30.1';
+
 const APP = {
   SHEET_ARTICLES: 'Articles',
   SHEET_SETTINGS: 'Settings',
@@ -22,13 +25,17 @@ const APP = {
   PROP_SPREADSHEET_ID: 'SPREADSHEET_ID',
   PROP_ADMIN_USERNAME: 'ADMIN_USERNAME',
   PROP_ADMIN_PASSWORD: 'ADMIN_PASSWORD',
+  PROP_ADMIN_PASSWORD_HASH: 'ADMIN_PASSWORD_HASH',
+  PROP_ADMIN_PASSWORD_SALT: 'ADMIN_PASSWORD_SALT',
   PB_ORG_ID: 'pb-pii',
   PB_ORG_NAME: 'Pengurus Besar PII'
 };
 
 /**
- * Kata sandi admin awal. Ganti lewat menu PB PII > Atur akun admin setelah
- * berhasil masuk, karena nilai ini tertulis di repository.
+ * Kata sandi pemulihan akun admin. Nilainya terlihat di repository publik, jadi
+ * jangan dipakai untuk login produksi: jalankan hanya lewat aturUlangPasswordAdmin()
+ * bila akses hilang, lalu segera ganti lewat menu PB PII > Atur akun admin.
+ * Kata sandi yang disimpan di server selalu berupa hash, bukan teks ini.
  */
 const DEFAULT_ADMIN_PASSWORD = 'tauhid12';
 
@@ -115,8 +122,9 @@ const ALLOWED_SETTINGS = [
 ];
 
 /**
- * Buat sheet yang dibutuhkan tanpa menghapus data yang sudah ada.
- * Jalankan dari Apps Script yang terikat ke spreadsheet website.
+ * Buat sheet yang dibutuhkan tanpa menghapus data yang sudah ada, lalu perbaiki
+ * struktur yang tertinggal dari versi kode ini. Idempoten: aman dijalankan
+ * berulang pada spreadsheet yang sudah berisi data.
  */
 function setup() {
   let spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -130,25 +138,70 @@ function setup() {
     throw new Error('Buka Apps Script dari Google Spreadsheet website PB PII, lalu jalankan setup() kembali.');
   }
 
-  ensureSheet_(spreadsheet, APP.SHEET_ARTICLES, ARTICLE_HEADERS);
-  ensureSheet_(spreadsheet, APP.SHEET_SETTINGS, SETTINGS_HEADERS);
-  ensureSheet_(spreadsheet, APP.SHEET_GALLERY, GALLERY_HEADERS);
-  ensureSheet_(spreadsheet, APP.SHEET_ORGS, ORG_HEADERS);
-  ensureSheet_(spreadsheet, APP.SHEET_ACTIVITIES, ACTIVITY_HEADERS);
-  ensureSheet_(spreadsheet, APP.SHEET_FORMS, FORM_HEADERS);
-  ensureSheet_(spreadsheet, APP.SHEET_PARTICIPANTS, PARTICIPANT_HEADERS);
-  ensureSheet_(spreadsheet, APP.SHEET_LETTERS, LETTER_HEADERS);
-  ensureDefaultSettings_(spreadsheet.getSheetByName(APP.SHEET_SETTINGS));
-  ensurePbOrg_(spreadsheet.getSheetByName(APP.SHEET_ORGS));
+  const schema = [
+    [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
+    [APP.SHEET_SETTINGS, SETTINGS_HEADERS],
+    [APP.SHEET_GALLERY, GALLERY_HEADERS],
+    [APP.SHEET_ORGS, ORG_HEADERS],
+    [APP.SHEET_ACTIVITIES, ACTIVITY_HEADERS],
+    [APP.SHEET_FORMS, FORM_HEADERS],
+    [APP.SHEET_PARTICIPANTS, PARTICIPANT_HEADERS],
+    [APP.SHEET_LETTERS, LETTER_HEADERS]
+  ];
+
+  const dibuat = [];
+  const diperbaiki = [];
+  const perluTinjauan = [];
+
+  schema.forEach(function (entry) {
+    const result = ensureSheet_(spreadsheet, entry[0], entry[1]);
+    if (result.created) dibuat.push(entry[0]);
+    if (result.repaired) diperbaiki.push(entry[0]);
+    if (result.mismatch) {
+      perluTinjauan.push(entry[0] + ' (kolom: ' + result.mismatch.join(', ') + ')');
+    }
+  });
+
+  const settingsSheet = spreadsheet.getSheetByName(APP.SHEET_SETTINGS);
+  const orgsSheet = spreadsheet.getSheetByName(APP.SHEET_ORGS);
 
   properties.setProperty(APP.PROP_SPREADSHEET_ID, spreadsheet.getId());
   properties.setProperty(APP.PROP_ADMIN_USERNAME, 'admin');
-  if (!properties.getProperty(APP.PROP_ADMIN_PASSWORD)) {
-    properties.setProperty(APP.PROP_ADMIN_PASSWORD, DEFAULT_ADMIN_PASSWORD);
+
+  const punyaKataSandi = Boolean(properties.getProperty(APP.PROP_ADMIN_PASSWORD_HASH)) ||
+    Boolean(properties.getProperty(APP.PROP_ADMIN_PASSWORD));
+  if (!punyaKataSandi) {
+    saveAdminPassword_(DEFAULT_ADMIN_PASSWORD);
   }
 
-  return 'Setup selesai. Username admin: admin. Bila password belum pernah diatur, password awal: ' +
-    DEFAULT_ADMIN_PASSWORD + '. Ganti lewat menu PB PII > Atur akun admin.';
+  if (settingsSheet) {
+    ensureDefaultSettings_(settingsSheet);
+  }
+  const pbDibuat = orgsSheet ? ensurePbOrg_(orgsSheet) : false;
+  if (pbDibuat) dibuat.push('akun induk ' + APP.PB_ORG_ID);
+
+  const laporan = [];
+  laporan.push('Backend ' + BACKEND_VERSION + ' siap. Spreadsheet: ' + spreadsheet.getId() + '.');
+  laporan.push(dibuat.length
+    ? 'Dibuat: ' + dibuat.join(', ') + '.'
+    : 'Semua sheet sudah ada; tidak ada yang dibuat baru.');
+  if (diperbaiki.length) laporan.push('Kolom dilengkapi: ' + diperbaiki.join(', ') + '.');
+  if (perluTinjauan.length) {
+    laporan.push('PERLU TINJAUAN MANUAL — header tidak sesuai skema, tidak diubah: ' +
+      perluTinjauan.join('; ') + '.');
+  }
+  laporan.push(punyaKataSandi
+    ? 'Kata sandi admin yang sudah ada tetap berlaku; nilai teks polos lama otomatis berubah jadi hash pada login berikutnya.'
+    : 'Kata sandi awal: ' + DEFAULT_ADMIN_PASSWORD + ' — segera ganti lewat menu PB PII > Atur akun admin.');
+
+  const message = laporan.join('\n');
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (error) {
+    // Dipanggil dari editor: hasil tampil di panel eksekusi.
+    Logger.log(message);
+  }
+  return message;
 }
 
 /**
@@ -159,7 +212,7 @@ function setup() {
 function aturUlangPasswordAdmin() {
   const properties = PropertiesService.getScriptProperties();
   properties.setProperty(APP.PROP_ADMIN_USERNAME, 'admin');
-  properties.setProperty(APP.PROP_ADMIN_PASSWORD, DEFAULT_ADMIN_PASSWORD);
+  saveAdminPassword_(DEFAULT_ADMIN_PASSWORD);
   const message =
     'Akun admin disetel ulang.\n\nUsername: admin\nKata sandi: ' + DEFAULT_ADMIN_PASSWORD +
     '\n\nSegera ganti melalui menu PB PII > Atur akun admin.';
@@ -187,8 +240,9 @@ function tampilkanUrlBackend() {
   }
   const message =
     'URL backend website (Tempel di Vercel > Environment Variables > GAS_WEB_APP_URL):\n\n' + url +
-    '\n\nSitus membaca satu titik saja di api/pii.js, jadi cukup ganti nilai ini.' +
-    '\nBila URL kosong atau belum bisa diakses, pilih Deploy > Manage deployments > New version.';
+    '\n\nBuka URL itu di browser untuk melihat versi backend yang sedang melayani (versi kode ini: ' + BACKEND_VERSION + ').' +
+    '\nSitus membaca satu titik saja di api/pii.js, jadi cukup ganti nilai ini.' +
+    '\nBila versi di browser lebih lama, pilih Deploy > Manage deployments > New version.';
   try {
     SpreadsheetApp.getUi().alert(message);
   } catch (error) {
@@ -300,16 +354,101 @@ function saveAdminPassword(password, confirmation) {
 
   const properties = PropertiesService.getScriptProperties();
   properties.setProperty(APP.PROP_ADMIN_USERNAME, 'admin');
-  properties.setProperty(APP.PROP_ADMIN_PASSWORD, value);
+  saveAdminPassword_(value);
   return 'Akun admin siap digunakan. Username: admin.';
 }
 
+/** Kata sandi hanya boleh tinggal sebagai hash + salt, tidak pernah sebagai teks. */
+function saveAdminPassword_(password) {
+  const properties = PropertiesService.getScriptProperties();
+  const salt = Utilities.getUuid();
+  properties.setProperty(APP.PROP_ADMIN_PASSWORD_HASH, hashPassword_(password, salt));
+  properties.setProperty(APP.PROP_ADMIN_PASSWORD_SALT, salt);
+  properties.deleteProperty(APP.PROP_ADMIN_PASSWORD);
+}
+
+function adminPasswordReady_() {
+  const properties = PropertiesService.getScriptProperties();
+  return Boolean(properties.getProperty(APP.PROP_ADMIN_PASSWORD_HASH)) ||
+    Boolean(properties.getProperty(APP.PROP_ADMIN_PASSWORD));
+}
+
+function verifyAdminPassword_(password) {
+  const properties = PropertiesService.getScriptProperties();
+  const hash = properties.getProperty(APP.PROP_ADMIN_PASSWORD_HASH);
+  const salt = properties.getProperty(APP.PROP_ADMIN_PASSWORD_SALT);
+  if (hash && salt) {
+    return hashPassword_(password, salt) === String(hash);
+  }
+
+  // Deployment lama masih menyimpan teks polos: naikkan ke hash saat cocok,
+  // supaya penggantian kode ini tidak pernah mengunci admin yang sedang bertugas.
+  const legacy = properties.getProperty(APP.PROP_ADMIN_PASSWORD);
+  if (legacy && String(password) === legacy) {
+    saveAdminPassword_(legacy);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Buka URL /exec di browser untuk memeriksa versi backend yang sedang melayani
+ * tanpa perlu token login.
+ */
 function doGet() {
-  return json_({
-    ok: true,
+  return json_(health_());
+}
+
+/**
+ * Status operasional: versi kode, kesiapan sheet, dan jumlah baris. Tidak
+ * mengembalikan kata sandi, token, maupun isi data.
+ */
+function health_() {
+  const properties = PropertiesService.getScriptProperties();
+  const spreadsheetId = properties.getProperty(APP.PROP_SPREADSHEET_ID) || '';
+  const sheets = {};
+  const masalah = [];
+
+  if (spreadsheetId) {
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    [
+      [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
+      [APP.SHEET_SETTINGS, SETTINGS_HEADERS],
+      [APP.SHEET_GALLERY, GALLERY_HEADERS],
+      [APP.SHEET_ORGS, ORG_HEADERS],
+      [APP.SHEET_ACTIVITIES, ACTIVITY_HEADERS],
+      [APP.SHEET_FORMS, FORM_HEADERS],
+      [APP.SHEET_PARTICIPANTS, PARTICIPANT_HEADERS],
+      [APP.SHEET_LETTERS, LETTER_HEADERS]
+    ].forEach(function (entry) {
+      const sheet = spreadsheet.getSheetByName(entry[0]);
+      if (!sheet) {
+        sheets[entry[0]] = null;
+        masalah.push(entry[0] + ' belum ada');
+        return;
+      }
+      sheets[entry[0]] = Math.max(0, sheet.getLastRow() - 1);
+    });
+  } else {
+    masalah.push('SPREADSHEET_ID belum diatur');
+  }
+
+  if (!properties.getProperty(APP.PROP_ADMIN_PASSWORD_HASH) &&
+      !properties.getProperty(APP.PROP_ADMIN_PASSWORD)) {
+    masalah.push('kata sandi admin belum diatur');
+  }
+
+  return {
+    ok: masalah.length === 0,
     service: 'PB PII CMS API',
-    message: 'API aktif. Gunakan POST melalui proxy Vercel.'
-  });
+    version: BACKEND_VERSION,
+    spreadsheetId: spreadsheetId,
+    sheets: sheets,
+    masalah: masalah,
+    message: masalah.length
+      ? 'Jalankan setup() dari editor Apps Script.'
+      : 'Backend siap. Gunakan POST melalui proxy Vercel.'
+  };
 }
 
 /**
@@ -324,7 +463,9 @@ function doPost(event) {
     const action = String(body.action || '');
     let data;
 
-    if (action === 'public') {
+    if (action === 'health') {
+      data = health_();
+    } else if (action === 'public') {
       data = publicData_();
     } else if (action === 'login') {
       data = login_(body);
@@ -386,14 +527,13 @@ function login_(body) {
   const username = String(
     properties.getProperty(APP.PROP_ADMIN_USERNAME) || ''
   ).trim();
-  const password = properties.getProperty(APP.PROP_ADMIN_PASSWORD);
 
-  if (!username || !password) {
+  if (!username || !adminPasswordReady_()) {
     throw new Error('Admin belum dikonfigurasi. Pilih menu PB PII > Atur akun admin pada spreadsheet.');
   }
   if (
     String(body.username || '').trim().toLowerCase() !== username.toLowerCase() ||
-    String(body.password || '') !== password
+    !verifyAdminPassword_(String(body.password || ''))
   ) {
     throw new Error('Username atau kata sandi salah.');
   }
@@ -648,24 +788,59 @@ function ensureSheet_(spreadsheet, name, headers) {
   }
 
   if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    styleHeader_(sheet, headers);
+    return { sheet: sheet, created: true, repaired: false };
   }
 
-  return sheet;
+  const existing = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0]
+    .map(function (value) { return String(value).trim(); })
+    .filter(function (value) { return value !== ''; });
+
+  const sama = existing.length === headers.length && headers.every(function (header, index) {
+    return existing[index] === header;
+  });
+  if (sama) {
+    return { sheet: sheet, created: false, repaired: false };
+  }
+
+  // Skema baru hanya menambah kolom di ujung, jadi header boleh ditambal
+  // tanpa menggeser data. Susunan kolom yang berbeda tidak pernah diubah otomatis.
+  const tinggalDiperpanjang = existing.every(function (header, index) {
+    return header === headers[index];
+  });
+  if (tinggalDiperpanjang) {
+    styleHeader_(sheet, headers);
+    return { sheet: sheet, created: false, repaired: true };
+  }
+
+  return { sheet: sheet, created: false, repaired: false, mismatch: existing };
+}
+
+function styleHeader_(sheet, headers) {
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
 }
 
 function ensurePbOrg_(sheet) {
-  if (sheet.getLastRow() > 1) {
-    return;
+  const lastRow = sheet.getLastRow();
+  const ids = lastRow > 1
+    ? sheet.getRange(2, 1, lastRow - 1, 1).getDisplayValues()
+    : [];
+  const alreadyThere = ids.some(function (row) {
+    return String(row[0]).trim() === APP.PB_ORG_ID;
+  });
+  if (alreadyThere) {
+    return false;
   }
+
   const now = new Date().toISOString();
   sheet.appendRow([
     APP.PB_ORG_ID, 'PB', APP.PB_ORG_NAME, '', '', '', '',
     '', '', '', '', '', 'verified', 'setup', now, now, now, '',
     'Akun induk organisasi'
   ]);
+  return true;
 }
 
 function ensureDefaultSettings_(sheet) {
@@ -1180,11 +1355,13 @@ function orgSetStatus_(id, decision, actorLabel, note) {
 
   const now = new Date().toISOString();
   const sheet = sheet_(APP.SHEET_ORGS);
-  sheet.getRange(target._row, 13).setValue(value);
-  sheet.getRange(target._row, 14).setValue(value === 'pending' ? '' : String(actorLabel || ''));
-  sheet.getRange(target._row, 15).setValue(value === 'pending' ? '' : now);
-  sheet.getRange(target._row, 17).setValue(now);
-  sheet.getRange(target._row, 19).setValue(cleanText_(note).slice(0, 500));
+  setCells_(sheet, target._row, {
+    status: value,
+    verifiedBy: value === 'pending' ? '' : String(actorLabel || ''),
+    verifiedAt: value === 'pending' ? '' : now,
+    updatedAt: now,
+    note: cleanText_(note).slice(0, 500)
+  });
   return slimOrg_(orgById_(rows_(APP.SHEET_ORGS), target.id));
 }
 
@@ -1458,14 +1635,27 @@ function orgSetCell_(sheetNameOrId, id, header, value) {
   if (!values.length) return;
   const headers = values[0].map(String);
   const idColumn = headers.indexOf('id');
-  const column = headers.indexOf(header);
-  if (idColumn < 0 || column < 0) return;
+  if (idColumn < 0) return;
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][idColumn]) === String(id)) {
-      sheet.getRange(i + 1, column + 1).setValue(value);
+      const updates = {};
+      updates[header] = value;
+      setCells_(sheet, i + 1, updates);
       return;
     }
   }
+}
+
+/** Tulis beberapa kolom sekaligus, dicari lewat nama header bukan nomor kolom. */
+function setCells_(sheet, rowNumber, valuesByHeader) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0]
+    .map(function (value) { return String(value).trim(); });
+  Object.keys(valuesByHeader).forEach(function (name) {
+    const column = headers.indexOf(name) + 1;
+    if (column > 0) {
+      sheet.getRange(rowNumber, column).setValue(valuesByHeader[name]);
+    }
+  });
 }
 
 function canonicalProvince_(value) {

@@ -57,16 +57,23 @@ yang sudah jalan:
 1. Editor Apps Script > tempel isi `gas/Code.gs` terbaru ke `Code.gs` > **Save**.
 2. Jalankan `setup` dari dropdown fungsi. Sheet baru (Orgs, Activities, Forms,
    Participants, Letters) dibuat, kolom yang kurang ditambahkan, dan artikel serta
-   pengaturan lama tidak disentuh.
+   pengaturan lama tidak disentuh. `setup()` berakhir dengan laporan: daftar sheet
+   yang dibuat, kolom yang ditambal, dan sheet yang perlu ditinjau manual karena
+   susunan kolomnya berbeda dari skema (tidak pernah diubah otomatis).
 3. **Deploy > Manage deployments** > pensil > **New version** > **Deploy**. Langkah
    ini yang paling sering terlewat: tanpa versi baru, `/exec` masih menjalankan
    kode lama sehingga fitur lembaga (daftar PW/PD/PK) menjawab "Sesi berakhir".
-4. Teks kop website: jalankan **PB PII > Ganti teks dengan salinan resmi** pada
+4. Bukti bahwa versi baru benar-benar melayani: buka URL `/exec` di browser, atau
+   kirim `POST` `{action:"health"}`. Balasan memuat `version` (stamp di `Code.gs`,
+   sekarang `2026-10-30.1`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
+   `masalah`. Versi yang lebih lama dari stamp berarti langkah 3 belum selesai.
+   Endpoint ini sengaja tidak mengembalikan kata sandi, token, maupun isi data.
+5. Teks kop website: jalankan **PB PII > Ganti teks dengan salinan resmi** pada
    spreadsheet, atau **Segarkan teks resmi website** bila tidak ingin menimpa
    suntingan redaksi. Bedanya: yang pertama memaksa semua kunci kembali ke
    `DEFAULT_SETTINGS`, yang kedua melewati nilai yang sudah pernah diubah lewat
    dashboard.
-5. Lupa password admin: **PB PII > Setel ulang password admin** mengembalikan
+6. Lupa password admin: **PB PII > Setel ulang password admin** mengembalikan
    username `admin` dengan kata sandi awal `DEFAULT_ADMIN_PASSWORD` di `Code.gs`.
    Setelah itu segera ganti lewat **PB PII > Atur akun admin**; jangan Biarkan
    kata sandi bawaan terpakai di situs produksi.
@@ -408,5 +415,5 @@ tabel Supabase tanpa mengubah kontrak API frontend.
 - Endpoint Apps Script harus dapat dipanggil oleh proxy Vercel. Jangan menaruh `ADMIN_PASSWORD` atau URL rahasia lain di frontend atau repository.
 - Foto galeri dan sampul menggunakan URL gambar publik; upload file langsung belum tersedia.
 - Token sesi disimpan di `sessionStorage` browser dan berlaku sementara; sesi dapat berakhir saat cache dibersihkan.
-- `saveAdminPassword` menyimpan password admin apa adanya di Script Properties (bukan hash). Gunakan password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
+- `saveAdminPassword` hanya menyimpan hash SHA-256 bersalt (250 iterasi) di Script Properties, bukan teks kata sandi. Nilai lama yang masih berupa teks polos tetap bisa login dan otomatis dinaikkan menjadi hash pada login berikutnya. Gunakan tetap password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
 - Untuk penggunaan resmi, tambahkan backup spreadsheet, logging, rate limiting, perlindungan CSRF sesuai kebutuhan, validasi HTML artikel, dan tinjauan keamanan sebelum menerima banyak admin.
