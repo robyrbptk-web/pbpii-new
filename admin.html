@@ -112,15 +112,15 @@
     @media(max-width:560px){
       .brand img{width:34px;height:38px}
       .brand{gap:8px;font-size:12px;min-height:44px}
-      .brand small{font-size:8px;letter-spacing:.4px}
-      .top-actions .btn{padding:8px 10px;font-size:11px}
+      .brand small{font-size:10.5px;letter-spacing:.2px}
+      .top-actions .btn{padding:8px 10px;font-size:12px}
       .page-head{flex-direction:column;align-items:stretch;gap:12px}
       .page-head h1{font-size:23px}
       .page-head .btn{width:100%}
       .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
       .stat{padding:12px 10px}
       .stat strong{font-size:21px}
-      .stat span{font-size:10px}
+      .stat span{font-size:11.5px}
       .panel{padding:16px 14px;border-radius:13px}
       .form-grid{grid-template-columns:minmax(0,1fr)}
       .field.full{grid-column:auto}
@@ -129,6 +129,11 @@
       .item-actions .btn{flex:1 1 auto}
       .list-head{flex-wrap:wrap}
       .toolbar .search{flex:1 1 100%}
+      .hint,.chip,.eyebrow,.foot{font-size:11.5px}
+      .help-card code{font-size:11.5px}
+    }
+    @media(max-width:400px){
+      .brand small{display:none}
     }
 
     .uploader{display:grid;gap:8px;margin-bottom:8px}

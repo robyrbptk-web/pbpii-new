@@ -3123,34 +3123,31 @@ nav a[aria-current='page']::after {
   }
 }
 
-/* Layar sempit (iPhone SE 320px): label waktu jangan sampai keluar kotaknya. */
-@media (max-width: 380px) {
-  .teaser-times {
-    gap: 7px;
-  }
-
-  .teaser-times li {
-    padding: 9px 8px;
-  }
-
-  .teaser-times span {
-    font-size: .62rem;
-    letter-spacing: .01em;
-  }
-
-  .teaser-times strong {
-    font-size: .98rem;
-  }
-}
-
 /* Ukuran huruf terkecil di ponsel dinaikkan supaya tetap nyaman dibaca. */
 @media (max-width: 680px) {
   nav:not(.footer-auth) a {
     font-size: .72rem;
   }
 
-  .site-header .brand small {
-    font-size: .7rem;
+  .site-header .brand small,
+  footer .brand small {
+    font-size: .74rem;
+  }
+
+  /* Kapel "menuju waktu sholat" dan label nama sholat: 10,8px terlalu kecil. */
+  .next-prayer span,
+  .teaser-next span,
+  .teaser-times span {
+    font-size: .72rem;
+    letter-spacing: .06em;
+  }
+
+  .stats span {
+    font-size: .74rem;
+  }
+
+  .install-app {
+    font-size: .72rem;
   }
 
   .surah-name b {
@@ -3203,5 +3200,31 @@ nav a[aria-current='page']::after {
     left: 14px;
     width: auto;
     max-height: min(560px, calc(100dvh - 168px));
+  }
+}
+
+/* 320px: nama sholat ditulis biasa (bukan kapital) supaya muat tanpa mengecil
+   di bawah 10,5px — aturan ini ditaruh paling akhir agar mengalahkan blok 680px. */
+@media (max-width: 380px) {
+  .teaser-times {
+    gap: 6px;
+  }
+
+  .teaser-times li {
+    padding: 9px 7px;
+  }
+
+  .teaser-times span {
+    font-size: .68rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .teaser-times strong {
+    font-size: .98rem;
+  }
+
+  .next-prayer span {
+    letter-spacing: .06em;
   }
 }

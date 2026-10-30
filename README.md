@@ -153,8 +153,19 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
   atas bar navigasi, bukan menimpanya; kolom_input 16 px/48 px dan tombol kirim
   ≥44 px. Semua elemen `position:fixed` diuji: nol yang menutupi bar navigasi.
 - 114 ringkasan "Tafsir" per ayat di `/ibadah.html`, tombol halaman di pembaca,
-  dan tombol ikon di atas globe dinaikkan ke ≥44 px. Huruf terkecil di ponsel
-  kini ≥11 px (label bar bawah .72 rem, meta surat .78 rem, pill slogan .74 rem).
+  dan tombol ikon di atas globe dinaikkan ke ≥44 px.
+- Lantai huruf: tidak ada teks yang lebih kecil dari 11 px di ponsel, dan nyaris
+  semuanya ≥11,5 px. Yang ikut dinaikkan: `tagline` header/footer (.74 rem),
+  kapel "Menuju waktu sholat" (.72 rem), `.stats span`, `.install-app`, label
+  `.eyebrow`/`.foot`/`.help code` di `login.html` (11→11,5 px), `.badge`/`.tab .count`
+  dan `.side-label` di `lembaga.html` (10/9,5→11 px), `.seg small` + `.brand small`
+  di `daftar.html`, serta `.hint`/`.chip`/`.stat span` di `admin.html`.
+  Satu-satunya yang sengaja lebih kecil: nama sholat di strip beranda saat lebar
+  ≤380 px (10,88 px, huruf kecil bukan kapital) — itu batas agar lima kolom tetap
+  muat di 320 px tanpa terpotong.
+- Aturan 380 px ditaruh paling akhir di `styles.css`. Blok `@media (max-width:680px)`
+  berada setelahnya di file, jadi kalau blok kecil diletakkan sebelum, label waktu
+  justru kembali membesar dan merusak lebar 320 px.
 - Globe (`/peta/index.html`, source di repo `gods-eye-view`) punya blok
   `@media (max-width:720px)` sendiri: chip `OFF` lapisan 19→38 px, `.scene-btn`
   25→40, tombol ciutkan panel 22→38, tombol ikon atas 36→44. Ubah di `style.css`

@@ -58,10 +58,10 @@
     .who b{display:block;color:var(--ink);font-size:11px}
     .layout{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:calc(100dvh - 68px)}
     aside{background:#fff;border-right:1px solid var(--line);padding:20px 12px}
-    .side-label{font-size:9.5px;color:#8a96a5;font-weight:800;letter-spacing:1.2px;padding:0 12px;margin:0 0 8px}
+    .side-label{font-size:11px;color:#7c8896;font-weight:800;letter-spacing:1px;padding:0 12px;margin:0 0 8px}
     .tab{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px;border:0;background:transparent;border-radius:9px;text-align:left;font-weight:700;color:#586678;cursor:pointer;margin-bottom:4px}
     .tab.active,.tab:hover{background:#e9f1f8;color:var(--navy)}
-    .tab .count{background:#e4ecf4;color:var(--navy);border-radius:99px;font-size:10px;padding:1px 7px;font-weight:800}
+    .tab .count{background:#e4ecf4;color:var(--navy);border-radius:99px;font-size:11px;padding:1px 7px;font-weight:800}
     main{padding:26px;min-width:0}
     .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:20px}
     .page-head h1{margin:0;font-size:26px;letter-spacing:-.7px;color:var(--navy)}
@@ -78,7 +78,7 @@
     .message.show{display:block}
     .message.ok{background:#eaf7ed;color:#17622d;border:1px solid #cce8d2}
     .message.err{background:#fff0f0;color:#a51e27;border:1px solid #f0d0d3}
-    .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;background:#eef2f6;color:#5a6878;white-space:nowrap}
+    .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:800;background:#eef2f6;color:#5a6878;white-space:nowrap}
     .badge.verified{background:#e7f6eb;color:#167334}
     .badge.pending{background:#fff4d8;color:#85620d}
     .badge.rejected{background:#ffeced;color:#a51e27}
@@ -159,6 +159,10 @@
       .item-actions{justify-content:flex-start}
       .auth-card{padding:24px 18px;border-radius:16px}
       .btn{padding:11px 14px;min-height:44px}
+      .auth-brand small,.topbar .brand small,.who,.hint,.stat span,.chip,.bar,
+      .network-card .meta,.network-card .kpi-mini{font-size:11.5px}
+      .who b{font-size:12px}
+      th{font-size:11px}
     }
   </style>
 </head>
