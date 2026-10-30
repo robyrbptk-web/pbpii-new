@@ -4,7 +4,7 @@ Fondasi website publik PB PII dengan artikel, sambutan Ketua Umum yang bisa diub
 
 ## Catatan copywriting dan sumber
 
-Naskah halaman depan mengikuti susunan dan bahasa situs resmi PB PII, https://pbpii.or.id/ — khususnya https://pbpii.or.id/profil-organisasi/, https://pbpii.or.id/misi-dan-eksistensi-pii/, https://pbpii.or.id/tujuan-pelajar-islam-indonesia/, dan https://pbpii.or.id/sejarah-perjuangan-pelajar-islam-indonesia/. PII berdiri di Yogyakarta pada 4 Mei 1947 dan bergerak dalam pendidikan serta kebudayaan sesuai Islam; tagline resmi yang dipakai **#BergerakBerjamaah**. Bagian "Arah Gerakan" menautkan program yang diumumkan PB PII (PII Level Up, Komunitas Pelajar Literasi, kelembagaan dan data keaktifan).
+Naskah halaman depan mengikuti susunan dan bahasa situs resmi PB PII, https://pbpii.or.id/ — khususnya https://pbpii.or.id/profil-organisasi/, https://pbpii.or.id/misi-dan-eksistensi-pii/, https://pbpii.or.id/tujuan-pelajar-islam-indonesia/, dan https://pbpii.or.id/sejarah-perjuangan-pelajar-islam-indonesia/. PII berdiri di Yogyakarta pada 4 Mei 1947 dan bergerak dalam pendidikan serta kebudayaan sesuai Islam; slogan yang dipakai **#PIILevelUp** (menggantikan #BergerakBerjamaah) dengan Ketua Umum PB PII **Kevin Prayoga, S.H.** Bagian "Arah Gerakan" menautkan program yang diumumkan PB PII (PII Level Up, Komunitas Pelajar Literasi, kelembagaan dan data keaktifan).
 
 Tautan di website ini sengaja tidak ada yang menunjuk ke `pbpii.or.id`: alamat tersebut hanya sumber copywriting, bukan tautan yang ditampilkan pengunjung. Semua tautan bersifat internal (`#gerakan`, `#berita`, `lembaga.html`, `peta.html`), dan satu-satunya tautan keluar di beranda adalah Google Maps lokasi sekretariat.
 

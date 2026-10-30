@@ -89,10 +89,10 @@ const SETTINGS_HEADERS = ['key', 'value'];
 
 const DEFAULT_SETTINGS = [
   ['siteName', 'Pengurus Besar Pelajar Islam Indonesia'],
-  ['tagline', '#BergerakBerjamaah'],
+  ['tagline', '#PIILevelUp'],
   ['heroTitle', 'Organisasi Pelajar Tertua di Indonesia, Bergerak Sejak 4 Mei 1947'],
   ['heroText', 'Pelajar Islam Indonesia (PII) telah menemani perjalanan bangsa selama puluhan tahun. Dari rahim sejarah itulah lahir kader-kader pelajar yang beriman, berilmu, dan berjuang untuk umat serta negara.'],
-  ['chairmanName', 'Nama Ketua Umum PB PII'],
+  ['chairmanName', 'Kevin Prayoga, S.H.'],
   ['chairmanRole', 'Periode 2026 – 2028'],
   ['chairmanPhoto', ''],
   ['chairmanGreeting', 'Assalamu’alaikum warahmatullahi wabarakatuh.\n\nPelajar Islam Indonesia, sebagai organisasi pelajar tertua di Indonesia, telah menemani perjalanan bangsa selama puluhan tahun. Namun zaman terus bergerak. Tantangan pelajar hari ini tidak lagi sama dengan satu atau dua dekade yang lalu. Perubahan sosial, teknologi, dan dinamika global menuntut PII untuk terus berbenah tanpa kehilangan jati dirinya.\n\nPII Level Up hadir sebagai ikhtiar kolektif untuk meningkatkan kualitas kaderisasi dan penguatan kelembagaan agar PII tetap relevan, berdampak, dan berkelanjutan. Ini bukan tentang meninggalkan nilai, melainkan memperkuatnya. Bukan menghapus sejarah, tetapi melanjutkannya dengan cara yang lebih adaptif dan progresif.\n\nMelalui pembaruan sistem kaderisasi, penguatan kapasitas kader, serta pengelolaan kelembagaan yang lebih profesional, PII Level Up menjadi ruang tumbuh bagi pelajar Islam untuk naik kelas — dalam karakter, intelektualitas, dan kepemimpinan.\n\nWassalamu’alaikum warahmatullahi wabarakatuh.'],
