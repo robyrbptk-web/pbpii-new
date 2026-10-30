@@ -39,7 +39,7 @@
       </div>
       <div class="globe-toolbar-actions">
         <button type="button" class="globe-icon-btn" id="globeLayersHelp" title="Cara memakai globe" aria-label="Cara memakai globe">?</button>
-        <a class="globe-icon-btn" href="/peta/" target="_blank" rel="noopener" title="Layar penuh" aria-label="Buka layar penuh">⛶</a>
+        <a class="globe-icon-btn" href="/peta/index.html" target="_blank" rel="noopener" title="Layar penuh" aria-label="Buka layar penuh">⛶</a>
       </div>
     </div>
 
@@ -171,7 +171,7 @@
 
       function load(first) {
         fallback.hidden = true;
-        frame.src = first ? '/peta/' : '/peta/?retry=' + Date.now();
+        frame.src = first ? '/peta/index.html' : '/peta/index.html?retry=' + Date.now();
         pollUntilAlive(first ? 30000 : 24000);
       }
 

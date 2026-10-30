@@ -86,7 +86,21 @@ yang sudah jalan:
 - Konten API dan perubahan dashboard tidak disimpan offline; cache hanya untuk kerangka halaman/aset statis.
 - Ikon dibuat dari `public/assets/logo-pii.png` dengan `node scripts/make-icons.mjs` (tanpa dependensi biner). Jalankan ulang setelah logo diganti, lalu naikkan `CACHE_NAME` di `sw.js` supaya pengunjung menerima versi baru.
 
-Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -g vercel` dan `vercel dev`. Halaman juga bisa dibuka langsung untuk melihat tata letak, tetapi panggilan API memerlukan proxy Vercel dan URL Apps Script yang sudah dikonfigurasi.
+### Menjalankan semuanya secara lokal
+
+`npm run dev:site` menjalankan `scripts/dev-server.mjs`: server Node tanpa dependensi yang
+memakai aturan rute yang sama dengan `vercel.json` (rewrite dan header), menyajikan setiap
+berkas di `api/` pada path yang sama seperti saat ter-deploy (`[id].js` → `/:id`), dan
+membaca kunci dari `.env` / `.env.local` bila ada.
+
+```bash
+npm run dev:site      # http://127.0.0.1:4173
+curl http://127.0.0.1:4173/api/__routes   # daftar rute yang sedang aktif
+```
+
+`vercel dev` (memerlukan Vercel CLI + login) tetap bisa dipakai; hasilnya harus sama.
+Server statis biasa (Live Preview/http-server) TIDAK cukup untuk menguji fitur: tanpa
+runtunan fungsi, semua `/api/*` akan membalas `Cannot GET`.
 
 ## C. Fitur yang ada
 - Halaman depan responsif untuk desktop, tablet, dan HP; pada layar kecil memakai navigasi bawah bergaya aplikasi.
@@ -95,7 +109,7 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.
 - Login admin dengan token sesi sementara di CacheService.
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan kamera CCTV Dishub Jakarta, Bandung, Tasikmalaya, serta Kabupaten Bandung, ditambah ringkasan angka langsung di beranda.
-- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, pengingat adzan, arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini.
+- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, **adzan otomatis** (berbunyi sendiri saat waktunya tiba tanpa menekan apa pun; ada sakelar untuk mematikannya di halaman itu dan pilihannya tersimpan di perangkat), arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini dan ikut memutar adzan selama halaman terbuka.
 - Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
 - **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
 
@@ -104,8 +118,8 @@ Untuk preview lokal yang lengkap, pasang Vercel CLI lalu jalankan `npm install -
 Peta adalah fitur dari website ini, bukan aplikasi terpisah. Halaman `/peta.html`
 memakai header dan navigasi PB PII, lalu menampilkan globe di dalam bingkai yang
 sudah dapat dipakai penuh tanpa menekan layar penuh: bar judul hanya setinggi
-satu baris (ikon `⛶` membuka `/peta/` di tab baru untuk yang benar-benar ingin
-layar penuh), branding ganda di dalam iframe disembunyikan, dan pada layar kecil
+satu baris (ikon `⛶` membuka `/peta/index.html` di tab baru untuk yang
+benar-benar ingin layar penuh), branding ganda di dalam iframe disembunyikan, dan pada layar kecil
 bingkai melebar sampai ±660 px serta halaman bisa digulir, sehingga panel CCTV,
 pemilih kamera, dan ringkasan tetap terjangkau. Tombol **?** di bar judul
 menampilkan kartu pendek cara memakai lapisan peta.
@@ -148,6 +162,33 @@ Proxy yang tersedia:
 | `/api/cctv/health` | hasil pencocokan registry di `/api/cctv/sources` | tidak perlu |
 | `/api/cctv/frame/:id` | citra statis kamera yang memilikinya | tidak perlu |
 | `/api/cctv/media/:id` (bisa `?seg=`) | HLS playlist + segmen ATCS | tidak perlu |
+| `/api/opensky` (bisa `?bbox=`) + `/api/opensky-track?icao24=` | OpenSky Network | tidak perlu; `OPENSKY_*` hanya memperbesar kuota harian |
+| `/api/adsblol/mil` + `/api/adsblol/trace?hex=` | adsbd.io (pesawat militer) | tidak perlu |
+| `/api/adsbdb/route/:callsign` + `/api/adsbdb/type/:icao24` | adsBDB (rute & tipe pesawat) | tidak perlu |
+| `/api/terrain/heights?points=lon,lat;...` | Open Elevation | tidak perlu |
+| `/api/overpass` (POST `data=`) | mirror Overpass API dengan giliran otomatis | tidak perlu |
+| `/api/geocode/json?address=` atau `?latlng=` | Open-Meteo Geocoding + Nominatim, dibentuk seperti respons Google | tidak perlu |
+| `/api/route?profile=&coords=` | OSRM publik (FOSSGIS) | tidak perlu |
+| `/api/weather-effects?latitude=&longitude=` | Open-Meteo | tidak perlu |
+| `/api/regional-brief?latitude=&longitude=` | cuaca + geocoding + ringkasan berita untuk satu titik | tidak perlu |
+| `/api/radio/stations` + `/api/radio/click/:uuid` | direktori Radio Browser | tidak perlu |
+| `/api/gbfs/:urlFeedTersandi` | umpan GBFS sepeda sharing (daftar host dibatasi) | tidak perlu |
+| `/api/firms` | NASA FIRMS (titik api) | `FIRMS_MAP_KEY` — tanpa kunci mengembalikan 503 `no_key` dan lapisan menampilkan peringatan |
+| `/api/tomtom/status` + `/api/tomtom/flow/:z/:x/:y.pbf` | TomTom Traffic (ubin vektor) | `TOMTOM_API_KEY` — tanpa kunci 501 dengan pesan jelas |
+| `/api/openai/hud-summary` (POST) | ringkasan HUD berbasis model | `OPENAI_API_KEY` |
+| `/api/launches` | The Space Dev (peluncuran roket) | tidak perlu |
+| `/api/military-installations?bbox=` | daftar instalasi militer publik | tidak perlu |
+| `/api/celestrak/:group` | juga tersedia sebagai jalur, bukan hanya `?group=` | tidak perlu |
+| `/api/setup/status` | daftar kunci provider yang dikenal | tidak perlu |
+
+Dua hal yang sengaja tidak bisa disajikan sebagai fungsi serverless dan karena
+itu dijawab **501 JSON** (bukan halaman "Cannot GET" dari platform), sehingga
+panel globe menulis alasannya alih-alih tampak kosong:
+
+- `/api/ais-live` dan `/api/ais-live/track` — layer kapal berjalan lewat
+  WebSocket AISStream, yang menuntut koneksi panjang dan `AISSTREAM_TOKEN`.
+- `/api/google/*` dan `/api/realtime*` — Google Places berbayar, dan lapisan
+  realtime butuh layanan WebSocket/Redis sendiri.
 
 ### Kamera pengawas (CCTV)
 

@@ -41,9 +41,10 @@ async function fetchTle(group) {
 }
 
 export default async function handler(req, res) {
-  const group = new URL(req.url || '/', 'http://localhost')
-    .searchParams.get('group')
-    ?.trim() || '';
+  // The globe calls `/api/celestrak/<group>`; the vercel.json rewrite turns that
+  // into `?group=`, and `api/celestrak/[group].js` delivers it as a path param.
+  const params = req.query || Object.fromEntries(new URL(req.url || '/', 'http://localhost').searchParams);
+  const group = String(params.group || '').trim();
 
   if (!/^[a-z0-9-]+$/i.test(group)) {
     res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });

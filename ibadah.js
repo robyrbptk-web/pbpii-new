@@ -496,7 +496,7 @@
       lastPrayer = current;
       const fresh = current && nowMinutes - minutesOf(schedule.times[current]) <= 1
         && nowMinutes >= minutesOf(schedule.times[current]);
-      if (fresh && ADZAN_KEYS.has(current) && storageGet(STORE.adzan) === 'on' && !document.hidden) {
+      if (fresh && ADZAN_KEYS.has(current) && adzanEnabled()) {
         playAdzan(PRAYER_LABEL[current]);
       }
     }
@@ -539,24 +539,142 @@
 
   // --------------------------------------------------------------------- adzan
 
+  const ADZAN_RETRY_MS = 15000;
+  const ADZAN_PENDING_WINDOW_MS = 20 * 60 * 1000;
+
+  let adzanPending = null;
+  let adzanPendingAt = 0;
+  let adzanRetryTimer = null;
+  let adzanArmed = false;
+  let adzanIntentional = false;
+
   function setAdzanNote(message) {
     const note = document.querySelector('#adzanNote');
     if (note) note.textContent = message;
   }
 
-  function playAdzan(label) {
+  /** Adzan otomatis menyala kecuali pengunjung mematikannya sendiri. */
+  function adzanEnabled() {
+    return storageGet(STORE.adzan, 'on') !== 'off';
+  }
+
+  function ensureAdzanAudio() {
     if (!adzanAudio) {
       adzanAudio = new Audio(ADZAN_SRC);
-      adzanAudio.preload = 'none';
+      adzanAudio.preload = 'auto';
       adzanAudio.addEventListener('error', () => setAdzanNote('Berkas audio adzan tidak dapat dimuat.'));
+      adzanAudio.addEventListener('ended', () => {
+        adzanIntentional = false;
+        paintAdzanButton(false);
+      });
     }
-    adzanAudio.currentTime = 0;
-    const started = adzanAudio.play();
-    if (started?.then) {
-      started
-        .then(() => setAdzanNote(`Adzan${label ? ` ${label}` : ''} sedang diputar.`))
-        .catch(() => setAdzanNote('Browser memblokir audio otomatis. Ketuk “Putar adzan” untuk mengizinkan suara.'));
+    return adzanAudio;
+  }
+
+  function paintAdzanButton(playing) {
+    const button = document.querySelector('#adzanPlay');
+    if (!button) return;
+    button.textContent = playing ? '■ Hentikan adzan' : '▶ Putar adzan';
+    button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+  }
+
+  /**
+   * Browser hanya mengizinkan suara setelah ada satu sentuhan di halaman, jadi
+   * sentuhan pertama dibelanjakan untuk audio sunyi. Setelah itu adzan berbunyi
+   * sendiri tanpa ada yang perlu menekan tombol.
+   */
+  function armAdzanAudio() {
+    if (adzanArmed) return;
+    adzanArmed = true;
+    const audio = ensureAdzanAudio();
+    audio.volume = 0;
+    const started = audio.play();
+    if (!started?.then) {
+      audio.pause();
+      audio.volume = 1;
+      return;
     }
+    started
+      .then(() => {
+        audio.volume = 1;
+        if (adzanPending && adzanEnabled()) {
+          playAdzan(adzanPending);
+          return;
+        }
+        if (!adzanIntentional) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      })
+      .catch(() => {
+        audio.volume = 1;
+        adzanArmed = false;
+      });
+  }
+
+  function playAdzan(label = '') {
+    const audio = ensureAdzanAudio();
+    adzanIntentional = true;
+    audio.currentTime = 0;
+    const started = audio.play();
+    if (!started?.then) {
+      paintAdzanButton(true);
+      return;
+    }
+    started
+      .then(() => {
+        adzanPending = null;
+        clearAdzanRetry();
+        paintAdzanButton(true);
+        setAdzanNote(`Adzan${label ? ` ${label}` : ''} sedang diputar.`);
+      })
+      .catch(() => {
+        adzanIntentional = false;
+        queuePendingAdzan(label);
+      });
+  }
+
+  /** Waktu adzan terlewat sebelum suara diizinkan: antre sampai sentuhan berikutnya. */
+  function queuePendingAdzan(label) {
+    adzanPending = label;
+    adzanPendingAt = Date.now();
+    setAdzanNote(
+      `Waktu ${label || 'adzan'} tiba. Ketuk mana saja di halaman ini untuk mengizinkan suara; setelah itu adzan berbunyi otomatis.`,
+    );
+    if (!adzanRetryTimer) adzanRetryTimer = setInterval(retryPendingAdzan, ADZAN_RETRY_MS);
+  }
+
+  function clearAdzanRetry() {
+    if (adzanRetryTimer) {
+      clearInterval(adzanRetryTimer);
+      adzanRetryTimer = null;
+    }
+  }
+
+  function retryPendingAdzan() {
+    if (!adzanPending) {
+      clearAdzanRetry();
+      return;
+    }
+    if (Date.now() - adzanPendingAt > ADZAN_PENDING_WINDOW_MS || !adzanEnabled()) {
+      adzanPending = null;
+      clearAdzanRetry();
+      return;
+    }
+    if (adzanAudio && !adzanAudio.paused) return;
+    playAdzan(adzanPending);
+  }
+
+  function stopAdzan() {
+    adzanIntentional = false;
+    if (adzanAudio && !adzanAudio.paused) {
+      adzanAudio.pause();
+      adzanAudio.currentTime = 0;
+      setAdzanNote('Adzan dihentikan.');
+    }
+    adzanPending = null;
+    clearAdzanRetry();
+    paintAdzanButton(false);
   }
 
   function initAdzan() {
@@ -564,16 +682,29 @@
     const button = document.querySelector('#adzanPlay');
 
     if (toggle) {
-      toggle.checked = storageGet(STORE.adzan) === 'on';
+      toggle.checked = adzanEnabled();
       toggle.addEventListener('change', () => {
         storageSet(STORE.adzan, toggle.checked ? 'on' : 'off');
+        if (!toggle.checked) stopAdzan();
         setAdzanNote(toggle.checked
-          ? 'Adzan otomatis aktif. Ketuk “Putar adzan” sekali agar browser mengizinkan suara.'
-          : 'Adzan otomatis nonaktif. Kamu tetap bisa memutarnya manual.');
+          ? 'Adzan otomatis aktif: berbunyi sendiri saat Subuh, Dzuhur, Ashar, Maghrib, dan Isya.'
+          : 'Adzan otomatis dimatikan. Jadwal tetap jalan dan adzan masih bisa diputar manual.');
       });
     }
 
-    if (button) button.addEventListener('click', () => playAdzan(''));
+    if (button) {
+      button.addEventListener('click', () => {
+        if (adzanAudio && !adzanAudio.paused) stopAdzan();
+        else playAdzan('');
+      });
+    }
+
+    ['pointerdown', 'keydown', 'touchstart'].forEach((type) =>
+      document.addEventListener(type, armAdzanAudio, { once: true, passive: true }));
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && adzanPending && adzanEnabled()) playAdzan(adzanPending);
+    });
   }
 
   // ------------------------------------------------------------- lokasi sholat

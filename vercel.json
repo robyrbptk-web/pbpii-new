@@ -1,12 +1,45 @@
 {
   "functions": {
-    "api/pii.js": {
+    "api/[...path].js": {
       "maxDuration": 10
     },
-    "api/sekolah.js": {
+    "api/adsbdb/route/[code].js": {
+      "maxDuration": 15
+    },
+    "api/adsbdb/type/[type].js": {
+      "maxDuration": 15
+    },
+    "api/adsblol/mil.js": {
+      "maxDuration": 15
+    },
+    "api/adsblol/trace.js": {
+      "maxDuration": 15
+    },
+    "api/cctv/frame/[id].js": {
+      "maxDuration": 15
+    },
+    "api/cctv/health.js": {
       "maxDuration": 30
     },
-    "api/volcanoes.js": {
+    "api/cctv/media/[id].js": {
+      "maxDuration": 30
+    },
+    "api/cctv/sources.js": {
+      "maxDuration": 30
+    },
+    "api/celestrak.js": {
+      "maxDuration": 20
+    },
+    "api/celestrak/[group].js": {
+      "maxDuration": 20
+    },
+    "api/firms.js": {
+      "maxDuration": 30
+    },
+    "api/gbfs/[slug].js": {
+      "maxDuration": 15
+    },
+    "api/geocode/json.js": {
       "maxDuration": 15
     },
     "api/indonesia/hospitals.js": {
@@ -15,35 +48,80 @@
     "api/indonesia/transjakarta.js": {
       "maxDuration": 30
     },
-    "api/celestrak.js": {
-      "maxDuration": 20
+    "api/launches.js": {
+      "maxDuration": 25
+    },
+    "api/military-installations.js": {
+      "maxDuration": 30
     },
     "api/muslim/jadwal.js": {
-      "maxDuration": 20
-    },
-    "api/muslim/kota.js": {
-      "maxDuration": 20
-    },
-    "api/muslim/quran.js": {
-      "maxDuration": 20
-    },
-    "api/muslim/qibla.js": {
       "maxDuration": 20
     },
     "api/muslim/kalender.js": {
       "maxDuration": 20
     },
-    "api/cctv/sources.js": {
-      "maxDuration": 30
+    "api/muslim/kota.js": {
+      "maxDuration": 20
     },
-    "api/cctv/health.js": {
-      "maxDuration": 30
+    "api/muslim/qibla.js": {
+      "maxDuration": 20
     },
-    "api/cctv/frame/[id].js": {
+    "api/muslim/quran.js": {
+      "maxDuration": 20
+    },
+    "api/openai/hud-summary.js": {
       "maxDuration": 15
     },
-    "api/cctv/media/[id].js": {
+    "api/opensky-track.js": {
+      "maxDuration": 15
+    },
+    "api/opensky.js": {
+      "maxDuration": 25
+    },
+    "api/overpass.js": {
+      "maxDuration": 25
+    },
+    "api/pii.js": {
       "maxDuration": 30
+    },
+    "api/radio/click/[id].js": {
+      "maxDuration": 10
+    },
+    "api/radio/stations.js": {
+      "maxDuration": 30
+    },
+    "api/regional-brief.js": {
+      "maxDuration": 30
+    },
+    "api/route.js": {
+      "maxDuration": 15
+    },
+    "api/sekolah.js": {
+      "maxDuration": 30
+    },
+    "api/setup/keys.js": {
+      "maxDuration": 15
+    },
+    "api/setup/status.js": {
+      "maxDuration": 15
+    },
+    "api/terrain/heights.js": {
+      "maxDuration": 14
+    },
+    "api/tomtom/flow/[z]/[x]/[y].js": {
+      "maxDuration": 15
+    },
+    "api/tomtom/status.js": {
+      "maxDuration": 15
+    },
+    "api/volcanoes.js": {
+      "maxDuration": 15
+    },
+    "api/weather-effects.js": {
+      "maxDuration": 15
+    },
+    "api/wilayah.js": {
+      "maxDuration": 15
     }
   },
   "rewrites": [
@@ -62,6 +140,42 @@
     {
       "source": "/mic.svg",
       "destination": "/peta/mic.svg"
+    },
+    {
+      "source": "/peta",
+      "destination": "/peta/index.html"
+    },
+    {
+      "source": "/peta/",
+      "destination": "/peta/index.html"
+    },
+    {
+      "source": "/ibadah",
+      "destination": "/ibadah.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/daftar",
+      "destination": "/daftar.html"
+    },
+    {
+      "source": "/lembaga",
+      "destination": "/lembaga.html"
+    },
+    {
+      "source": "/formulir",
+      "destination": "/formulir.html"
+    },
+    {
+      "source": "/offline",
+      "destination": "/offline.html"
     },
     {
       "source": "/",
