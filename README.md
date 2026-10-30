@@ -168,9 +168,11 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
   justru kembali membesar dan merusak lebar 320 px.
 - Globe (`/peta/index.html`, source di repo `gods-eye-view`) punya blok
   `@media (max-width:720px)` sendiri: chip `OFF` lapisan 19→38 px, `.scene-btn`
-  25→40, tombol ciutkan panel 22→38, tombol ikon atas 36→44. Ubah di `style.css`
-  sana lalu `npm run build` dan salin `dist/` ke `peta/` — jangan mengedit
-  berkas ber-hash di `peta/assets/`.
+  25→40, tombol ciutkan panel 22→38, tombol ikon atas 36→44, dan label teks di
+  dalam dock (chip kota, nama lapisan, judul panel, mini-readout, UI suara)
+  6–9→9–10,5 px. Angka pada gauge kokpit sengaja dibiarkan kecil karena
+  geometrinya tetap. Ubah di `style.css` sana lalu `npm run build` dan salin
+  `dist/` ke `peta/` — jangan mengedit berkas ber-hash di `peta/assets/`.
 - Cara mengukur: `<iframe>` *same-origin* selebar 320/360/390 px dengan
   `scrolling="no"`. Tanpa `scrolling="no"`, scrollbar iframe 15 px membuat
   `clientWidth` lebih kecil daripada lebar CSS sehingga `body{min-width:320px}`
