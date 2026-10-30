@@ -126,10 +126,6 @@
   },
   "rewrites": [
     {
-      "source": "/assets/:path*",
-      "destination": "/public/assets/:path*"
-    },
-    {
       "source": "/api/celestrak/:group",
       "destination": "/api/celestrak?group=:group"
     },

@@ -1,5 +1,5 @@
 /**
- * Generates the PWA icons from public/assets/logo-pii.png.
+ * Generates the PWA icons from assets/logo-pii.png.
  * Run with `node scripts/make-icons.mjs`; output is committed because Vercel
  * has no image tooling. Only 8-bit RGBA, non-interlaced PNGs are supported,
  * which is what the logo file uses.
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SOURCE = join(root, 'public/assets/logo-pii.png');
+const SOURCE = join(root, 'assets/logo-pii.png');
 
 function decodePng(buffer) {
   let offset = 8;
@@ -178,10 +178,10 @@ console.log(`logo ${logo.width}x${logo.height}`);
 
 const BRAND = [12, 41, 72];
 const OUTPUTS = [
-  ['public/assets/icon-192.png', compose(192, 0.84, [255, 255, 255])],
-  ['public/assets/icon-512.png', compose(512, 0.84, [255, 255, 255])],
-  ['public/assets/icon-maskable-512.png', compose(512, 0.6, BRAND)],
-  ['public/assets/apple-touch-icon.png', compose(180, 0.8, [255, 255, 255])],
+  ['assets/icon-192.png', compose(192, 0.84, [255, 255, 255])],
+  ['assets/icon-512.png', compose(512, 0.84, [255, 255, 255])],
+  ['assets/icon-maskable-512.png', compose(512, 0.6, BRAND)],
+  ['assets/apple-touch-icon.png', compose(180, 0.8, [255, 255, 255])],
 ];
 
 for (const [path, image] of OUTPUTS) {

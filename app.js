@@ -1,7 +1,6 @@
 const API = window.PBPII_CONFIG?.apiEndpoint || '/api/pii';
-const LOGO_URL = location.protocol === 'file:'
-  ? 'public/assets/logo-pii.png'
-  : '/assets/logo-pii.png';
+// Relative so the same value works over http(s) and when the page is opened with file:
+const LOGO_URL = 'assets/logo-pii.png';
 const $ = (selector) => document.querySelector(selector);
 
 function escapeHTML(value = '') {
@@ -68,8 +67,8 @@ async function callApi(action) {
 function renderArticle(article) {
   const title = escapeHTML(article.title);
   const cover = article.coverImage
-    ? `<img class="article-cover" src="${safeImageUrl(article.coverImage)}" alt="${title}" loading="lazy">`
-    : `<div class="article-cover placeholder-cover"><img src="${LOGO_URL}" alt="" onerror="this.onerror=null;this.src='public/assets/logo-pii.png'"></div>`;
+    ? `<img class="article-cover" src="${safeImageUrl(article.coverImage)}" alt="${title}" loading="lazy" onerror="this.onerror=null;this.src='${LOGO_URL}'">`
+    : `<div class="article-cover placeholder-cover"><img src="${LOGO_URL}" alt=""></div>`;
   const date = article.createdAt
     ? new Date(article.createdAt).toLocaleDateString('id-ID', {
       day: 'numeric',
