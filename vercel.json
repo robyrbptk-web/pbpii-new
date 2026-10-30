@@ -33,6 +33,9 @@
     "api/celestrak/[group].js": {
       "maxDuration": 20
     },
+    "api/chat.js": {
+      "maxDuration": 60
+    },
     "api/firms.js": {
       "maxDuration": 30
     },

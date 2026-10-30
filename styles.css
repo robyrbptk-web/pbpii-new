@@ -92,8 +92,10 @@ summary:focus-visible {
   gap: 24px;
   padding: 10px max(5vw, 24px);
   border-bottom: 1px solid #edf1f5;
-  background: rgb(255 255 255 / 96%);
-  backdrop-filter: blur(12px);
+  /* Solid, not translucent: any backdrop-filter here turns the header into a
+     containing block, so the fixed mobile nav bar below can no longer reach
+     the viewport bottom and is painted over the brand logo instead. */
+  background: #fff;
 }
 
 .brand {
@@ -928,7 +930,7 @@ body {
   padding-right: max(6vw, 28px);
   padding-left: max(6vw, 28px);
   border-bottom-color: #e8edf1;
-  background: rgb(255 255 255 / 94%);
+  background: #fff;
 }
 
 .brand img {
@@ -1127,7 +1129,7 @@ footer {
     font-size: .75rem;
   }
 
-  nav {
+  nav:not(.footer-auth) {
     position: fixed;
     z-index: 20;
     top: auto;
@@ -2744,5 +2746,201 @@ nav a[aria-current='page']::after {
 @media (prefers-reduced-motion: reduce) {
   main {
     animation: none;
+  }
+}
+
+/* ---------- Tanya PII: asisten AI khusus pengguna yang sudah login ---------- */
+
+.tanya-fab {
+  position: fixed;
+  z-index: 70;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: var(--navy);
+  color: #fff;
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgb(16 43 73 / 28%);
+  cursor: pointer;
+}
+
+.tanya-fab svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.tanya-fab.is-open {
+  display: none;
+}
+
+.tanya-panel {
+  position: fixed;
+  z-index: 71;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(620px, calc(100vh - 120px));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 24px 60px rgb(16 43 73 / 24%);
+  overflow: hidden;
+}
+
+.tanya-panel[hidden] {
+  display: none;
+}
+
+.tanya-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  background: var(--navy);
+  color: #fff;
+}
+
+.tanya-head strong {
+  font-size: .95rem;
+}
+
+.tanya-quota {
+  flex: 1;
+  color: var(--sky);
+  font-size: .68rem;
+  opacity: .82;
+  text-align: right;
+}
+
+.tanya-close {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.tanya-log {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow-y: auto;
+  background: var(--soft);
+}
+
+.tanya-bubble {
+  max-width: 88%;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: .86rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tanya-bubble.is-user {
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  background: var(--blue);
+  color: #fff;
+}
+
+.tanya-bubble.is-system {
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.tanya-bubble.is-error {
+  border-color: #f3c2bd;
+  background: #fdecea;
+  color: #8a2a20;
+}
+
+.tanya-bubble.is-pending {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tanya-links {
+  display: flex;
+  gap: 14px;
+}
+
+.tanya-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+.tanya-form input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: .86rem;
+}
+
+.tanya-send {
+  border: 0;
+  border-radius: 12px;
+  padding: 0 16px;
+  background: var(--green);
+  color: #fff;
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tanya-send:disabled,
+.tanya-form input:disabled {
+  opacity: .6;
+  cursor: progress;
+}
+
+.tanya-note {
+  margin: 0;
+  padding: 0 14px 12px;
+  background: #fff;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .tanya-fab,
+  .tanya-panel {
+    right: 12px;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+
+  .tanya-panel {
+    left: 12px;
+    width: auto;
+    max-height: min(66vh, 520px);
   }
 }

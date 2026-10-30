@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-10-30.1';
+const BACKEND_VERSION = '2026-10-30.2';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -21,12 +21,19 @@ const APP = {
   SHEET_FORMS: 'Forms',
   SHEET_PARTICIPANTS: 'Participants',
   SHEET_LETTERS: 'Letters',
+  SHEET_SESSIONS: 'Sessions',
+  SHEET_CHAT: 'Chat',
   TOKEN_TTL_SECONDS: 21600,
+  CHAT_DAILY_LIMIT: 20,
+  CHAT_MAX_CHARS: 900,
   PROP_SPREADSHEET_ID: 'SPREADSHEET_ID',
   PROP_ADMIN_USERNAME: 'ADMIN_USERNAME',
   PROP_ADMIN_PASSWORD: 'ADMIN_PASSWORD',
   PROP_ADMIN_PASSWORD_HASH: 'ADMIN_PASSWORD_HASH',
   PROP_ADMIN_PASSWORD_SALT: 'ADMIN_PASSWORD_SALT',
+  PROP_AI_KEY: 'AI_API_KEY',
+  PROP_AI_URL: 'AI_CHAT_URL',
+  PROP_AI_MODEL: 'AI_MODEL',
   PB_ORG_ID: 'pb-pii',
   PB_ORG_NAME: 'Pengurus Besar PII'
 };
@@ -86,6 +93,24 @@ const GALLERY_HEADERS = [
   'featured', 'sortOrder', 'createdAt'
 ];
 const SETTINGS_HEADERS = ['key', 'value'];
+const SESSION_HEADERS = ['token', 'kind', 'subject', 'createdAt', 'expiresAt'];
+const CHAT_HEADERS = [
+  'createdAt', 'kind', 'subject', 'question', 'answer', 'provider', 'status'
+];
+
+// Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
+const SHEET_SCHEMA = [
+  [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
+  [APP.SHEET_SETTINGS, SETTINGS_HEADERS],
+  [APP.SHEET_GALLERY, GALLERY_HEADERS],
+  [APP.SHEET_ORGS, ORG_HEADERS],
+  [APP.SHEET_ACTIVITIES, ACTIVITY_HEADERS],
+  [APP.SHEET_FORMS, FORM_HEADERS],
+  [APP.SHEET_PARTICIPANTS, PARTICIPANT_HEADERS],
+  [APP.SHEET_LETTERS, LETTER_HEADERS],
+  [APP.SHEET_SESSIONS, SESSION_HEADERS],
+  [APP.SHEET_CHAT, CHAT_HEADERS]
+];
 
 const DEFAULT_SETTINGS = [
   ['siteName', 'Pengurus Besar Pelajar Islam Indonesia'],
@@ -138,22 +163,11 @@ function setup() {
     throw new Error('Buka Apps Script dari Google Spreadsheet website PB PII, lalu jalankan setup() kembali.');
   }
 
-  const schema = [
-    [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
-    [APP.SHEET_SETTINGS, SETTINGS_HEADERS],
-    [APP.SHEET_GALLERY, GALLERY_HEADERS],
-    [APP.SHEET_ORGS, ORG_HEADERS],
-    [APP.SHEET_ACTIVITIES, ACTIVITY_HEADERS],
-    [APP.SHEET_FORMS, FORM_HEADERS],
-    [APP.SHEET_PARTICIPANTS, PARTICIPANT_HEADERS],
-    [APP.SHEET_LETTERS, LETTER_HEADERS]
-  ];
-
   const dibuat = [];
   const diperbaiki = [];
   const perluTinjauan = [];
 
-  schema.forEach(function (entry) {
+  SHEET_SCHEMA.forEach(function (entry) {
     const result = ensureSheet_(spreadsheet, entry[0], entry[1]);
     if (result.created) dibuat.push(entry[0]);
     if (result.repaired) diperbaiki.push(entry[0]);
@@ -411,16 +425,7 @@ function health_() {
 
   if (spreadsheetId) {
     const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-    [
-      [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
-      [APP.SHEET_SETTINGS, SETTINGS_HEADERS],
-      [APP.SHEET_GALLERY, GALLERY_HEADERS],
-      [APP.SHEET_ORGS, ORG_HEADERS],
-      [APP.SHEET_ACTIVITIES, ACTIVITY_HEADERS],
-      [APP.SHEET_FORMS, FORM_HEADERS],
-      [APP.SHEET_PARTICIPANTS, PARTICIPANT_HEADERS],
-      [APP.SHEET_LETTERS, LETTER_HEADERS]
-    ].forEach(function (entry) {
+    SHEET_SCHEMA.forEach(function (entry) {
       const sheet = spreadsheet.getSheetByName(entry[0]);
       if (!sheet) {
         sheets[entry[0]] = null;
@@ -467,6 +472,10 @@ function doPost(event) {
       data = health_();
     } else if (action === 'public') {
       data = publicData_();
+    } else if (action === 'chat') {
+      data = chat_(body);
+    } else if (action === 'chatStatus') {
+      data = chatStatus_(body);
     } else if (action === 'login') {
       data = login_(body);
     } else if (action === 'logout') {
@@ -538,12 +547,7 @@ function login_(body) {
     throw new Error('Username atau kata sandi salah.');
   }
 
-  const token = Utilities.getUuid() + '-' + Utilities.getUuid();
-  CacheService.getScriptCache().put(
-    'auth:' + token,
-    username,
-    APP.TOKEN_TTL_SECONDS
-  );
+  const token = sessionPut_('admin', username);
 
   return {
     token: token,
@@ -553,16 +557,247 @@ function login_(body) {
 }
 
 function requireAuth_(token) {
-  if (!token || !CacheService.getScriptCache().get('auth:' + String(token))) {
+  if (!sessionSubject_(token, 'admin')) {
     throw new Error('Sesi berakhir atau token tidak valid. Silakan login kembali.');
   }
 }
 
 function logout_(token) {
-  if (token) {
-    CacheService.getScriptCache().remove('auth:' + String(token));
-  }
+  sessionDrop_(token);
   return { loggedOut: true };
+}
+
+/**
+ * Sesi disimpan di sheet, bukan CacheService. Cache script Apps Script dipaksa
+ * maksimal 10 menit, jadi sesi 6 jam yang dijanjikan TOKEN_TTL_SECONDS sebenarnya
+ * gugur lebih cepat dan pengguna terus diminta login ulang.
+ */
+function sessionPut_(kind, subject) {
+  const token = Utilities.getUuid() + '-' + Utilities.getUuid();
+  const now = new Date();
+  sheet_(APP.SHEET_SESSIONS).appendRow([
+    token,
+    kind,
+    String(subject),
+    now.toISOString(),
+    new Date(now.getTime() + APP.TOKEN_TTL_SECONDS * 1000).toISOString()
+  ]);
+  pruneSessions_(now.toISOString());
+  return token;
+}
+
+function sessionSubject_(token, kind) {
+  if (!token) {
+    return '';
+  }
+  const nowIso = new Date().toISOString();
+  const rows = rows_(APP.SHEET_SESSIONS);
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i].token) !== String(token)) continue;
+    if (String(rows[i].kind) !== kind) return '';
+    return String(rows[i].expiresAt) >= nowIso ? String(rows[i].subject || '') : '';
+  }
+  return '';
+}
+
+function sessionDrop_(token) {
+  if (!token) {
+    return;
+  }
+  dropSessions_(function (row) { return String(row[0]) === String(token); });
+}
+
+/** Hapus baris Sessions dari bawah ke atas supaya nomor baris yang belum dibaca tidak bergeser. */
+function dropSessions_(predicate) {
+  const sheet = sheet_(APP.SHEET_SESSIONS);
+  const values = sheet.getDataRange().getValues();
+  for (let i = values.length - 1; i > 0; i--) {
+    if (predicate(values[i])) {
+      sheet.deleteRow(i + 1);
+    }
+  }
+}
+
+function pruneSessions_(nowIso) {
+  const cutoff = Date.parse(nowIso);
+  dropSessions_(function (row) { return timeOf_(row[4]) < cutoff; });
+}
+
+/** Sel tanggal Sheets datang sebagai Date, jadi selalu dibandingkan lewat epoch. */
+function timeOf_(value) {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  const parsed = Date.parse(String(value));
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Asisten "Tanya PII". Hanya untuk sesi login (admin atau lembaga) dan dibatasi
+ * APP.CHAT_DAILY_LIMIT pertanyaan berhasil per akun per hari, karena kuota
+ * layanan AI gratis kecil dan jumlah kader yang memakai juga terbatas.
+ */
+function chat_(body) {
+  const me = chatIdentity_(body.token);
+  const question = cleanText_(body.message).slice(0, APP.CHAT_MAX_CHARS);
+  if (question.length < 3) {
+    throw new Error('Tulis pertanyaan dengan jelas.');
+  }
+
+  const dipakai = chatUsageToday_(me);
+  if (dipakai >= APP.CHAT_DAILY_LIMIT) {
+    throw new Error('Kuota ' + APP.CHAT_DAILY_LIMIT + ' pertanyaan hari ini untuk ' +
+      me.label + ' sudah habis. Coba lagi besok.');
+  }
+
+  let jawaban;
+  try {
+    jawaban = askModel_(question, me);
+  } catch (error) {
+    logChat_(me, question, '', 'percobaan', 'gagal');
+    throw error;
+  }
+
+  logChat_(me, question, jawaban.reply, jawaban.provider, 'ok');
+  return {
+    reply: jawaban.reply,
+    provider: jawaban.provider,
+    sisa: Math.max(0, APP.CHAT_DAILY_LIMIT - dipakai - 1)
+  };
+}
+
+function chatStatus_(body) {
+  const me = chatIdentity_(body.token);
+  const dipakai = chatUsageToday_(me);
+  return {
+    boleh: dipakai < APP.CHAT_DAILY_LIMIT,
+    akun: me.label,
+    batas: APP.CHAT_DAILY_LIMIT,
+    dipakai: dipakai,
+    sisa: Math.max(0, APP.CHAT_DAILY_LIMIT - dipakai)
+  };
+}
+
+function chatIdentity_(token) {
+  const admin = sessionSubject_(token, 'admin');
+  if (admin) {
+    return { kind: 'admin', subject: admin, label: 'admin' };
+  }
+
+  const orgId = sessionSubject_(token, 'org');
+  if (!orgId) {
+    throw new Error('Tanya PII khusus kader yang sudah login. Silakan masuk terlebih dahulu.');
+  }
+  const org = orgById_(rows_(APP.SHEET_ORGS), orgId);
+  return { kind: 'org', subject: orgId, label: (org && cleanText_(org.name)) || orgId };
+}
+
+function chatUsageToday_(me) {
+  const today = chatDay_(new Date());
+  return rows_(APP.SHEET_CHAT).filter(function (row) {
+    return String(row.status) === 'ok' &&
+      String(row.kind) === me.kind &&
+      String(row.subject) === String(me.subject) &&
+      chatDay_(new Date(timeOf_(row.createdAt))) === today;
+  }).length;
+}
+
+function chatDay_(date) {
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function logChat_(me, question, answer, provider, status) {
+  sheet_(APP.SHEET_CHAT).appendRow([
+    new Date().toISOString(),
+    me.kind,
+    String(me.subject),
+    String(question).slice(0, APP.CHAT_MAX_CHARS),
+    String(answer).slice(0, 4000),
+    provider,
+    status
+  ]);
+}
+
+/**
+ * Satu jalur untuk semua layanan AI yang mengikuti format OpenAI: Pollinations
+ * (tanpa kunci, bawaan), Groq, OpenAI, atau endpoint kompatibel Gemini. Ganti
+ * lewat Script Properties: AI_CHAT_URL, AI_MODEL, AI_API_KEY.
+ */
+function askModel_(question, me) {
+  const properties = PropertiesService.getScriptProperties();
+  const key = String(properties.getProperty(APP.PROP_AI_KEY) || '').trim();
+  const url = String(properties.getProperty(APP.PROP_AI_URL) || '').trim() ||
+    'https://text.pollinations.ai/openai';
+  const model = String(properties.getProperty(APP.PROP_AI_MODEL) || '').trim() ||
+    (key ? 'gpt-4o-mini' : 'openai');
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) {
+    headers.Authorization = 'Bearer ' + key;
+  }
+
+  let response;
+  try {
+    response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      headers: headers,
+      payload: JSON.stringify({
+        model: model,
+        temperature: 0.4,
+        messages: [
+          { role: 'system', content: chatSystemPrompt_(me) },
+          { role: 'user', content: question }
+        ]
+      }),
+      muteHttpExceptions: true
+    });
+  } catch (error) {
+    throw new Error('Layanan AI tidak menjawab tepat waktu. Silakan coba lagi.');
+  }
+
+  const code = response.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Layanan AI menolak permintaan (kode ' + code + ').');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(response.getContentText());
+  } catch (error) {
+    throw new Error('Balasan layanan AI tidak dapat dibaca.');
+  }
+
+  const choice = parsed && parsed.choices && parsed.choices[0];
+  const reply = cleanText_(choice && choice.message && choice.message.content);
+  if (!reply) {
+    throw new Error('Layanan AI mengembalikan jawaban kosong.');
+  }
+  return { reply: reply.slice(0, 4000), provider: model };
+}
+
+function chatSystemPrompt_(me) {
+  const settings = settingsMap_();
+  const identitas = me.kind === 'org'
+    ? 'Penanya login sebagai pengurus ' + me.label + '.'
+    : 'Penanya login sebagai pengelola website.';
+
+  return [
+    'Kamu adalah asisten "Tanya PII" di website resmi PB PII.',
+    'Organisasi ini adalah ' + (settings.siteName || 'Pengurus Besar Pelajar Islam Indonesia') +
+      ' (PII), bukan istilah Personally Identifiable Information.',
+    'Slogan: ' + (settings.tagline || '#PIILevelUp') + '.',
+    'Ketua Umum PB PII: ' + (settings.chairmanName || 'Kevin Prayoga, S.H.') +
+      ' (' + (settings.chairmanRole || '') + ').',
+    'PII berdiri di Yogyakarta pada 4 Mei 1947 sebagai organisasi pelajar tertua di Indonesia,',
+    'bergerak di bidang pendidikan dan kebudayaan; struktur kepengurusannya PB, PW (wilayah),',
+    'PD (daerah), dan PK (komisariat).',
+    identitas,
+    'Jawab dalam bahasa Indonesia, ringkas, maksimal 160 kata, tanpa format markdown berat.',
+    'Jangan mengarang nama orang, tanggal, angka, atau keputusan resmi. Bila tidak yakin,',
+    'katakan tidak tahu dan arahkan penanya mengonfirmasi lewat pengurus atau dashboard website.',
+    'Hindari politik praktis dan hindari memberi fatwa; arahkan pertanyaan agama kepada ustadz',
+    'atau pengurus.'
+  ].join(' ');
 }
 
 function publicData_() {
@@ -993,18 +1228,14 @@ function orgLogin_(body) {
     throw new Error('Email atau kata sandi salah.');
   }
 
-  const token = Utilities.getUuid() + '-' + Utilities.getUuid();
-  CacheService.getScriptCache().put('orgauth:' + token, org.id, APP.TOKEN_TTL_SECONDS);
+  const token = sessionPut_('org', org.id);
   orgSetCell_(APP.SHEET_ORGS, org.id, 'lastLoginAt', new Date().toISOString());
 
   return { token: token, org: orgSelf_(org), expiresIn: APP.TOKEN_TTL_SECONDS };
 }
 
 function requireOrg_(token) {
-  if (!token) {
-    throw new Error('Sesi berakhir atau token tidak valid. Silakan login kembali.');
-  }
-  const id = CacheService.getScriptCache().get('orgauth:' + String(token));
+  const id = sessionSubject_(token, 'org');
   if (!id) {
     throw new Error('Sesi berakhir atau token tidak valid. Silakan login kembali.');
   }

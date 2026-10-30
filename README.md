@@ -114,10 +114,11 @@ runtunan fungsi, semua `/api/*` akan membalas `Cannot GET`.
 - Artikel: tambah, edit, hapus, draft/published, kategori, ringkasan, isi, URL gambar sampul.
 - Pengaturan: judul dan teks hero, nama/jabatan/foto Ketua Umum, sambutan, tampil/sembunyikan sambutan, profil ringkas, footer, email, dan tautan media sosial.
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan.
-- Login admin dengan token sesi sementara di CacheService.
+- Login admin dan lembaga dengan token sesi persisten di sheet `Sessions` (bukan lagi `CacheService`, yang diam-diam memotong umur token menjadi 10 menit).
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan kamera CCTV Dishub Jakarta, Bandung, Tasikmalaya, serta Kabupaten Bandung, ditambah ringkasan angka langsung di beranda.
 - **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, **adzan otomatis** (berbunyi sendiri saat waktunya tiba tanpa menekan apa pun; ada sakelar untuk mematikannya di halaman itu dan pilihannya tersimpan di perangkat), arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini dan ikut memutar adzan selama halaman terbuka.
 - Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
+- **Tanya PII** — tombol mengambang di beranda, Ruang Ibadah, dashboard admin, dashboard lembaga, dan formulir yang membuka asisten AI khusus kader. Tamu hanya melihat pesan penguncian beserta tautan login/daftar. Lihat bagian H.
 - **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
 
 ## D. Peta Global (PII Global View)
@@ -410,10 +411,69 @@ sementara. Skema baru (`Orgs`, `Activities`, `Forms`, `Participants`, `Letters`)
 memakai id acak, `parentId`, dan timestamp ISO agar bisa dipetakan langsung ke
 tabel Supabase tanpa mengubah kontrak API frontend.
 
+## H. Tanya PII (asisten AI khusus kader)
+
+Tombol **Tanya PII** mengambang di pojok kanan bawah `/index.html`,
+`/ibadah.html`, `/admin.html`, `/lembaga.html`, dan `/formulir.html`. Panelnya
+kecil (lebar maksimal 380 px, di HP melebar penuh dan naik 88 px dari bawah agar
+tidak tertutup navigasi bawah) sehingga tetap terpakai tanpa layar penuh.
+
+**Kunci login.** Pertanyaan hanya dilayani kalau token di `sessionStorage`
+ dikenali backend: `pbpii_admin_token` (login admin) atau `pbpii_org_token`
+(login lembaga). Tamu dan token palsu mendapat balasan
+*"Tanya PII khusus kader yang sudah login…"* dan antarmuka hanya menampilkan
+tautan ke `/login.html` dan `/daftar.html`. gerbangnya ada di Apps Script, bukan
+di browser, jadi menambahkan tombol di halaman lain tidak akan membuka fitur ini
+untuk publik.
+
+**Kuota harian.** `APP.CHAT_DAILY_LIMIT` (bawaan **20**) pertanyaan **berhasil**
+per akun per hari, dihitung dari sheet `Chat` berdasarkan tanggal lokal
+`Session.getScriptTimeZone()`, jadi reset sendiri setiap tengah malam. Satu akun
+= satu nama pengguna admin atau satu nama lembaga; anggota PB dan kader PK sama
+sama terbatasnya. Panjang pertanyaan dipotong ke `APP.CHAT_MAX_CHARS` (900).
+Sisa kuota ditampilkan di kepala panel (`Sisa 17 dari 20 pertanyaan hari ini`)
+dan dikirim lewat aksi `chatStatus`. Kalau penyedia AI sedang error, pertanyaan
+**tidak** dihitung dan barisnya dicatat dengan status `gagal`.
+
+**Kunci AI tidak pernah sampai ke browser.** Alurnya
+`tanya.js` → `/api/chat` (proxy Vercel, `maxDuration` 60 dtk karena model gratis
+jauh lebih lambat daripada CMS) → Apps Script `chat` → penyedia. Proxy hanya
+meloloskan aksi `chat` dan `chatStatus`, tidak tahu-menahu soal kunci. Kunci
+disimpan sebagai **Script Properties** di proyek Apps Script:
+
+| Properti | Isi | Bawaan bila kosong |
+| --- | --- | --- |
+| `AI_CHAT_URL` | URL chat-completions yang kompatibel OpenAI | `https://text.pollinations.ai/openai` |
+| `AI_MODEL` | nama model di penyedia itu | `openai` tanpa kunci, `gpt-4o-mini` dengan kunci |
+| `AI_API_KEY` | kunci penyedia (opsional) | panggilan tanpa header `Authorization` |
+
+Bawaannya karena itu fitur ini langsung jalan tanpa mendaftar apa pun. Untuk
+memakai akun sendiri, isi ketiganya di **Apps Script ▸ Project Settings ▸
+Properties**, tanpa mengubah kode. Contoh penyedia gratis lain:
+
+- Groq — `AI_CHAT_URL` `https://api.groq.com/openai/v1/chat/completions`, `AI_MODEL` `llama-3.1-8b-instant`.
+- Google Gemini — `AI_CHAT_URL` `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, `AI_MODEL` `gemini-flash-latest`.
+
+Jawaban dibangun dari system prompt yang berisi nama situs, slogan `#PIILevelUp`,
+nama Ketua Umum, dan fakta sejarah PII dari sheet `Settings`, dengan instruksi
+maksimal 160 kata serta larangan mengarang nama/tanggal, berpolitik praktis, atau
+berfatwa. Semua balasan (dari mana pun) dimasukkan ke DOM lewat `textContent`,
+sehingga teks HTML dari model tidak bisa menjadi markup.
+
+**Dua sheet baru** dibuat otomatis oleh `setup()`: `Sessions`
+(`token, kind, subject, createdAt, expiresAt`) dan `Chat`
+(`createdAt, kind, subject, question, answer, provider, status`). Baris
+`Sessions` yang sudah kedaluwarsa dibersihkan setiap kali sesi baru dibuat.
+`Sessions` inilah yang membuat login bertahan 6 jam; sebelumnya token ditaruh di
+`CacheService` yang diam-diam memotong umur cache menjadi 10 menit. Untuk
+mematikan fitur AI sepenuhnya, hapus baris `<script src="tanya.js" defer></script>`
+dari halaman terkait atau naikkan `CHAT_DAILY_LIMIT` menjadi `0`.
+
 ## Penting untuk keamanan dan produksi
 - Ini starter/MVP, belum audit keamanan produksi. Gunakan hanya akun admin tepercaya, password kuat, batasi akses editor, dan jangan bagikan URL deployment atau kredensial.
 - Endpoint Apps Script harus dapat dipanggil oleh proxy Vercel. Jangan menaruh `ADMIN_PASSWORD` atau URL rahasia lain di frontend atau repository.
 - Foto galeri dan sampul menggunakan URL gambar publik; upload file langsung belum tersedia.
 - Token sesi disimpan di `sessionStorage` browser dan berlaku sementara; sesi dapat berakhir saat cache dibersihkan.
 - `saveAdminPassword` hanya menyimpan hash SHA-256 bersalt (250 iterasi) di Script Properties, bukan teks kata sandi. Nilai lama yang masih berupa teks polos tetap bisa login dan otomatis dinaikkan menjadi hash pada login berikutnya. Gunakan tetap password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
+- Kunci AI (`AI_API_KEY`) hanya boleh hidup sebagai Script Properties di Apps Script. Jangan pernah memindahkannya ke `.env` Vercel, `api/chat.js`, atau file frontend mana pun: browser yang membuka DevTools bisa membaca apa pun yang dikirim ke sana, padahal fitur ini memang sengaja memakai model gratis tanpa kunci.
 - Untuk penggunaan resmi, tambahkan backup spreadsheet, logging, rate limiting, perlindungan CSRF sesuai kebutuhan, validasi HTML artikel, dan tinjauan keamanan sebelum menerima banyak admin.
