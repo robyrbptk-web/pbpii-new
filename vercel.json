@@ -12,6 +12,106 @@
   },
   "rewrites": [
     {
+      "source": "/api/adsblol/mil",
+      "destination": "/api/_gw?r=adsblol/mil"
+    },
+    {
+      "source": "/api/adsblol/trace",
+      "destination": "/api/_gw?r=adsblol/trace"
+    },
+    {
+      "source": "/api/adsbdb/route/:code",
+      "destination": "/api/_gw?r=adsbdb/route/:code"
+    },
+    {
+      "source": "/api/adsbdb/type/:type",
+      "destination": "/api/_gw?r=adsbdb/type/:type"
+    },
+    {
+      "source": "/api/cctv/health",
+      "destination": "/api/_gw?r=cctv/health"
+    },
+    {
+      "source": "/api/cctv/sources",
+      "destination": "/api/_gw?r=cctv/sources"
+    },
+    {
+      "source": "/api/cctv/frame/:id",
+      "destination": "/api/_gw?r=cctv/frame/:id"
+    },
+    {
+      "source": "/api/cctv/media/:id",
+      "destination": "/api/_gw?r=cctv/media/:id"
+    },
+    {
+      "source": "/api/gbfs/:slug",
+      "destination": "/api/_gw?r=gbfs/:slug"
+    },
+    {
+      "source": "/api/geocode/json",
+      "destination": "/api/_gw?r=geocode/json"
+    },
+    {
+      "source": "/api/indonesia/hospitals",
+      "destination": "/api/_gw?r=indonesia/hospitals"
+    },
+    {
+      "source": "/api/indonesia/transjakarta",
+      "destination": "/api/_gw?r=indonesia/transjakarta"
+    },
+    {
+      "source": "/api/muslim/jadwal",
+      "destination": "/api/_gw?r=muslim/jadwal"
+    },
+    {
+      "source": "/api/muslim/kalender",
+      "destination": "/api/_gw?r=muslim/kalender"
+    },
+    {
+      "source": "/api/muslim/kota",
+      "destination": "/api/_gw?r=muslim/kota"
+    },
+    {
+      "source": "/api/muslim/qibla",
+      "destination": "/api/_gw?r=muslim/qibla"
+    },
+    {
+      "source": "/api/muslim/quran",
+      "destination": "/api/_gw?r=muslim/quran"
+    },
+    {
+      "source": "/api/openai/hud-summary",
+      "destination": "/api/_gw?r=openai/hud-summary"
+    },
+    {
+      "source": "/api/radio/stations",
+      "destination": "/api/_gw?r=radio/stations"
+    },
+    {
+      "source": "/api/radio/click/:id",
+      "destination": "/api/_gw?r=radio/click/:id"
+    },
+    {
+      "source": "/api/setup/keys",
+      "destination": "/api/_gw?r=setup/keys"
+    },
+    {
+      "source": "/api/setup/status",
+      "destination": "/api/_gw?r=setup/status"
+    },
+    {
+      "source": "/api/terrain/heights",
+      "destination": "/api/_gw?r=terrain/heights"
+    },
+    {
+      "source": "/api/tomtom/status",
+      "destination": "/api/_gw?r=tomtom/status"
+    },
+    {
+      "source": "/api/tomtom/flow/:z/:x/:y",
+      "destination": "/api/_gw?r=tomtom/flow/:z/:x/:y"
+    },
+    {
       "source": "/api/celestrak/:group",
       "destination": "/api/celestrak?group=:group"
     },

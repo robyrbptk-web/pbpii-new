@@ -126,8 +126,24 @@ function match(pattern, segments) {
   return params;
 }
 
+/**
+ * Vercel mengompilasi `api/[...path].js` sebagai satu segmen, jadi rute
+ * bertingkat seperti `/api/cctv/sources` tidak pernah sampai ke sini. vercel.json
+ * menurunkan setiap rute bertingkat menjadi `/api/_gw?r=cctv/sources` dan `r`
+ * dibaca kembali di bawah, sehingga pencocokan pola tetap satu sumber.
+ */
 export default async function handler(req, res) {
-  const pathname = new URL(req.url || '/', 'http://localhost').pathname;
+  const url = new URL(req.url || '/', 'http://localhost');
+  const flattened = url.searchParams.get('r');
+  if (flattened) {
+    url.searchParams.delete('r');
+    url.pathname = `/api/${flattened.replace(/^\/+/, '')}`;
+    // Sebagian proxy ditulis sebelum router ini ada dan mengambil parameternya
+    // sendiri dari req.url, bukan dari req.params. Setelah penurunan rute,
+    // kembalikan bentuk URL yang mereka harapkan.
+    req.url = `${url.pathname}${url.search}`;
+  }
+  const pathname = url.pathname;
   const rest = pathname.replace(/^\/+api\/+/, '').replace(/\/+$/, '');
   const segments = rest ? rest.split('/') : [];
 
@@ -135,6 +151,7 @@ export default async function handler(req, res) {
     const params = match(pattern, segments);
     if (!params) continue;
     req.params = { ...(req.params || {}), ...params };
+    req.query = { ...(req.query || {}), ...params };
     return handlerForRoute(req, res);
   }
 

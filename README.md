@@ -86,6 +86,30 @@ yang sudah jalan:
 5. Pilih **Deploy** atau **Redeploy** setelah commit terbaru berstatus tersedia. Tes `/`, `/login.html`, `/admin.html`, `/manifest.json`, dan login admin. Jika masih 404, periksa **Project Settings > Build and Deployment > Root Directory** menunjuk ke root repository dan tunggu deployment branch `main` selesai.
 6. Fungsi di `api/` (proxy data untuk peta) ikut ter-deploy otomatis. Tambahkan `API_INDONESIA_KEY` di **Project Settings > Environment Variables** agar lapisan rumah sakit dan halte Transjakarta aktif; tanpa kunci, keduanya hanya menampilkan pesan belum diatur.
 
+### Struktur proxy dan batas 12 fungsi Vercel Hobby
+
+Paket Hobby menolak deployment dengan lebih dari 12 Serverless Functions, sementara
+proyek ini punya 39 proxy. Karena itu hanya tiga berkas yang boleh berada di `api/`
+— `[...path].js`, `pii.js`, `chat.js` — dan seluruh proxy data tinggal di
+`proxies/`. `api/[...path].js` mengimpor semuanya secara statis (Vercel menelusuri
+dependensi dari pernyataan `import`, jadi `import()` dinamis akan berujung
+"Cannot find module" saat runtime) lalu mencocokkan path terhadap tabel `ROUTES`.
+
+Menambah proxy baru: taruh berkasnya di `proxies/<path>`, tambahkan satu baris
+`import` dan satu entri `['<path>/:nama', handler]` di `api/[...path].js`, lalu —
+karena Vercel mengompilasi `[...path]` sebagai **satu segmen** — tambahkan rewrite
+penurunan di `vercel.json`:
+
+```json
+{ "source": "/api/cctv/sources", "destination": "/api/_gw?r=cctv/sources" }
+```
+
+Router membaca `r` dan menyusun ulang `req.url` + `req.query` sehingga proxy yang
+mengambil parameter sendiri dari URL tetap bekerja. Rute satu segmen
+(`/api/sekolah`, `/api/opensky`) tidak perlu rewrite; `scripts/dev-server.mjs`
+mengabaikan rewrite yang menuju `/api/`, jadi secara lokal kedua bentuk — path
+langsung dan `/api/_gw?r=...` — dijamin memberi hasil yang sama.
+
 ### Instal sebagai aplikasi
 - `manifest.json` memakai mode `standalone`, ikon 192/512 biasa dan 512 `maskable`, plus pintasan ke Ruang Ibadah, Peta, dan Dashboard. Semua halaman memuat `site.js` yang mendaftarkan service worker dan menampilkan tombol **Instal aplikasi** ketika browser mendukung.
 - `sw.js` menyimpan app-shell (halaman, `styles.css`, `app.js`, `ibadah.js`, `site.js`, ikon). Navigasi dan berkas JS/CSS selalu diambil dari jaringan lebih dulu agar pembaruan deploy langsung terpakai; gambar memakai cache lebih dulu. `/api/` dan `/peta/` tidak pernah di-cache. Jika jaringan putus, navigasi jatuh ke halaman `offline.html`.
@@ -97,7 +121,7 @@ yang sudah jalan:
 
 `npm run dev:site` menjalankan `scripts/dev-server.mjs`: server Node tanpa dependensi yang
 memakai aturan rute yang sama dengan `vercel.json` (rewrite dan header), menyajikan setiap
-berkas di `api/` pada path yang sama seperti saat ter-deploy (`[id].js` → `/:id`), dan
+berkas di `api/` dan `proxies/` pada path yang sama seperti saat ter-deploy (`[id].js` → `/:id`), dan
 membaca kunci dari `.env` / `.env.local` bila ada.
 
 ```bash
@@ -187,9 +211,10 @@ Struktur:
 
 - `peta/` — hasil build aplikasi globe (Vite + CesiumJS). Semua aset memakai
   path relatif, jadi folder ini bisa disajikan dari subpath mana pun.
-- `api/sekolah.js`, `api/volcanoes.js`, `api/indonesia/*.js`, `api/celestrak.js` —
-  proxy serverless supaya lapisan peta bisa memanggil API data dari domain yang
-  sama (tanpa CORS, tanpa kunci di browser).
+- `proxies/**.js` — proxy serverless (sekolah, gunung api, `indonesia/*`, celestrak,
+  muslim, cctv, dan seterusnya), dilayani `api/[...path].js` supaya paket Hobby
+  tidak kehabisan jatah fungsi. Semua lapisan peta memanggil API data dari domain
+  yang sama lewat sana (tanpa CORS, tanpa kunci di browser).
 - `lib/` — cache TTL dan helper yang dipakai proxy tersebut.
 
 Proxy yang tersedia:
