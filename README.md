@@ -140,6 +140,30 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
 - Dashboard: tab bawah 5 kolom `minmax(0,1fr)` (label pendek, tidak pernah terpotong),
   form satu kolom, panel selebar kartu, dan input 16 px supaya Safari tidak
   melakukan zoom otomatis.
+- Halaman ber-*style* sendiri (`admin.html`, `lembaga.html`, `daftar.html`,
+  `login.html`, `formulir.html`) ikut diamati — tidak cukup hanya `styles.css`.
+  Di sana: `input/select/textarea` 16 px pada ponsel, `.pass-toggle`/`.toggle`
+  jadi 44 × 52 px, `.auth-links a`/`.foot a` 44 px, `.btn` 44 px, `.brand` 44 px,
+  dan grid dua kolom ditulis `minmax(0,1fr)` supaya `<option>` nama provinsi yang
+  panjang tidak pernah mendorong halaman ke gulir horizontal.
+- `#jenjangSeg` di `daftar.html`: radio tersembunyi sekarang `inset:0` di dalam
+  label yang `position:relative`. Sebelum ini, `width:100%` warisan dari aturan
+  global membuat radio absolut menjulur keluar layar (+55 px gulir horizontal).
+- Pengunjuk **Tanya PII** (`.tanya-fab`) dan panelnya duduk 80 px dari bawah, di
+  atas bar navigasi, bukan menimpanya; kolom_input 16 px/48 px dan tombol kirim
+  ≥44 px. Semua elemen `position:fixed` diuji: nol yang menutupi bar navigasi.
+- 114 ringkasan "Tafsir" per ayat di `/ibadah.html`, tombol halaman di pembaca,
+  dan tombol ikon di atas globe dinaikkan ke ≥44 px. Huruf terkecil di ponsel
+  kini ≥11 px (label bar bawah .72 rem, meta surat .78 rem, pill slogan .74 rem).
+- Globe (`/peta/index.html`, source di repo `gods-eye-view`) punya blok
+  `@media (max-width:720px)` sendiri: chip `OFF` lapisan 19→38 px, `.scene-btn`
+  25→40, tombol ciutkan panel 22→38, tombol ikon atas 36→44. Ubah di `style.css`
+  sana lalu `npm run build` dan salin `dist/` ke `peta/` — jangan mengedit
+  berkas ber-hash di `peta/assets/`.
+- Cara mengukur: `<iframe>` *same-origin* selebar 320/360/390 px dengan
+  `scrolling="no"`. Tanpa `scrolling="no"`, scrollbar iframe 15 px membuat
+  `clientWidth` lebih kecil daripada lebar CSS sehingga `body{min-width:320px}`
+  terbaca sebagai overflow, padahal tidak.
 - Pada perangkat sentuh, panel unggah foto menulis ulang petunjuknya menjadi
   "Ketuk untuk memilih dari galeri atau kamera" (`@media (hover:none) and (pointer:coarse)`).
 

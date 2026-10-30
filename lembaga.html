@@ -33,7 +33,7 @@
     .auth-card .field{margin-bottom:15px}
     .pass-wrap{position:relative}
     .pass-wrap input{padding-right:82px}
-    .pass-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--blue);font-size:11.5px;font-weight:750;cursor:pointer}
+    .pass-toggle{position:absolute;right:2px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;min-width:52px;min-height:44px;border:0;background:none;color:var(--blue);font-size:11.5px;font-weight:750;cursor:pointer}
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:9px;padding:10px 15px;font-size:12.5px;font-weight:750;cursor:pointer}
     .btn.primary{background:var(--navy);color:#fff}
     .btn.primary:hover{background:var(--blue)}
@@ -47,8 +47,9 @@
     .auth-msg.err{background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
     .auth-msg.ok{background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
     .auth-links{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:18px;font-size:12.5px;font-weight:700}
+    .auth-links a{display:inline-flex;align-items:center;min-height:44px}
     .topbar{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 20px;position:sticky;top:0;z-index:20}
-    .topbar .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .topbar .brand{display:flex;align-items:center;gap:10px;min-width:0;min-height:44px}
     .topbar .brand img{width:34px;height:40px;object-fit:contain}
     .topbar .brand b{display:block;font-size:12.5px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
     .topbar .brand small{display:block;color:var(--muted);font-size:10px}
@@ -68,7 +69,7 @@
     .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
     .panel h2{font-size:16px;margin:0 0 4px;color:var(--navy)}
     .panel .intro{color:var(--muted);font-size:12.5px;margin:0 0 16px}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
     .field{min-width:0}
     .field.full{grid-column:1/-1}
     .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5}
@@ -149,13 +150,15 @@
       .page-head h1{font-size:23px}
     }
     @media(max-width:620px){
-      .grid2{grid-template-columns:1fr}
+      .grid2{grid-template-columns:minmax(0,1fr)}
+      input,select,textarea{font-size:16px}
+      select{max-width:100%}
       .kpi{grid-template-columns:1fr;justify-items:center;text-align:center}
       .kpi-score{width:92px;height:92px}
       .item{flex-direction:column}
       .item-actions{justify-content:flex-start}
       .auth-card{padding:24px 18px;border-radius:16px}
-      .btn{padding:11px 14px}
+      .btn{padding:11px 14px;min-height:44px}
     }
   </style>
 </head>

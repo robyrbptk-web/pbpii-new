@@ -29,22 +29,22 @@
     input:focus{border-color:var(--auth-blue);box-shadow:0 0 0 3px #176da81b}
     .password-wrap{position:relative}
     .password-wrap input{padding-right:90px}
-    .toggle{position:absolute;right:9px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--auth-blue);font-weight:700;cursor:pointer;font-size:12px}
+    .toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;min-width:60px;min-height:44px;border:0;background:none;color:var(--auth-blue);font-weight:700;cursor:pointer;font-size:12px}
     button[type=submit]{width:100%;border:0;background:var(--auth-navy);color:#fff;padding:14px;border-radius:10px;font:inherit;font-weight:800;margin-top:24px;cursor:pointer;transition:background .2s,transform .2s}
     button[type=submit]:hover{background:var(--auth-blue);transform:translateY(-1px)}
     button:disabled{opacity:.65;cursor:wait}
     .message{display:none;margin-top:15px;padding:12px;border-radius:9px;font-size:13px;overflow-wrap:anywhere}
     .error{display:block;background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
     .success{display:block;background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
-    .back{display:block;text-align:center;margin-top:22px;color:var(--auth-blue);font-size:13px;font-weight:700}
+    .back{display:flex;align-items:center;justify-content:center;min-height:44px;text-align:center;margin-top:14px;color:var(--auth-blue);font-size:13px;font-weight:700}
     .foot{text-align:center;margin-top:26px;color:#8b96a3;font-size:11px}
     .help{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfdff;font-size:12px;color:var(--muted)}
-    .help summary{cursor:pointer;font-weight:750;color:var(--auth-navy);font-size:12.5px}
+    .help summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-weight:750;color:var(--auth-navy);font-size:12.5px}
     .help ul{margin:10px 0 0;padding-left:17px}
     .help li{margin-bottom:5px}
     .help b{color:var(--ink)}
     .help code{background:#eef3f8;border-radius:5px;padding:1px 5px;font-size:11px}
-    @media(max-width:480px){body{padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}.card{padding:27px 21px;border-radius:16px;box-shadow:0 12px 36px #102b490d}.brand h1{font-size:18px}input{min-height:48px;border-radius:12px}button[type=submit]{min-height:48px;border-radius:12px}}
+    @media(max-width:480px){body{padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}.card{padding:27px 21px;border-radius:16px;box-shadow:0 12px 36px #102b490d}.brand h1{font-size:18px}input{min-height:48px;border-radius:12px;font-size:16px}button[type=submit]{min-height:48px;border-radius:12px}}
   </style>
 </head>
 <body>

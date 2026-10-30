@@ -3067,6 +3067,32 @@ nav a[aria-current='page']::after {
     min-height: 44px;
   }
 
+  /* Setiap ayat punya tombol "Tafsir" sendiri — tanpa pelebaran, halaman Quran penuh target kecil. */
+  .ayah-tafsir summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .reader-pager button {
+    min-height: 44px;
+    padding: 9px 12px;
+  }
+
+  /* Tombol bantuan/layar penuh di atas globe: 34px terlalu kecil untuk jari. */
+  .globe-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Logo di header/footer dan tautan Lembaga/Admin ikut dilebarkan. */
+  .brand,
+  .admin-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
   .reader-bar {
     gap: 8px;
     padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
@@ -3094,5 +3120,88 @@ nav a[aria-current='page']::after {
   .article-open {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+/* Layar sempit (iPhone SE 320px): label waktu jangan sampai keluar kotaknya. */
+@media (max-width: 380px) {
+  .teaser-times {
+    gap: 7px;
+  }
+
+  .teaser-times li {
+    padding: 9px 8px;
+  }
+
+  .teaser-times span {
+    font-size: .62rem;
+    letter-spacing: .01em;
+  }
+
+  .teaser-times strong {
+    font-size: .98rem;
+  }
+}
+
+/* Ukuran huruf terkecil di ponsel dinaikkan supaya tetap nyaman dibaca. */
+@media (max-width: 680px) {
+  nav:not(.footer-auth) a {
+    font-size: .72rem;
+  }
+
+  .site-header .brand small {
+    font-size: .7rem;
+  }
+
+  .surah-name b {
+    font-size: .92rem;
+  }
+
+  .surah-name small {
+    font-size: .78rem;
+  }
+
+  .tanya-note {
+    font-size: .74rem;
+  }
+
+  /* Pill slogan di beranda sempat turun ke 9px di ponsel — dinaikkan lagi. */
+  .hero-copy .eyebrow {
+    font-size: .74rem;
+    letter-spacing: .1em;
+  }
+
+  /* Kolom tanya-jawab: 14px membuat Safari memperbesar halaman saat diketik. */
+  .tanya-form input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .tanya-send {
+    min-height: 44px;
+    min-width: 62px;
+  }
+
+  .tanya-close {
+    min-width: 44px;
+    min-height: 44px;
+    margin: -10px -8px -10px 0;
+  }
+
+  /* FAB dan panel duduk di atas bar navigasi, bukan menimpanya. */
+  .tanya-fab,
+  .tanya-panel {
+    bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+
+  .tanya-fab {
+    right: 14px;
+  }
+
+  .tanya-panel {
+    right: 14px;
+    left: 14px;
+    width: auto;
+    max-height: min(560px, calc(100dvh - 168px));
   }
 }

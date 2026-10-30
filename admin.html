@@ -37,7 +37,7 @@
     .panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:24px;margin-bottom:20px}
     .panel h2{font-size:17px;margin:0 0 5px}
     .panel-intro{color:var(--muted);font-size:13px;margin:0 0 20px}
-    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+    .form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:17px}
     .field{min-width:0}
     .field.full{grid-column:1/-1}
     label{display:block;font-weight:750;font-size:12px;margin-bottom:7px}
@@ -107,11 +107,11 @@
       .user-name{display:none}
       input,select,textarea{font-size:16px}
       .message{bottom:calc(88px + env(safe-area-inset-bottom))}
-      .btn,.chip,.tab{min-height:40px}
+      .btn,.chip,.tab{min-height:44px}
     }
     @media(max-width:560px){
       .brand img{width:34px;height:38px}
-      .brand{gap:8px;font-size:12px}
+      .brand{gap:8px;font-size:12px;min-height:44px}
       .brand small{font-size:8px;letter-spacing:.4px}
       .top-actions .btn{padding:8px 10px;font-size:11px}
       .page-head{flex-direction:column;align-items:stretch;gap:12px}
@@ -122,7 +122,7 @@
       .stat strong{font-size:21px}
       .stat span{font-size:10px}
       .panel{padding:16px 14px;border-radius:13px}
-      .form-grid{grid-template-columns:1fr}
+      .form-grid{grid-template-columns:minmax(0,1fr)}
       .field.full{grid-column:auto}
       .item{flex-direction:column;gap:10px}
       .item-actions{justify-content:flex-start;width:100%}
@@ -151,7 +151,9 @@
     @media(max-width:560px){
       .upload-drop{display:flex;align-items:center;justify-content:center;min-height:100px;padding:20px 14px;font-size:13.5px}
       .upload-preview{max-height:180px}
-      .upload-status,.upload-link summary{min-height:26px}
+      .upload-status{min-height:26px}
+      .upload-link summary{display:flex;align-items:center;min-height:44px}
+      .checkline{min-height:44px}
     }
   </style>
 </head>
