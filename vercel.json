@@ -162,6 +162,26 @@
     {
       "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/api/google/nearby-places",
+      "destination": "/api/_gw?r=google/nearby-places"
+    },
+    {
+      "source": "/api/google/text-search",
+      "destination": "/api/_gw?r=google/text-search"
+    },
+    {
+      "source": "/api/realtime/token",
+      "destination": "/api/_gw?r=realtime/token"
+    },
+    {
+      "source": "/api/realtime/debug-log",
+      "destination": "/api/_gw?r=realtime/debug-log"
+    },
+    {
+      "source": "/api/ais-live/track",
+      "destination": "/api/_gw?r=ais-live/track"
     }
   ],
   "headers": [
