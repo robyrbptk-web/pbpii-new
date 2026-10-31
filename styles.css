@@ -2825,6 +2825,198 @@ body.peta-page.globe-compact .globe-frame {
   min-height: 40px;
 }
 
+/* Tombol murattal surat penuh di bar surat layar penuh. */
+.quran-sheet-audio {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+  cursor: pointer;
+  transition: background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.quran-sheet-audio svg {
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+}
+
+.quran-sheet-audio:active {
+  transform: scale(.94);
+}
+
+.quran-sheet-audio.is-audio-on {
+  border-color: #ffd27a;
+  background: linear-gradient(135deg, #f7b955, #e08b1f);
+  color: #2a1a05;
+  box-shadow: 0 0 0 4px rgb(247 185 85 / 26%);
+  animation: qp-pulse 1.9s ease-in-out infinite;
+}
+
+@keyframes qp-pulse {
+  50% {
+    box-shadow: 0 0 0 10px rgb(247 185 85 / 0%);
+  }
+}
+
+/* Basmala ditulis sendiri di awal surat, jadi tidak perlu diulang sebagai ayat. */
+.basmalah {
+  margin: 4px 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  color: #164a76;
+  font-family: "Traditional Arabic", "Scheherazade New", "Amiri", "Noto Naskh Arabic", serif;
+  font-size: 1.58rem;
+  line-height: 2.1;
+  text-align: center;
+}
+
+/* ---------- Pemutar murattal: satu bar untuk surat penuh maupun per ayat ---------- */
+
+.quran-player-host {
+  flex: 0 0 auto;
+  background: #fff;
+}
+
+.quran-player {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 7px 12px;
+  background: linear-gradient(180deg, #fff, #f6fafc);
+}
+
+.quran-player[hidden] {
+  display: none;
+}
+
+.quran-reader .quran-player {
+  margin: 2px 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.qp-toggle {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  color: #fff;
+  font: inherit;
+  font-size: .78rem;
+  letter-spacing: -.08em;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgb(16 43 73 / 22%);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.qp-toggle:active {
+  transform: scale(.94);
+}
+
+.qp-toggle.is-live {
+  box-shadow: 0 10px 24px rgb(22 109 168 / 36%);
+}
+
+.qp-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.qp-label {
+  overflow: hidden;
+  margin: 0;
+  color: var(--navy);
+  font-size: .74rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qp-seek {
+  position: relative;
+  height: 22px;
+}
+
+.qp-seek::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 5px;
+  border-radius: 999px;
+  background: #dde7f0;
+  transform: translateY(-50%);
+}
+
+.qp-seek i {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 0;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), #f2b544);
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition: width .12s linear;
+}
+
+.qp-seek input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.qp-seek:has(input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+.qp-time {
+  color: var(--muted);
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.qp-close {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  font: inherit;
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.qp-close:hover {
+  border-color: #c9d8e6;
+  color: var(--navy);
+}
+
 /* Homepage teaser: the same prayer data, one screen wide. */
 .ibadah-teaser {
   background: linear-gradient(180deg, #f7fafc, #fff);

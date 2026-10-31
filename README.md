@@ -137,6 +137,13 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
   terpotong saat bar alamat HP hilang saat menggulir), isi bergulir sendiri dengan
   `overscroll-behavior: contain` sehingga halaman di belakangnya tidak ikut goyang,
   dan sampul dibatasi 32vh di HP agar judul tetap terlihat tanpa menggulir.
+- Pemutar murattal **Al-Qur'an**: tombol surat penuh ada di bar pembaca layar penuh
+  (`#quranSheetAudio`, 44 px) dan di kepala pembaca inline, bukan hanya per ayat.
+  Satu objek `Audio` dipakai bersama, jadi memurattal surat tidak pernah bertabrakan
+  dengan audio ayat; `audio.load()` sengaja tidak dipanggil karena di iOS pemanggilan
+  ulang sumber di dalam rantai gestur membatalkan `play()` itu sendiri (gejalanya:
+  tombol berkedip lalu kembali ke "Putar"). Bar pemutar menampilkan judul, posisi,
+  durasi, dan geser posisi; ia berhenti sendiri saat surat ditutup atau diganti.
 - Dashboard: tab bawah 5 kolom `minmax(0,1fr)` (label pendek, tidak pernah terpotong),
   form satu kolom, panel selebar kartu, dan input 16 px supaya Safari tidak
   melakukan zoom otomatis.

@@ -1128,8 +1128,9 @@
     let surahs = [];
     let reader = null;
     let currentSurah = Number(storageGet(STORE.surah, '')) || 0;
-    let audio = null;
-    let audioButton = null;
+    /** Pemutar murattal: satu Audio untuk semua tombol, jadi tidak ada tabrak audio. */
+    let player = null;
+    let track = null;
 
     const sheet = document.querySelector('#quranSheet');
     const sheetBody = document.querySelector('#quranSheetBody');
@@ -1155,6 +1156,7 @@
 
     function closeSheet() {
       if (!sheet || !sheetOpen) return;
+      stopTrack();
       const wasPushed = sheetEntry;
       sheetOpen = false;
       sheetEntry = false;
@@ -1168,6 +1170,7 @@
       if (sheetEntry) {
         sheetEntry = false;
         if (sheetOpen) {
+          stopTrack();
           sheet.classList.remove('is-open');
           sheet.setAttribute('aria-hidden', 'true');
           document.body.classList.remove('is-locked');
@@ -1176,41 +1179,180 @@
       }
     });
 
-    function stopAudio() {
-      if (audio && !audio.paused) audio.pause();
-      if (audioButton) {
-        audioButton.textContent = audioButton.dataset.idle || '▶ Putar';
-        audioButton.classList.remove('is-playing');
-        audioButton.setAttribute('aria-pressed', 'false');
-      }
-      audioButton = null;
+    /**
+     * Pemutar murattal. Satu objek Audio dipakai bersama tombol surat penuh dan
+     * tombol per ayat, jadi mengetuk dua sumber tidak pernah membuat dua suara
+     * bertabrakan. `load()` sengaja tidak dipanggil: di iOS memanggil ulang
+     * sumber di dalam rantai gestur sering membatalkan `play()` itu sendiri.
+     */
+    let playerNote = '';
+
+    function ensurePlayer() {
+      if (player) return player;
+      player = new Audio();
+      player.preload = 'metadata';
+      ['timeupdate', 'loadedmetadata', 'durationchange'].forEach((type) => {
+        player.addEventListener(type, paintPlayers);
+      });
+      player.addEventListener('pause', () => { paintPlayers(); syncSheetAudio(); });
+      player.addEventListener('play', () => { paintPlayers(); syncSheetAudio(); });
+      player.addEventListener('ended', () => {
+        track = null;
+        playerNote = '';
+        paintPlayers();
+        syncSheetAudio();
+      });
+      player.addEventListener('error', () => {
+        playerNote = 'Audio belum dapat diunduh. Periksa koneksi, lalu coba lagi.';
+        paintPlayers();
+        syncSheetAudio();
+      });
+      return player;
     }
 
-    function toggleAudio(button) {
-      const src = button.dataset.audio;
-      if (!src) return;
-      if (!audio) {
-        audio = new Audio();
-        audio.preload = 'none';
-        audio.addEventListener('ended', stopAudio);
+    /** Surat penuh kadang hanya mengirim audio_url di halaman pertama, jadi dirakit dari nomor. */
+    function surahUrl(number, data) {
+      const url = String(data?.audio_url || '');
+      return url.startsWith('http') ? url : `https://cdn.myquran.com/audio/surah/${number}.mp3`;
+    }
+
+    function clockText(seconds) {
+      const total = Math.max(0, Math.floor(Number(seconds) || 0));
+      return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+    }
+
+    function paintPlayer(bar) {
+      const toggle = bar.querySelector('[data-player-toggle]');
+      const label = bar.querySelector('[data-player-label]');
+      const fill = bar.querySelector('[data-player-fill]');
+      const seek = bar.querySelector('[data-player-seek]');
+      const time = bar.querySelector('[data-player-time]');
+      const live = Boolean(player && track && !player.paused);
+      bar.hidden = !track;
+      if (!track) return;
+      if (label) label.textContent = playerNote || track.label;
+      if (toggle) {
+        toggle.textContent = live ? '❚❚' : '▶';
+        toggle.setAttribute('aria-label', live ? 'Jeda murattal' : 'Putar murattal');
+        toggle.setAttribute('aria-pressed', live ? 'true' : 'false');
+        toggle.classList.toggle('is-live', live);
       }
-      if (audioButton === button && !audio.paused) {
-        stopAudio();
+      const duration = Number(player?.duration);
+      const position = Number(player?.currentTime) || 0;
+      const known = Number.isFinite(duration) && duration > 0;
+      const ratio = known ? Math.min(1, position / duration) : 0;
+      if (fill) fill.style.width = `${(ratio * 100).toFixed(2)}%`;
+      if (seek && document.activeElement !== seek) seek.value = String(Math.round(ratio * 1000));
+      if (time) time.textContent = `${clockText(position)} / ${known ? clockText(duration) : '—'}`;
+    }
+
+    /** Bar pemutar dipasang sekali per wadah; isinya dilukis ulang lewat paintPlayers(). */
+    function renderPlayer() {
+      return `
+        <div class="quran-player" hidden>
+          <button class="qp-toggle" type="button" data-player-toggle aria-pressed="false" aria-label="Putar murattal">▶</button>
+          <div class="qp-main">
+            <p class="qp-label" data-player-label>Murattal</p>
+            <div class="qp-seek">
+              <i data-player-fill></i>
+              <input data-player-seek type="range" min="0" max="1000" step="1" value="0" aria-label="Geser posisi audio murattal">
+            </div>
+          </div>
+          <span class="qp-time" data-player-time>0:00 / —</span>
+          <button class="qp-close" type="button" data-player-close aria-label="Tutup pemutar audio">✕</button>
+        </div>`;
+    }
+
+    function paintPlayers() {
+      each('.quran-player', paintPlayer);
+      // Tombol sumber yang sedang berbunyi diberi states, label tombol tidak diubah.
+      const live = Boolean(track && player && !player.paused);
+      each('button[data-audio]', (button) => {
+        button.classList.toggle('is-playing', live && button.dataset.audio === track.src);
+      });
+    }
+
+    /** Tombol bulat di bar surat: hanya menandai surat penuh yang sedang berbunyi. */
+    function syncSheetAudio() {
+      const button = document.querySelector('#quranSheetAudio');
+      if (!button) return;
+      const on = Boolean(track && !track.ayah && player && !player.paused);
+      button.classList.toggle('is-audio-on', on);
+      button.setAttribute('aria-pressed', on ? 'true' : 'false');
+      button.setAttribute('aria-label', `Murattal surat penuh${track && !track.ayah ? ' (sedang berputar)' : ''}`);
+    }
+
+    function playTrack(next) {
+      if (!next?.src) return;
+      const audio = ensurePlayer();
+      if (track && track.src === next.src) {
+        if (audio.paused) {
+          const started = audio.play();
+          if (started?.then) started.then(() => { playerNote = ''; paintPlayers(); syncSheetAudio(); }).catch(() => {
+            playerNote = 'Ketuk sekali lagi untuk memutar audio.';
+            paintPlayers();
+          });
+        } else {
+          audio.pause();
+        }
         return;
       }
-      stopAudio();
-      audio.src = src;
+      track = next;
+      playerNote = '';
+      audio.src = next.src;
       const started = audio.play();
-      if (!started?.then) return;
-      started.then(() => {
-        button.dataset.idle = button.textContent;
-        button.textContent = '❚❚ Jeda';
-        button.classList.add('is-playing');
-        button.setAttribute('aria-pressed', 'true');
-        audioButton = button;
-      }).catch(() => {
-        button.textContent = 'Audio tidak dapat diputar';
+      if (started?.then) started.catch(() => {
+        playerNote = 'Ketuk sekali lagi untuk memutar audio.';
+        paintPlayers();
       });
+      paintPlayers();
+      syncSheetAudio();
+    }
+
+    function stopTrack() {
+      if (player && !player.paused) player.pause();
+      track = null;
+      playerNote = '';
+      paintPlayers();
+      syncSheetAudio();
+    }
+
+    /** Sumber audio dibaca dari tombolnya supaya label bar ikut berubah. */
+    function trackFromButton(button) {
+      const src = button.dataset.audio;
+      if (!src) return null;
+      return {
+        src,
+        ayah: Number(button.dataset.ayah) || null,
+        label: button.dataset.label || 'Murattal',
+      };
+    }
+
+    function handlePlayerClick(event) {
+      const toggle = event.target.closest('[data-player-toggle]');
+      if (toggle) {
+        if (track) playTrack(track);
+        return true;
+      }
+      if (event.target.closest('[data-player-close]')) {
+        stopTrack();
+        return true;
+      }
+      return false;
+    }
+
+    function handleAudioClick(event) {
+      if (handlePlayerClick(event)) return;
+      const source = event.target.closest('button[data-audio]');
+      if (source) playTrack(trackFromButton(source));
+    }
+
+    function handleSeek(event) {
+      const seek = event.target.closest('[data-player-seek]');
+      const duration = Number(player?.duration);
+      if (!seek || !track || !Number.isFinite(duration) || duration <= 0) return;
+      player.currentTime = (Number(seek.value) / 1000) * duration;
+      paintPlayers();
     }
 
     function renderSurahList(filter = '') {
@@ -1235,13 +1377,14 @@
         </li>`).join('');
     }
 
-    function renderAyah(ayah) {
+    function renderAyah(ayah, surahLatin = '') {
       const tafsir = cleanText(ayah?.tafsir?.kemenag?.short || '');
+      const nomor = String(ayah?.ayah_number ?? '');
       return `
         <article class="ayah">
           <div class="ayah-head">
-            <span class="ayah-no">${escapeHTML(String(ayah?.surah_number ?? ''))}:${escapeHTML(String(ayah?.ayah_number ?? ''))}</span>
-            ${ayah?.audio_url ? `<button class="ayah-play" type="button" data-audio="${escapeHTML(ayah.audio_url)}" aria-label="Putar ayat ${escapeHTML(String(ayah.ayah_number ?? ''))}" aria-pressed="false">▶ Putar</button>` : ''}
+            <span class="ayah-no">${escapeHTML(String(ayah?.surah_number ?? ''))}:${escapeHTML(nomor)}</span>
+            ${ayah?.audio_url ? `<button class="ayah-play" type="button" data-audio="${escapeHTML(ayah.audio_url)}" data-ayah="${escapeHTML(nomor)}" data-label="Ayat ${escapeHTML(nomor)} · ${escapeHTML(surahLatin)}" aria-label="Putar ayat ${escapeHTML(nomor)}" aria-pressed="false"><span aria-hidden="true">▶</span> Putar</button>` : ''}
           </div>
           <p class="ayah-arab" dir="rtl" lang="ar">${escapeHTML(ayah?.arab || '')}</p>
           <p class="ayah-text">${escapeHTML(ayah?.translation || '')}</p>
@@ -1266,33 +1409,49 @@
             : '<span class="muted">Satu halaman</span>'}
           <button type="button" data-surah="${reader.number + 1}" ${reader.number >= 114 ? 'disabled' : ''}>Berikutnya →</button>
         </div>`;
+      const latin = data.name_latin || data.name || `Surat ${reader.number}`;
       const ayatRows = ayahs.length
-        ? ayahs.map(renderAyah).join('')
+        ? ayahs.map((ayah) => renderAyah(ayah, latin)).join('')
         : '<p class="muted">Ayat surat ini belum tersedia.</p>';
+      const fullUrl = surahUrl(reader.number, data);
+      // Basmala ditulis sendiri di awal surat, kecuali Al-Fatihah (ayat 1) dan At-Taubah.
+      const basmalah = reader.page === 1 && reader.number !== 1 && reader.number !== 9
+        ? '<p class="basmalah" dir="rtl" lang="ar">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>'
+        : '';
 
       if (sheetOpen && sheetBody) {
-        setText('#quranSheetName', data.name_latin || data.name || 'Surat');
+        setText('#quranSheetName', latin);
         setText('#quranSheetMeta', `Surat ke-${Number(data.number) || reader.number} · ${meta}`);
         const arab = document.querySelector('#quranSheetArab');
         if (arab) {
           arab.textContent = data.name || '';
           arab.hidden = !data.name;
         }
-        sheetBody.innerHTML = ayatRows;
+        const sheetButton = document.querySelector('#quranSheetAudio');
+        if (sheetButton) {
+          sheetButton.dataset.audio = fullUrl;
+          sheetButton.dataset.label = `Murattal penuh · ${latin}`;
+        }
+        sheetBody.innerHTML = `${basmalah}${ayatRows}`;
         sheetFoot.innerHTML = pager;
+        paintPlayers();
+        syncSheetAudio();
         return;
       }
 
       readerEl.innerHTML = `
         <div class="reader-head">
           <div>
-            <h3>${escapeHTML(data.name_latin || data.name || 'Surat')}</h3>
+            <h3>${escapeHTML(latin)}</h3>
             <p>Surat ke-${Number(data.number) || reader.number} · ${escapeHTML(meta)}</p>
           </div>
-          ${data.audio_url ? `<button class="ayah-play" type="button" data-audio="${escapeHTML(data.audio_url)}" aria-pressed="false">▶ Murattal surat</button>` : ''}
+          <button class="ayah-play" type="button" data-audio="${escapeHTML(fullUrl)}" data-label="Murattal penuh · ${escapeHTML(latin)}" aria-pressed="false"><span aria-hidden="true">▶</span> Surat penuh</button>
         </div>
+        ${renderPlayer()}
+        ${basmalah}
         ${ayatRows}
         ${pager}`;
+      paintPlayers();
     }
 
     /** Kartu "lanjutkan" supaya surat terakhir tidak langsung menutupi halaman. */
@@ -1310,7 +1469,7 @@
 
     async function openSurah(number, page = 1) {
       if (!Number.isInteger(number) || number < 1 || number > 114) return;
-      stopAudio();
+      stopTrack();
       const cacheKey = `quran:${number}:${page}`;
       const cached = cacheRead(cacheKey);
       if (cached) {
@@ -1352,11 +1511,6 @@
     });
 
     function handleReaderClick(event) {
-      const audioButtonEl = event.target.closest('button[data-audio]');
-      if (audioButtonEl) {
-        toggleAudio(audioButtonEl);
-        return;
-      }
       const pageButton = event.target.closest('button[data-page]');
       if (pageButton && reader) {
         openSurah(reader.number, Number(pageButton.dataset.page));
@@ -1370,6 +1524,12 @@
     readerEl.addEventListener('click', handleReaderClick);
     sheetBody?.addEventListener('click', handleReaderClick);
     sheetFoot?.addEventListener('click', handleReaderClick);
+    const sheetPlayerHost = document.querySelector('#quranSheetPlayer');
+    if (sheetPlayerHost) sheetPlayerHost.innerHTML = renderPlayer();
+    [readerEl, sheet].filter(Boolean).forEach((root) => {
+      root.addEventListener('click', handleAudioClick);
+      root.addEventListener('input', handleSeek);
+    });
     document.querySelector('#quranSheetClose')?.addEventListener('click', closeSheet);
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && sheetOpen) closeSheet();
