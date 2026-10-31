@@ -20,6 +20,8 @@
     cityAt: 'pbpii:ibadah-city-at',
     adzan: 'pbpii:ibadah-adzan',
     surah: 'pbpii:ibadah-surah',
+    position: 'pbpii:ibadah-position',
+    tasbih: 'pbpii:ibadah-tasbih',
   };
 
   const DEFAULT_CITY = Object.freeze({ id: '58a2fc6ed39fd083f55d4182bf88826d', name: 'Kota Jakarta', prov: 'DKI Jakarta' });
@@ -30,6 +32,10 @@
     ['dzuhur', 'Dzuhur'], ['ashar', 'Ashar'], ['maghrib', 'Maghrib'], ['isya', 'Isya'],
   ];
   const PRAYER_LABEL = Object.fromEntries(PRAYERS);
+  const PRAYER_ICON = {
+    imsak: '🌒', subuh: '🌙', terbit: '🌅', dhuha: '☀️',
+    dzuhur: '🌞', ashar: '🌤️', maghrib: '🌇', isya: '🌜',
+  };
   const COUNTED = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
   const ADZAN_KEYS = new Set(COUNTED);
 
@@ -83,6 +89,8 @@
   let schedule = null;
   let activeCity = null;
   let qiblaDegrees = null;
+  let qiblaCoords = '';
+  let position = null;
   let locationToken = 0;
   let lastPrayer;
   let lastDayCheck = 0;
@@ -300,16 +308,19 @@
   async function networkPlace() {
     // BigDataCloud answers from the caller IP when no coordinates are sent.
     const geo = await fetchPlace(`${REVERSE_GEO}?localityLanguage=id`).catch(() => null);
+    const coords = geo ? { lat: Number(geo.latitude), lon: Number(geo.longitude) } : {};
     if (geo && (!geo.countryCode || geo.countryCode === 'ID')) {
       return {
         country: String(geo.countryCode || 'ID'),
         city: String(geo.city || ''),
         locality: String(geo.locality || ''),
         region: String(geo.principalSubdivision || ''),
+        lat: Number.isFinite(coords.lat) ? coords.lat : null,
+        lon: Number.isFinite(coords.lon) ? coords.lon : null,
       };
     }
     if (geo) {
-      return { country: String(geo.countryCode || ''), city: '', locality: '', region: '' };
+      return { country: String(geo.countryCode || ''), city: '', locality: '', region: '', lat: null, lon: null };
     }
 
     const data = await fetchPlace(NETWORK_GEO).catch(() => null);
@@ -319,7 +330,17 @@
       city: String(data.city || ''),
       locality: String(data.city || ''),
       region: String(data.region || ''),
+      lat: Number.isFinite(data.latitude) ? data.latitude : null,
+      lon: Number.isFinite(data.longitude) ? data.longitude : null,
     };
+  }
+
+  let networkPlacePromise = null;
+
+  /** Satu tebakan lokasi per kunjungan: jadwal dan kiblat memakainya bersama. */
+  function networkPlaceOnce() {
+    if (!networkPlacePromise) networkPlacePromise = networkPlace().catch(() => null);
+    return networkPlacePromise;
   }
 
   function devicePosition() {
@@ -329,7 +350,11 @@
         return;
       }
       navigator.geolocation.getCurrentPosition(
-        (position) => resolve({ lat: position.coords.latitude, lon: position.coords.longitude }),
+        (gps) => {
+          const coords = { lat: gps.coords.latitude, lon: gps.coords.longitude };
+          rememberPosition(coords.lat, coords.lon, 'perangkat');
+          resolve(coords);
+        },
         () => resolve(null),
         { timeout: 10000, maximumAge: 600000 },
       );
@@ -338,10 +363,10 @@
 
   /** Precise position from the device, reverse-geocoded to an Indonesian place. */
   async function devicePlace() {
-    const position = await devicePosition();
-    if (!position) return null;
+    const located = await devicePosition();
+    if (!located) return null;
     const geo = await fetchPlace(
-      `${REVERSE_GEO}?latitude=${position.lat}&longitude=${position.lon}&localityLanguage=id`,
+      `${REVERSE_GEO}?latitude=${located.lat}&longitude=${located.lon}&localityLanguage=id`,
     ).catch(() => null);
     if (!geo) return null;
     return {
@@ -349,7 +374,34 @@
       city: String(geo.city || ''),
       locality: String(geo.locality || ''),
       region: String(geo.principalSubdivision || ''),
+      lat: located.lat,
+      lon: located.lon,
     };
+  }
+
+  const POSITION_TTL = 24 * 3600 * 1000;
+
+  /** Posisi GPS terakhir; kiblat memakai nilai ini tanpa meminta izin lagi. */
+  function rememberPosition(lat, lon, source) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    position = { lat, lon, source, at: Date.now() };
+    storageSet(STORE.position, JSON.stringify(position));
+  }
+
+  function knownPosition() {
+    if (position && Date.now() - position.at < POSITION_TTL) return position;
+    position = null;
+    try {
+      const saved = JSON.parse(storageGet(STORE.position, 'null'));
+      if (saved?.source === 'perangkat'
+        && Number.isFinite(saved.lat) && Number.isFinite(saved.lon)
+        && Date.now() - Number(saved.at || 0) < POSITION_TTL) {
+        position = { lat: saved.lat, lon: saved.lon, source: saved.source, at: Number(saved.at) };
+      }
+    } catch {
+      /* penyimpanan belum terisi */
+    }
+    return position;
   }
 
   /** Resolve a detected place to a kab/kota id, capital of the province last. */
@@ -380,18 +432,18 @@
       // A city saved before location tracking existed: respect that choice.
       markSource('manual');
       const saved = savedCity();
-      setLocationNote(`Jadwal mengikuti ${saved ? saved.name : 'kota tersimpan'} yang tersimpan di perangkat ini. Ketuk “Deteksi lokasi saya” untuk menyesuaikan otomatis.`, 'manual');
+      setLocationNote(`Jadwal mengikuti ${saved ? saved.name : 'kota tersimpan'} yang tersimpan di perangkat ini. Ketuk nama kota di atas untuk menyesuaikan otomatis.`, 'manual');
       return;
     }
 
     setLocationNote('Menyesuaikan jadwal dengan lokasi Anda…', 'busy');
-    const place = await networkPlace();
+    const place = await networkPlaceOnce();
     const found = await locateCity(place);
 
     if (!found) {
       setLocationNote(place && place.country && place.country !== 'ID'
         ? 'Anda berada di luar Indonesia, jadi jadwal mengikuti Kota Jakarta (WIB).'
-        : 'Lokasi tidak dikenali otomatis, jadi jadwal mengikuti Kota Jakarta. Pilih kota lewat kolom pencarian atau ketuk “Deteksi lokasi saya”.', 'muted');
+        : 'Lokasi tidak dikenali otomatis, jadi jadwal mengikuti Kota Jakarta. Pilih kota lewat kolom pencarian atau ketuk nama kota di atas.', 'muted');
       return;
     }
     await applyDetected(found, 'auto');
@@ -402,6 +454,12 @@
     markSource(origin);
     await refreshSchedule(found.city);
     if (token !== locationToken) return false;
+
+    // Daerah yang baru terdeteksi langsung menjadi patokan kiblat, tanpa tombol.
+    const spot = found.place;
+    if (!knownPosition() && Number.isFinite(spot?.lat) && Number.isFinite(spot?.lon)) {
+      await loadQibla(spot.lat, spot.lon, `wilayah ${found.city.name}`, found.city.name);
+    }
 
     const region = schedule?.city?.prov || '';
     const from = origin === 'device' ? 'lokasi perangkat Anda' : 'jaringan internet Anda';
@@ -495,6 +553,16 @@
     return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   }
 
+  /** "1j 50m lagi" — the compact chip Muslim Pro style rows put beside the time. */
+  function shortRemaining(totalSeconds) {
+    const minutes = Math.round(Math.max(0, Number(totalSeconds) || 0) / 60);
+    if (minutes < 1) return 'kurang dari 1 menit';
+    if (minutes < 60) return `${minutes} menit lagi`;
+    const rest = minutes % 60;
+    if (!rest) return `${Math.floor(minutes / 60)} jam lagi`;
+    return `${Math.floor(minutes / 60)}j ${String(rest).padStart(2, '0')}m lagi`;
+  }
+
   // ------------------------------------------------------------------ schedule
 
   async function fetchSchedule(city) {
@@ -519,10 +587,11 @@
     const grid = document.querySelector('#prayerGrid');
     if (grid) {
       grid.innerHTML = PRAYERS.map(([key, label]) => `
-        <li class="prayer-card" data-prayer="${key}">
-          <span class="prayer-name">${label}</span>
-          <strong class="prayer-time">${escapeHTML(schedule.times[key] || '—')}</strong>
-          <span class="prayer-tag"></span>
+        <li class="ib-row" data-prayer="${key}">
+          <span class="ib-dot" aria-hidden="true">✓</span>
+          <span class="ib-name">${label}<i class="ib-emoji" aria-hidden="true">${PRAYER_ICON[key] || ''}</i></span>
+          <strong class="ib-time">${escapeHTML(schedule.times[key] || '—')}</strong>
+          <span class="ib-chip"></span>
         </li>`).join('');
     }
 
@@ -543,7 +612,6 @@
 
     setText('#heroCity, [data-teaser-city]', where);
     setText('#jadwalDate', dateLabel(schedule.tz));
-    setText('#jadwalSubtitle', `Waktu sholat setempat untuk ${name} · zona ${zone} · sumber Kemenag RI.`);
     setText('[data-ibadah-note]', `Jadwal ${name} · zona ${zone} · sumber Kemenag RI.`);
     renderTimes();
     paintLive();
@@ -558,16 +626,22 @@
     const when = `${next.tomorrow ? 'Besok' : 'Hari ini'} pukul ${schedule.times[next.key] || '—'}`;
     setText('#nextPrayerTime, [data-next-time]', `${when} · ${TZ_LABEL[schedule.tz]}`);
 
+    const caption = document.querySelector('#nextPrayerCaption');
+    if (caption) caption.textContent = next.tomorrow ? 'Menuju sholat besok' : 'Menuju sholat berikutnya';
+
     const { hour, minute } = clockIn(schedule.tz);
     const nowMinutes = hour * 60 + minute;
 
-    each('#prayerGrid .prayer-card', (card) => {
-      const key = card.dataset.prayer;
+    each('#prayerGrid .ib-row', (row) => {
+      const key = row.dataset.prayer;
       const at = minutesOf(schedule.times[key]);
-      card.classList.toggle('is-next', key === next.key);
-      card.classList.toggle('is-past', at < nowMinutes && key !== next.key);
-      const tag = card.querySelector('.prayer-tag');
-      if (tag) tag.textContent = key === next.key ? (next.tomorrow ? 'Besok' : 'Berikutnya') : '';
+      const isNext = key === next.key && !next.tomorrow;
+      const isPast = at < nowMinutes && !isNext;
+      row.classList.toggle('is-next', isNext);
+      row.classList.toggle('is-past', isPast);
+      const chip = row.querySelector('.ib-chip');
+      if (chip) chip.textContent = isNext ? shortRemaining(next.remaining) : '';
+      row.setAttribute('aria-current', isNext ? 'true' : 'false');
     });
 
     each('[data-times] li', (row) => {
@@ -821,26 +895,30 @@
 
     button.addEventListener('click', async () => {
       if (button.disabled) return;
-      const label = button.textContent;
       button.disabled = true;
-      button.textContent = 'Mendeteksi…';
+      button.classList.add('is-busy');
       setLocationNote('Mendeteksi lokasi Anda…', 'busy');
 
-      let found = await locateCity(await devicePlace());
+      const place = await devicePlace();
+      let found = await locateCity(place);
       let origin = 'device';
       if (!found) {
-        found = await locateCity(await networkPlace());
+        found = await locateCity(await networkPlaceOnce());
         origin = 'auto';
       }
 
       if (found) {
         await applyDetected(found, origin);
+        // Posisi GPS presisi juga memperbaiki sudut kiblat.
+        if (origin === 'device' && Number.isFinite(place?.lat) && Number.isFinite(place?.lon)) {
+          void loadQibla(place.lat, place.lon, 'lokasi Anda');
+        }
       } else {
         setLocationNote('Lokasi tidak dapat dibaca. Pilih kabupaten/kota lewat kolom pencarian di atas.', 'muted');
       }
 
       button.disabled = false;
-      button.textContent = label;
+      button.classList.remove('is-busy');
     });
   }
 
@@ -877,7 +955,7 @@
       input.value = '';
       close();
       paintCity(city);
-      setLocationNote(`Jadwal mengikuti ${city.name} pilihan Anda. Ketuk “Deteksi lokasi saya” untuk kembali ke lokasi otomatis.`, 'manual');
+      setLocationNote(`Jadwal mengikuti ${city.name} pilihan Anda. Ketuk nama kota di atas untuk kembali ke lokasi otomatis.`, 'manual');
       refreshSchedule(city);
     });
 
@@ -931,50 +1009,116 @@
     if (line) line.textContent = message;
   }
 
-  const compass = { on: false, heading: 0, smoothed: null, signalledAt: 0, aligned: false, vibrated: false };
+  const compass = {
+    on: false, started: false, heading: 0, smoothed: null, signalledAt: 0,
+    vibrated: false, absolute: false, relativeWarned: false, manualShown: false,
+  };
+
+  /** Ponsel/tablet punya magnetometer; laptop umumnya tidak, jadi fallback dibedakan. */
+  const hasTouchSensor = Boolean(window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+
+  /** Ponsel yang hampir tegak membuat alpha tidak lagi berarti arah hadap. */
+  const TILT_LIMIT = 72;
 
   /** Selisih sudut terdekat, supaya 359° → 1° tidak dihitung berputar 358°. */
   function deltaAngle(from, to) {
     return ((to - from + 540) % 360) - 180;
   }
 
+  /** Skala lingkar luar dibuat di JS agar lingkarannya terbaca seperti kompas asli. */
+  function buildDial() {
+    const holder = document.querySelector('#qiblaTicks');
+    if (!holder || holder.childElementCount) return;
+    const namespace = 'http://www.w3.org/2000/svg';
+    const fragment = document.createDocumentFragment();
+    for (let angle = 0; angle < 360; angle += 5) {
+      const major = angle % 45 === 0;
+      const middle = !major && angle % 15 === 0;
+      const outer = major ? 100 : middle ? 96 : 94;
+      const inner = major ? 84 : middle ? 90 : 92;
+      const rad = (angle * Math.PI) / 180;
+      const line = document.createElementNS(namespace, 'line');
+      line.setAttribute('x1', (110 + Math.sin(rad) * outer).toFixed(2));
+      line.setAttribute('y1', (110 - Math.cos(rad) * outer).toFixed(2));
+      line.setAttribute('x2', (110 + Math.sin(rad) * inner).toFixed(2));
+      line.setAttribute('y2', (110 - Math.cos(rad) * inner).toFixed(2));
+      if (major) line.setAttribute('class', 'is-major');
+      fragment.appendChild(line);
+    }
+    holder.appendChild(fragment);
+  }
+
+  /** Geseran utara hanya muncul kalau benar-benar tidak ada sensor yang bisa dipakai. */
+  function revealManual(message) {
+    compass.manualShown = true;
+    const row = document.querySelector('#qiblaManualRow');
+    if (row) row.hidden = false;
+    if (message) setQiblaAccuracy(message);
+  }
+
   function paintQibla() {
     const rose = document.querySelector('#qiblaRose');
-    const needle = document.querySelector('#qiblaNeedle');
+    const mark = document.querySelector('#qiblaMark');
     const card = document.querySelector('#qiblaCard');
-    if (!needle || qiblaDegrees === null) return;
+    if (!rose || !card) return;
 
-    const manual = Number(document.querySelector('#qiblaManual')?.value || 0);
-    const heading = compass.on ? compass.heading : manual;
-    const relative = (qiblaDegrees - heading + 360) % 360;
+    const live = compass.on && Number.isFinite(compass.smoothed);
+    const heading = live ? compass.smoothed : Number(document.querySelector('#qiblaManual')?.value || 0);
+    const relative = qiblaDegrees === null ? null : (qiblaDegrees - heading + 360) % 360;
 
-    rose?.style.setProperty('transform', `rotate(${(-heading).toFixed(1)}deg)`);
-    needle.style.transform = `rotate(${relative.toFixed(1)}deg)`;
+    rose.style.transform = `rotate(${(-heading).toFixed(1)}deg)`;
+    if (mark && qiblaDegrees !== null) mark.style.transform = `rotate(${qiblaDegrees.toFixed(1)}deg)`;
+    card.classList.toggle('is-live', live);
 
-    const aligned = Math.abs(deltaAngle(0, relative)) <= 6;
-    card?.classList.toggle('is-aligned', aligned);
-    if (aligned && compass.on && !compass.vibrated) {
-      navigator.vibrate?.(22);
-      compass.vibrated = true;
-      setQiblaAccuracy('Menghadap Ka\'bah. Jaga ponsel tetap datar sejauh mungkin dari logam.');
-    } else if (!aligned) {
+    const aligned = relative !== null && Math.abs(deltaAngle(0, relative)) <= 5;
+    card.classList.toggle('is-aligned', aligned);
+
+    if (aligned) {
+      if (!compass.vibrated) {
+        navigator.vibrate?.(22);
+        compass.vibrated = true;
+      }
+      setQiblaAccuracy(compass.absolute
+        ? 'Menghadap Ka\'bah. Jaga ponsel tetap datar dan jauh dari besi atau casing bermagnet.'
+        : 'Penanda Ka\'bah sudah di atas. Atur utara bila arahnya belum sesuai utara sejati.');
+    } else {
       compass.vibrated = false;
-      if (compass.on) {
-        const side = deltaAngle(0, relative) > 0 ? 'kanan' : 'kiri';
-        setQiblaAccuracy(`Kompas aktif · putar badan ke ${side} sampai kotak hijau berada di atas.`);
+      if (live && relative !== null) {
+        setQiblaAccuracy(`Putar badan ke ${deltaAngle(0, relative) > 0 ? 'kanan' : 'kiri'} sampai cincin emas menyentuh ujung atas.`);
       }
     }
   }
 
-  function onOrientation(event) {
+  function onOrientation(event, isAbsolute) {
+    if (!compass.on) return;
+    // Data absolut selalu lebih benar: abaikan kejadian relatif dari sistem yang sama.
+    if (compass.absolute && !isAbsolute) return;
+
+    const beta = Number(event?.beta);
+    if (Number.isFinite(beta) && Math.abs(beta) > TILT_LIMIT) {
+      setQiblaAccuracy('Ponsel terlalu tegak. Pegang hampir mendatar supaya sensor arah bisa membaca.');
+      return;
+    }
+
     let raw = null;
-    if (Number.isFinite(event.webkitCompassHeading)) raw = event.webkitCompassHeading;
-    else if (Number.isFinite(event.alpha)) raw = (360 - event.alpha) % 360;
+    let absolute = isAbsolute || event?.absolute === true;
+    if (Number.isFinite(event?.webkitCompassHeading)) {
+      raw = event.webkitCompassHeading;
+      absolute = true;
+    } else if (Number.isFinite(event?.alpha)) {
+      raw = (360 - event.alpha) % 360;
+    }
     if (raw === null) return;
 
+    compass.absolute = absolute;
     compass.signalledAt = Date.now();
-    if (Number.isFinite(event.webkitCompassAccuracy) && event.webkitCompassAccuracy >= 0) {
-      setQiblaAccuracy(`Kompas aktif · akurasi ±${Math.round(event.webkitCompassAccuracy)}°. Gerakkan ponsel membentuk angka 8 untuk kalibrasi.`);
+
+    const accuracy = Number(event?.webkitCompassAccuracy);
+    if (Number.isFinite(accuracy) && accuracy >= 0) {
+      setQiblaAccuracy(`Kompas aktif · akurasi ±${Math.round(accuracy)}°. Gerakkan ponsel membentuk angka 8 untuk kalibrasi.`);
+    } else if (!absolute && !compass.relativeWarned) {
+      compass.relativeWarned = true;
+      revealManual('Peramban ini mengirim arah relatif, bukan utara sejati. Selesaikan geseran utara supaya kiblat benar.');
     }
 
     const previous = compass.smoothed ?? raw;
@@ -985,29 +1129,46 @@
     paintQibla();
   }
 
+  const handleAbsolute = (event) => onOrientation(event, true);
+  const handleRelative = (event) => onOrientation(event, false);
+
   function stopCompass(message) {
     compass.on = false;
     compass.smoothed = null;
-    window.removeEventListener('deviceorientationabsolute', onOrientation, true);
-    window.removeEventListener('deviceorientation', onOrientation, true);
-    const button = document.querySelector('#qiblaCompass');
-    if (button) {
-      button.textContent = 'Aktifkan kompas';
-      button.setAttribute('aria-pressed', 'false');
-      button.classList.remove('is-on');
-    }
+    window.removeEventListener('deviceorientationabsolute', handleAbsolute, true);
+    window.removeEventListener('deviceorientation', handleRelative, true);
     document.querySelector('#qiblaCard')?.classList.remove('is-aligned');
     if (message) setQiblaAccuracy(message);
     paintQibla();
   }
 
+  function listenToSensor() {
+    window.addEventListener('deviceorientationabsolute', handleAbsolute, true);
+    window.addEventListener('deviceorientation', handleRelative, true);
+    compass.on = true;
+    compass.signalledAt = Date.now();
+    paintQibla();
+
+    setTimeout(() => {
+      if (!compass.on) return;
+      if (Date.now() - compass.signalledAt < 4500) return;
+      stopCompass('');
+      if (hasTouchSensor) {
+        revealManual('Sensor arah tidak mengirim data dari peramban ini. Geser utara sampai huruf U menunjuk utara sejati.');
+      } else {
+        setQiblaAccuracy('Laptop tidak punya kompas. Buka halaman ini di ponsel supaya jarum ikut berputar.');
+      }
+    }, 4500);
+  }
+
   /**
-   * iOS 13+ hanya mengizinkan sensor kompas setelah tombol ditekan, jadi
-   * permintaan izin harus tetap berada di dalam gesture pengguna.
+   * iOS 13+ menolak sensor arah sebelum ada satu sentuhan di halaman. Jadi izin
+   * diminta diam-diam pada sentuh pertama di bagian mana pun — tidak ada tombol
+   * khusus — dan di Android serta desktop kompas langsung terpasang.
    */
-  async function startCompass(button) {
+  async function enableCompass() {
     if (typeof DeviceOrientationEvent === 'undefined') {
-      setQiblaAccuracy('Perangkat ini tidak punya sensor kompas. Gunakan geseran utara di bawah.');
+      revealManual('Perangkat ini tidak punya sensor kompas. Geser utara sampai huruf U menunjuk utara sejati.');
       return;
     }
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -1018,61 +1179,125 @@
         granted = 'denied';
       }
       if (granted !== 'granted') {
-        setQiblaAccuracy('Izin kompas ditolak. Gunakan geseran utara di bawah.');
+        revealManual('Izin sensor arah belum diberikan. Izinkan lewat pengaturan situs, atau geser utara manual.');
         return;
       }
     }
-
-    compass.signalledAt = 0;
-    window.addEventListener('deviceorientationabsolute', onOrientation, true);
-    window.addEventListener('deviceorientation', onOrientation, true);
-    compass.on = true;
-    button.textContent = 'Kompas aktif — matikan';
-    button.setAttribute('aria-pressed', 'true');
-    button.classList.add('is-on');
-    setQiblaAccuracy('Kompas aktif. Letakkan ponsel datar dan jauhkan dari logam atau casing bermagnet.');
-    paintQibla();
-
-    setTimeout(() => {
-      if (compass.on && compass.signalledAt === 0) {
-        stopCompass('Sensor kompas tidak mengirim data dari peramban ini. Gunakan geseran utara di bawah.');
-      }
-    }, 3000);
+    listenToSensor();
+    setQiblaAccuracy('Kompas aktif. Letakkan ponsel hampir datar dan jauhkan dari logam atau casing bermagnet.');
   }
 
   function initCompass() {
-    const button = document.querySelector('#qiblaCompass');
+    buildDial();
+
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      revealManual('Perangkat ini tidak punya sensor kompas. Geser utara sampai huruf U menunjuk utara sejati.');
+      return;
+    }
+    if (!window.isSecureContext) {
+      revealManual('Kompas butuh koneksi aman. Buka halaman ini lewat https untuk mengaktifkan sensor arah.');
+      return;
+    }
+
     const manual = document.querySelector('#qiblaManual');
-    button?.addEventListener('click', () => {
-      if (compass.on) stopCompass('Kompas dimatikan. Arah kiblat tetap dapat diputar manual.');
-      else startCompass(button);
-    });
     manual?.addEventListener('input', () => {
-      if (compass.on) stopCompass('Kompas dimatikan karena utara diatur manual.');
-      setQiblaAccuracy(`Utara kompas diatur ke ${Number(manual.value)}°. Selesaikan memutar cincin agar jarum hijau menunjuk Ka'bah.`);
+      if (compass.on) stopCompass('');
+      setQiblaAccuracy(`Utara diatur ke ${Number(manual.value)}°. Putar badan sampai cincin emas berada di ujung atas.`);
       paintQibla();
     });
+
+    const start = () => {
+      if (compass.started) return;
+      compass.started = true;
+      document.removeEventListener('pointerdown', start);
+      void enableCompass();
+    };
+
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      setQiblaAccuracy('Sentuh layar sekali saja — jarum kompas langsung mengikuti arah ponsel.');
+      document.addEventListener('pointerdown', start);
+      return;
+    }
+
+    // Sensor langsung dipasang: kompas harus hidup tanpa satu pun sentuhan.
+    if (typeof document.hidden === 'boolean' && document.hidden) {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) start();
+      }, { once: true });
+      return;
+    }
+    setTimeout(start, 400);
   }
 
-  async function loadQibla(lat, lon, sourceLabel) {
+  async function loadQibla(lat, lon, sourceLabel, shortLabel = sourceLabel) {
+    const kunci = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+    if (kunci === qiblaCoords && qiblaDegrees !== null) return;
     setQiblaStatus(`Menghitung arah kiblat dari ${sourceLabel}…`);
     try {
       const body = await getJson(`${API}/qibla?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
       const direction = Number(body.data?.direction);
       if (!Number.isFinite(direction)) throw new Error('Arah kiblat tidak tersedia.');
-      qiblaDegrees = direction;
-      setText('#qiblaDegrees', `${direction.toFixed(1)}°`);
-      setText('#qiblaSource', `dari ${sourceLabel}`);
-      setQiblaStatus(`Kiblat dari ${sourceLabel}: ${direction.toFixed(1)}° dari utara sejati, searah jarum jam.`);
+      qiblaCoords = kunci;
+      qiblaDegrees = ((direction % 360) + 360) % 360;
+      setText('#qiblaDegrees', `${qiblaDegrees.toFixed(1)}°`);
+      setText('#qiblaSource', `dari ${shortLabel}`);
+      setQiblaStatus(`Kiblat dari ${sourceLabel}: ${qiblaDegrees.toFixed(1)}° dari utara sejati, searah jarum jam.`);
       paintQibla();
     } catch (error) {
       setQiblaStatus(error.message);
     }
   }
 
-  function initQibla() {
-    loadQibla(SECRETARIAT.lat, SECRETARIAT.lon, SECRETARIAT.label);
+  /** Koordinat kab/kota yang sedang dipakai jadwal, bila jaringan tak mengirim bujur. */
+  async function cityCoords(city) {
+    const address = [city?.name, city?.prov, 'Indonesia'].filter(Boolean).join(', ');
+    if (address.length < 6) return null;
+    try {
+      const body = await getJson(`/api/geocode/json?address=${encodeURIComponent(address)}`);
+      const spot = body?.results?.[0]?.geometry?.location;
+      return Number.isFinite(spot?.lat) && Number.isFinite(spot?.lng)
+        ? { lat: spot.lat, lon: spot.lng }
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Patokan kiblat mengikuti daerah yang terdeteksi lebih dulu: posisi perangkat
+   * yang pernah diminta, lalu perkiraan dari jaringan, lalu kota jadwal sholat.
+   * Sekretariat PB PII hanya dipakai kalau tidak ada satu pun yang terbaca.
+   */
+  async function loadQiblaFromRegion() {
+    const stored = knownPosition();
+    if (stored) {
+      await loadQibla(stored.lat, stored.lon, 'lokasi perangkat yang tersimpan', 'lokasi Anda');
+      return;
+    }
+
+    const place = await networkPlaceOnce();
+    if (place && Number.isFinite(place.lat) && Number.isFinite(place.lon)) {
+      const from = `perkiraan lokasi dari jaringan${place.city ? ` (${place.city})` : ''}`;
+      await loadQibla(place.lat, place.lon, from, place.city || 'perkiraan lokasi Anda');
+      return;
+    }
+
+    const city = activeCity || savedCity();
+    if (city) {
+      const spot = await cityCoords(city);
+      if (spot) {
+        await loadQibla(spot.lat, spot.lon, `wilayah ${city.name}`, city.name);
+        return;
+      }
+    }
+
+    await loadQibla(SECRETARIAT.lat, SECRETARIAT.lon,
+      'Sekretariat PB PII karena lokasi Anda belum terdeteksi', 'Sekretariat PB PII');
+  }
+
+  async function initQibla() {
     initCompass();
+    await loadQiblaFromRegion();
 
     const button = document.querySelector('#qiblaLocate');
     if (!button) return;
@@ -1083,13 +1308,107 @@
       }
       setQiblaStatus('Meminta izin lokasi…');
       navigator.geolocation.getCurrentPosition(
-        (position) => loadQibla(position.coords.latitude, position.coords.longitude, 'lokasi Anda'),
+        (gps) => {
+          rememberPosition(gps.coords.latitude, gps.coords.longitude, 'perangkat');
+          void loadQibla(gps.coords.latitude, gps.coords.longitude, 'lokasi Anda');
+        },
         (error) => setQiblaStatus(error?.code === 1
-          ? 'Izin lokasi ditolak — arah kiblat tetap memakai Sekretariat PB PII.'
-          : 'Lokasi tidak dapat dibaca. Arah kiblat tetap memakai Sekretariat PB PII.'),
+          ? 'Izin lokasi ditolak — arah kiblat tetap memakai perkiraan lokasi yang sedang tampil.'
+          : 'Lokasi presisi tidak terbaca — arah kiblat tetap memakai perkiraan lokasi yang sedang tampil.'),
         { timeout: 12000, maximumAge: 60000 },
       );
     });
+  }
+
+  // --------------------------------------------------------------------- tasbih
+
+  const DHIKR = [
+    { key: 'subhanallah', arab: 'سُبْحَانَ اللهِ', latin: 'Subhanallah', meaning: 'Maha Suci Allah', target: 33 },
+    { key: 'alhamdulillah', arab: 'اَلْحَمْدُ لِلّٰهِ', latin: 'Alhamdulillah', meaning: 'Segala puji bagi Allah', target: 33 },
+    { key: 'allahuakbar', arab: 'اَللّٰهُ اَكْبَرُ', latin: 'Allahu Akbar', meaning: 'Allah Maha Besar', target: 33 },
+    { key: 'tahlil', arab: 'لَا اِلٰهَ اِلَّا اللهُ', latin: 'Laa ilaaha illallah', meaning: 'Tiada tuhan selain Allah', target: 100 },
+    { key: 'istighfar', arab: 'اَسْتَغْفِرُ اللهَ', latin: 'Astaghfirullah', meaning: 'Aku memohon ampun kepada Allah', target: 100 },
+  ];
+
+  let dhikr = null;
+
+  function currentDhikr() {
+    return DHIKR.find((entry) => entry.key === dhikr.active) || DHIKR[0];
+  }
+
+  function paintTasbih() {
+    const entry = currentDhikr();
+    const count = Number(dhikr.counts[entry.key] || 0);
+    each('#dhikrPicker .dhikr-chip', (chip) => {
+      chip.setAttribute('aria-pressed', chip.dataset.key === entry.key ? 'true' : 'false');
+    });
+    setText('#dhikrArab', entry.arab);
+    setText('#dhikrLatin', entry.latin);
+    setText('#dhikrMeaning', entry.meaning);
+    setText('#tasbihTarget', `target ${entry.target}×`);
+    setText('#tasbihNumber', String(count));
+
+    const fill = document.querySelector('#tasbihFill');
+    if (fill) fill.style.width = `${Math.min(100, (count / entry.target) * 100).toFixed(1)}%`;
+    const button = document.querySelector('#tasbihCount');
+    button?.classList.toggle('is-goal', count >= entry.target);
+    button?.setAttribute('aria-label', `${entry.latin}, ${count} dari ${entry.target}. Ketuk untuk menambah.`);
+    return { count, target: entry.target, complete: count === entry.target };
+  }
+
+  function saveTasbih() {
+    storageSet(STORE.tasbih, JSON.stringify(dhikr));
+  }
+
+  function initTasbih() {
+    const picker = document.querySelector('#dhikrPicker');
+    const counter = document.querySelector('#tasbihCount');
+    if (!picker || !counter) return;
+
+    let saved = {};
+    try {
+      saved = JSON.parse(storageGet(STORE.tasbih, '{}')) || {};
+    } catch {
+      saved = {};
+    }
+    dhikr = { counts: saved.counts || {}, active: saved.active || DHIKR[0].key };
+
+    picker.innerHTML = DHIKR.map((entry) => `
+      <button class="dhikr-chip" type="button" data-key="${entry.key}" aria-pressed="false">${escapeHTML(entry.latin)}</button>`).join('');
+
+    picker.addEventListener('click', (event) => {
+      const chip = event.target.closest('.dhikr-chip');
+      if (!chip) return;
+      dhikr.active = chip.dataset.key;
+      saveTasbih();
+      const state = paintTasbih();
+      setText('#tasbihNote', state.count
+        ? `${currentDhikr().latin} dipilih. Hitungan tersimpan ${state.count} dari ${state.target}.`
+        : 'Ketuk lingkaran besar untuk menambah hitungan.');
+    });
+
+    counter.addEventListener('click', () => {
+      const entry = currentDhikr();
+      dhikr.counts[entry.key] = Number(dhikr.counts[entry.key] || 0) + 1;
+      saveTasbih();
+      const state = paintTasbih();
+      navigator.vibrate?.(state.complete ? [18, 70, 18] : 12);
+      setText('#tasbihNote', state.count < entry.target
+        ? `${entry.target - state.count} ketukan lagi menuju ${entry.target}×.`
+        : state.count === entry.target
+          ? `${entry.latin} selesai ${entry.target}×.`
+          : `Sudah lewat ${entry.target}× — ketuk Reset untuk putaran baru.`);
+    });
+
+    document.querySelector('#tasbihReset')?.addEventListener('click', () => {
+      const entry = currentDhikr();
+      dhikr.counts[entry.key] = 0;
+      saveTasbih();
+      paintTasbih();
+      setText('#tasbihNote', 'Hitungan dzikir ini direset. Ketuk lingkaran untuk memulai lagi.');
+    });
+
+    paintTasbih();
   }
 
   // --------------------------------------------------------------- kalender
@@ -1105,6 +1424,17 @@
   }
 
   // -------------------------------------------------------------------- qur'an
+
+  const ARABIC_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+
+  /** Angka pada medali ayat mushaf memakai digit Arab. */
+  function toArabicNumber(value) {
+    const digits = String(value ?? '');
+    return [...digits].map((character) => {
+      const index = Number(character);
+      return Number.isInteger(index) ? ARABIC_DIGITS[index] : character;
+    }).join('');
+  }
 
   function cleanText(value = '') {
     return String(value)
@@ -1163,6 +1493,9 @@
       sheet.classList.remove('is-open');
       sheet.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('is-locked');
+      // Halaman di balik sheet masih menampilkan kartu surat lama: perbarui ke
+      // surat yang barusan dibaca supaya tombolnya tidak membuka surat lain.
+      renderResumeChip();
       if (wasPushed) history.back();
     }
 
@@ -1371,8 +1704,9 @@
             <span class="surah-no">${surah.number}</span>
             <span class="surah-name">
               <b>${escapeHTML(surah.name_latin || surah.name || '')}</b>
-              <small>${escapeHTML(surah.revelation || '')} · ${Number(surah.number_of_ayahs) || '?'} ayat</small>
+              <small>${escapeHTML([surah.revelation, surah.translation].filter(Boolean).join(' · '))}</small>
             </span>
+            <span class="surah-ayah">${Number(surah.number_of_ayahs) || '?'} ayat</span>
           </button>
         </li>`).join('');
     }
@@ -1380,13 +1714,14 @@
     function renderAyah(ayah, surahLatin = '') {
       const tafsir = cleanText(ayah?.tafsir?.kemenag?.short || '');
       const nomor = String(ayah?.ayah_number ?? '');
+      const surat = String(ayah?.surah_number ?? '');
       return `
         <article class="ayah">
           <div class="ayah-head">
-            <span class="ayah-no">${escapeHTML(String(ayah?.surah_number ?? ''))}:${escapeHTML(nomor)}</span>
+            <span class="ayah-pill">Ayat ${escapeHTML(surat)}:${escapeHTML(nomor)}</span>
             ${ayah?.audio_url ? `<button class="ayah-play" type="button" data-audio="${escapeHTML(ayah.audio_url)}" data-ayah="${escapeHTML(nomor)}" data-label="Ayat ${escapeHTML(nomor)} · ${escapeHTML(surahLatin)}" aria-label="Putar ayat ${escapeHTML(nomor)}" aria-pressed="false"><span aria-hidden="true">▶</span> Putar</button>` : ''}
           </div>
-          <p class="ayah-arab" dir="rtl" lang="ar">${escapeHTML(ayah?.arab || '')}</p>
+          <p class="ayah-arab" dir="rtl" lang="ar">${escapeHTML(ayah?.arab || '')}<span class="ayah-medallion" aria-hidden="true">${toArabicNumber(Number(nomor) || nomor)}</span></p>
           <p class="ayah-text">${escapeHTML(ayah?.translation || '')}</p>
           ${tafsir ? `<details class="ayah-tafsir"><summary>Tafsir ringkas</summary><p>${escapeHTML(tafsir)}</p></details>` : ''}
         </article>`;
@@ -1422,17 +1757,15 @@
       if (sheetOpen && sheetBody) {
         setText('#quranSheetName', latin);
         setText('#quranSheetMeta', `Surat ke-${Number(data.number) || reader.number} · ${meta}`);
-        const arab = document.querySelector('#quranSheetArab');
-        if (arab) {
-          arab.textContent = data.name || '';
-          arab.hidden = !data.name;
-        }
         const sheetButton = document.querySelector('#quranSheetAudio');
         if (sheetButton) {
           sheetButton.dataset.audio = fullUrl;
           sheetButton.dataset.label = `Murattal penuh · ${latin}`;
         }
-        sheetBody.innerHTML = `${basmalah}${ayatRows}`;
+        const cover = reader.page === 1
+          ? `<div class="sheet-cover"><b>${escapeHTML(latin)}</b><small>${escapeHTML([data.revelation, data.translation].filter(Boolean).join(' · '))}</small></div>`
+          : '';
+        sheetBody.innerHTML = `${cover}${basmalah}${ayatRows}`;
         sheetFoot.innerHTML = pager;
         paintPlayers();
         syncSheetAudio();
@@ -1571,12 +1904,12 @@
       refreshSchedule(activeCity).then(() => {
         const source = storageGet(STORE.citySource);
         if (source === 'manual') {
-          setLocationNote(`Jadwal mengikuti ${activeCity.name} pilihan Anda. Ketuk “Deteksi lokasi saya” untuk menyesuaikan otomatis.`, 'manual');
+          setLocationNote(`Jadwal mengikuti ${activeCity.name} pilihan Anda. Ketuk nama kota di atas untuk menyesuaikan otomatis.`, 'manual');
           return;
         }
         if (source) {
           const from = source === 'device' ? 'lokasi perangkat' : 'jaringan internet';
-          setLocationNote(`Jadwal mengikuti ${activeCity.name} dari ${from} yang tersimpan. Ketuk “Deteksi lokasi saya” untuk memperbarui.`, 'auto');
+          setLocationNote(`Jadwal mengikuti ${activeCity.name} dari ${from} yang tersimpan. Ketuk nama kota di atas untuk memperbarui.`, 'auto');
           return;
         }
         return autoLocateOnce(!saved);
@@ -1587,6 +1920,7 @@
     }
     if (document.querySelector('#quranReader')) initQuran();
     if (document.querySelector('#qiblaDegrees')) initQibla();
+    if (document.querySelector('#tasbihCount')) initTasbih();
     if (document.querySelector('#prayerGrid')) loadHijri();
   }
 

@@ -102,7 +102,27 @@
       scroll.scrollTop = scroll.scrollHeight;
     };
 
-    function bubble(role, content) {
+    /**
+     * Nama berkas + halaman yang tadi dikutip model. Isinya tidak ikut dikirim ke
+     * browser, hanya judul, kategori, dan nomor halaman sebagai rujukan pembaca.
+     */
+    function sumberBlok(rujukan) {
+      const daftar = (Array.isArray(rujukan) ? rujukan : []).filter((item) => item && item.judul);
+      if (!daftar.length) return '';
+      const baris = daftar.slice(0, 3).map((sumber) => {
+        const halaman = Array.isArray(sumber.halaman) && sumber.halaman.length
+          ? (sumber.halaman[0] === sumber.halaman[1] ? ` hal. ${sumber.halaman[0]}` : ` hal. ${sumber.halaman[0]}-${sumber.halaman[1]}`)
+          : '';
+        const kategori = sumber.kategori ? `${sumber.kategori} ·` : '';
+        return `<li><span>${escapeHTML(sumber.judul)}</span><em>${escapeHTML(`${kategori}${halaman}`)}</em></li>`;
+      }).join('');
+      const tautan = sessionToken()
+        ? ' · <a class="tanya-sumber-link" href="pustaka.html">buka Pustaka</a>'
+        : '';
+      return `<div class="tanya-sumber"><p class="tanya-sumber-title">Dijawab dari berkas organisasi${tautan}:</p><ul>${baris}</ul></div>`;
+    }
+
+    function bubble(role, content, rujukan) {
       const row = document.createElement('div');
       row.className = `tanya-row is-${role}`;
       row.innerHTML = `
@@ -111,7 +131,7 @@
             ? '<img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src=\'assets/logo-pii.png\'">'
             : 'A'
         }</span>
-        <div class="tanya-msg">${richText(content)}</div>`;
+        <div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan) : ''}</div>`;
       thread.append(row);
       return row;
     }
@@ -175,7 +195,7 @@
 
     function paint() {
       thread.replaceChildren();
-      turns.forEach((turn) => bubble(turn.role, turn.content));
+      turns.forEach((turn) => bubble(turn.role, turn.content, turn.rujukan));
       intro.hidden = turns.length > 0;
       stick();
     }
@@ -204,7 +224,7 @@
       grow();
       setBusy(true);
 
-      const history = turns.slice(-MAX_TURNS, -1);
+      const history = turns.slice(-MAX_TURNS, -1).map(({ role, content }) => ({ role, content }));
       const row = pending('Sedang menuliskan jawaban…');
       const start = Date.now();
 
@@ -218,7 +238,17 @@
         });
         row.remove();
         const reply = String(data?.reply || '').trim() || 'Layanan AI tidak menghasilkan jawaban.';
-        turns.push({ role: 'assistant', content: reply });
+        turns.push({
+          role: 'assistant',
+          content: reply,
+          rujukan: (Array.isArray(data?.rujukan) ? data.rujukan : [])
+            .filter((sumber) => sumber?.judul)
+            .map((sumber) => ({
+              judul: String(sumber.judul).slice(0, 120),
+              kategori: String(sumber.kategori || '').slice(0, 40),
+              halaman: Array.isArray(sumber.halaman) ? sumber.halaman.slice(0, 2) : [],
+            })),
+        });
         save();
         paint();
         showQuota(data, start);

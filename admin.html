@@ -91,7 +91,7 @@
     @media(max-width:850px){
       body{padding-bottom:calc(74px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
       .layout{grid-template-columns:1fr;min-height:0}
-      aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;border:0;border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 96%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
+      aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;border:0;border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 96%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
       .side-label,.side-bottom{display:none}
       .tab{flex-direction:column;justify-content:center;gap:3px;min-height:52px;margin:0;padding:6px 4px;border-radius:11px;font-size:10.5px;line-height:1.2;text-align:center}
       .tab .tab-icon{font-size:16px}
@@ -176,6 +176,7 @@
       <button class="tab" data-page="lembaga"><span class="tab-icon" aria-hidden="true">◉</span><span>Lembaga</span></button>
       <button class="tab" data-page="settings"><span class="tab-icon" aria-hidden="true">⚙</span><span>Pengaturan</span></button>
       <button class="tab" data-page="gallery"><span class="tab-icon" aria-hidden="true">▧</span><span>Galeri</span></button>
+      <a class="tab" href="/pustaka"><span class="tab-icon" aria-hidden="true">▣</span><span>Pustaka</span></a>
       <div class="side-bottom"></div>
     </aside>
 

@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-10-31.4';
+const BACKEND_VERSION = '2026-10-31.7';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -42,6 +42,7 @@ const APP = {
   PROP_AI_URL: 'AI_CHAT_URL',
   PROP_AI_MODEL: 'AI_MODEL',
   PROP_MEDIA_FOLDER: 'MEDIA_FOLDER_ID',
+  PROP_PUSAKA_FOLDER: 'PUSAKA_FOLDER_ID',
   PB_ORG_ID: 'pb-pii',
   PB_ORG_NAME: 'Pengurus Besar PII'
 };
@@ -258,6 +259,17 @@ function setup() {
   laporan.push(punyaKataSandi
     ? 'Kata sandi admin yang sudah ada tetap berlaku; nilai teks polos lama otomatis berubah jadi hash pada login berikutnya.'
     : 'Kata sandi awal admin: ' + kataSandiAwal + ' — catat sekarang, nilainya tidak ditampilkan lagi. Segera ganti lewat menu PB PII > Atur akun admin.');
+
+  const drive = driveKesiapan_();
+  if (drive.media) {
+    laporan.push('Folder unggahan foto: ' + drive.media.getName() + '.');
+    laporan.push('Folder pustaka: ' + drive.pustaka.getName() +
+      ' — letakkan pustaka.json beserta berkas PDF-nya di folder itu; Tanya PII memakai korpus tersebut sebagai rujukan.');
+  } else {
+    // Biasanya izin Drive belum diberikan ke deployment; perlu persetujuan ulang.
+    laporan.push('FOLDER UNGGAHAN FOTO BELUM BISA DIBUAT — jalankan setup() sekali lagi dan setujui izin Drive: ' +
+      drive.error);
+  }
 
   const message = laporan.join('\n');
   try {
@@ -495,15 +507,36 @@ function health_() {
     masalah.push('kata sandi admin belum diatur');
   }
 
+  // Unggah foto dan pustaka berjalan di Drive. Lebih baik kelihatan di
+  // pemeriksaan koneksi daripada saat pengurus menekan tombol unggah.
+  const drive = driveKesiapan_();
+  let pustaka = { tersedia: false, berkas: 0, potong: 0 };
+  if (!drive.media) {
+    masalah.push('unggah foto perlu izin Drive: ' + drive.error.slice(0, 90));
+  } else if (!drive.pustaka) {
+    masalah.push('pustaka perlu izin Drive: ' + drive.error.slice(0, 90));
+  } else {
+    const korpus = pustakaKorpus_();
+    pustaka = {
+      tersedia: Boolean(korpus.tersedia),
+      berkas: (korpus.docs || []).length,
+      potong: (korpus.chunks || []).length
+    };
+    if (!korpus.tersedia) {
+      masalah.push('korpus pustaka belum ada: unggah pustaka.json ke folder ' + PUSAKA_FOLDER_NAME);
+    }
+  }
+
   return {
     ok: masalah.length === 0,
     service: 'PB PII CMS API',
     version: BACKEND_VERSION,
     spreadsheetId: spreadsheetId,
     sheets: sheets,
+    pustaka: pustaka,
     masalah: masalah,
     message: masalah.length
-      ? 'Jalankan setup() dari editor Apps Script.'
+      ? 'Perlu tindakan: ' + masalah.join(' · ')
       : 'Backend siap. Gunakan POST melalui proxy Vercel.'
   };
 }
@@ -546,6 +579,10 @@ function doPost(event) {
       data = chatStatus_(body);
     } else if (action === 'chatRecord') {
       data = chatRecord_(body);
+    } else if (action.indexOf('pustaka') === 0) {
+      // Akses per peran sudah diperiksa di dalam pustakaAksi_, jadi tidak perlu
+      // requireAuth_ di sini: kader boleh membaca, tamu ditolak di sana.
+      data = pustakaAksi_(action, body);
     } else if (action === 'login') {
       data = login_(body);
     } else if (action === 'logout') {
@@ -728,8 +765,9 @@ function chat_(body) {
   }
 
   let jawaban;
+  const rujukan = pustakaRujukanAI_(question, me.kind);
   try {
-    jawaban = askModel_(question, me);
+    jawaban = askModel_(question, me, rujukan);
   } catch (error) {
     logChat_(me, question, '', 'percobaan', 'gagal');
     throw error;
@@ -741,8 +779,21 @@ function chat_(body) {
     provider: jawaban.provider,
     akun: me.kind,
     batas: me.batas,
-    sisa: Math.max(0, me.batas - dipakai - 1)
+    sisa: Math.max(0, me.batas - dipakai - 1),
+    rujukan: pustakaSitasi_(rujukan)
   };
+}
+
+/** Rujukan yang dikirim ke browser: cukup nama berkas, halaman, dan cuplikan. */
+function pustakaSitasi_(rujukan) {
+  return (rujukan || []).map(function (item) {
+    return {
+      judul: item.judul,
+      kategori: item.kategori,
+      halaman: item.h,
+      cuplikan: item.cuplikan
+    };
+  });
 }
 
 function chatStatus_(body) {
@@ -847,7 +898,7 @@ function logChat_(me, question, answer, provider, status) {
  * (tanpa kunci, bawaan), Groq, OpenAI, atau endpoint kompatibel Gemini. Ganti
  * lewat Script Properties: AI_CHAT_URL, AI_MODEL, AI_API_KEY.
  */
-function askModel_(question, me) {
+function askModel_(question, me, rujukan) {
   const properties = PropertiesService.getScriptProperties();
   const key = String(properties.getProperty(APP.PROP_AI_KEY) || '').trim();
   const url = String(properties.getProperty(APP.PROP_AI_URL) || '').trim() ||
@@ -869,7 +920,7 @@ function askModel_(question, me) {
         model: model,
         temperature: 0.4,
         messages: [
-          { role: 'system', content: chatSystemPrompt_(me) },
+          { role: 'system', content: chatSystemPrompt_(me, rujukan) },
           { role: 'user', content: question }
         ]
       }),
@@ -899,13 +950,13 @@ function askModel_(question, me) {
   return { reply: reply.slice(0, 4000), provider: model };
 }
 
-function chatSystemPrompt_(me) {
+function chatSystemPrompt_(me, rujukan) {
   const settings = settingsMap_();
   const identitas = me.kind === 'org'
     ? 'Penanya login sebagai pengurus ' + me.label + '.'
     : 'Penanya login sebagai pengelola website.';
 
-  return [
+  const bagian = [
     'Kamu adalah asisten "Tanya PII" di website resmi PB PII.',
     'Organisasi ini adalah ' + (settings.siteName || 'Pengurus Besar Pelajar Islam Indonesia') +
       ' (PII), bukan istilah Personally Identifiable Information.',
@@ -921,7 +972,11 @@ function chatSystemPrompt_(me) {
     'katakan tidak tahu dan arahkan penanya mengonfirmasi lewat pengurus atau dashboard website.',
     'Hindari politik praktis dan hindari memberi fatwa; arahkan pertanyaan agama kepada ustadz',
     'atau pengurus.'
-  ].join(' ');
+  ];
+
+  const pustaka = pustakaPromptBagian_(rujukan);
+  if (pustaka) bagian.push(pustaka);
+  return bagian.join(' ');
 }
 
 function publicData_(body) {
@@ -1293,6 +1348,27 @@ function mediaFolder_() {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Kesiapan Drive untuk dua fitur sekaligus: folder foto unggahan dan folder
+ * pustaka. Dijadikan satu fungsi supaya setup() dan health() melaporkan keadaan
+ * yang sama, dan supaya kegagalan izin hanya perlu dibaca satu kali.
+ */
+function driveKesiapan_() {
+  const keluar = { media: null, pustaka: null, error: '' };
+  try {
+    keluar.media = mediaFolder_();
+  } catch (error) {
+    keluar.error = String(error && error.message || error);
+    return keluar;
+  }
+  try {
+    keluar.pustaka = pustakaFolder_();
+  } catch (error) {
+    keluar.error = String(error && error.message || error);
+  }
+  return keluar;
 }
 
 /** Jenis berkas dibaca dari tanda tangan byte, bukan dari label yang dikirim browser. */
@@ -2437,6 +2513,338 @@ function json_(value) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+/* ==================================================== pustaka organisasi
+   Kumpulan berkas kebinan PII (PPO, PKU, Ta'dib, silabus pelatihan, kodifikasi
+   muktamar dan rapimnas) dipakai dua hal: menu pencarian isi untuk pengurus dan
+   kader, serta rujukan jawaban Tanya PII. Isi teksnya disimpan sebagai satu
+   berkas korpus di Drive, sengaja bukan sebagai aset website, karena repository
+   situs ini publik dan dokumen internal organisasi tidak boleh ikut tersebar. */
+
+const PUSAKA_FOLDER_NAME = 'PB PII Pustaka';
+const PUSAKA_KORPUS_NAMA = 'pustaka.json';
+const PUSAKA_PERAN_BOBOT = { tamu: 0, kader: 1, org: 2, admin: 3 };
+const PUSAKA_BATAS_HITS = 12;
+const PUSAKA_BATAS_KONTEKS = 5;
+
+function pustakaFolder_() {
+  const properties = PropertiesService.getScriptProperties();
+  const stored = properties.getProperty(APP.PROP_PUSAKA_FOLDER);
+  if (stored) {
+    try {
+      return DriveApp.getFolderById(stored);
+    } catch (error) {
+      // Folder dihapus manual dari Drive: dicari ulang di bawah.
+    }
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const found = DriveApp.getFoldersByName(PUSAKA_FOLDER_NAME);
+    const folder = found.hasNext() ? found.next() : DriveApp.createFolder(PUSAKA_FOLDER_NAME);
+    properties.setProperty(APP.PROP_PUSAKA_FOLDER, folder.getId());
+    return folder;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function pustakaFileTerbaru_(folder, nama) {
+  const daftar = folder.getFilesByName(nama);
+  let terbaik = null;
+  let saat = 0;
+  while (daftar.hasNext()) {
+    const file = daftar.next();
+    const diperbarui = file.getLastUpdated ? file.getLastUpdated().getTime() : 0;
+    if (diperbarui >= saat) {
+      saat = diperbarui;
+      terbaik = file;
+    }
+  }
+  return terbaik;
+}
+
+/** Korpus dibaca ulang tiap permintaan: 3 MB tidak muat di CacheService (100 KB). */
+function pustakaKorpus_() {
+  const kosong = { tersedia: false, dibuat: '', docs: [], chunks: [] };
+  let file;
+  try {
+    file = pustakaFileTerbaru_(pustakaFolder_(), PUSAKA_KORPUS_NAMA);
+  } catch (error) {
+    return kosong;
+  }
+  if (!file) return kosong;
+
+  let isi;
+  try {
+    isi = JSON.parse(file.getBlob().getDataAsString('UTF-8'));
+  } catch (error) {
+    return kosong;
+  }
+  return {
+    tersedia: true,
+    dibuat: String(isi.dibuat || ''),
+    docs: Array.isArray(isi.docs) ? isi.docs : [],
+    chunks: Array.isArray(isi.chunks) ? isi.chunks : []
+  };
+}
+
+function pustakaPeran_(token) {
+  if (sessionSubject_(token, 'admin')) return 'admin';
+  if (sessionSubject_(token, 'org')) return 'org';
+  if (sessionSubject_(token, 'kader')) return 'kader';
+  return 'tamu';
+}
+
+/** Standar akses diatur PB lewat Settings; default-nya kader ikut boleh membaca. */
+function pustakaBoleh_(peran) {
+  const minimum = String(settingsMap_().pustakaMinRole || 'kader');
+  const butuh = PUSAKA_PERAN_BOBOT[minimum] === undefined ? 1 : PUSAKA_PERAN_BOBOT[minimum];
+  return (PUSAKA_PERAN_BOBOT[peran] || 0) >= butuh;
+}
+
+function pustakaAkar_(kata) {
+  const akhiran = ['nya', 'kan', 'an', 'lah', 'kah', 'pun'];
+  for (let i = 0; i < akhiran.length; i++) {
+    if (kata.length - akhiran[i].length >= 4 && kata.slice(-akhiran[i].length) === akhiran[i]) {
+      return kata.slice(0, -akhiran[i].length);
+    }
+  }
+  if (kata.length >= 5 && /i$/.test(kata)) return kata.slice(0, -1);
+  return kata;
+}
+
+function pustakaKata_(teks) {
+  return String(teks || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter(function (kata) { return kata.length >= 3; })
+    .map(pustakaAkar_);
+}
+
+function pustakaUnik_(daftar) {
+  const lihat = {};
+  return daftar.filter(function (kata) {
+    if (lihat[kata]) return false;
+    lihat[kata] = true;
+    return true;
+  });
+}
+
+/** Cuplikan sekurang-kurangnya 160 karakter di sekitar kata yang dicari. */
+function pustakaCuplikan_(teks, kata) {
+  const rendah = teks.toLowerCase();
+  let posisi = rendah.indexOf(kata);
+  if (posisi < 0) posisi = 0;
+  const mulai = Math.max(0, posisi - 90);
+  const akhir = Math.min(teks.length, mulai + 320);
+  return (mulai > 0 ? '…' : '') + teks.slice(mulai, akhir).replace(/\s+/g, ' ').trim() + (akhir < teks.length ? '…' : '');
+}
+
+/**
+ * Skor pakai rumus BM25 ringkas. Kandidatnya disaring lebih dulu dengan
+ * pencocokan teks mentah supaya pemindaian tetap ringan walau korpus puluhan
+ * ribu kata.
+ */
+function pustakaCocok_(korpus, kueri, batas, denganIsi) {
+  const term = pustakaUnik_(pustakaKata_(kueri));
+  if (!term.length || !korpus.chunks.length) return [];
+
+  const frasa = String(kueri).toLowerCase().replace(/\s+/g, ' ').trim();
+  const total = korpus.chunks.length;
+  const df = {};
+  let jumlahKata = 0;
+  const kandidat = [];
+
+  korpus.chunks.forEach(function (potong, index) {
+    const rendah = String(potong.t).toLowerCase();
+    const cocok = term.filter(function (kata) { return rendah.indexOf(kata) >= 0; });
+    if (!cocok.length) return;
+    cocok.forEach(function (kata) { df[kata] = (df[kata] || 0) + 1; });
+    const kata = pustakaKata_(potong.t);
+    jumlahKata += kata.length;
+    kandidat.push({ index: index, cocok: cocok, kata: kata });
+  });
+  if (!kandidat.length) return [];
+
+  const rata = Math.max(1, jumlahKata / kandidat.length);
+  const judul = {};
+  (korpus.docs || []).forEach(function (doc) {
+    judul[doc.id] = doc;
+    pustakaKata_(doc.judul + ' ' + (doc.kategori || '')).forEach(function (kata) {
+      if (term.indexOf(kata) >= 0) df[kata] = (df[kata] || 0) + 3;
+    });
+  });
+
+  const hasil = [];
+  kandidat.forEach(function (calon) {
+    const potong = korpus.chunks[calon.index];
+    let skor = 0;
+    const k1 = 1.2;
+    const b = 0.7;
+    calon.cocok.forEach(function (kata) {
+      let tf = 0;
+      for (let i = 0; i < calon.kata.length; i++) if (calon.kata[i] === kata) tf++;
+      const idf = Math.log(1 + (total - (df[kata] || 1) + 0.5) / ((df[kata] || 1) + 0.5));
+      skor += idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (calon.kata.length / rata))));
+    });
+    if (frasa.length > 8 && String(potong.t).toLowerCase().indexOf(frasa) >= 0) skor *= 1.6;
+    const doc = judul[potong.d] || {};
+    if (doc.kategori && pustakaKata_(kueri).indexOf(pustakaAkar_(String(doc.kategori).toLowerCase())) >= 0) skor += 1;
+    hasil.push({
+      d: potong.d,
+      h: potong.h,
+      skor: Math.round(skor * 100) / 100,
+      judul: cleanText_(doc.judul) || potong.d,
+      kategori: cleanText_(doc.kategori) || 'Umum',
+      cuplikan: pustakaCuplikan_(potong.t, calon.cocok[0])
+    });
+    if (denganIsi) hasil[hasil.length - 1].isi = String(potong.t).slice(0, 1400);
+  });
+
+  hasil.sort(function (a, b) { return b.skor - a.skor; });
+  return hasil.slice(0, Math.min(PUSAKA_BATAS_HITS, Math.max(1, Number(batas) || 8)));
+}
+
+function pustakaDaftar_(peran) {
+  const korpus = pustakaKorpus_();
+  const folder = korpus.tersedia ? pustakaFolder_() : null;
+  const docs = (korpus.docs || []).map(function (doc) {
+    const keluar = {
+      id: doc.id,
+      judul: cleanText_(doc.judul),
+      kategori: cleanText_(doc.kategori) || 'Umum',
+      ringkas: cleanText_(doc.ringkas),
+      halaman: Number(doc.halaman) || 0,
+      potong: Number(doc.potong) || 0,
+      byte: Number(doc.byte) || 0
+    };
+    if (folder && doc.berkas) {
+      const file = pustakaFileTerbaru_(folder, String(doc.berkas));
+      if (file) {
+        keluar.tautan = 'https://drive.google.com/file/d/' + file.getId() + '/view';
+      }
+    }
+    return keluar;
+  });
+
+  const kategori = {};
+  docs.forEach(function (doc) { kategori[doc.kategori] = (kategori[doc.kategori] || 0) + 1; });
+
+  return {
+    tersedia: korpus.tersedia,
+    dibuat: korpus.dibuat,
+    peran: peran,
+    docs: docs,
+    kategori: Object.keys(kategori).sort().map(function (nama) {
+      return { nama: nama, jumlah: kategori[nama] };
+    }),
+    jumlahPotong: (korpus.chunks || []).length
+  };
+}
+
+function pustakaAksi_(action, body) {
+  const peran = pustakaPeran_(body && body.token);
+  if (!pustakaBoleh_(peran)) {
+    throw new Error('Pustaka organisasi khusus akun. Silakan masuk lebih dulu.');
+  }
+
+  const ip = clientIp_(body);
+  if (action === 'pustakaList') return pustakaDaftar_(peran);
+
+  const korpus = pustakaKorpus_();
+  if (!korpus.tersedia) {
+    throw new Error('Pustaka organisasi belum tersedia.');
+  }
+
+  if (action === 'pustakaCari') {
+    throttle_('pustaka-cari', ip);
+    const kueri = cleanText_(body.q).slice(0, 160);
+    if (kueri.length < 3) return { kueri: kueri, hasil: [] };
+    const saring = String(body.doc || '');
+    const hasil = pustakaCocok_(
+      saring ? { docs: korpus.docs, chunks: korpus.chunks.filter(function (p) { return p.d === saring; }) } : korpus,
+      kueri,
+      Number(body.limit) || 8
+    );
+    return { kueri: kueri, hasil: hasil };
+  }
+
+  if (action === 'pustakaBaca') {
+    throttle_('pustaka-baca', ip);
+    const id = String(body.doc || '').slice(0, 60);
+    const doc = (korpus.docs || []).filter(function (item) { return item.id === id; })[0];
+    if (!doc) throw new Error('Berkas tidak ditemukan.');
+    const mulai = Math.max(0, Number(body.mulai) || 0);
+    const jumlah = Math.min(40, Math.max(1, Number(body.jumlah) || 12));
+    const potong = korpus.chunks
+      .filter(function (item) { return item.d === id; })
+      .slice(mulai, mulai + jumlah)
+      .map(function (item) { return { h: item.h, t: item.t }; });
+    return {
+      doc: { id: doc.id, judul: cleanText_(doc.judul), kategori: cleanText_(doc.kategori), halaman: Number(doc.halaman) || 0 },
+      mulai: mulai,
+      jumlah: potong.length,
+      sisa: Math.max(0, (Number(doc.potong) || 0) - (mulai + potong.length)),
+      potong: potong
+    };
+  }
+
+  if (action === 'pustakaKonteks') {
+    // Dipakai penjawab Tanya PII di sisi server (api/chat.js), jadi potongan
+    // teks penuh ikut dikirim — permintaannya sendiri sudah ditolak untuk tamu.
+    const kueri = cleanText_(body.q).slice(0, 200);
+    const hasil = kueri.length < 4 ? [] : pustakaCocok_(korpus, kueri, PUSAKA_BATAS_KONTEKS, true);
+    return { hasil: hasil };
+  }
+
+  if (action === 'pustakaStatus') {
+    if (peran !== 'admin') throw new Error('Hanya admin PB PII yang boleh membuka status pustaka.');
+    const ringkas = {};
+    (korpus.docs || []).forEach(function (doc) {
+      ringkas[doc.kategori] = (ringkas[doc.kategori] || 0) + 1;
+    });
+    return { tersedia: true, berkas: (korpus.docs || []).length, potong: (korpus.chunks || []).length, dibuat: korpus.dibuat, kategori: ringkas };
+  }
+
+  throw new Error('Aksi pustaka tidak dikenal.');
+}
+
+/**
+ * Potongan korpus untuk penjawab Tanya PII. Tamu tidak membawa rujukan berkas
+ * internal, sesuai standar akses di Settings, jadi jawabannya tetap memakai
+ * informasi umum organisasi.
+ */
+function pustakaRujukanAI_(kueri, peran) {
+  try {
+    if (!pustakaBoleh_(peran)) return [];
+    const korpus = pustakaKorpus_();
+    if (!korpus.tersedia) return [];
+    return pustakaCocok_(korpus, kueri, PUSAKA_BATAS_KONTEKS, true);
+  } catch (error) {
+    return [];
+  }
+}
+
+/** Bahan prompt dari rujukan: teks penuh potongan + nama berkas + nomor halaman. */
+function pustakaPromptBagian_(rujukan) {
+  if (!rujukan || !rujukan.length) return '';
+  const kutipan = rujukan.map(function (item, nomor) {
+    return '[' + (nomor + 1) + '] ' + item.judul + ' (halaman ' +
+      (item.h[0] === item.h[1] ? item.h[0] : item.h[0] + '-' + item.h[1]) + '): ' + item.isi;
+  }).join('\n');
+  return [
+    'BERKAS ORGANISASI PII YANG RELEVAN DENGAN PERTANYAAN INI:',
+    kutipan,
+    'Jawab terutama dari kutipan di atas. Sebut nama berkas dan nomor halaman yang dipakai.',
+    'Bila kutipan tidak cukup menjawab, katakan bagian mana yang tidak ada di berkas',
+    'alih-alih mengarang. Jangan menyebut berkas yang tidak dikutip.'
+  ].join(' ');
+}
+
 /* ==================================================== keamanan & akun kader
    Pembatas laju, captcha, login Google untuk kader, serta suka dan komentar
    pada acara. Semua halaman publik memakai aksi di bawah ini tanpa token
@@ -2458,6 +2866,8 @@ const RATE_RULES = {
   'event-comment': { limit: 4, window: 180 },
   'event-comment-ip': { limit: 20, window: 600 },
   'org-upload': { limit: 10, window: 600 },
+  'pustaka-cari': { limit: 40, window: 60 },
+  'pustaka-baca': { limit: 40, window: 60 },
   'chat': { limit: 6, window: 60 }
 };
 

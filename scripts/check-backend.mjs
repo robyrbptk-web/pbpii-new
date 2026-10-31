@@ -28,6 +28,8 @@ for (const [label, url] of targets) {
       signal: AbortSignal.timeout(25000),
     });
     body = await response.json();
+  // /api/pii membungkus balasan Apps Script di dalam "data".
+  if (body && body.data && body.version === undefined) body = body.data;
   } catch (error) {
     const sebab = /Failed to fetch|ECONNREFUSED/i.test(error.message)
       ? 'server lokal belum jalan? npm run dev:site'

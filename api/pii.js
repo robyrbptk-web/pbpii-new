@@ -19,7 +19,8 @@ const RULES = {
 };
 
 const READ_ACTIONS = new Set([
-  'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus'
+  'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
+  'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus'
 ]);
 
 const WRITE_ACTIONS = new Set([

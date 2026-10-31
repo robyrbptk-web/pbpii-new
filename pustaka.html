@@ -1,0 +1,1505 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Pustaka Organisasi PB PII — berkas kebinan Pelajar Islam Indonesia (Ta'dib, silabus LBT/LAT/Mentra, PPO, PKU, kodifikasi Muktamar dan Rapimnas) yang bisa dicari langsung dari isi teksnya.">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pustaka PII">
+  <title>Pustaka Organisasi — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ---------- Pustaka Organisasi: halaman khusus akun ---------- */
+
+    .pustaka-page {
+      background:
+        radial-gradient(circle at 10% 0%, #f2f8fd, transparent 40%),
+        radial-gradient(circle at 92% 6%, #eef7f1, transparent 34%),
+        #fbfdfe;
+    }
+
+    .pustaka-stage {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 22px max(4vw, 16px) 60px;
+    }
+
+    /* --- ajakan masuk untuk pengunjung tanpa akun --- */
+    .pustaka-gate {
+      display: grid;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 30px 26px 26px;
+      background: #fff;
+      box-shadow: 0 18px 46px rgb(16 43 73 / 10%);
+      text-align: center;
+      animation: shell-enter .32s ease both;
+    }
+
+    .pustaka-gate img {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 6px;
+      border-radius: 16px;
+      padding: 8px;
+      background: var(--soft);
+      object-fit: contain;
+    }
+
+    .pustaka-gate h1 {
+      margin: 2px 0 0;
+      color: var(--navy);
+      font-size: clamp(1.5rem, 4.4vw, 2.1rem);
+    }
+
+    .pustaka-gate > p {
+      margin: 0 auto;
+      max-width: 52ch;
+      color: var(--muted);
+      font-size: .95rem;
+    }
+
+    .pustaka-gate-kunci {
+      margin-top: 10px !important;
+      color: var(--navy) !important;
+      font-weight: 700;
+    }
+
+    .pustaka-gate-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    /* --- judul + alat cari --- */
+    .pustaka-head {
+      display: grid;
+      gap: 4px;
+      margin: 6px 0 14px;
+    }
+
+    .pustaka-head h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.5rem, 4.4vw, 2.15rem);
+    }
+
+    .pustaka-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    .pustaka-tools {
+      position: sticky;
+      z-index: 8;
+      top: 0;
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px;
+      background: rgb(255 255 255 / 92%);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 10px 26px rgb(16 43 73 / 8%);
+    }
+
+    .pustaka-row {
+      display: flex;
+      gap: 9px;
+      align-items: stretch;
+    }
+
+    .pustaka-field {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 9px 12px;
+      background: #fff;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .pustaka-field:focus-within {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgb(23 109 168 / 13%);
+    }
+
+    .pustaka-field svg {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: #6d7d90;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+    }
+
+    .pustaka-field input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      background: none;
+      color: var(--ink);
+      font: inherit;
+      font-size: .93rem;
+      outline: none;
+    }
+
+    .pustaka-clear {
+      flex: 0 0 auto;
+      display: grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: var(--soft);
+      color: #5c6d80;
+      font: inherit;
+      font-size: .95rem;
+      cursor: pointer;
+      transition: background-color .16s ease, transform .16s ease;
+    }
+
+    .pustaka-clear:hover {
+      background: #e8eff6;
+    }
+
+    .pustaka-clear:active {
+      transform: scale(.92);
+    }
+
+    .pustaka-scope {
+      flex: 0 0 auto;
+      max-width: 46%;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 0 10px;
+      background: #fff;
+      color: #405168;
+      font: inherit;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .pustaka-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .pustaka-chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: #fff;
+      color: #46586e;
+      font: inherit;
+      font-size: .79rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease;
+    }
+
+    .pustaka-chip:hover {
+      border-color: #b7d2e7;
+      background: #f2f8fc;
+    }
+
+    .pustaka-chip:active {
+      transform: scale(.97);
+    }
+
+    .pustaka-chip.is-active {
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--navy), var(--blue));
+      color: #fff;
+    }
+
+    .pustaka-status {
+      margin: 0;
+      color: var(--muted);
+      font-size: .79rem;
+      line-height: 1.5;
+    }
+
+    /* --- kartu berkas & kartu hasil --- */
+    .pustaka-section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 22px 0 10px;
+      color: var(--navy);
+      font-size: 1.02rem;
+      font-weight: 800;
+      letter-spacing: -.01em;
+    }
+
+    .pustaka-list {
+      display: grid;
+      gap: 11px;
+    }
+
+    .pustaka-card {
+      display: grid;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 15px;
+      background: #fff;
+      box-shadow: 0 6px 18px rgb(16 43 73 / 5%);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+      animation: shell-enter .22s ease both;
+    }
+
+    .pustaka-card:hover {
+      border-color: #c3d8e9;
+      box-shadow: 0 12px 28px rgb(16 43 73 / 10%);
+      transform: translateY(-2px);
+    }
+
+    .pustaka-card-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .pustaka-title {
+      flex: 1 1 100%;
+      min-width: 0;
+      border: 0;
+      padding: 0;
+      background: none;
+      color: var(--navy);
+      font: inherit;
+      font-size: .98rem;
+      font-weight: 800;
+      letter-spacing: -.015em;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .pustaka-title:hover {
+      color: var(--blue);
+    }
+
+    .pustaka-badge {
+      border-radius: 999px;
+      padding: 3px 10px;
+      background: var(--sky);
+      color: #14567f;
+      font-size: .69rem;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    .pustaka-page-no {
+      border-radius: 999px;
+      padding: 3px 10px;
+      background: #f1f6fb;
+      color: #4c617a;
+      font-size: .7rem;
+      font-weight: 700;
+    }
+
+    .pustaka-ringkas {
+      margin: 0;
+      color: #4b5c71;
+      font-size: .87rem;
+    }
+
+    .pustaka-cuplikan {
+      margin: 0;
+      border-left: 3px solid #d8e6f2;
+      padding-left: 11px;
+      color: #3f5169;
+      font-size: .88rem;
+      line-height: 1.6;
+    }
+
+    .pustaka-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: .75rem;
+    }
+
+    .pustaka-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pustaka-open {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 14px;
+      background: linear-gradient(135deg, var(--navy), var(--blue));
+      color: #fff;
+      font: inherit;
+      font-size: .81rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+    }
+
+    .pustaka-open:hover {
+      box-shadow: 0 10px 20px rgb(16 43 73 / 20%);
+      transform: translateY(-1px);
+    }
+
+    .pustaka-open:active {
+      transform: scale(.97);
+    }
+
+    .pustaka-open:disabled {
+      opacity: .55;
+      cursor: progress;
+    }
+
+    .pustaka-pdf {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      border: 1px solid #bcd2e6;
+      border-radius: 10px;
+      padding: 8px 13px;
+      color: var(--blue);
+      font-size: .81rem;
+      font-weight: 800;
+      transition: background-color .16s ease, border-color .16s ease;
+    }
+
+    .pustaka-pdf:hover {
+      border-color: var(--blue);
+      background: var(--sky);
+    }
+
+    .pustaka-note {
+      border: 1px dashed #cfdae6;
+      border-radius: 16px;
+      padding: 22px 18px;
+      background: #fff;
+      color: var(--muted);
+      font-size: .9rem;
+      text-align: center;
+    }
+
+    .pustaka-note b {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--navy);
+      font-size: .98rem;
+    }
+
+    .pustaka-error {
+      border-color: #f0c9c4;
+      background: #fdf0ee;
+      color: #8a2a20;
+      text-align: left;
+    }
+
+    /* --- pembaca isi berkas --- */
+    body.pustaka-membaca {
+      /* Saat pembaca terbuka, halaman di belakangnya tidak ikut bergulir. */
+      overflow: hidden;
+    }
+
+    .pustaka-reader {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      display: flex;
+      flex-direction: column;
+      visibility: hidden;
+      transform: translateY(100%);
+      transition: transform .24s cubic-bezier(.22, .61, .36, 1), visibility .24s;
+    }
+
+    .pustaka-reader.is-open {
+      visibility: visible;
+      transform: none;
+    }
+
+    .pustaka-reader-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: calc(env(safe-area-inset-top) + 8px) 12px 10px;
+      background: linear-gradient(120deg, var(--navy), #12456f);
+      color: #fff;
+    }
+
+    .pustaka-back {
+      display: grid;
+      flex: 0 0 auto;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid rgb(255 255 255 / 24%);
+      border-radius: 50%;
+      background: rgb(255 255 255 / 10%);
+      color: #fff;
+      font: inherit;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: transform .16s ease, background-color .16s ease;
+    }
+
+    .pustaka-back:hover {
+      background: rgb(255 255 255 / 18%);
+    }
+
+    .pustaka-back:active {
+      transform: scale(.94);
+    }
+
+    .pustaka-reader-title {
+      flex: 1;
+      min-width: 0;
+      display: grid;
+    }
+
+    .pustaka-reader-title b {
+      overflow: hidden;
+      font-size: .98rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pustaka-reader-title small {
+      overflow: hidden;
+      color: #b9dcf6;
+      font-size: .72rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pustaka-reader-pdf {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      border: 1px solid rgb(255 255 255 / 26%);
+      border-radius: 10px;
+      padding: 7px 12px;
+      color: #fff;
+      font-size: .78rem;
+      font-weight: 800;
+      transition: background-color .16s ease;
+    }
+
+    .pustaka-reader-pdf:hover {
+      background: rgb(255 255 255 / 14%);
+    }
+
+    .pustaka-reader-body {
+      flex: 1 1 auto;
+      padding: 18px clamp(16px, 5vw, 40px) 26px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      background: #fdfefe;
+    }
+
+    .pustaka-halaman {
+      margin: 18px 0 6px;
+      color: var(--blue);
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .pustaka-halaman:first-child {
+      margin-top: 0;
+    }
+
+    .pustaka-text {
+      margin: 0 0 14px;
+      color: #22364b;
+      font-size: 1.02rem;
+      line-height: 1.78;
+      max-width: 74ch;
+    }
+
+    .pustaka-reader-foot {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+      padding: 9px clamp(12px, 4vw, 26px) calc(env(safe-area-inset-bottom) + 9px);
+      background: #fff;
+    }
+
+    .pustaka-reader-foot span {
+      color: var(--muted);
+      font-size: .76rem;
+    }
+
+    .pustaka-more {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      border: 1px solid #bcd2e6;
+      border-radius: 11px;
+      padding: 9px 15px;
+      background: #fff;
+      color: var(--blue);
+      font: inherit;
+      font-size: .84rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .16s ease, background-color .16s ease;
+    }
+
+    .pustaka-more:hover {
+      background: var(--sky);
+    }
+
+    .pustaka-more:active {
+      transform: scale(.97);
+    }
+
+    .pustaka-more:disabled {
+      opacity: .55;
+      cursor: progress;
+    }
+
+    .pustaka-skeleton {
+      display: grid;
+      gap: 11px;
+    }
+
+    .pustaka-skeleton i {
+      display: block;
+      height: 68px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(100deg, #f4f8fb 30%, #eaf2f9 50%, #f4f8fb 70%);
+      background-size: 220% 100%;
+      animation: pustaka-sapuan 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pustaka-sapuan {
+      from { background-position: 180% 0; }
+      to { background-position: -60% 0; }
+    }
+
+    @keyframes shell-enter {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 680px) {
+      .pustaka-stage {
+        padding: 14px 12px 40px;
+      }
+
+      .pustaka-tools {
+        position: sticky;
+        top: 6px;
+        border-radius: 16px;
+      }
+
+      /* iOS berhenti memperbesar halaman saat kolom diisi bila teksnya 16px. */
+      .pustaka-field input,
+      .pustaka-scope {
+        font-size: 16px;
+      }
+
+      .pustaka-row {
+        flex-wrap: wrap;
+      }
+
+      .pustaka-scope {
+        max-width: none;
+        flex: 1 1 100%;
+      }
+
+      .pustaka-card {
+        padding: 13px 12px;
+      }
+
+      .pustaka-open,
+      .pustaka-pdf,
+      .pustaka-more {
+        min-height: 44px;
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+
+      .pustaka-text {
+        font-size: 1.06rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pustaka-gate,
+      .pustaka-card {
+        animation: none;
+      }
+
+      .pustaka-reader {
+        transition: none;
+      }
+
+      .pustaka-skeleton i {
+        animation: none;
+      }
+
+      .pustaka-card:hover,
+      .pustaka-open:hover,
+      .pustaka-back:active,
+      .pustaka-chip:active,
+      .pustaka-more:active,
+      .pustaka-clear:active {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body class="pustaka-page">
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="/assets/logo-pii.png" alt="Logo Pelajar Islam Indonesia" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <span><b>PB PII</b><small>Pustaka Organisasi</small></span>
+    </a>
+    <nav id="nav" aria-label="Navigasi utama">
+      <a href="index.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.5h5V20"/></svg><span>Beranda</span></a>
+      <a href="acara.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/></svg><span>Acara</span></a>
+      <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
+      <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya</span></a>
+      <a class="nav-extra" href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka</span></a>
+      <a href="peta.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a class="nav-extra" href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
+      <a class="nav-extra" href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
+      <a class="nav-extra" href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
+      <button class="nav-more" id="navMore" type="button" aria-expanded="false" aria-controls="navMoreSheet"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.1"/><circle cx="12" cy="7" r="2.1"/><circle cx="18" cy="7" r="2.1"/><circle cx="6" cy="17" r="2.1"/><circle cx="12" cy="17" r="2.1"/><circle cx="18" cy="17" r="2.1"/></svg><span>Lainnya</span></button>
+    </nav>
+    <div class="account-slot" data-account aria-label="Akun kader PII"></div>
+    <button class="install-app" id="installApp" type="button" hidden>Instal aplikasi</button>
+  </header>
+
+  <div class="nav-sheet" id="navMoreSheet" aria-hidden="true">
+    <button class="nav-sheet-backdrop" type="button" tabindex="-1" aria-label="Tutup menu"></button>
+    <div class="nav-sheet-panel">
+      <p class="nav-sheet-title">Menu lengkap PB PII</p>
+      <div class="nav-sheet-grid">
+        <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya PII</span></a>
+        <a href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka organisasi</span></a>
+        <a href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri kegiatan</span></a>
+        <a href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang PII</span></a>
+        <a href="index.html#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Sambutan Ketua Umum</span></a>
+        <a href="index.html#data"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M10 19V4M15 19v-7M20 19v-11"/></svg><span>Data terbuka</span></a>
+        <a href="lembaga.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 20V6.5h9V20M13.5 20V10H20v10M7 9.5h1.5M7 13h1.5M7 16.5h1.5M16 13h1.5M16 16.5h1.5"/></svg><span>Akun lembaga</span></a>
+        <a href="daftar.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M12 8.5v7M8.5 12h7"/></svg><span>Daftar lembaga</span></a>
+        <a href="login.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>Admin PB PII</span></a>
+      </div>
+    </div>
+  </div>
+
+  <main class="pustaka-stage">
+    <!-- Pengunjung tanpa akun tidak diberi pesan kesalahan: yang muncul ajakan masuk. -->
+    <section class="pustaka-gate" id="pustakaGate" hidden>
+      <img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <p class="eyebrow">PUSTAKA ORGANISASI</p>
+      <h1>Berkas kebinan PII, dicari langsung dari isinya</h1>
+      <p>Ta&rsquo;dib, silabus LBT / LAT / Mentra, PPO, PKU, serta kodifikasi hasil Muktamar dan Rapimnas tersedia di satu tempat.</p>
+      <p class="pustaka-gate-kunci">Bagian ini dibuka untuk akun PII. Silakan masuk lebih dulu untuk membaca dan mencari isinya.</p>
+      <div class="pustaka-gate-actions">
+        <button class="pustaka-open" id="gateMasuk" type="button">Masuk sebagai kader</button>
+        <a class="pustaka-pdf" id="gateLogin" href="login.html">Masuk lewat halaman PB PII</a>
+      </div>
+    </section>
+
+    <div id="pustakaApp" hidden>
+      <div class="pustaka-head">
+        <p class="eyebrow">PUSTAKA ORGANISASI</p>
+        <h1>Berkas kebinan PII</h1>
+        <p>Cari kata atau frasa di seluruh isi berkas, lalu baca bagiannya langsung di sini.</p>
+      </div>
+
+      <div class="pustaka-tools">
+        <form class="pustaka-row" id="pustakaForm" autocomplete="off">
+          <label class="pustaka-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.4 4.4"/></svg>
+            <input id="pustakaQuery" type="search" name="q" maxlength="160"
+              placeholder="Cari isi berkas, mis. turba atau LBT"
+              enterkeyhint="search" aria-label="Cari isi berkas pustaka organisasi">
+          </label>
+          <button class="pustaka-clear" id="pustakaClear" type="button" aria-label="Bersihkan kata kunci" hidden>×</button>
+          <select class="pustaka-scope" id="pustakaScope" aria-label="Batas berkas yang dicari">
+            <option value="">Cari di semua berkas</option>
+          </select>
+        </form>
+        <div class="pustaka-chips" id="pustakaChips" role="group" aria-label="Saring menurut kategori"></div>
+        <p class="pustaka-status" id="pustakaStatus" role="status" aria-live="polite">Memuat pustaka…</p>
+      </div>
+
+      <p class="pustaka-note" id="pustakaKosong" hidden></p>
+
+      <section id="pustakaHasilBagian" hidden>
+        <h2 class="pustaka-section-title"><span>Hasil pencarian</span></h2>
+        <div class="pustaka-list" id="pustakaHasil"></div>
+      </section>
+
+      <section id="pustakaBerkasBagian">
+        <h2 class="pustaka-section-title"><span>Berkas dalam pustaka</span><small class="pustaka-status" id="pustakaBerkasHint"></small></h2>
+        <div class="pustaka-list" id="pustakaBerkas"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Pembaca isi berkas: layar penuh seperti ruang baca aplikasi, ada tombol kembali. -->
+  <div class="pustaka-reader" id="pustakaReader" role="dialog" aria-modal="true" aria-label="Pembaca isi berkas pustaka" aria-hidden="true">
+    <header class="pustaka-reader-bar">
+      <button class="pustaka-back" id="pustakaReaderClose" type="button" aria-label="Kembali ke daftar pustaka">←</button>
+      <div class="pustaka-reader-title">
+        <b id="pustakaReaderJudul">—</b>
+        <small id="pustakaReaderMeta">Memilih berkas</small>
+      </div>
+      <a class="pustaka-reader-pdf" id="pustakaReaderPdf" href="#" target="_blank" rel="noopener" hidden>PDF asli ↗</a>
+    </header>
+    <div class="pustaka-reader-body" id="pustakaReaderBody"></div>
+    <footer class="pustaka-reader-foot">
+      <span id="pustakaReaderInfo">Siap membaca.</span>
+      <button class="pustaka-more" id="pustakaReaderMore" type="button">Muat bagian berikutnya</button>
+    </footer>
+  </div>
+
+  <footer>
+    <a class="brand footer-brand" href="./">
+      <img src="/assets/logo-pii.png" alt="Logo PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <span><b>PB PII</b><small>Pelajar Islam Indonesia</small></span>
+    </a>
+    <p>Pengurus Besar Pelajar Islam Indonesia</p>
+    <nav class="footer-auth" aria-label="Masuk pengelola">
+      <a href="pustaka.html" class="admin-link" data-requires="kader">Pustaka</a>
+      <a href="lembaga.html" class="admin-link" data-requires="pengurus">Lembaga</a>
+      <a href="login.html" class="admin-link" data-requires="pengurus">Admin</a>
+    </nav>
+    <small>© <span id="year"></span> Pengurus Besar — Pelajar Islam Indonesia</small>
+    <small class="footer-credit">Dibuat oleh Badan Khusus Inovasi Digital PB PII</small>
+  </footer>
+
+  <script src="akun.js" defer></script>
+  <script>
+    /**
+     * Pustaka Organisasi — sisi depan berkas kebinan PII.
+     *
+     * Semua isi datang dari Apps Script melalui /api/pii (aksi pustakaList,
+     * pustakaCari, pustakaBaca) dan dibungkus { ok, data }. Teks dari server
+     * selalu dimasukkan lewat textContent, jadi tidak ada markup yang bisa
+     * diselipkan lewat judul, ringkas, maupun cuplikan.
+     */
+    (() => {
+      'use strict';
+
+      const ENDPOINT = window.PBPII_CONFIG?.apiEndpoint || '/api/pii';
+      const DEBUR = 400;
+      const BATAS_HASIL = 12;
+      const MUAT_BERKAS = 10;
+      const POTONG_PER_MUAT = 12;
+      const POTONG_LOMPAT = 40;
+      const ADMIN_TOKEN_KEY = 'pbpii_admin_token';
+      const ORG_TOKEN_KEY = 'pbpii_org_token';
+
+      const el = (id) => document.getElementById(id);
+      const gate = el('pustakaGate');
+      const app = el('pustakaApp');
+      const form = el('pustakaForm');
+      const input = el('pustakaQuery');
+      const tombolHapus = el('pustakaClear');
+      const selectScope = el('pustakaScope');
+      const chips = el('pustakaChips');
+      const status = el('pustakaStatus');
+      const pesanKosong = el('pustakaKosong');
+      const bagianHasil = el('pustakaHasilBagian');
+      const daftarHasil = el('pustakaHasil');
+      const bagianBerkas = el('pustakaBerkasBagian');
+      const daftarBerkas = el('pustakaBerkas');
+      const petunjukBerkas = el('pustakaBerkasHint');
+      const pembaca = el('pustakaReader');
+      const pembacaJudul = el('pustakaReaderJudul');
+      const pembacaMeta = el('pustakaReaderMeta');
+      const pembacaBody = el('pustakaReaderBody');
+      const pembacaInfo = el('pustakaReaderInfo');
+      const pembacaMore = el('pustakaReaderMore');
+      const pembacaPdf = el('pustakaReaderPdf');
+
+      /** Sesi mengikuti pola situs: kader dari akun.js, pengurus dari sesi login. */
+      const sessionToken = () => window.PBPIIAkun?.sessionToken?.()
+        || sessionStorage.getItem(ADMIN_TOKEN_KEY)
+        || sessionStorage.getItem(ORG_TOKEN_KEY)
+        || '';
+
+      const state = {
+        dimuat: false,
+        sedangMuat: false,
+        tersedia: true,
+        docs: [],
+        kategori: [],
+        jumlahPotong: 0,
+        kategoriAktif: '',
+        scope: '',
+        kueri: '',
+        hasil: [],
+        jeda: null,
+        baca: null
+      };
+
+      function tautanAman(nilai) {
+        const teks = String(nilai || '').trim();
+        return /^https:\/\/\S+$/i.test(teks) ? teks : '';
+      }
+
+      function tanggalSingkat(iso) {
+        const waktu = Date.parse(String(iso || ''));
+        if (Number.isNaN(waktu)) return '';
+        try {
+          return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(waktu));
+        } catch {
+          return '';
+        }
+      }
+
+      /** Nomor halaman dari server selalu berupa rentang [awal, akhir]. */
+      function labelHalaman(h) {
+        const daftar = Array.isArray(h) ? h.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0) : [];
+        if (!daftar.length) return '';
+        const awal = daftar[0];
+        const akhir = daftar[daftar.length - 1];
+        return akhir > awal ? `${awal}–${akhir}` : `${awal}`;
+      }
+
+      async function api(payload) {
+        const response = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, token: sessionToken() })
+        });
+        const result = await response.json().catch(() => null);
+        if (!result || !result.ok) {
+          const error = new Error(result?.error || 'Pustaka belum dapat dihubungi.');
+          error.code = String(result?.code || '');
+          error.retryAfter = Number(result?.retryAfter) || 0;
+          throw error;
+        }
+        return result.data;
+      }
+
+      /** Penolakan tamu dan sesi berakhir bukan kegagalan sistem: bawa ke ajakan masuk. */
+      function butuhLogin(pesan) {
+        return /khusus akun|login kembali|token tidak valid|sesi berakhir/i.test(String(pesan || ''));
+      }
+
+      /** Pesan server hanya ditampilkan bila memang bahasa pengurus; pesan teknis
+         (URL layanan, format balasan, nama fungsi) diganti keterangan singkat. */
+      function pesanPengurus(pesan) {
+        const teks = String(pesan || '').trim();
+        if (!teks || teks.length > 180) return 'Belum dapat dimuat. Silakan coba lagi sebentar.';
+        if (/apps script|deployment|url|json|drive|sheet|token|function|http|error:/i.test(teks)) {
+          return 'Layanan pustaka sedang terganggu. Silakan coba lagi sebentar, atau hubungi pengurus PB PII.';
+        }
+        return teks;
+      }
+
+      function tampilkanGate(pesan) {
+        state.dimuat = false;
+        app.hidden = true;
+        gate.hidden = false;
+        const lama = gate.querySelector('.pustaka-gate-kunci');
+        if (lama) lama.textContent = pesan || 'Bagian ini dibuka untuk akun PII. Silakan masuk lebih dulu untuk membaca dan mencari isinya.';
+        tutupPembaca();
+        document.body.classList.toggle('ada-sesi', Boolean(sessionToken()));
+      }
+
+      function tampilkanApp() {
+        gate.hidden = true;
+        app.hidden = false;
+        document.body.classList.toggle('ada-sesi', true);
+        if (!state.dimuat && !state.sedangMuat) muatDaftar();
+      }
+
+      /** Server menolak: tamu diberi ajakan masuk, sesi lama diminta masuk ulang. */
+      function suruhMasuk() {
+        tampilkanGate(sessionToken()
+          ? 'Sesi Anda sudah berakhir. Silakan masuk kembali untuk membuka pustaka.'
+          : 'Bagian ini dibuka untuk akun PII. Silakan masuk lebih dulu untuk membaca dan mencari isinya.');
+      }
+
+      function jelaskan(pesan, galat) {
+        status.textContent = pesan || '';
+        status.classList.toggle('pustaka-error', Boolean(galat));
+      }
+
+      /** Baris singkat di bawah kolom cari: isi pustaka yang sedang tersedia. */
+      function ringkasan() {
+        return `${state.docs.length} berkas · ${state.jumlahPotong} bagian teks — tulis minimal tiga huruf untuk mencari isi berkas.`;
+      }
+
+      function catatanTersedia(pesan) {
+        pesanKosong.classList.remove('pustaka-error');
+        pesanKosong.textContent = pesan;
+        pesanKosong.hidden = false;
+        bagianHasil.hidden = true;
+        bagianBerkas.hidden = true;
+        form.hidden = true;
+        chips.hidden = true;
+      }
+
+      // ------------------------------------------------------------------ daftar
+
+      async function muatDaftar() {
+        if (state.sedangMuat) return;
+        state.sedangMuat = true;
+        jelaskan('Memuat pustaka…');
+        try {
+          const data = await api({ action: 'pustakaList' });
+          state.docs = Array.isArray(data?.docs) ? data.docs : [];
+          state.kategori = Array.isArray(data?.kategori) ? data.kategori : [];
+          state.jumlahPotong = Number(data?.jumlahPotong) || 0;
+          state.tersedia = data?.tersedia !== false;
+          state.dimuat = true;
+          pesanKosong.hidden = true;
+          form.hidden = false;
+          chips.hidden = false;
+          bagianBerkas.hidden = false;
+
+          if (!state.tersedia) {
+            catatanTersedia('Pustaka sedang diperbarui. Silakan coba lagi sebentar.');
+            renderChips();
+            renderScope();
+            renderBerkas();
+            jelaskan('');
+            return;
+          }
+
+          const tanggal = tanggalSingkat(data?.dibuat);
+          const peran = { kader: 'kader', org: 'lembaga', admin: 'pengurus PB' }[String(data?.peran || '')] || 'akun';
+          jelaskan(`${state.docs.length} berkas · ${state.jumlahPotong} bagian teks`
+            + (tanggal ? ` · korpus diperbarui ${tanggal}` : '')
+            + ` · dibuka sebagai ${peran}.`);
+          renderChips();
+          renderScope();
+          renderBerkas();
+          if (state.kueri) cari();
+        } catch (error) {
+          if (butuhLogin(error.message)) {
+            suruhMasuk();
+            return;
+          }
+          jelaskan('Pustaka belum dapat dimuat. Silakan coba lagi sebentar.', true);
+        } finally {
+          state.sedangMuat = false;
+        }
+      }
+
+      function renderChips() {
+        chips.replaceChildren();
+        const pasang = (nama, jumlah, aktif) => {
+          const tombol = document.createElement('button');
+          tombol.type = 'button';
+          tombol.className = 'pustaka-chip' + (aktif ? ' is-active' : '');
+          tombol.textContent = jumlah ? `${nama} (${jumlah})` : nama;
+          tombol.setAttribute('aria-pressed', String(aktif));
+          tombol.addEventListener('click', () => {
+            state.kategoriAktif = aktif ? '' : nama;
+            renderChips();
+            renderBerkas();
+            renderHasil();
+          });
+          chips.append(tombol);
+        };
+        if (state.kategori.length) pasang('Semua kategori', state.docs.length, state.kategoriAktif === '');
+        state.kategori.forEach((item) => pasang(String(item.nama || 'Umum'), Number(item.jumlah) || 0, state.kategoriAktif === String(item.nama)));
+      }
+
+      function renderScope() {
+        const nilaiLama = state.scope;
+        selectScope.replaceChildren();
+        const semua = document.createElement('option');
+        semua.value = '';
+        semua.textContent = 'Cari di semua berkas';
+        selectScope.append(semua);
+        state.docs.forEach((doc) => {
+          const opsi = document.createElement('option');
+          opsi.value = String(doc.id || '');
+          opsi.textContent = String(doc.judul || doc.id || 'Berkas tanpa nama');
+          selectScope.append(opsi);
+        });
+        selectScope.value = state.docs.some((doc) => String(doc.id) === nilaiLama) ? nilaiLama : '';
+        state.scope = selectScope.value;
+      }
+
+      const saringKategori = (daftar) => (state.kategoriAktif
+        ? daftar.filter((item) => String(item.kategori || 'Umum') === state.kategoriAktif)
+        : daftar);
+
+      function kartu(yang) {
+        const kartuEl = document.createElement('article');
+        kartuEl.className = 'pustaka-card';
+        if (yang.halaman) {
+          const nomor = document.createElement('span');
+          nomor.className = 'pustaka-page-no';
+          nomor.textContent = `${yang.halaman} halaman`;
+          return { kartuEl, nomor };
+        }
+        return { kartuEl, nomor: null };
+      }
+
+      function badge(kartuEl, teks) {
+        const tanda = document.createElement('span');
+        tanda.className = 'pustaka-badge';
+        tanda.textContent = teks;
+        kartuEl.append(tanda);
+        return tanda;
+      }
+
+      function renderBerkas() {
+        daftarBerkas.replaceChildren();
+        if (!state.tersedia) return;
+        const semua = saringKategori(state.docs);
+        const tampil = semua.slice(0, MUAT_BERKAS);
+        petunjukBerkas.textContent = semua.length > tampil.length
+          ? `menampilkan ${tampil.length} dari ${semua.length} berkas`
+          : (semua.length ? `${semua.length} berkas` : '');
+
+        if (!semua.length) {
+          const kosong = document.createElement('p');
+          kosong.className = 'pustaka-note';
+          kosong.textContent = state.kategoriAktif
+            ? `Belum ada berkas pada kategori “${state.kategoriAktif}” di pustaka.`
+            : 'Berkas pustaka belum dapat ditampilkan.';
+          daftarBerkas.append(kosong);
+          return;
+        }
+
+        tampil.forEach((doc) => {
+          const { kartuEl, nomor } = kartu({ halaman: Number(doc.halaman) || 0 });
+
+          const atas = document.createElement('div');
+          atas.className = 'pustaka-card-top';
+          const judul = document.createElement('button');
+          judul.type = 'button';
+          judul.className = 'pustaka-title';
+          judul.textContent = String(doc.judul || doc.id || 'Berkas tanpa nama');
+          judul.addEventListener('click', () => bukaPembaca(String(doc.id || ''), 0));
+          atas.append(judul);
+          badge(atas, String(doc.kategori || 'Umum'));
+          if (nomor) atas.append(nomor);
+          kartuEl.append(atas);
+
+          const ringkas = String(doc.ringkas || '').trim();
+          if (ringkas) {
+            const isi = document.createElement('p');
+            isi.className = 'pustaka-ringkas';
+            isi.textContent = ringkas;
+            kartuEl.append(isi);
+          }
+
+          const meta = document.createElement('p');
+          meta.className = 'pustaka-meta';
+          meta.textContent = `${Number(doc.potong) || 0} bagian teks`
+            + (Number(doc.byte) > 0 ? ` · ${Math.max(1, Math.round(Number(doc.byte) / 1024 / 1024))} MB` : '');
+          kartuEl.append(meta);
+
+          const aksi = document.createElement('div');
+          aksi.className = 'pustaka-actions';
+          const buka = document.createElement('button');
+          buka.type = 'button';
+          buka.className = 'pustaka-open';
+          buka.textContent = 'Baca isi berkas';
+          buka.addEventListener('click', () => bukaPembaca(String(doc.id || ''), 0));
+          aksi.append(buka);
+          const pdf = tautanAman(doc.tautan);
+          if (pdf) {
+            const tautan = document.createElement('a');
+            tautan.className = 'pustaka-pdf';
+            tautan.href = pdf;
+            tautan.target = '_blank';
+            tautan.rel = 'noopener';
+            tautan.textContent = 'PDF asli ↗';
+            aksi.append(tautan);
+          }
+          kartuEl.append(aksi);
+          daftarBerkas.append(kartuEl);
+        });
+      }
+
+      // ------------------------------------------------------------------ cari
+
+      function jadwalCari() {
+        clearTimeout(state.jeda);
+        state.jeda = setTimeout(cari, DEBUR);
+      }
+
+      async function cari() {
+        const kueri = input.value.trim();
+        state.kueri = kueri;
+        tombolHapus.hidden = !kueri;
+        if (kueri.length < 3) {
+          state.hasil = [];
+          renderHasil();
+          if (state.tersedia) jelaskan(ringkasan());
+          return;
+        }
+        if (!state.tersedia) return;
+        jelaskan(`Mencari “${kueri}”…`);
+        try {
+          const body = { action: 'pustakaCari', q: kueri, limit: BATAS_HASIL };
+          if (state.scope) body.doc = state.scope;
+          const data = await api(body);
+          state.hasil = Array.isArray(data?.hasil) ? data.hasil : [];
+          renderHasil();
+          const dalam = state.scope ? ' di berkas terpilih' : '';
+          jelaskan(state.hasil.length
+            ? `${state.hasil.length} bagian cocok dengan “${data?.kueri || kueri}”${dalam}.`
+            : `Tidak ada bagian yang cocok dengan “${data?.kueri || kueri}”${dalam}. Coba kata lain, misalnya singkatan resminya.`);
+        } catch (error) {
+          if (butuhLogin(error.message)) {
+            suruhMasuk();
+            return;
+          }
+          state.hasil = [];
+          renderHasil();
+          jelaskan('Pencarian belum berhasil. Silakan coba lagi sebentar.', true);
+        }
+      }
+
+      function renderHasil() {
+        daftarHasil.replaceChildren();
+        const tampil = saringKategori(state.hasil);
+        bagianHasil.hidden = state.hasil.length === 0;
+        if (!tampil.length) {
+          if (state.hasil.length) {
+            const catatan = document.createElement('p');
+            catatan.className = 'pustaka-note';
+            catatan.textContent = `Tidak ada hasil pada kategori “${state.kategoriAktif}”. Pilih “Semua kategori” untuk melihat seluruhnya.`;
+            daftarHasil.append(catatan);
+          }
+          return;
+        }
+
+        tampil.forEach((item) => {
+          const { kartuEl } = kartu({});
+          const atas = document.createElement('div');
+          atas.className = 'pustaka-card-top';
+          const judul = document.createElement('b');
+          judul.className = 'pustaka-title';
+          judul.style.cursor = 'default';
+          judul.textContent = String(item.judul || item.d || 'Berkas');
+          atas.append(judul);
+          badge(atas, String(item.kategori || 'Umum'));
+          const nomor = labelHalaman(item.h);
+          if (nomor) {
+            const chip = document.createElement('span');
+            chip.className = 'pustaka-page-no';
+            chip.textContent = `Halaman ${nomor}`;
+            atas.append(chip);
+          }
+          kartuEl.append(atas);
+
+          const cuplikan = String(item.cuplikan || '').trim();
+          if (cuplikan) {
+            const isi = document.createElement('p');
+            isi.className = 'pustaka-cuplikan';
+            isi.textContent = cuplikan;
+            kartuEl.append(isi);
+          }
+
+          const aksi = document.createElement('div');
+          aksi.className = 'pustaka-actions';
+          const buka = document.createElement('button');
+          buka.type = 'button';
+          buka.className = 'pustaka-open';
+          buka.textContent = 'Buka di pembaca';
+          buka.addEventListener('click', () => bukaPembaca(
+            String(item.d || ''),
+            Number(Array.isArray(item.h) ? item.h[0] : 0) || 0,
+            { judul: item.judul || '', kategori: item.kategori || '' }
+          ));
+          aksi.append(buka);
+          const doc = state.docs.find((item2) => String(item2.id) === String(item.d));
+          const pdf = tautanAman(doc?.tautan);
+          if (pdf) {
+            const tautan = document.createElement('a');
+            tautan.className = 'pustaka-pdf';
+            tautan.href = pdf;
+            tautan.target = '_blank';
+            tautan.rel = 'noopener';
+            tautan.textContent = 'PDF asli ↗';
+            aksi.append(tautan);
+          }
+          kartuEl.append(aksi);
+          daftarHasil.append(kartuEl);
+        });
+      }
+
+      // ---------------------------------------------------------------- pembaca
+
+      function blokIsi(potong, mulaiIndex) {
+        (potong || []).slice(mulaiIndex || 0).forEach((item) => {
+          const nomor = labelHalaman(item?.h);
+          /* Penanda halaman hanya ditulis saat nomornya berganti; pembandingnya
+             disimpan di keadaan pembaca supaya muatan berikutnya nyambung. */
+          if (nomor && nomor !== state.baca?.halamanTerakhir) {
+            if (state.baca) state.baca.halamanTerakhir = nomor;
+            const label = document.createElement('p');
+            label.className = 'pustaka-halaman';
+            label.textContent = `Halaman ${nomor}`;
+            pembacaBody.append(label);
+          }
+          const paragraf = document.createElement('p');
+          paragraf.className = 'pustaka-text';
+          paragraf.textContent = String(item?.t || '');
+          pembacaBody.append(paragraf);
+        });
+      }
+
+      function ubahAksiBaca() {
+        const sisa = Number(state.baca?.sisa) || 0;
+        pembacaMore.hidden = sisa <= 0;
+        pembacaInfo.textContent = sisa > 0
+          ? `${sisa} bagian lagi tersedia pada berkas ini.`
+          : 'Anda sudah berada di bagian akhir berkas.';
+      }
+
+      function bukaLayar() {
+        pembaca.classList.add('is-open');
+        pembaca.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('pustaka-membaca');
+      }
+
+      function tutupPembaca() {
+        pembaca.classList.remove('is-open');
+        pembaca.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('pustaka-membaca');
+        state.baca = null;
+      }
+
+      async function bukaPembaca(id, target, informasi) {
+        if (!id) return;
+        const doc = { ...(state.docs.find((item) => String(item.id) === String(id)) || {}), ...(informasi || {}) };
+        state.baca = { id, mulai: 0, sisa: 0, busy: true };
+        const pdf = tautanAman(doc.tautan);
+        pembacaPdf.hidden = !pdf;
+        if (pdf) pembacaPdf.href = pdf;
+        pembacaJudul.textContent = String(doc.judul || id);
+        pembacaMeta.textContent = [String(doc.kategori || ''), Number(doc.halaman) ? `${doc.halaman} halaman` : '']
+          .filter(Boolean).join(' · ') || 'Isi berkas';
+        pembacaBody.replaceChildren();
+        pembacaInfo.textContent = 'Memuat isi berkas…';
+        pembacaMore.hidden = true;
+        bukaLayar();
+
+        try {
+          /* Nomor halaman tidak bisa dikonversi langsung ke indeks potongan,
+             jadi berkas dibaca maju beberapa muatan sampai halaman yang dicari lewat. */
+          const tujuan = Number(target) || 0;
+          const muatan = tujuan ? POTONG_LOMPAT : POTONG_PER_MUAT;
+          let jawaban = await api({ action: 'pustakaBaca', doc: id, mulai: 0, jumlah: muatan });
+          let index = 0;
+          if (tujuan) {
+            let ditemukan = -1;
+            let mulai = 0;
+            let percobaan = 0;
+            while (ditemukan < 0 && percobaan < 5) {
+              const potong = Array.isArray(jawaban?.potong) ? jawaban.potong : [];
+              ditemukan = potong.findIndex((item) => {
+                const daftar = Array.isArray(item?.h) ? item.h.map(Number) : [];
+                if (!daftar.length) return false;
+                return daftar[0] <= tujuan && tujuan <= (daftar[daftar.length - 1] || daftar[0]);
+              });
+              if (ditemukan < 0) {
+                const lewat = potong.findIndex((item) => (Array.isArray(item?.h) ? Number(item.h[0]) : 0) >= tujuan);
+                if (lewat >= 0) ditemukan = lewat;
+              }
+              if (ditemukan >= 0) { index = ditemukan; break; }
+              const sisaSebelumnya = Number(jawaban?.sisa) || 0;
+              if (sisaSebelumnya <= 0) break;
+              mulai += potong.length;
+              percobaan += 1;
+              if (percobaan >= 5) break;
+              jawaban = await api({ action: 'pustakaBaca', doc: id, mulai, jumlah: POTONG_LOMPAT });
+            }
+            if (ditemukan < 0) {
+              index = 0;
+              jawaban = await api({ action: 'pustakaBaca', doc: id, mulai: 0, jumlah: POTONG_PER_MUAT });
+            }
+          }
+          const potong = Array.isArray(jawaban?.potong) ? jawaban.potong : [];
+          if (!potong.length) {
+            const kosong = document.createElement('p');
+            kosong.className = 'pustaka-note';
+            kosong.textContent = 'Belum ada bagian teks yang bisa ditampilkan dari berkas ini.';
+            pembacaBody.append(kosong);
+            pembacaInfo.textContent = 'Berkas ini hanya menyediakan PDF-nya.';
+            state.baca.busy = false;
+            return;
+          }
+          state.baca.mulai = (Number(jawaban?.mulai) || 0) + potong.length;
+          state.baca.sisa = Number(jawaban?.sisa) || 0;
+          blokIsi(potong, index);
+          if (index > 0) {
+            const catatan = document.createElement('p');
+            catatan.className = 'pustaka-meta';
+            catatan.textContent = 'Bagian ini dibuka pada halaman yang dicari dari hasil pencarian.';
+            pembacaBody.prepend(catatan);
+          }
+          pembacaBody.scrollTop = 0;
+          ubahAksiBaca();
+        } catch (error) {
+          if (butuhLogin(error.message)) {
+            suruhMasuk();
+            return;
+          }
+          const gagalEl = document.createElement('p');
+          gagalEl.className = 'pustaka-note pustaka-error';
+          gagalEl.textContent = pesanPengurus(error.message);
+          pembacaBody.replaceChildren(gagalEl);
+          pembacaInfo.textContent = 'Tutup tampilan baca, lalu buka berkasnya lagi.';
+        } finally {
+          if (state.baca) state.baca.busy = false;
+        }
+      }
+
+      async function muatBerikutnya() {
+        if (!state.baca || state.baca.busy || (Number(state.baca.sisa) || 0) <= 0) return;
+        state.baca.busy = true;
+        pembacaMore.disabled = true;
+        pembacaInfo.textContent = 'Memuat bagian berikutnya…';
+        try {
+          const jawaban = await api({ action: 'pustakaBaca', doc: state.baca.id, mulai: state.baca.mulai, jumlah: POTONG_PER_MUAT });
+          const potong = Array.isArray(jawaban?.potong) ? jawaban.potong : [];
+          if (!potong.length) {
+            state.baca.sisa = 0;
+            ubahAksiBaca();
+            return;
+          }
+          const sebelum = pembacaBody.scrollHeight - pembacaBody.clientHeight;
+          blokIsi(potong, 0);
+          state.baca.mulai = (Number(jawaban?.mulai) ?? state.baca.mulai) + potong.length;
+          state.baca.sisa = Number(jawaban?.sisa) || 0;
+          ubahAksiBaca();
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            pembacaBody.scrollTop = sebelum;
+          } else {
+            pembacaBody.scrollTo({ top: sebelum, behavior: 'smooth' });
+          }
+        } catch (error) {
+          if (butuhLogin(error.message)) {
+            suruhMasuk();
+            return;
+          }
+          pembacaInfo.textContent = 'Bagian berikutnya belum dapat dimuat. Silakan coba lagi.';
+        } finally {
+          state.baca = state.baca ? { ...state.baca, busy: false } : null;
+          pembacaMore.disabled = false;
+        }
+      }
+
+      // ------------------------------------------------------------------- paut
+
+      el('gateMasuk').addEventListener('click', () => {
+        /* Panel masuk kader dibuka bila jalurnya sudah tersedia; kalau belum,
+           tautan halaman masuk PB PII tetap menjadi jalan lain. */
+        const terbuka = window.PBPIIAkun?.openPanel?.(
+          'Pustaka organisasi dibuka untuk akun PII. Silakan masuk lebih dulu.',
+          'email'
+        );
+        if (!terbuka) window.location.href = 'login.html';
+      });
+
+      input.addEventListener('input', () => {
+        tombolHapus.hidden = !input.value;
+        if (input.value.trim().length < 3) {
+          // Kata belum cukup panjang: hasil lama dibuang, permintaan tidak dikirim.
+          clearTimeout(state.jeda);
+          state.kueri = '';
+          state.hasil = [];
+          renderHasil();
+          if (state.tersedia) jelaskan(ringkasan());
+          return;
+        }
+        jadwalCari();
+      });
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        clearTimeout(state.jeda);
+        cari();
+      });
+
+      tombolHapus.addEventListener('click', () => {
+        clearTimeout(state.jeda);
+        input.value = '';
+        state.kueri = '';
+        state.hasil = [];
+        tombolHapus.hidden = true;
+        renderHasil();
+        jelaskan(state.tersedia ? ringkasan() : '');
+        input.focus();
+      });
+
+      selectScope.addEventListener('change', () => {
+        state.scope = selectScope.value;
+        if (input.value.trim().length >= 3) {
+          clearTimeout(state.jeda);
+          cari();
+        }
+      });
+
+      el('pustakaReaderClose').addEventListener('click', tutupPembaca);
+      pembacaMore.addEventListener('click', muatBerikutnya);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && pembaca.classList.contains('is-open')) tutupPembaca();
+      });
+
+      /** Isi halaman hanya dimuat bila ada sesi; penolakan untuk tamu itu normal, bukan galat. */
+      function terapkan() {
+        document.body.classList.toggle('ada-sesi', Boolean(sessionToken()));
+        if (sessionToken()) tampilkanApp();
+        else if (gate.hidden) tampilkanGate();
+      }
+
+      function pasang() {
+        const tahun = el('year');
+        if (tahun) tahun.textContent = new Date().getFullYear();
+        if (window.PBPIIAkun?.onChange) window.PBPIIAkun.onChange(terapkan);
+        else {
+          terapkan();
+          window.addEventListener('storage', terapkan);
+          document.addEventListener('visibilitychange', () => { if (!document.hidden) terapkan(); });
+        }
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pasang);
+      else pasang();
+    })();
+  </script>
+  <script src="site.js" defer></script>
+</body>
+</html>

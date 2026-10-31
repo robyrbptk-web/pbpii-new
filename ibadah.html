@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Ruang ibadah PB PII: jadwal sholat Kemenag untuk 517 kabupaten/kota, penanda adzan, arah kiblat, dan pembaca Al-Qur'an lengkap dengan tafsir ringkas.">
-  <meta name="theme-color" content="#0c2948">
+  <meta name="description" content="Ruang ibadah PB PII: jadwal sholat Kemenag untuk 517 kabupaten/kota, penanda adzan, kompas kiblat hidup, tasbih, dan pembaca Al-Qur'an dengan tafsir ringkas.">
+  <meta name="theme-color" content="#06301f">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,6 +14,7 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ibadah.css">
 </head>
 <body class="ibadah-page">
   <header class="site-header">
@@ -53,124 +54,171 @@
   </div>
 
   <main>
-    <section class="ibadah-hero">
-      <div class="ibadah-hero-copy">
-        <p class="eyebrow">RUANG IBADAH PELAJAR ISLAM INDONESIA</p>
-        <h1>Menjaga waktu, mengenal arah, dekat dengan Al-Qur'an.</h1>
-        <p>Jadwal sholat Kemenag untuk 517 kabupaten/kota, penanda adzan, arah kiblat, dan pembaca Al-Qur'an dengan tafsir ringkas — semua dalam satu halaman.</p>
-        <div class="ibadah-pills">
-          <span class="pill" data-hijri>Memuat tanggal Hijriah…</span>
-          <span class="pill pill-ghost" id="heroCity">Kota Jakarta</span>
+    <!-- Panel "Hari ini": satu kartu hijau tempat tanggal, hitung mundur, dan
+         seluruh waktu sholat berkumpul, jadi tidak perlu menggulir untuk tahu
+         sholat berikutnya tinggal berapa lama. -->
+    <section id="sholat" class="ib-panel">
+      <div class="ib-panel-head">
+        <div class="ib-dates">
+          <h1 id="jadwalDate">Hari ini</h1>
+          <p class="ib-hijri" data-hijri>Memuat tanggal Hijriah…</p>
+        </div>
+        <div class="ib-place">
+          <button class="ib-place-chip" id="cityDetect" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+            <span id="heroCity">Kota Jakarta</span>
+            <i aria-hidden="true">⌄</i>
+          </button>
+          <p class="ib-place-sub" id="jadwalStatus" role="status" aria-live="polite">Memuat jadwal sholat…</p>
         </div>
       </div>
-      <div class="next-prayer">
-        <span id="nextPrayerCaption">Menuju waktu sholat</span>
-        <b id="nextPrayerName">—</b>
-        <strong id="nextPrayerCountdown">--:--:--</strong>
-        <small id="nextPrayerTime">Memuat jadwal…</small>
-      </div>
-    </section>
 
-    <section id="sholat" class="section ibadah-section">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">JADWAL SHOLAT</p>
-          <h2 id="jadwalDate">Hari ini</h2>
-          <p id="jadwalSubtitle">Waktu sholat setempat menurut Kementerian Agama RI.</p>
+      <div class="ib-next" id="nextPrayerCard">
+        <div class="ib-next-main">
+          <p class="eyebrow" id="nextPrayerCaption">Menuju waktu sholat</p>
+          <b id="nextPrayerName">—</b>
         </div>
-        <a class="text-link" href="#quran">Baca Al-Qur'an ↗</a>
+        <div class="ib-next-right">
+          <strong id="nextPrayerCountdown">--:--:--</strong>
+          <small id="nextPrayerTime">Memuat jadwal…</small>
+        </div>
       </div>
 
-      <div class="ibadah-toolbar">
-        <label class="ibadah-search" for="citySearch">
-          <span>Kabupaten / kota</span>
-          <input id="citySearch" type="search" placeholder="Contoh: Yogyakarta" autocomplete="off" enterkeyhint="search">
-        </label>
-        <p class="ibadah-status" id="jadwalStatus" role="status" aria-live="polite">Memuat jadwal sholat…</p>
-      </div>
-      <div class="location-line">
-        <span class="location-pin" aria-hidden="true"></span>
-        <p class="location-note" id="locationNote" role="status" aria-live="polite">Jadwal mengikuti lokasi Anda; bila lokasi belum dikenali, dipakai Kota Jakarta.</p>
-        <button class="location-detect" id="cityDetect" type="button">Deteksi lokasi saya</button>
-      </div>
+      <label class="ib-search" for="citySearch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.4 4.4"/></svg>
+        <input id="citySearch" type="search" placeholder="Cari kabupaten / kota" autocomplete="off" enterkeyhint="search" aria-label="Cari kabupaten atau kota">
+      </label>
       <ul class="city-results" id="cityResults" hidden></ul>
+      <p class="ib-note" id="locationNote" role="status" aria-live="polite">Jadwal mengikuti lokasi Anda; bila lokasi belum dikenali, dipakai Kota Jakarta.</p>
 
-      <ul class="prayer-grid" id="prayerGrid" aria-label="Waktu sholat hari ini"></ul>
+      <ul class="ib-rows" id="prayerGrid" aria-label="Waktu sholat hari ini"></ul>
 
-      <div class="adzan-bar">
+      <div class="ib-adzan">
         <label class="switch">
           <input type="checkbox" id="adzanToggle">
           <span class="switch-track"><span class="switch-thumb"></span></span>
-          <span>Adzan otomatis (bunyi sendiri — matikan di sini bila tidak mau)</span>
+          <span>Adzan otomatis</span>
         </label>
-        <button class="button button-ghost" id="adzanPlay" type="button" aria-pressed="false">▶ Putar adzan</button>
-        <span class="adzan-note" id="adzanNote" role="status" aria-live="polite">Adzan berbunyi otomatis saat Subuh, Dzuhur, Ashar, Maghrib, dan Isya selama halaman ini terbuka. Browser baru meminta satu sentuhan pertama di halaman agar diizinkan mengeluarkan suara.</span>
+        <button class="ib-adzan-play" id="adzanPlay" type="button" aria-pressed="false">▶ Putar adzan</button>
+        <p class="ib-adzan-note" id="adzanNote" role="status" aria-live="polite">Adzan berbunyi otomatis saat Subuh, Dzuhur, Ashar, Maghrib, dan Isya selama halaman ini terbuka.</p>
       </div>
+
+      <nav class="ib-tiles" aria-label="Aksi cepat ibadah">
+        <a class="ib-tile" href="#qiblat">
+          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m15.4 8.6-4.2 6.8L8.6 15l4.2-6.8z"/></svg></span>
+          <b>Kiblat</b>
+          <small>Kompas hidup</small>
+        </a>
+        <a class="ib-tile" href="#quran">
+          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span>
+          <b>Al-Qur'an</b>
+          <small>114 surat</small>
+        </a>
+        <a class="ib-tile" href="#tasbih">
+          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="1.9"/><circle cx="18.1" cy="8.1" r="1.9"/><circle cx="18.1" cy="15.9" r="1.9"/><circle cx="12" cy="19.4" r="1.9"/><circle cx="5.9" cy="15.9" r="1.9"/><circle cx="5.9" cy="8.1" r="1.9"/></svg></span>
+          <b>Tasbih</b>
+          <small>Hitung dzikir</small>
+        </a>
+        <a class="ib-tile" href="#sholat">
+          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3.2 2.2"/></svg></span>
+          <b>Jadwal</b>
+          <small>8 waktu harian</small>
+        </a>
+      </nav>
     </section>
 
     <section id="qiblat" class="section qibla-section">
       <div class="qibla-copy">
         <p class="eyebrow">ARAH KIBLAT</p>
-        <h2>Sudut menuju Ka'bah dari tempat Anda.</h2>
-        <p>Arah kiblat dari lokasi Anda, plus kompas hidup: ponsel dengan magnetometer bisa menekan "Aktifkan kompas" sehingga kotak hijau benar-benar menunjukkan arah Ka'bah saat Anda berputar. Tanpa sensor, gunakan geseran utara di bawah.</p>
+        <h2>Putar badan sampai Ka'bah berada di atas.</h2>
+        <p>Arah kiblat dihitung dari daerah yang otomatis terdeteksi di perangkat Anda, lalu jarumnya mengikuti sensor arah ponsel begitu halaman terbuka — tanpa tombol, tanpa pengaturan awal. Jauhkan dari logam dan casing bermagnet, pegang ponsel sejajar lantai, lalu berputar pelan sampai penanda Ka'bah berhenti di ujung atas lingkaran.</p>
         <div class="qibla-actions">
-          <button class="button button-solid" id="qiblaLocate" type="button">Gunakan lokasi saya</button>
-          <a class="text-link" href="https://www.google.com/maps/search/?api=1&amp;query=-6.1844917,106.8344897" target="_blank" rel="noopener noreferrer">Sekretariat PB PII ↗</a>
+          <button class="button button-solid" id="qiblaLocate" type="button">Perhalus dengan GPS</button>
         </div>
-        <p class="qibla-meta" id="qiblaStatus" role="status" aria-live="polite">Arah kiblat dari Sekretariat PB PII, Menteng, Jakarta Pusat.</p>
+        <p class="qibla-meta" id="qiblaStatus" role="status" aria-live="polite">Mendeteksi lokasi Anda untuk menghitung arah kiblat…</p>
+        <ol class="qibla-steps">
+          <li><b>1</b><span>Buka halaman ini di luar ruangan atau jauh dari besi.</span></li>
+          <li><b>2</b><span>Pegang ponsel mendatar, layar menghadap ke atas.</span></li>
+          <li><b>3</b><span>Berputar sampai cincin emas berada tepat di atas.</span></li>
+        </ol>
       </div>
-      <div class="qibla-card" id="qiblaCard">
-        <svg class="qibla-compass" viewBox="0 0 200 200" role="img" aria-label="Kompas arah kiblat">
-          <circle cx="100" cy="100" r="92" fill="#f5f8fb" stroke="#dbe4ec" stroke-width="1.5"/>
-          <g id="qiblaRose">
-            <circle cx="100" cy="100" r="72" fill="none" stroke="#e6edf3" stroke-width="1"/>
-            <g fill="#8496a8" font-family="Inter, 'Segoe UI', sans-serif" font-size="11" font-weight="700" text-anchor="middle">
-              <text x="100" y="26">U</text>
-              <text x="100" y="182">S</text>
-              <text x="24" y="104">B</text>
-              <text x="176" y="104">T</text>
+
+      <div class="compass-card" id="qiblaCard">
+        <div class="compass-stage">
+          <svg class="qibla-compass" viewBox="0 0 220 220" role="img" aria-label="Kompas arah kiblat">
+            <defs>
+              <radialGradient id="csFace" cx="50%" cy="42%" r="72%">
+                <stop offset="0%" stop-color="#0d4630"/>
+                <stop offset="100%" stop-color="#052a1c"/>
+              </radialGradient>
+            </defs>
+            <circle class="cs-face" cx="110" cy="110" r="104"/>
+            <circle class="cs-ring" cx="110" cy="110" r="104"/>
+            <g id="qiblaRose">
+              <g id="qiblaTicks" class="cs-ticks"></g>
+              <g class="cs-cardinal">
+                <text x="110" y="34">U</text>
+                <text x="190" y="114">T</text>
+                <text x="110" y="196">S</text>
+                <text x="30" y="114">B</text>
+              </g>
+              <g id="qiblaMark">
+                <path class="cs-ray" d="M110 110 L110 46"/>
+                <g class="cs-kaaba">
+                  <rect x="98" y="22" width="24" height="20" rx="3"/>
+                  <path class="cs-band" d="M98 30h24"/>
+                </g>
+              </g>
             </g>
-            <path d="M100 12 105 24 100 28 95 24Z" fill="#102b49"/>
-          </g>
-          <g id="qiblaNeedle">
-            <path d="M100 40 108 100 100 112 92 100Z" fill="#176da8"/>
-            <path d="M100 166 92 100 100 88 108 100Z" fill="#c7d4e0"/>
-            <rect x="93" y="14" width="14" height="14" rx="3" fill="#14763f"/>
-          </g>
-          <circle cx="100" cy="100" r="5" fill="#102b49"/>
-        </svg>
-        <div class="qibla-readout">
-          <strong id="qiblaDegrees">—</strong>
-          <span id="qiblaSource">dari Sekretariat PB PII</span>
+            <path class="cs-top" d="M110 2 119 22 110 17 101 22Z"/>
+            <circle class="cs-hub" cx="110" cy="110" r="7"/>
+          </svg>
+          <div class="compass-read">
+            <strong id="qiblaDegrees">—</strong>
+            <span id="qiblaSource">mendeteksi lokasi…</span>
+          </div>
         </div>
-        <div class="qibla-sensor">
-          <button class="qibla-toggle" id="qiblaCompass" type="button" aria-pressed="false">Aktifkan kompas</button>
-          <p class="qibla-accuracy" id="qiblaAccuracy" role="status" aria-live="polite">
-            Kompas belum aktif. Putar geseran di bawah sampai huruf U sejajar utara, atau aktifkan kompas perangkat.
-          </p>
-          <label class="qibla-manual" for="qiblaManual">
-            <span>Utara kompas</span>
-            <input id="qiblaManual" type="range" min="0" max="359" step="1" value="0">
-          </label>
+        <p class="compass-status" id="qiblaAccuracy" role="status" aria-live="polite">Menghubungkan ke sensor arah…</p>
+        <label class="qibla-manual" id="qiblaManualRow" hidden for="qiblaManual">
+          <span>Utara kompas</span>
+          <input id="qiblaManual" type="range" min="0" max="359" step="1" value="0">
+        </label>
+      </div>
+    </section>
+
+    <section id="tasbih" class="section tasbih-section">
+      <div class="tasbih-card">
+        <div class="tasbih-head">
+          <p class="eyebrow">TASBIH</p>
+          <h2>Hitung dzikir setelah sholat.</h2>
         </div>
-        <p class="qibla-hint">Kotak hijau = Ka'bah · 0° utara, 90° timur</p>
+        <div class="tasbih-picker" id="dhikrPicker" role="group" aria-label="Pilih dzikir"></div>
+        <button class="tasbih-count" id="tasbihCount" type="button" aria-label="Tambah hitungan">
+          <span class="tasbih-arab" id="dhikrArab" dir="rtl" lang="ar">سُبْحَانَ اللهِ</span>
+          <strong id="tasbihNumber">0</strong>
+          <small id="dhikrLatin">Subhanallah</small>
+          <small class="tasbih-meaning" id="dhikrMeaning">Maha Suci Allah</small>
+          <span class="tasbih-target" id="tasbihTarget">target 33×</span>
+        </button>
+        <div class="tasbih-foot">
+          <div class="tasbih-progress" aria-hidden="true"><i id="tasbihFill"></i></div>
+          <button class="tasbih-reset" id="tasbihReset" type="button">Reset</button>
+        </div>
+        <p class="tasbih-note" id="tasbihNote" role="status" aria-live="polite">Ketuk lingkaran besar untuk menambah hitungan.</p>
       </div>
     </section>
 
     <section id="quran" class="section quran-section">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">AL-QUR'AN</p>
-          <h2>114 surat, teks, terjemahan, dan tafsir ringkas.</h2>
-          <p>Baca per ayat, putar murattal, atau buka tafsir Kemenag untuk setiap ayat.</p>
-        </div>
-        <a class="text-link" href="#sholat">Kembali ke jadwal sholat ↗</a>
+      <div class="quran-bar">
+        <p class="eyebrow">AL-QUR'AN</p>
+        <h2>114 surat, teks, terjemahan, dan tafsir ringkas.</h2>
+        <p>Baca per ayat, putar murattal satu surat penuh, atau buka tafsir Kemenag.</p>
       </div>
 
       <div class="quran-layout">
         <aside class="surah-panel" aria-label="Daftar surat">
           <input id="surahSearch" type="search" placeholder="Cari surat, mis. Kahfi" autocomplete="off" aria-label="Cari surat">
-          <ol class="surah-list" id="surahList"><li class="muted">Memuat daftar surat…</li></ol>
+          <ol class="surah-list" id="surahList"><li class="surah-empty">Memuat daftar surat…</li></ol>
         </aside>
         <article class="quran-reader" id="quranReader" aria-live="polite">
           <p class="muted">Pilih surat untuk mulai membaca.</p>
@@ -189,7 +237,6 @@
         <b id="quranSheetName">—</b>
         <small id="quranSheetMeta">Pilih surat</small>
       </div>
-      <span class="quran-sheet-arab" id="quranSheetArab" dir="rtl" lang="ar"></span>
       <button class="quran-sheet-audio" id="quranSheetAudio" type="button" data-audio="" data-label="Murattal" aria-pressed="false" aria-label="Putar murattal surat penuh">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zm11.5 3a3.5 3.5 0 0 0-2-3.16v6.32A3.5 3.5 0 0 0 15.5 12m-2 7.9v-2.14a5.5 5.5 0 0 0 0-11.52V4a7.5 7.5 0 0 1 0 15.9"/></svg>
       </button>

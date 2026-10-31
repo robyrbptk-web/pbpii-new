@@ -1,16 +1,19 @@
 /**
  * "Tanya PII" — gerbang AI di sisi server.
  *
- * Kenapa tidak diteruskan ke Apps Script saja: deployment yang sekarang aktif
- * masih versi lama, jadi aksi "chat" jatuh ke requireAuth_ dan balasan selalu
- * "Sesi berakhir". Fungsi ini memanggil layanan AI sendiri sehingga chat tetap
- * hidup. Kunci AI (kalau dipasang) hanya dibaca dari environment Vercel dan
- * tidak pernah keluar ke browser maupun ke repository; tanpa kunci apa pun
- * dipakai layanan gratis Pollinations.
+ * Fungsi ini memanggil layanan AI sendiri supaya chat tetap hidup walau
+ * permintaan ke Apps Script sedang macet. Kunci AI (kalau dipasang) hanya dibaca
+ * dari environment Vercel dan tidak pernah keluar ke browser maupun ke
+ * repository; tanpa kunci apa pun dipakai layanan gratis Pollinations.
+ *
+ * Jawaban pengurus dan kader yang menyinggung materi organisasi dibangun dari
+ * kutipan Pustaka (gas/Code.gs aksi "pustakaKonteks"), bukan dari ingatan model.
+ * Pengunjung tanpa sesi tidak mendapat kutipan karena isi berkas internal
+ * memang dikhususkan untuk akun.
  *
  * Pencatatan kuota di sheet "Chat" Apps Script tetap dicoba dan dipakai kalau
- * backend yang baru sudah terpasang; kalau belum, pembatas lunak di memori
- * fungsi ini yang berlaku.
+ * backend-nya mendukung; kalau belum, pembatas lunak di memori fungsi ini yang
+ * berlaku.
  */
 import { DEFAULT_GAS_WEB_APP_URL } from './pii.js';
 
@@ -63,6 +66,53 @@ function systemPrompt() {
 
 function clean(text) {
   return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Bahan rujukan dari Pustaka organisasi. Teks potongannya dipakai apa adanya
+ * karena sumbernya berkas resmi PB PII; batas jumlah dan panjang dijaga di sisi
+ * Apps Script supaya prompt tidak membengkak.
+ */
+function pustakaBagian(hasil) {
+  if (!Array.isArray(hasil) || !hasil.length) return '';
+  const kutipan = hasil.map((item, nomor) => {
+    const isi = clean(item.isi || item.cuplikan).slice(0, 1400);
+    if (!isi) return '';
+    const halaman = Array.isArray(item.h)
+      ? (item.h[0] === item.h[1] ? item.h[0] : `${item.h[0]}-${item.h[1]}`)
+      : '';
+    return `[${nomor + 1}] ${clean(item.judul)}${halaman ? ` (halaman ${halaman})` : ''}: ${isi}`;
+  }).filter(Boolean).join('\n');
+  if (!kutipan) return '';
+
+  return [
+    'BERKAS ORGANISASI PII YANG RELEVAN DENGAN PERTANYAAN INI:',
+    kutipan,
+    'Jawab terutama dari kutipan di atas. Sebut nama berkas dan nomor halaman yang dipakai.',
+    'Bila kutipan tidak cukup menjawab, katakan bagian mana yang tidak ada di berkas',
+    'alih-alih mengarang. Jangan menyebut berkas yang tidak dikutip.'
+  ].join(' ');
+}
+
+/** Nama berkas + halaman yang dikirim ke browser sebagai rujukan jawaban. */
+function pustakaSitasi(hasil) {
+  if (!Array.isArray(hasil)) return [];
+  return hasil.map((item) => ({
+    judul: clean(item.judul),
+    kategori: clean(item.kategori),
+    halaman: Array.isArray(item.h) ? item.h : [],
+    cuplikan: clean(item.cuplikan).slice(0, 320)
+  }));
+}
+
+/**
+ * Kutipan diminta ke Apps Script, jadi pembatas per peran ikut berlaku di sana:
+ * sesi tanpa akun tidak pernah menerima isi berkas internal.
+ */
+async function gasKonteks(body, ip, question) {
+  if (!body.token) return [];
+  const data = await gasCall({ action: 'pustakaKonteks', token: body.token, ip, q: question }, 14000);
+  return data && Array.isArray(data.hasil) ? data.hasil : [];
 }
 
 function readBody(req) {
@@ -302,9 +352,11 @@ export default async function handler(req, res) {
     return;
   }
 
+  const pustaka = await gasKonteks(body, ip, question);
+  const sistem = [systemPrompt(), pustakaBagian(pustaka)].filter(Boolean).join('\n\n');
   const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY) : [];
   const messages = [
-    { role: 'system', content: systemPrompt() },
+    { role: 'system', content: sistem },
     ...history
       .map((turn) => ({
         role: String(turn?.role) === 'assistant' ? 'assistant' : 'user',
@@ -327,6 +379,7 @@ export default async function handler(req, res) {
       data: {
         reply: jawaban.reply,
         provider: jawaban.provider,
+        rujukan: pustakaSitasi(pustaka),
         akun: catat?.akun || (gas?.akun || (body.token ? 'akun' : 'tamu')),
         batas: catat?.batas || batas,
         sisa,

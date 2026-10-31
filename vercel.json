@@ -160,6 +160,10 @@
       "destination": "/tanya.html"
     },
     {
+      "source": "/pustaka",
+      "destination": "/pustaka.html"
+    },
+    {
       "source": "/acara",
       "destination": "/acara.html"
     },

@@ -155,10 +155,15 @@ const scriptCache = {
 const CacheService = { getScriptCache: () => scriptCache };
 
 /** Titik-titik keluar yang bisa diatur per pemeriksaan. */
-const http = { google: null, turnstile: null, calls: [] };
+const http = { google: null, turnstile: null, ai: null, calls: [] };
 const UrlFetchApp = {
   fetch(url, options) {
     http.calls.push({ url: String(url), options });
+    if (String(url).includes('pollinations') || String(options?.payload || '').includes('"messages"')) {
+      const teks = http.ai ? JSON.stringify(http.ai)
+        : JSON.stringify({ choices: [{ message: { content: 'Jawaban contoh dari layanan AI.' } }] });
+      return { getContentText: () => teks, getResponseCode: () => 200 };
+    }
     const text = String(url).includes('oauth2.googleapis.com/tokeninfo')
       ? JSON.stringify(http.google || { error: 'tokeninfo belum diatur' })
       : JSON.stringify(http.turnstile || { success: false });
@@ -180,9 +185,47 @@ const ContentService = {
 
 /** DriveApp palsu: folder media PB PII cukup satu, tiap unggah tercatat. */
 const driveFiles = [];
+
+/**
+ * Korpus pustaka palsu: kalimat aslinya dipotong dari berkas kebinan PII supaya
+ * pemeriksaan pencarian isi dan rujukan Tanya PII memakai teks sungguhan.
+ */
+const pustakaFixture = {
+  versi: 1,
+  dibuat: '2026-10-31T02:04:57.927Z',
+  docs: [
+    { id: 'ebook-ta-dib-pii', judul: "Ebook Ta'dib PII", kategori: 'Kaderisasi',
+      ringkas: "Buku Induk Kaderisasi PII.", halaman: 393, potong: 2,
+      berkas: "Ebook Ta'dib PII (tanpa password).pdf" },
+    { id: 'silabus-leadership-basic-training-poin', judul: 'Silabus Leadership Basic Training',
+      kategori: 'Pelatihan', ringkas: 'Silabus LBT.', halaman: 87, potong: 1,
+      berkas: 'Silabus LEADERSHIP BASIC TRAINING (POIN).pdf' },
+    { id: 'buku-saku-ppo-2020', judul: 'Buku Saku PPO 2020', kategori: 'Organisasi & PPO',
+      ringkas: 'PPO.', halaman: 51, potong: 1, berkas: 'BUKU SAKU PPO 2020.pdf' }
+  ],
+  chunks: [
+    { d: 'ebook-ta-dib-pii', h: [120, 124], t: 'Ketentuan Mengenai Waktu Turba. Waktu turba tidak dibatasi berapa minimal harinya atau maksimal harinya. Turba dilakukan sampai permasalahan yang terjadi di daerah atau wilayah yang didatangi bisa selesai.' },
+    { d: 'ebook-ta-dib-pii', h: [88, 90], t: 'Ta’lim Awal adalah jenjang pembinaan pertama bagi kader PII sebelum mengikuti training kepemimpinan.' },
+    { d: 'silabus-leadership-basic-training-poin', h: [12, 15], t: 'Leadership Basic Training atau LBT adalah training kepemimpinan dasar bagi kader PII yang telah mengikuti ta’lim awal.' },
+    { d: 'buku-saku-ppo-2020', h: [7, 9], t: 'Pengembangan dan Pemberdayaan Organisasi membina pengurus komisariat, daerah, wilayah, sampai pengurus besar.' }
+  ]
+};
+
+const pustakaFile = {
+  getId: () => 'fixture-pustaka-korpus',
+  getName: () => 'pustaka.json',
+  getLastUpdated: () => new Date('2026-10-31T02:04:57.927Z'),
+  getBlob: () => ({ getDataAsString: () => JSON.stringify(pustakaFixture) })
+};
+
 const fakeFolder = {
   getId: () => 'fixture-folder-media',
   getName: () => 'PB PII Media',
+  getFilesByName(nama) {
+    const berkas = String(nama) === 'pustaka.json' ? [pustakaFile] : [];
+    let index = 0;
+    return { hasNext: () => index < berkas.length, next: () => berkas[index++] };
+  },
   createFile(name, bytes, mime) {
     driveFiles.push({ name: String(name), bytes: bytes.length, mime: String(mime) });
     return { getId: () => `fixture-file-${driveFiles.length}`, setSharing() {} };
@@ -203,7 +246,8 @@ const exported = [
   'orgSaveActivity_', 'requireOrg_', 'currentMonthKey_', 'todayKey_', 'APP', 'STANDARD_HEADERS',
   'doPost', 'throttle_', 'clientIp_', 'captchaIssue_', 'assertCaptcha_', 'kaderLogin_',
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
-  'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_'
+  'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_',
+  'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
@@ -643,6 +687,59 @@ for (let i = 0; i < gas.RATE_RULES['org-upload'].limit + 2; i += 1) {
   if (request({ action: 'orgUploadImage', token: 'ses-pd', name: `banjir-${i}`, data: jpegBase64, ip: '203.0.113.55' }).ok) unggahLolos += 1;
 }
 check('banjir unggah dibatasi laju per lembaga', unggahLolos, gas.RATE_RULES['org-upload'].limit);
+
+// --------------------------------------------- pustaka dan rujukan Tanya PII
+
+const pustakaTamu = request({ action: 'pustakaList' });
+check('pustaka terkunci untuk pengunjung', pustakaTamu.ok, false);
+check('penolakan pustaka memakai bahasa pengurus',
+  /^Pustaka organisasi khusus akun/.test(String(pustakaTamu.error)), true);
+
+const daftarPustaka = request({ action: 'pustakaList', token: 'ses-rozak' });
+check('kader menerima daftar berkas pustaka', daftarPustaka.data.docs.length, 3);
+check('daftar pustaka melaporkan korpus siap', daftarPustaka.data.tersedia, true);
+
+const cariLbt = request({ action: 'pustakaCari', token: 'ses-rozak', q: 'apa itu LBT', ip: '198.51.100.80' });
+check('sesi kader bisa mencari isi berkas', cariLbt.ok, true);
+check('pencarian isi menemukan silabus LBT', cariLbt.data.hasil[0].judul, 'Silabus Leadership Basic Training');
+check('hasil pencarian menyebut rentang halaman', Array.isArray(cariLbt.data.hasil[0].h), true);
+
+const cariTurba = request({ action: 'pustakaCari', token: 'ses-rozak', q: 'aturan waktu turba', ip: '198.51.100.81' });
+check('pencarian menemukan kutipan turba di Ta’dim', /turba/i.test(cariTurba.data.hasil[0].cuplikan), true);
+check('kandidat pencarian tidak melebihi batas', cariTurba.data.hasil.length <= 12, true);
+
+const baca = request({ action: 'pustakaBaca', token: 'ses-rozak', doc: 'ebook-ta-dib-pii', ip: '198.51.100.82' });
+check('isi berkas pustaka bisa dibaca kader', baca.data.doc.judul, "Ebook Ta'dib PII");
+check('potongan bawa nomor halaman', baca.data.potong[0].h[0], 120);
+check('berkas di luar korpus ditolak', request({ action: 'pustakaBaca', token: 'ses-rozak', doc: 'luar-biasa', ip: '198.51.100.83' }).ok, false);
+check('status pustaka khusus admin', request({ action: 'pustakaStatus', token: 'ses-rozak' }).ok, false);
+check('aksi pustaka tidak dikenal tetap tertahan', request({ action: 'pustakaBukan' }).code === 'aksi', false);
+
+const sehatPustaka = request({ action: 'health' }).data;
+check('health melaporkan korpus pustaka', sehatPustaka.pustaka, { tersedia: true, berkas: 3, potong: 4 });
+
+const tanyaKader = request({ action: 'chat', token: 'ses-rozak', message: 'Bagaimana aturan waktu turba dalam kaderisasi?', ip: '198.51.100.85' });
+const promptKader = http.calls.filter((call) => String(call.url).includes('pollinations')).at(-1);
+const sistemKader = JSON.parse(promptKader.options.payload).messages[0].content;
+check('jawaban Tanya PII ikut mengirim kutipan berkas', /Waktu turba tidak dibatasi/.test(sistemKader), true);
+check('kutipan menyebut nama berkas dan nomor halaman', /Ebook Ta'dib PII \(halaman 120-124\)/.test(sistemKader), true);
+check('prompt memerintahkan merujuk berkas', /BERKAS ORGANISASI PII YANG RELEVAN/.test(sistemKader), true);
+check('jawaban AI membawa daftar rujukan', tanyaKader.data.rujukan[0].judul, "Ebook Ta'dib PII");
+check('rujukan tidak ikut mengirim teks mentah', tanyaKader.data.rujukan[0].isi, undefined);
+
+request({ action: 'chat', message: 'Apa itu turba?', ip: '198.51.100.86' });
+const promptTamu = http.calls.filter((call) => String(call.url).includes('pollinations')).at(-1);
+check('pengunjung tidak menerima isi berkas internal',
+  /Waktu turba tidak dibatasi/.test(JSON.parse(promptTamu.options.payload).messages[0].content), false);
+
+const korpus = gas.pustakaKorpus_();
+check('pencarian kata yang tidak ada menghasilkan kosong', gas.pustakaCocok_(korpus, 'zirkoniumpalsu', 8).length, 0);
+check('rujukan AI untuk tamu kosong', gas.pustakaRujukanAI_('turba', 'tamu').length, 0);
+check('bentuk sitasi prompt', gas.pustakaPromptBagian_([]), '');
+
+const konteksAI = request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'aturan waktu turba', ip: '198.51.100.87' });
+check('gerbang AI minta potongan penuh ke Apps Script', /Waktu turba tidak dibatasi/.test(String(konteksAI.data.hasil[0].isi)), true);
+check('potongan rujukan dibatasi panjangnya', konteksAI.data.hasil.every((item) => String(item.isi).length <= 1400), true);
 
 // ------------------------------------------------------------------ laporan
 
