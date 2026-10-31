@@ -751,6 +751,14 @@ footer > small {
   padding-top: 16px;
 }
 
+/* Baris kredit pembuat, duduk tepat di bawah baris hak cipta tanpa garis
+   pemisah ganda. */
+.footer-credit {
+  border-top: 0;
+  padding-top: 6px;
+  color: #93aec9;
+}
+
 .admin-link {
   color: #c3dff7;
   font-size: .8rem;
@@ -982,6 +990,10 @@ footer > small {
   footer > small {
     grid-column: 1 / -1;
     grid-row: 4;
+  }
+
+  .footer-credit {
+    grid-row: 5;
   }
 }
 
