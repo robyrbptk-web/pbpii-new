@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-10-31.3';
+const BACKEND_VERSION = '2026-10-31.4';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -949,7 +949,10 @@ function publicData_(body) {
     articles: articles,
     gallery: gallery,
     events: eventsFeed_(orgs, rows_(APP.SHEET_ACTIVITIES), rows_(APP.SHEET_FORMS), rows_(APP.SHEET_PARTICIPANTS), actorKey),
-    keaktifan: keaktifanSettings_()
+    keaktifan: keaktifanSettings_(),
+    // Frontend memakai daftar ini untuk menyembunyikan jalur akun yang belum
+    // dikenal backend-nya, alih-alih menampilkan formulir yang pasti gagal.
+    capabilities: { kaderEmail: true, chat: true }
   };
 }
 

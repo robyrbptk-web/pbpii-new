@@ -14,7 +14,6 @@
   'use strict';
 
   const ENDPOINT = window.PBPII_CONFIG?.chatEndpoint || '/api/chat';
-  const PAGE = 'tanya.html';
   const ADMIN_TOKEN_KEY = 'pbpii_admin_token';
   const ORG_TOKEN_KEY = 'pbpii_org_token';
   const THREAD_KEY = 'pbpii_tanya_thread';
@@ -74,19 +73,6 @@
       throw error;
     }
     return result.data;
-  }
-
-  // ------------------------------------------------------------------- launcher
-
-  function initLauncher() {
-    const link = document.createElement('a');
-    link.className = 'tanya-fab';
-    link.href = PAGE;
-    link.setAttribute('aria-label', 'Buka Tanya PII');
-    link.innerHTML =
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg>' +
-      '<span>Tanya PII</span>';
-    document.body.append(link);
   }
 
   // ------------------------------------------------------------------- halaman
@@ -169,14 +155,16 @@
 
     /** Jatah habis: tawarkan jalan keluar, bukan tombol coba ulang yang buntu. */
     function upgradeRow(message) {
+      const boleh = window.PBPIIAkun?.canSignIn?.() !== false;
+      const ajakan = boleh ? `
+          <button type="button" class="tanya-upgrade" data-tab="daftar">Daftar akun kader</button>
+          <button type="button" class="tanya-upgrade is-plain" data-tab="email">Masuk dengan akun yang sudah ada</button>` : '';
       const row = document.createElement('div');
       row.className = 'tanya-row is-assistant is-quota';
       row.innerHTML = `
         <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
         <div class="tanya-msg">
-          <p>${escapeHTML(message)}</p>
-          <button type="button" class="tanya-upgrade" data-tab="daftar">Daftar akun kader</button>
-          <button type="button" class="tanya-upgrade is-plain" data-tab="email">Masuk dengan akun yang sudah ada</button>
+          <p>${escapeHTML(message)}</p>${ajakan}
         </div>`;
       row.querySelectorAll('.tanya-upgrade').forEach((button) => {
         button.addEventListener('click', () => window.PBPIIAkun?.openPanel('', button.dataset.tab));
@@ -280,7 +268,7 @@
       const inti = `Sisa ${sisa}/${batas || (tamu ? 5 : 20)} pertanyaan hari ini`;
       const ekor = tamu ? ' · gratis dari jaringan ini' : (nama ? ` · ${nama}` : '');
       quota.textContent = inti + ekor + (detik ? ` · ${detik}s` : '');
-      if (tamu && (habis || sisa === 0)) {
+      if (tamu && (habis || sisa === 0) && window.PBPIIAkun?.canSignIn?.() !== false) {
         const tombol = document.createElement('button');
         tombol.type = 'button';
         tombol.className = 'tanya-quota-cta';
@@ -350,7 +338,5 @@
 
   if (document.querySelector('#tanyaThread')) {
     document.addEventListener('DOMContentLoaded', initChat);
-  } else {
-    document.addEventListener('DOMContentLoaded', initLauncher);
   }
 })();

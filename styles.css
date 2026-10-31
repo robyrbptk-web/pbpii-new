@@ -4400,44 +4400,6 @@ body.has-kader-dialog {
 
 /* ---------- Tanya PII: asisten AI ---------- */
 
-.tanya-fab {
-  position: fixed;
-  z-index: 70;
-  right: 16px;
-  bottom: calc(80px + env(safe-area-inset-bottom));
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 999px;
-  padding: 12px 18px;
-  background: linear-gradient(135deg, var(--navy), var(--blue));
-  color: #fff;
-  font: inherit;
-  font-size: .86rem;
-  font-weight: 600;
-  box-shadow: 0 12px 30px rgb(16 43 73 / 28%);
-  transition: transform .18s ease, box-shadow .18s ease;
-}
-
-.tanya-fab:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 34px rgb(16 43 73 / 34%);
-}
-
-.tanya-fab:active {
-  transform: scale(.96);
-}
-
-.tanya-fab svg {
-  width: 19px;
-  height: 19px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-}
-
 /* Halaman penuh ala aplikasi chat: satu kolom baca, komposer menempel di bawah.
    --tanya-keyboard diisi tinggi papan ketik dari visualViewport (iOS). */
 .tanya-page {
@@ -4848,10 +4810,6 @@ body.has-kader-dialog {
 }
 
 @media (max-width: 680px) {
-  .tanya-fab {
-    right: 12px;
-  }
-
   .tanya-scroll {
     padding: 18px 14px 6px;
   }
@@ -5019,12 +4977,6 @@ body.has-kader-dialog {
   .hero-copy .eyebrow {
     font-size: .74rem;
     letter-spacing: .1em;
-  }
-
-  /* Tombol melayang duduk di atas bar navigasi, bukan menimpanya. */
-  .tanya-fab {
-    right: 14px;
-    bottom: calc(80px + env(safe-area-inset-bottom));
   }
 }
 

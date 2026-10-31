@@ -149,10 +149,13 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
 - `#jenjangSeg` di `daftar.html`: radio tersembunyi sekarang `inset:0` di dalam
   label yang `position:relative`. Sebelum ini, `width:100%` warisan dari aturan
   global membuat radio absolut menjulur keluar layar (+55 px gulir horizontal).
-- Pengunjuk **Tanya PII** (`.tanya-fab`) duduk 80 px dari bawah, di atas bar
-  navigasi, bukan menimpanya; di `/tanya.html` komposer menempel di bawah dengan
-  kolom input 16 px/48 px dan tombol kirim ≥44 px, serta naik setinggi papan ketik
-  lewat `--tanya-keyboard`. Semua elemen `position:fixed` diuji: nol yang menutupi
+- **Tanya PII** tidak lagi memakai tombol melayang. Halaman utamanya
+  (`index/acara/ibadah/tanya/peta.html`) memuat tab **Tanya** permanen di bar
+  navigasi — di ponsel menjadi salah satu tab bawah, di layar lebar menjadi
+  bagian menu atas — sehingga tidak ada lagi elemen tetap yang menutupi menu.
+  Di `/tanya.html` komposer menempel di bawah dengan kolom input 16 px/48 px
+  dan tombol kirim ≥44 px, serta naik setinggi papan ketik lewat
+  `--tanya-keyboard`. Semua elemen `position:fixed` diuji: nol yang menutupi
   bar navigasi.
 - 114 ringkasan "Tafsir" per ayat di `/ibadah.html`, tombol halaman di pembaca,
   dan tombol ikon di atas globe dinaikkan ke ≥44 px.

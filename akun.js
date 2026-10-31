@@ -18,11 +18,17 @@
 
   let account = { role: 'tamu', name: '' };
   let clientId = '';
+  let emailAuth = false;
   let gsiPromise = null;
   let captchaAssets = null;
   let verifikasi = null;
   let activeTab = 'email';
   let panelOpen = false;
+
+  /** Jalur akun yang benar-benar bisa dipakai: jangan tawarkan yang pasti gagal. */
+  const tabTersedia = (tab) => (tab === 'google' ? !!clientId : emailAuth);
+  const adaJalurMasuk = () => !!(clientId || emailAuth);
+  const tabAwal = () => (clientId ? 'google' : 'email');
 
   const token = () => localStorage.getItem(TOKEN_KEY) || '';
 
@@ -362,13 +368,17 @@
   function setActive(tab) {
     const dialog = document.querySelector('.kader-dialog');
     if (!dialog) return;
-    activeTab = tab === 'google' && !clientId ? 'email' : (tab || activeTab);
+    const diminta = tab || activeTab;
+    activeTab = tabTersedia(diminta) ? diminta : (tabTersedia(activeTab) ? activeTab : tabAwal());
+    const jalur = ['google', 'email', 'daftar'].filter(tabTersedia).length;
     dialog.querySelectorAll('[data-tab]').forEach((button) => {
       const on = button.dataset.tab === activeTab;
       button.classList.toggle('is-active', on);
       if (button.getAttribute('role') === 'tab') button.setAttribute('aria-selected', String(on));
+      button.toggleAttribute('hidden', !tabTersedia(button.dataset.tab));
     });
-    dialog.querySelector('[data-tab="google"]')?.toggleAttribute('hidden', !clientId);
+    /* Satu jalur saja tidak perlu dijadikan pilihan tab. */
+    dialog.querySelector('.kader-tabs')?.toggleAttribute('hidden', jalur < 2);
     dialog.querySelectorAll('[data-pane]').forEach((pane) => {
       pane.hidden = pane.dataset.pane !== activeTab;
     });
@@ -378,15 +388,17 @@
   }
 
   function openPanel(notice, tab) {
+    if (!adaJalurMasuk()) return false;
     buildPanel();
     const dialog = document.querySelector('.kader-dialog');
     panelOpen = true;
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
     document.body.classList.add('has-kader-dialog');
-    setActive(tab || (clientId ? 'google' : 'email'));
+    setActive(tab || tabAwal());
     setNotice(notice);
     watchKeyboard();
+    return true;
   }
 
   function closePanel() {
@@ -402,7 +414,7 @@
   /** Dipakai tombol suka/komentar: kembalikan akun, atau buka login dulu. */
   async function requireAccount(notice) {
     if (account.role === 'kader' || account.role === 'org' || account.role === 'admin') return account;
-    openPanel(notice);
+    if (!openPanel(notice)) throw new Error('Masuk kader belum dibuka.');
     return new Promise((resolve) => {
       const stop = onChange((current) => {
         if (current.role === 'tamu') return;
@@ -418,12 +430,12 @@
     const isStaff = account.role === 'admin' || account.role === 'org';
     slots.forEach((slot) => {
       if (account.role === 'tamu') {
-        slot.innerHTML = `<button class="account-button is-guest" type="button" data-account-open>
+        slot.innerHTML = adaJalurMasuk() ? `<button class="account-button is-guest" type="button" data-account-open>
           <span class="account-avatar" aria-hidden="true">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="3.4"/><path d="M5.4 19.2c.6-3.2 2.8-5.1 6.6-5.1s6 1.9 6.6 5.1"/></svg>
           </span>
           <span class="account-label">Masuk kader</span>
-        </button>`;
+        </button>` : '';
       } else {
         const initial = (account.name || 'K').trim().charAt(0).toUpperCase();
         const photo = account.picture
@@ -473,8 +485,11 @@
     try {
       const data = await api({ action: 'public' });
       clientId = String(data?.settings?.googleClientId || '').trim();
+      emailAuth = data?.capabilities?.kaderEmail === true;
+      paintChip();
     } catch {
       clientId = '';
+      emailAuth = false;
     }
 
     await refresh();
@@ -488,6 +503,7 @@
     token,
     sessionToken,
     requireAccount,
+    canSignIn: adaJalurMasuk,
     openPanel,
     closePanel,
     signOut,

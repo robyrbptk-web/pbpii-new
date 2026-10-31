@@ -83,13 +83,7 @@
     .item[data-status="draft"]{border-left:3px solid #e9c45b}
     .item[data-status="published"]{border-left:3px solid #4aa96c}
     .item .meta-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-    .help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
-    .help-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fbfdfb}
-    .help-card h3{margin:0 0 6px;font-size:13px}
-    .help-card p{margin:0 0 8px;color:var(--muted);font-size:12px}
-    .help-card ol,.help-card ul{margin:0;padding-left:17px;color:var(--muted);font-size:12px}
-    .help-card li{margin-bottom:4px}
-    .help-card code{background:#eef3ee;border-radius:5px;padding:1px 5px;font-size:11px;color:#1f4030}
+    .page-actions{display:flex;flex-wrap:wrap;gap:10px}
     .session-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;color:var(--muted);font-size:11px}
     .session-line .dot{width:7px;height:7px;border-radius:50%;background:#4aa96c}
     .message{position:fixed;z-index:60;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));width:min(94vw,520px);margin:0;box-shadow:0 16px 44px #0f241733;opacity:0;transform:translate(-50%,14px);pointer-events:none;transition:opacity .2s ease,transform .2s ease}
@@ -130,7 +124,6 @@
       .list-head{flex-wrap:wrap}
       .toolbar .search{flex:1 1 100%}
       .hint,.chip,.eyebrow,.foot{font-size:11.5px}
-      .help-card code{font-size:11.5px}
     }
     @media(max-width:400px){
       .brand small{display:none}
@@ -192,7 +185,10 @@
       <section id="page-overview">
         <div class="page-head">
           <div><h1>Ringkasan</h1><p>Kelola publikasi dan identitas digital PB PII.</p></div>
-          <button class="btn primary" id="newArticleTop">+ Tulis artikel</button>
+          <div class="page-actions">
+            <button class="btn secondary" id="checkBackend" type="button">Periksa koneksi data</button>
+            <button class="btn primary" id="newArticleTop">+ Tulis artikel</button>
+          </div>
         </div>
         <div class="stats">
           <div class="stat"><span>Total artikel</span><strong id="totalArticles">0</strong></div>
@@ -203,38 +199,7 @@
           <div class="list-head"><h2>Artikel terbaru</h2><button class="btn secondary" data-goto="articles">Kelola artikel →</button></div>
           <div class="item-list" id="recentArticles"><div class="empty">Memuat data…</div></div>
         </div>
-        <div class="panel">
-          <div class="list-head"><h2>Pusat bantuan</h2><button class="btn secondary" id="checkBackend" type="button">Periksa koneksi data</button></div>
-          <p class="panel-intro">Ringkasan tempat data dan akun website disimpan, agar mudah ditemukan lagi.</p>
-          <div class="help-grid">
-            <div class="help-card">
-              <h3>Di mana database disimpan?</h3>
-              <p>Semua konten tersimpan di satu Google Spreadsheet yang terhubung ke Apps Script website.</p>
-              <ol>
-                <li>Buka spreadsheet yang pernah dipakai, lalu <code>Extensions &gt; Apps Script</code>.</li>
-                <li>Sheet <code>Articles</code>, <code>Settings</code>, dan <code>Gallery</code> adalah tabel datanya.</li>
-                <li>ID spreadsheet tersimpan di <code>Script Properties</code> sebagai <code>SPREADSHEET_ID</code>.</li>
-              </ol>
-            </div>
-            <div class="help-card">
-              <h3>Akun admin</h3>
-              <p>Username selalu <code>admin</code>. Password tidak pernah disimpan di website.</p>
-              <ol>
-                <li>Buka spreadsheet dan tunggu menu <code>PB PII</code> muncul.</li>
-                <li>Pilih <code>Atur akun admin</code>, isi password baru dua kali, lalu simpan.</li>
-              </ol>
-            </div>
-            <div class="help-card">
-              <h3>Jika login gagal</h3>
-              <p>Password hanya tersimpan di Script Properties Google, jadi tidak dapat dilihat dari dashboard.</p>
-              <ul>
-                <li>Atur ulang lewat <code>PB PII &gt; Atur akun admin</code>.</li>
-                <li>Sesi login berlaku 6 jam, lalu masuk kembali.</li>
-              </ul>
-            </div>
-          </div>
-          <p class="session-line"><span class="dot" aria-hidden="true"></span> Masuk sebagai <b id="sessionUser">Administrator</b> · sesi berakhir otomatis setelah 6 jam.</p>
-        </div>
+        <p class="session-line"><span class="dot" aria-hidden="true"></span> Masuk sebagai <b id="sessionUser">Administrator</b> · sesi berakhir otomatis setelah 6 jam.</p>
       </section>
 
       <section id="page-articles" class="hidden">
@@ -1089,6 +1054,5 @@
     start();
   </script>
   <script src="site.js" defer></script>
-  <script src="tanya.js" defer></script>
 </body>
 </html>

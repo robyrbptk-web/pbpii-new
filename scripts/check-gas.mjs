@@ -350,6 +350,7 @@ check('umpan terurut tanggal menurun', feed.map((event) => event.date), feed.map
 const publicPayload = gas.publicData_();
 check('aksi public ikut mengirim events', Array.isArray(publicPayload.events), true);
 check('bawaan keaktifan terbawa ke situs publik', publicPayload.keaktifan.defaultMin, 2);
+check('backend mengumumkan jalur akun yang didukung', publicPayload.capabilities, { kaderEmail: true, chat: true });
 
 const dashboard = gas.orgData_({ id: 'pd-pontianak' });
 check('dashboard lembaga memuat keaktifan sendiri', dashboard.keaktifan.month, month);
