@@ -477,7 +477,7 @@
     const ORG_KEY = 'pbpii_org_name';
     const $ = (id) => document.getElementById(id);
     const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const token = () => sessionStorage.getItem(TOKEN_KEY) || '';
+    const token = () => localStorage.getItem(TOKEN_KEY) || '';
     let state = null;
     let editingActivity = null;
     let editingForm = null;
@@ -499,8 +499,8 @@
     }
 
     function clearSession() {
-      sessionStorage.removeItem(TOKEN_KEY);
-      sessionStorage.removeItem(ORG_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(ORG_KEY);
     }
 
     async function api(action, payload = {}) {
@@ -590,8 +590,8 @@
           password: $('loginPassword').value,
           ...(verifikasi ? verifikasi.fields() : {})
         });
-        sessionStorage.setItem(TOKEN_KEY, data.token);
-        sessionStorage.setItem(ORG_KEY, data.org.name);
+        localStorage.setItem(TOKEN_KEY, data.token);
+        localStorage.setItem(ORG_KEY, data.org.name);
         showLoginMessage('Masuk berhasil. Memuat dashboard…', 'ok');
         await loadData();
       } catch (error) {
@@ -626,7 +626,7 @@
         toast(error.message);
         return;
       }
-      sessionStorage.setItem(ORG_KEY, state.org.name);
+      localStorage.setItem(ORG_KEY, state.org.name);
       showApp();
       $('topOrgName').textContent = state.org.name;
       $('topOrgRole').textContent = state.jenjangLabel + (state.org.district ? ' · ' + state.org.district : state.org.province ? ' · ' + state.org.province : '');

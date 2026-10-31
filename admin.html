@@ -405,7 +405,7 @@
     let busy = false;
 
     const $ = id => document.getElementById(id);
-    const token = () => sessionStorage.getItem('pbpii_admin_token') || '';
+    const token = () => localStorage.getItem('pbpii_admin_token') || '';
 
     function escapeHTML(value) {
       return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
@@ -438,8 +438,8 @@
       if (!response.ok || !result.ok) {
         const error = new Error(result.error || 'Permintaan gagal.');
         if (/sesi berakhir|token tidak valid/i.test(error.message)) {
-          sessionStorage.removeItem('pbpii_admin_token');
-          sessionStorage.removeItem('pbpii_admin_username');
+          localStorage.removeItem('pbpii_admin_token');
+          localStorage.removeItem('pbpii_admin_username');
           window.location.replace('/login.html');
         }
         throw error;
@@ -563,7 +563,7 @@
       button.addEventListener('click', () => showPage(button.dataset.goto))
     );
 
-    $('userName').textContent = sessionStorage.getItem('pbpii_admin_username') || 'Administrator';
+    $('userName').textContent = localStorage.getItem('pbpii_admin_username') || 'Administrator';
     $('sessionUser').textContent = $('userName').textContent;
 
     let articleQuery = '';
@@ -1039,8 +1039,8 @@
 
     $('logoutButton').addEventListener('click', async () => {
       try { await api('logout'); } catch (e) {}
-      sessionStorage.removeItem('pbpii_admin_token');
-      sessionStorage.removeItem('pbpii_admin_username');
+      localStorage.removeItem('pbpii_admin_token');
+      localStorage.removeItem('pbpii_admin_username');
       window.location.replace('/login.html');
     });
 

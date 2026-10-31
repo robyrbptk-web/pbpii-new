@@ -80,11 +80,12 @@
     return account;
   }
 
-  /** Sesi untuk Tanya PII: kader dari localStorage, pengurus/admin dari sesi login. */
+  /** Sesi untuk Tanya PII: kader maupun pengurus dibaca dari localStorage,
+      jadi sesi tetap hidup walau tab ditutup. */
   function sessionToken() {
     const kader = token();
     if (kader) return kader;
-    return sessionStorage.getItem('pbpii_admin_token') || sessionStorage.getItem('pbpii_org_token') || '';
+    return localStorage.getItem('pbpii_admin_token') || localStorage.getItem('pbpii_org_token') || '';
   }
 
   /** Isi sesi yang baru saja dibuat server, lalu tutup panel. */
@@ -487,16 +488,18 @@
   }
 
   /**
-   * Area khusus pengurus. Pengunjung tanpa akun tetap melihat tautannya karena
-   * halaman masuk lembaga/admin memang publik; yang disembunyikan hanya akun
-   * kader, sesuai batas hak akses kader.
+   * Pintu akses berjenjang: "kader" berarti terbuka untuk semua yang punya
+   * sesi (kader, lembaga, pengurus), "pengurus" khusus pintu dashboard
+   * pengelola. Tamu tetap melihat tautan pengurus karena halamannya memang
+   * publik; yang ditutup dari kader hanya dashboard pengelola, sesuai hak
+   * aksesnya. Tautan Pustaka diatur CSS lewat kelas `ada-sesi`.
    */
   function applyGating() {
-    const locked = account.role === 'kader';
-    document.querySelectorAll('[data-requires]').forEach((node) => {
-      node.classList.toggle('is-locked', locked);
-      node.toggleAttribute('hidden', locked);
-      if (locked) node.removeAttribute('aria-current');
+    const kader = account.role === 'kader';
+    document.querySelectorAll('[data-requires="pengurus"]').forEach((node) => {
+      node.classList.toggle('is-locked', kader);
+      node.toggleAttribute('hidden', kader);
+      if (kader) node.removeAttribute('aria-current');
     });
   }
 

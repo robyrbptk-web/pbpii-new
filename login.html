@@ -132,8 +132,9 @@
           throw new Error('Server tidak mengembalikan token sesi.');
         }
 
-        sessionStorage.setItem('pbpii_admin_token', result.data.token);
-        sessionStorage.setItem('pbpii_admin_username', result.data.username || '');
+        // Sesi di localStorage: tab ditutup pun admin tetap dianggap masuk.
+        localStorage.setItem('pbpii_admin_token', result.data.token);
+        localStorage.setItem('pbpii_admin_username', result.data.username || '');
         showMessage('Login berhasil. Membuka dashboard…', 'success');
         window.location.href = '/admin.html';
       } catch (error) {

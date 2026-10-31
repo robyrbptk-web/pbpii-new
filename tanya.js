@@ -29,8 +29,8 @@
    * kader (Google atau email) dari PBPIIAkun, pengurus/admin dari sesi login halaman dashboard.
    */
   const sessionToken = () => window.PBPIIAkun?.sessionToken?.()
-    || sessionStorage.getItem(ADMIN_TOKEN_KEY)
-    || sessionStorage.getItem(ORG_TOKEN_KEY)
+    || localStorage.getItem(ADMIN_TOKEN_KEY)
+    || localStorage.getItem(ORG_TOKEN_KEY)
     || '';
 
   function deviceId() {
@@ -98,7 +98,11 @@
     let busy = false;
     let retryTimer = null;
 
-    const stick = () => {
+    /** Gulir hanya saat pembaca memang berada di dekat bawah; kalau sedang
+        membaca pesan lama, kedatangan jawaban tidak boleh menculik layar. */
+    const dekatBawah = () => scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 140;
+    const stick = (paksa) => {
+      if (!paksa && !dekatBawah()) return;
       scroll.scrollTop = scroll.scrollHeight;
     };
 
@@ -193,11 +197,11 @@
       return row;
     }
 
-    function paint() {
+    function paint(paksa) {
       thread.replaceChildren();
       turns.forEach((turn) => bubble(turn.role, turn.content, turn.rujukan));
       intro.hidden = turns.length > 0;
-      stick();
+      stick(paksa);
     }
 
     const save = () => {
@@ -218,7 +222,7 @@
 
       turns.push({ role: 'user', content: text });
       if (turns.length > MAX_TURNS) turns = turns.slice(-MAX_TURNS);
-      paint();
+      paint(true);
       intro.hidden = true;
       input.value = '';
       grow();
@@ -226,6 +230,7 @@
 
       const history = turns.slice(-MAX_TURNS, -1).map(({ role, content }) => ({ role, content }));
       const row = pending('Sedang menuliskan jawaban…');
+      stick(true);
       const start = Date.now();
 
       try {
@@ -333,7 +338,7 @@
       clearTimeout(retryTimer);
       turns = [];
       localStorage.removeItem(THREAD_KEY);
-      paint();
+      paint(true);
       intro.hidden = false;
       loadQuota();
       input.focus();
@@ -355,13 +360,13 @@
         const terbuka = naik > 60;
         document.documentElement.style.setProperty('--tanya-keyboard', `${terbuka ? naik : 0}px`);
         document.body.classList.toggle('tanya-keyboard-up', terbuka);
-        if (terbuka) stick();
+        if (terbuka) stick(true);
       };
       viewport.addEventListener('resize', ukur);
       viewport.addEventListener('scroll', ukur);
     }
 
-    paint();
+    paint(true);
     loadQuota();
     if (!window.matchMedia('(pointer: coarse)').matches) input.focus({ noScroll: true });
   }

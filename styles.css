@@ -1838,8 +1838,9 @@ body.peta-page {
 }
 
 /* Compact stage: on a short or narrow window the globe stacks its panels in
-   flow, so the page scrolls and the frame gets a real working height instead
-   of clipping the controls behind a "layar penuh" button. */
+   flow. The frame gets exactly the height that fits between the site header,
+   the toolbar, and the bottom tab bar, so nothing inside the globe ends up
+   underneath the fixed bars and the page itself does not need to scroll. */
 body.peta-page.globe-compact {
   height: auto;
   min-height: 100dvh;
@@ -1847,13 +1848,14 @@ body.peta-page.globe-compact {
 }
 
 @media (max-width: 680px) {
+  /* Pita tab bawah tetap dipegang padding, bukan menimpa isi globe. */
   body.peta-page.globe-compact {
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 }
 
 body.peta-page.globe-compact .globe-shell {
-  min-height: calc(100dvh - 62px);
+  min-height: calc(100dvh - 62px - 76px - env(safe-area-inset-bottom));
   padding-bottom: 0;
 }
 
@@ -1870,7 +1872,8 @@ body.peta-page.globe-compact .globe-stage {
 
 body.peta-page.globe-compact .globe-frame {
   flex: none;
-  height: min(1100px, max(660px, 130vh));
+  /* 62 header + ±56 toolbar + 76 tab bawah: iframe pas di sela ketiganya. */
+  height: max(430px, calc(100dvh - 200px - env(safe-area-inset-bottom)));
 }
 
 @media (max-width: 680px) {

@@ -27,7 +27,7 @@
       <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
       <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya</span></a>
       <a class="nav-extra" href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka</span></a>
-      <a href="peta.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a href="peta.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
       <a class="nav-extra" href="#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
       <a class="nav-extra" href="#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
       <a class="nav-extra" href="#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
@@ -63,7 +63,7 @@
         <p id="heroText">Pelajar Islam Indonesia (PII) telah menemani perjalanan bangsa selama puluhan tahun. Dari rahim sejarah itulah lahir kader-kader pelajar yang beriman, berilmu, dan berjuang untuk umat serta negara.</p>
         <div class="hero-actions">
           <a class="button button-light" href="#berita">Ikuti kabar PII <span>↗</span></a>
-          <a class="button button-ghost" href="peta.html" data-requires="pengurus">PII Global View</a>
+          <a class="button button-ghost" href="peta.html">PII Global View</a>
           <a class="button button-ghost" href="#tentang">Kenali PII</a>
         </div>
       </div>
@@ -125,7 +125,7 @@
           <h2>Indonesia dalam Angka</h2>
           <p>Ringkasan langsung dari API data publik yang juga menjadi lapisan informasi di peta global PB PII.</p>
         </div>
-        <a class="text-link" href="peta.html" data-requires="pengurus">Buka peta global ↗</a>
+        <a class="text-link" href="peta.html">Buka peta global ↗</a>
       </div>
       <div class="data-strip" id="dataStrip">
         <div class="data-stat" data-stat="schools"><strong>—</strong><span>Contoh sekolah terdata</span></div>
@@ -193,7 +193,7 @@
         <ul class="about-links">
           <li><a class="text-link" href="#gerakan">Arah gerakan PB PII ↗</a></li>
           <li><a class="text-link" href="#berita">Kabar &amp; gagasan pelajar ↗</a></li>
-          <li><a class="text-link" href="peta.html" data-requires="pengurus">Sekretariat PB PII di peta global ↗</a></li>
+          <li><a class="text-link" href="peta.html">Sekretariat PB PII di peta global ↗</a></li>
         </ul>
       </div>
     </section>
@@ -232,8 +232,8 @@
        tanya.js), dan dilepas lagi saat akun keluar. */
     document.addEventListener('DOMContentLoaded', () => {
       const adaSesi = () => Boolean(window.PBPIIAkun?.sessionToken?.()
-        || sessionStorage.getItem('pbpii_admin_token')
-        || sessionStorage.getItem('pbpii_org_token'));
+        || localStorage.getItem('pbpii_admin_token')
+        || localStorage.getItem('pbpii_org_token'));
       const terapkan = () => document.body.classList.toggle('ada-sesi', adaSesi());
       terapkan();
       window.PBPIIAkun?.onChange?.(terapkan);

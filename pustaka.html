@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Pustaka Organisasi PB PII — berkas kebinan Pelajar Islam Indonesia (Ta'dib, silabus LBT/LAT/Mentra, PPO, PKU, kodifikasi Muktamar dan Rapimnas) yang bisa dicari langsung dari isi teksnya.">
+  <meta name="description" content="Pustaka PII — koleksi berkas Pelajar Islam Indonesia (Ta'dib, silabus LBT/LAT/Mentra, PPO, PKU, kodifikasi Muktamar dan Rapimnas) yang bisa dicari langsung dari isi teksnya.">
   <meta name="theme-color" content="#0c2948">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -516,34 +516,84 @@
       background: rgb(255 255 255 / 14%);
     }
 
+    .pustaka-progress {
+      flex: 0 0 auto;
+      height: 3px;
+      background: #e3edf5;
+    }
+
+    .pustaka-progress i {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--blue);
+      transition: width .12s linear;
+    }
+
     .pustaka-reader-body {
       flex: 1 1 auto;
-      padding: 18px clamp(16px, 5vw, 40px) 26px;
+      padding: 28px clamp(16px, 5vw, 40px) 36px;
       overflow-y: auto;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
-      background: #fdfefe;
+      background:
+        radial-gradient(circle at 50% 0%, #ffffff, transparent 88%),
+        #faf9f6;
+    }
+
+    /* Semua blok isi dipusatkan dengan lebar baca buku (± 70 karakter). */
+    .pustaka-reader-body > * {
+      max-width: 700px;
+      margin-inline: auto;
     }
 
     .pustaka-halaman {
-      margin: 18px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-block: 32px 16px;
       color: var(--blue);
-      font-size: .72rem;
+      font-size: .7rem;
       font-weight: 800;
-      letter-spacing: .12em;
+      letter-spacing: .16em;
       text-transform: uppercase;
     }
 
+    .pustaka-halaman::before,
+    .pustaka-halaman::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #dce5ee;
+    }
+
     .pustaka-halaman:first-child {
-      margin-top: 0;
+      margin-block-start: 0;
     }
 
     .pustaka-text {
-      margin: 0 0 14px;
-      color: #22364b;
-      font-size: 1.02rem;
-      line-height: 1.78;
-      max-width: 74ch;
+      margin-block: 0 18px;
+      color: #2b3540;
+      font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+      font-size: 1.05rem;
+      line-height: 1.85;
+    }
+
+    .pustaka-text mark,
+    .pustaka-cuplikan mark {
+      border-radius: 3px;
+      padding: 0 2px;
+      background: #ffedaa;
+      color: inherit;
+      font-weight: 700;
+    }
+
+    @media (min-width: 681px) {
+      .pustaka-text {
+        text-align: justify;
+        hyphens: auto;
+        -webkit-hyphens: auto;
+      }
     }
 
     .pustaka-reader-foot {
@@ -654,8 +704,17 @@
         justify-content: center;
       }
 
+      .pustaka-reader-bar {
+        padding: calc(env(safe-area-inset-top) + 8px) 10px 10px;
+      }
+
+      .pustaka-reader-body {
+        padding: 20px 14px 30px;
+      }
+
       .pustaka-text {
-        font-size: 1.06rem;
+        font-size: 1.08rem;
+        line-height: 1.8;
       }
     }
 
@@ -666,6 +725,10 @@
       }
 
       .pustaka-reader {
+        transition: none;
+      }
+
+      .pustaka-progress i {
         transition: none;
       }
 
@@ -696,7 +759,7 @@
       <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
       <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya</span></a>
       <a class="nav-extra" href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka</span></a>
-      <a href="peta.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a href="peta.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
       <a class="nav-extra" href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
       <a class="nav-extra" href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
       <a class="nav-extra" href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
@@ -729,7 +792,7 @@
     <section class="pustaka-gate" id="pustakaGate" hidden>
       <img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
       <p class="eyebrow">PUSTAKA ORGANISASI</p>
-      <h1>Berkas kebinan PII, dicari langsung dari isinya</h1>
+      <h1>Pustaka PII, dicari langsung dari isinya</h1>
       <p>Ta&rsquo;dib, silabus LBT / LAT / Mentra, PPO, PKU, serta kodifikasi hasil Muktamar dan Rapimnas tersedia di satu tempat.</p>
       <p class="pustaka-gate-kunci">Bagian ini dibuka untuk akun PII. Silakan masuk lebih dulu untuk membaca dan mencari isinya.</p>
       <div class="pustaka-gate-actions">
@@ -741,7 +804,7 @@
     <div id="pustakaApp" hidden>
       <div class="pustaka-head">
         <p class="eyebrow">PUSTAKA ORGANISASI</p>
-        <h1>Berkas kebinan PII</h1>
+        <h1>Pustaka PII</h1>
         <p>Cari kata atau frasa di seluruh isi berkas, lalu baca bagiannya langsung di sini.</p>
       </div>
 
@@ -786,6 +849,7 @@
       </div>
       <a class="pustaka-reader-pdf" id="pustakaReaderPdf" href="#" target="_blank" rel="noopener" hidden>PDF asli ↗</a>
     </header>
+    <div class="pustaka-progress" aria-hidden="true"><i id="pustakaProgress"></i></div>
     <div class="pustaka-reader-body" id="pustakaReaderBody"></div>
     <footer class="pustaka-reader-foot">
       <span id="pustakaReaderInfo">Siap membaca.</span>
@@ -853,10 +917,11 @@
       const pembacaMore = el('pustakaReaderMore');
       const pembacaPdf = el('pustakaReaderPdf');
 
-      /** Sesi mengikuti pola situs: kader dari akun.js, pengurus dari sesi login. */
+      /** Sesi mengikuti pola situs: kader dari akun.js, pengurus dari sesi login.
+          Token disimpan di localStorage agar sesi tetap hidup walau tab ditutup. */
       const sessionToken = () => window.PBPIIAkun?.sessionToken?.()
-        || sessionStorage.getItem(ADMIN_TOKEN_KEY)
-        || sessionStorage.getItem(ORG_TOKEN_KEY)
+        || localStorage.getItem(ADMIN_TOKEN_KEY)
+        || localStorage.getItem(ORG_TOKEN_KEY)
         || '';
 
       const state = {
@@ -1230,7 +1295,9 @@
           if (cuplikan) {
             const isi = document.createElement('p');
             isi.className = 'pustaka-cuplikan';
-            isi.textContent = cuplikan;
+            /* Kata kunci pencarian ikut ditandai di cuplikan, jadi pembaca
+               langsung melihat kenapa berkas ini muncul. */
+            isiParagraf(isi, cuplikan, state.kueri);
             kartuEl.append(isi);
           }
 
@@ -1243,7 +1310,7 @@
           buka.addEventListener('click', () => bukaPembaca(
             String(item.d || ''),
             Number(Array.isArray(item.h) ? item.h[0] : 0) || 0,
-            { judul: item.judul || '', kategori: item.kategori || '' }
+            { judul: item.judul || '', kategori: item.kategori || '', kueri: state.kueri }
           ));
           aksi.append(buka);
           const doc = state.docs.find((item2) => String(item2.id) === String(item.d));
@@ -1278,8 +1345,34 @@
           }
           const paragraf = document.createElement('p');
           paragraf.className = 'pustaka-text';
-          paragraf.textContent = String(item?.t || '');
+          isiParagraf(paragraf, String(item?.t || ''));
           pembacaBody.append(paragraf);
+        });
+      }
+
+      /** Isi selalu lewat textNode; <mark> hanya melilit kata kunci pencarian,
+          jadi tidak ada markup dari teks server yang bisa hidup. */
+      function isiParagraf(node, teks, kueriAsli) {
+        const kueri = String(kueriAsli === undefined ? state.baca?.kueri : kueriAsli).trim();
+        const kata = kueri.length >= 3
+          ? [...new Set(kueri.toLowerCase().split(/\s+/).filter((k) => k.length >= 3))]
+            .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          : [];
+        if (!kata.length) {
+          node.textContent = teks;
+          return;
+        }
+        const pola = new RegExp(`(${kata.join('|')})`, 'gi');
+        const cocok = new Set(kata.map((k) => k.toLowerCase()));
+        teks.split(pola).forEach((bagian) => {
+          if (!bagian) return;
+          if (cocok.has(bagian.toLowerCase())) {
+            const tanda = document.createElement('mark');
+            tanda.textContent = bagian;
+            node.append(tanda);
+          } else {
+            node.append(bagian);
+          }
         });
       }
 
@@ -1307,7 +1400,7 @@
       async function bukaPembaca(id, target, informasi) {
         if (!id) return;
         const doc = { ...(state.docs.find((item) => String(item.id) === String(id)) || {}), ...(informasi || {}) };
-        state.baca = { id, mulai: 0, sisa: 0, busy: true };
+        state.baca = { id, mulai: 0, sisa: 0, busy: true, kueri: String(informasi?.kueri || '') };
         const pdf = tautanAman(doc.tautan);
         pembacaPdf.hidden = !pdf;
         if (pdf) pembacaPdf.href = pdf;
@@ -1373,7 +1466,29 @@
             catatan.textContent = 'Bagian ini dibuka pada halaman yang dicari dari hasil pencarian.';
             pembacaBody.prepend(catatan);
           }
-          pembacaBody.scrollTop = 0;
+          /* Nomor halaman belum tentu tersedia, jadi kalau berkas dibuka dari
+             pencarian majukan muatan sampai kata kuncinya benar-benar tampil,
+             lalu letakkan layar tepat di sana. */
+          if (state.baca.kueri.trim() && !pembacaBody.querySelector('mark')) {
+            const batasMuat = 3;
+            let muatan = 0;
+            while (!pembacaBody.querySelector('mark')
+              && (Number(state.baca.sisa) || 0) > 0
+              && muatan < batasMuat) {
+              const lanjut = await api({
+                action: 'pustakaBaca', doc: id, mulai: state.baca.mulai, jumlah: POTONG_LOMPAT
+              });
+              const lagi = Array.isArray(lanjut?.potong) ? lanjut.potong : [];
+              if (!lagi.length) break;
+              state.baca.mulai = (Number(lanjut?.mulai) || state.baca.mulai) + lagi.length;
+              state.baca.sisa = Number(lanjut?.sisa) || 0;
+              blokIsi(lagi, 0);
+              muatan += 1;
+            }
+          }
+          const cocok = pembacaBody.querySelector('mark');
+          if (cocok) cocok.scrollIntoView({ block: 'center' });
+          else pembacaBody.scrollTop = 0;
           ubahAksiBaca();
         } catch (error) {
           if (butuhLogin(error.message)) {
@@ -1478,6 +1593,13 @@
 
       el('pustakaReaderClose').addEventListener('click', tutupPembaca);
       pembacaMore.addEventListener('click', muatBerikutnya);
+      const pembacaProgress = el('pustakaProgress');
+      pembacaBody.addEventListener('scroll', () => {
+        const penuh = pembacaBody.scrollHeight - pembacaBody.clientHeight;
+        pembacaProgress.style.width = penuh > 0
+          ? `${Math.min(100, Math.round((pembacaBody.scrollTop / penuh) * 100))}%`
+          : '0%';
+      }, { passive: true });
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && pembaca.classList.contains('is-open')) tutupPembaca();
       });
