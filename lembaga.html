@@ -164,6 +164,39 @@
       .who b{font-size:12px}
       th{font-size:11px}
     }
+    .akt-bar{height:9px;border-radius:99px;background:#e8eef4;overflow:hidden;margin:2px 0 10px}
+    .akt-bar>i{display:block;height:100%;width:0;border-radius:99px;background:var(--blue);transition:width .45s ease}
+    .akt-bar.done>i{background:#1a9d54}
+    .akt-legend{display:flex;gap:6px 14px;flex-wrap:wrap;color:var(--muted);font-size:11.5px}
+    .akt-legend b{color:var(--navy)}
+    .akt-trend{display:flex;align-items:flex-end;gap:6px;margin-top:16px}
+    .akt-trend .col{flex:1;min-width:0;display:grid;justify-items:center;gap:5px}
+    .akt-trend .col i{display:block;width:100%;max-width:34px;min-height:6px;height:var(--h);border-radius:6px 6px 3px 3px;background:#dbe7f2}
+    .akt-trend .col.on i{background:var(--blue)}
+    .akt-trend .col small{font-size:10.5px;color:var(--muted)}
+    .std-row{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+    .std-form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+    .std-form input{width:104px;flex:0 0 auto}
+    .std-note{margin:8px 0 0;color:var(--muted);font-size:11.5px}
+    .bind-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
+    .bind-row .badge{font-size:10.5px}
+    .uploader{display:grid;gap:8px;margin-bottom:8px}
+    .upload-drop{display:block;padding:16px 13px;border:1.5px dashed #b6c8d8;border-radius:12px;background:#f7fafc;color:#41566b;font-size:12.5px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+    .upload-drop:hover,.upload-drop.is-over{border-color:var(--blue);background:#eaf5ff;color:var(--navy)}
+    .upload-preview{max-width:100%;max-height:190px;object-fit:contain;border-radius:12px;border:1px solid var(--line);background:#fff}
+    .upload-status{margin:0;font-size:11.5px;color:var(--muted)}
+    .upload-link{font-size:12.5px;color:var(--muted)}
+    .upload-link summary{cursor:pointer;padding:2px 0}
+    .upload-link input{margin-top:6px}
+    .drop-touch{display:none}
+    @media(hover:none) and (pointer:coarse){
+      .drop-pointer{display:none}
+      .drop-touch{display:block}
+    }
+    @media(max-width:560px){
+      .upload-drop{display:flex;align-items:center;justify-content:center;min-height:88px;padding:18px 13px;font-size:13px}
+      .upload-link summary{display:flex;align-items:center;min-height:44px}
+    }
   </style>
 </head>
 <body>
@@ -241,6 +274,18 @@
               </div>
             </div>
           </div>
+          <div class="panel">
+            <div class="list-head"><h2>Standar keaktifan bulan ini</h2><span class="badge" id="aktStatus">—</span></div>
+            <p class="intro" id="aktSummary">Standar minimal kegiatan per bulan ditetapkan lembaga di atas Anda, atau memakai bawaan website.</p>
+            <div class="akt-bar" id="aktBar"><i id="aktFill"></i></div>
+            <div class="akt-legend">
+              <span id="aktCount"><b>0</b> kegiatan</span>
+              <span id="aktMin">standar <b>—</b>/bulan</span>
+              <span id="aktLeft">—</span>
+              <span id="aktSource">—</span>
+            </div>
+            <div class="akt-trend" id="aktTrend"></div>
+          </div>
           <div class="panel hidden" id="pendingPanel">
             <div class="list-head"><h2>Menunggu verifikasi Anda</h2></div>
             <p class="intro">Lembaga di bawah Anda yang baru mendaftar. Periksa SK dan kelengkapan data sebelum menyetujui.</p>
@@ -269,14 +314,35 @@
             <form id="activityForm">
               <input type="hidden" id="aId">
               <div class="grid2">
-                <div class="field full"><label class="lbl" for="aTitle">Judul kegiatan *</label><input id="aTitle" maxlength="180" required></div>
+                <div class="field full"><label class="lbl" for="aTitle">Judul kegiatan *</label><input id="aTitle" maxlength="180" required list="contohKegiatan" placeholder="Misal: Leadership Basic Training (LBT) atau Ta'lim Awal"><datalist id="contohKegiatan">
+                  <option value="Leadership Basic Training (LBT)"></option>
+                  <option value="Leadership Intermediate Training (LIT)"></option>
+                  <option value="Leadership Advance Training (LAT)"></option>
+                  <option value="Ta'lim Awal"></option>
+                  <option value="Ta'lim Wusthom"></option>
+                  <option value="Ta'lim Ali"></option>
+                  <option value="Kajian rutin"></option>
+                  <option value="Bakti sosial"></option>
+                </datalist></div>
                 <div class="field"><label class="lbl" for="aCategory">Bidang / kategori</label>
                   <select id="aCategory"><option>Kaderisasi</option><option>Pendidikan</option><option>Sosial</option><option>Dakwah</option><option>Organisasi</option><option>Kesekretariatan</option><option>Lainnya</option></select>
                 </div>
                 <div class="field"><label class="lbl" for="aDate">Tanggal *</label><input id="aDate" type="date" required></div>
                 <div class="field"><label class="lbl" for="aLocation">Lokasi</label><input id="aLocation" maxlength="160"></div>
                 <div class="field"><label class="lbl" for="aParticipants">Jumlah peserta</label><input id="aParticipants" type="number" min="0" step="1" value="0"></div>
-                <div class="field full"><label class="lbl" for="aCover">URL gambar (https)</label><input id="aCover" type="url" placeholder="https://..."></div>
+                <div class="field full"><label class="lbl" for="aCover">Foto sampul kegiatan</label>
+                  <div class="uploader" data-upload-for="aCover">
+                    <label class="upload-drop">
+                      <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                      <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan di Drive PB PII</span>
+                      <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
+                    </label>
+                    <img class="upload-preview" alt="" hidden>
+                    <p class="upload-status" role="status"></p>
+                  </div>
+                  <details class="upload-link"><summary>Pakai link gambar (opsional)</summary><input id="aCover" type="url" placeholder="https://..."></details>
+                  <div class="hint">Sampul ini yang tampil pada kartu acara di halaman Acara website PB PII.</div>
+                </div>
                 <div class="field full"><label class="lbl" for="aDescription">Deskripsi</label><textarea id="aDescription" maxlength="8000" placeholder="Ringkas hasil, agenda, dan jumlah sasaran kegiatan."></textarea></div>
                 <div class="field"><label class="lbl" for="aStatus">Status</label><select id="aStatus"><option value="published">Terbitkan</option><option value="draft">Draft</option></select></div>
               </div>
@@ -345,6 +411,7 @@
           <div class="panel">
             <div class="list-head"><h2>Lembaga di bawah Anda</h2><span class="badge" id="networkCount">0</span></div>
             <p class="intro" id="networkIntro">Data mengikuti hierarki PW → PD → PK.</p>
+            <p class="std-note" id="standardHelp" hidden>Angka yang Anda terapkan menjadi standar bulan berjalan lembaga itu. Isi <b>0</b> untuk mencabut ketentuan khusus sehingga yang berlaku kembali standar dari Anda.</p>
             <div class="item-list" id="networkList"><div class="empty">Memuat…</div></div>
           </div>
           <div class="panel">
@@ -592,6 +659,7 @@
       $('kpiABar').style.width = Math.min(100, kpi.activities30 / 4 * 100) + '%';
       $('kpiPBar').style.width = Math.min(100, kpi.participants90 / 100 * 100) + '%';
       $('kpiFBar').style.width = Math.min(100, kpi.forms90 / 2 * 100) + '%';
+      renderKeaktifan();
 
       const pending = state.network.filter((item) => item.status !== 'verified' && item.canVerify);
       $('pendingPanel').classList.toggle('hidden', pending.length === 0);
@@ -614,6 +682,45 @@
       )).join('') || '<div class="empty">Belum ada kegiatan dari bawahan.</div>';
     }
 
+    // ------------------------------------------------------------- keaktifan
+
+    function monthLabel(key) {
+      if (!key) return '';
+      const date = new Date(key + '-01T00:00:00');
+      return isNaN(date.getTime()) ? key : date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    }
+
+    function renderKeaktifan() {
+      const aktif = state.keaktifan;
+      const info = state.keaktifanInfo || {};
+      if (!aktif) return;
+      const status = $('aktStatus');
+      status.textContent = aktif.terpenuhi ? 'TERCAPAI' : 'KURANG ' + aktif.sisa;
+      status.className = 'badge ' + (aktif.terpenuhi ? 'verified' : 'pending');
+      $('aktSummary').textContent = 'Penilaian bulan ' + monthLabel(aktif.month) +
+        '. Kegiatan terbit yang dihitung; draft dan kegiatan bulan sebelumnya tidak memengaruhi angka bulan ini.';
+      $('aktBar').classList.toggle('done', Boolean(aktif.terpenuhi));
+      $('aktFill').style.width = Math.max(2, Math.min(100, Number(aktif.persen) || 0)) + '%';
+      $('aktCount').innerHTML = '<b>' + aktif.count + '</b> kegiatan terbit';
+      $('aktMin').innerHTML = 'standar <b>' + aktif.min + '</b> kegiatan/bulan';
+      $('aktLeft').textContent = aktif.terpenuhi
+        ? 'target bulan ini sudah aman'
+        : 'butuh ' + aktif.sisa + ' kegiatan lagi';
+      $('aktSource').textContent = aktif.source === 'org' && aktif.setBy
+        ? 'ditetapkan ' + (aktif.setBy.via || aktif.setBy.name)
+        : 'bawaan website PB PII';
+
+      const rows = state.keaktifanTrend || [];
+      const peak = Math.max(1, ...rows.map((row) => Number(row.count) || 0));
+      $('aktTrend').innerHTML = rows.map((row, index) => {
+        const count = Number(row.count) || 0;
+        const tinggi = Math.round(6 + (count / peak) * 46);
+        const label = new Date(row.month + '-01T00:00:00').toLocaleDateString('id-ID', { month: 'short' });
+        return '<div class="col' + (index === rows.length - 1 ? ' on' : '') + '" style="--h:' + tinggi + 'px" title="' +
+          count + ' kegiatan · ' + (Number(row.participants) || 0) + ' peserta"><i></i><small>' + label + '</small></div>';
+      }).join('');
+    }
+
     // --------------------------------------------------------------- kegiatan
 
     function resetActivityForm() {
@@ -623,6 +730,7 @@
       $('aDate').value = new Date().toISOString().slice(0, 10);
       $('aStatus').value = 'published';
       $('activityFormTitle').textContent = 'Tambah kegiatan';
+      refreshUploader('aCover');
       $('activityEditor').classList.remove('hidden');
       $('activityEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
       $('aTitle').focus();
@@ -676,6 +784,7 @@
       $('aDescription').value = item.description || '';
       $('aStatus').value = item.status || 'published';
       $('activityFormTitle').textContent = 'Edit kegiatan';
+      refreshUploader('aCover');
       $('activityEditor').classList.remove('hidden');
       $('activityEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -693,15 +802,25 @@
 
     function renderActivities() {
       const rows = state.activities;
-      $('activityList').innerHTML = rows.map((item) => (
-        '<div class="item"><div class="item-main"><h3>' + esc(item.title) + ' ' +
-        '<span class="badge ' + (item.status === 'published' ? 'verified' : 'pending') + '">' +
-        (item.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3>' +
-        '<p>' + fmtDate(item.date) + ' · ' + esc(item.category) + ' · ' + (Number(item.participants) || 0) +
-        ' peserta · ' + esc(item.location || 'Tanpa lokasi') + '</p></div>' +
-        '<div class="item-actions"><button class="btn secondary" type="button" data-edit-activity="' + esc(item.id) + '">Edit</button>' +
-        '<button class="btn danger" type="button" data-delete-activity="' + esc(item.id) + '">Hapus</button></div></div>'
-      )).join('') || '<div class="empty">Belum ada kegiatan. Tambahkan kegiatan pertama lembaga Anda.</div>';
+      const formOf = (id) => state.forms.find((form) => form.mine && form.activityId === id);
+      $('activityList').innerHTML = rows.map((item) => {
+        const linked = formOf(item.id);
+        const bind = linked
+          ? '<div class="bind-row"><span class="badge ' + (linked.status === 'open' ? 'verified' : 'pending') + '">' +
+            (linked.status === 'open' ? 'PENDAFTARAN DIBUKA' : 'PENDAFTARAN DITUTUP') + '</span>' +
+            '<button class="btn secondary" type="button" data-copy-form="' + esc(linked.id) + '">Salin tautan daftar</button></div>'
+          : item.status === 'published'
+            ? '<div class="bind-row"><span class="badge">BELUM ADA FORMULIR</span>' +
+              '<button class="btn ghost" type="button" data-form-for="' + esc(item.id) + '">+ Tautkan formulir</button></div>'
+            : '';
+        return '<div class="item"><div class="item-main"><h3>' + esc(item.title) + ' ' +
+          '<span class="badge ' + (item.status === 'published' ? 'verified' : 'pending') + '">' +
+          (item.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3>' +
+          '<p>' + fmtDate(item.date) + ' · ' + esc(item.category) + ' · ' + (Number(item.participants) || 0) +
+          ' peserta · ' + esc(item.location || 'Tanpa lokasi') + '</p>' + bind + '</div>' +
+          '<div class="item-actions"><button class="btn secondary" type="button" data-edit-activity="' + esc(item.id) + '">Edit</button>' +
+          '<button class="btn danger" type="button" data-delete-activity="' + esc(item.id) + '">Hapus</button></div></div>';
+      }).join('') || '<div class="empty">Belum ada kegiatan. Tambahkan kegiatan pertama lembaga Anda.</div>';
     }
 
     // --------------------------------------------------------------- formulir
@@ -934,8 +1053,24 @@
     function renderNetwork() {
       $('networkCount').textContent = state.network.length;
       $('networkIntro').textContent = state.network.length
-        ? 'Kegiatan 30/90 hari, peserta, dan formulir dihitung dari data yang diunggah masing-masing lembaga.'
+        ? 'Keaktifan dinilai dari kegiatan terbit masing-masing lembaga. Anda dapat menetapkan standar minimal kegiatan per bulan untuk lembaga di bawah Anda.'
         : 'Belum ada lembaga bawahan yang terdaftar.';
+      $('standardHelp').hidden = !(state.keaktifanInfo || {}).canSetStandards;
+
+      const standardRow = (item) => {
+        const aktif = item.keaktifan || {};
+        const khusus = Boolean(item.standardSetHere);
+        const nilai = khusus ? Number(aktif.min) || 0 : '';
+        return '<div class="std-row"><div class="std-form">' +
+          '<div class="field"><label class="lbl" for="std-' + esc(item.id) + '">Standar kegiatan/bulan</label>' +
+          '<input id="std-' + esc(item.id) + '" data-standard-for="' + esc(item.id) + '" type="number" min="0" max="60" step="1" ' +
+          'value="' + nilai + '" placeholder="' + (Number(aktif.min) || 0) + '"></div>' +
+          '<button class="btn secondary" type="button" data-set-standard="' + esc(item.id) + '">Terapkan</button>' +
+          '</div><p class="std-note">' + (khusus
+            ? 'Ketentuan khusus ' + esc(item.name) + ': <b>' + (Number(aktif.min) || 0) + '</b> kegiatan per bulan (' + esc(aktif.setBy && aktif.setBy.via || 'Anda') + ').'
+            : 'Sekarang ikut standar ' + esc((aktif.setBy && aktif.setBy.name) || 'bawaan website') + ' = ' + (Number(aktif.min) || 0) + ' kegiatan/bulan. Isi 0 untuk menghapus ketentuan khusus.') +
+          ' <b>Bulan ini: ' + (Number(aktif.count) || 0) + ' kegiatan.</b></p></div>';
+      };
 
       $('networkList').innerHTML = state.network.map((item) => (
         '<div class="network-card"><div class="row"><div><h3>' + esc(item.name) + ' ' + statusBadge(item.status) + '</h3>' +
@@ -945,6 +1080,7 @@
         '<span><b>' + item.kpi.activities90 + '</b> kegiatan 90 hari</span>' +
         '<span><b>' + item.kpi.participants90 + '</b> peserta 90 hari</span>' +
         '<span><b>' + item.kpi.forms90 + '</b> formulir 90 hari</span></div>' +
+        standardRow(item) +
         (item.status !== 'verified' && item.canVerify
           ? '<div class="letter-actions"><button class="btn primary" type="button" data-verify="' + esc(item.id) + '">Verifikasi</button>' +
             '<button class="btn danger" type="button" data-reject="' + esc(item.id) + '">Tolak</button></div>'
@@ -1012,6 +1148,101 @@
       }
     });
 
+    // ------------------------------------------------------------- unggah foto
+
+    const UPLOAD_MAX_EDGE = 1600;
+    const UPLOAD_QUALITY = 0.82;
+
+    /** Foto diperkecil di browser sebelum dikirim: unggahan tetap ringan untuk Apps Script. */
+    async function prepareImage(file) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+        throw new Error('Pilih berkas JPEG, PNG, atau WebP.');
+      }
+      if (!('createImageBitmap' in window)) {
+        throw new Error('Browser ini tidak mendukung pemrosesan foto; pakai link gambar HTTPS.');
+      }
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (bitmap.close) bitmap.close();
+      const dataUrl = canvas.toDataURL('image/jpeg', UPLOAD_QUALITY);
+      return {
+        name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg',
+        data: dataUrl.split(',')[1],
+        bytes: Math.round(dataUrl.length * 0.75)
+      };
+    }
+
+    /** Tampilkan kembali sampul yang sudah tersimpan saat editor kegiatan dibuka. */
+    function refreshUploader(inputId) {
+      const box = document.querySelector('[data-upload-for="' + inputId + '"]');
+      const target = $(inputId);
+      if (!box || !target) return;
+      const preview = box.querySelector('.upload-preview');
+      const url = String(target.value || '');
+      if (/^https:\/\//i.test(url)) {
+        preview.src = url;
+        preview.hidden = false;
+      } else {
+        preview.removeAttribute('src');
+        preview.hidden = true;
+      }
+    }
+
+    function bindUploaders() {
+      document.querySelectorAll('[data-upload-for]').forEach((box) => {
+        const input = box.querySelector('input[type=file]');
+        const drop = box.querySelector('.upload-drop');
+        const preview = box.querySelector('.upload-preview');
+        const status = box.querySelector('.upload-status');
+        const target = $(box.dataset.uploadFor);
+
+        const run = async (file) => {
+          if (!file) return;
+          if (!canWrite()) {
+            status.textContent = 'Akun belum terverifikasi, jadi unggahan foto belum dapat dipakai.';
+            input.value = '';
+            return;
+          }
+          status.textContent = 'Mengunggah foto…';
+          try {
+            const prepared = await prepareImage(file);
+            const saved = await api('orgUploadImage', { name: prepared.name, data: prepared.data });
+            target.value = saved.url;
+            preview.src = saved.url;
+            preview.hidden = false;
+            status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan simpan kegiatan untuk menempelkannya.';
+            toast('Foto berhasil diunggah.');
+          } catch (error) {
+            const pesan = /tidak dikenal/i.test(error.message)
+              ? 'Unggah foto belum dapat diproses layanan. Silakan coba lagi sebentar, atau tempel URL gambar bila mendesak.'
+              : error.message;
+            status.textContent = pesan;
+            toast('Unggahan gagal: ' + pesan);
+          } finally {
+            input.value = '';
+          }
+        };
+
+        input.addEventListener('change', () => run(input.files[0]));
+        ['dragenter', 'dragover'].forEach((type) => drop.addEventListener(type, (event) => {
+          event.preventDefault();
+          drop.classList.add('is-over');
+        }));
+        ['dragleave', 'drop'].forEach((type) => drop.addEventListener(type, (event) => {
+          event.preventDefault();
+          drop.classList.remove('is-over');
+        }));
+        drop.addEventListener('drop', (event) => run(event.dataTransfer && event.dataTransfer.files[0]));
+      });
+    }
+
     // ------------------------------------------------------------ event wiring
 
     document.addEventListener('click', (event) => {
@@ -1036,7 +1267,48 @@
       if (delP) return deleteParticipant(delP.dataset.deleteParticipant);
       const letter = target.closest('[data-letter]');
       if (letter) return markLetter(letter.dataset.letter, letter.dataset.status);
+      const standard = target.closest('[data-set-standard]');
+      if (standard) return setStandard(standard);
+      const bind = target.closest('[data-form-for]');
+      if (bind) return openFormFor(bind.dataset.formFor);
     });
+
+    /** Standar keaktifan berjenjang: hanya lembaga di bawah Anda yang bisa disetel. */
+    async function setStandard(button) {
+      const orgId = button.dataset.setStandard;
+      const input = document.querySelector('[data-standard-for="' + orgId + '"]');
+      if (!canWrite()) return toast('Akun belum terverifikasi.');
+      const raw = (input.value || '').trim();
+      if (raw !== '' && (!/^\d{1,2}$/.test(raw) || Number(raw) > 60)) return toast('Isi angka 0 sampai 60 kegiatan per bulan.');
+      button.disabled = true;
+      try {
+        const data = await api('orgSetStandard', { orgId, minPerMonth: raw === '' ? 0 : Number(raw) });
+        await loadData();
+        toast(data.cleared
+          ? 'Ketentuan khusus ' + data.orgName + ' dicabut — sekarang ikut standar induknya.'
+          : 'Standar ' + data.orgName + ': ' + data.minPerMonth + ' kegiatan per bulan.');
+      } catch (error) {
+        toast(error.message);
+        button.disabled = false;
+      }
+    }
+
+    /** Buka editor formulir dengan kegiatan yang sedang dikerjakan sudah terpilih. */
+    function openFormFor(activityId) {
+      if (!canWrite()) return toast('Akun belum terverifikasi.');
+      setPage('formulir');
+      const activity = state.activities.find((item) => item.id === activityId);
+      editingForm = null;
+      $('createForm').reset();
+      $('fId').value = '';
+      $('fTitle').value = activity ? 'Pendaftaran ' + activity.title : '';
+      $('fActivity').value = activityId;
+      $('fStatus').value = 'open';
+      $('formEditorTitle').textContent = 'Formulir pendaftaran kegiatan';
+      $('formEditor').classList.remove('hidden');
+      $('formEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('fTitle').focus();
+    }
 
     $('bottomNav').addEventListener('click', (event) => {
       const button = event.target.closest('[data-page]');
@@ -1044,6 +1316,8 @@
     });
 
     // ------------------------------------------------------------------- boot
+
+    bindUploaders();
 
     (async () => {
       if (!token()) {

@@ -156,6 +156,14 @@
       "destination": "/formulir.html"
     },
     {
+      "source": "/tanya",
+      "destination": "/tanya.html"
+    },
+    {
+      "source": "/acara",
+      "destination": "/acara.html"
+    },
+    {
       "source": "/offline",
       "destination": "/offline.html"
     },

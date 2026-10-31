@@ -256,13 +256,56 @@ async function loadDataStrip() {
     : `${answered} dari ${targets.length} sumber data aktif per ${time} WIB; sisanya belum dapat dihubungi.`;
 }
 
+function renderEventTeaser(events) {
+  const host = $('#events');
+  if (!host) return;
+  const rows = (Array.isArray(events) ? events : [])
+    .filter((event) => event.upcoming)
+    .slice(0, 3);
+
+  if (!rows.length) {
+    host.innerHTML = `<div class="empty-state"><h3>Belum ada agenda yang tampil di sini</h3><p>Umpan kegiatan diisi otomatis ketika pengurus PW, PD, atau PK menerbitkan acara di dashboard lembaga.</p></div>`;
+    return;
+  }
+
+  host.innerHTML = rows.map((event) => {
+    const form = event.form;
+    const open = form && form.status === 'open';
+    const cta = open
+      ? `<a class="button button-solid acara-cta" href="${escapeHTML(form.url)}">Daftar</a>`
+      : form
+        ? `<a class="button button-ghost acara-cta" href="${escapeHTML(form.url)}">Formulir ditutup</a>`
+        : '<span class="acara-nofom">Pendaftaran lewat panitia</span>';
+    const day = String(event.date || '').slice(8, 10);
+    const month = new Date(`${String(event.date || '').slice(0, 10)}T00:00:00`)
+      .toLocaleDateString('id-ID', { month: 'short' });
+
+    return `
+      <article class="acara-card">
+        <div class="acara-cover">
+          <img src="${safeImageUrl(event.coverImage)}" alt="${escapeHTML(event.title)}" loading="lazy" onerror="this.onerror=null;this.src='${LOGO_URL}'">
+          <span class="acara-date"><b>${escapeHTML(day)}</b><small>${escapeHTML(month)}</small></span>
+        </div>
+        <div class="acara-body">
+          <div class="acara-meta">
+            <span>${escapeHTML(event.category || 'Kegiatan')}</span>
+            <span class="acara-jenjang">${escapeHTML(event.host?.jenjangLabel || event.host?.name || 'PII')}</span>
+          </div>
+          <h3>${escapeHTML(event.title)}</h3>
+          ${event.location ? `<p class="acara-where">${escapeHTML(event.location)}</p>` : ''}
+          <div class="acara-actions">${cta}</div>
+        </div>
+      </article>`;
+  }).join('');
+}
+
 async function init() {
   $('#year').textContent = new Date().getFullYear();
 
   if (location.protocol === 'file:') {
     showLoadError(
       'Mode pratinjau lokal',
-      'Jalankan proyek dengan Vercel CLI (vercel dev) untuk memuat artikel dan galeri dari backend.'
+      'Konten dimuat melalui layanan data, jadi halaman ini perlu dibuka lewat alamat website, bukan berkas langsung.'
     );
     return;
   }
@@ -322,10 +365,12 @@ async function init() {
           </figcaption>
         </figure>`).join('')
       : `<div class="empty-state"><h3>Galeri kegiatan</h3><p>Foto pilihan akan ditampilkan di sini oleh admin PB PII.</p></div>`;
+
+    renderEventTeaser(data.events);
   } catch (error) {
     showLoadError(
       'Konten belum tersedia',
-      'Periksa koneksi backend Apps Script dan muat ulang halaman.'
+      'Berita dan galeri akan tampil otomatis begitu kontennya diterbitkan. Coba muat ulang beberapa saat lagi.'
     );
     console.error(error);
   }

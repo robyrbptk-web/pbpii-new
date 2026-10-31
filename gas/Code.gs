@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-10-30.3';
+const BACKEND_VERSION = '2026-10-31.3';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -23,9 +23,14 @@ const APP = {
   SHEET_LETTERS: 'Letters',
   SHEET_SESSIONS: 'Sessions',
   SHEET_CHAT: 'Chat',
+  SHEET_STANDARDS: 'Standards',
+  SHEET_KADERS: 'Kaders',
+  SHEET_REACTIONS: 'Reactions',
+  SHEET_COMMENTS: 'Comments',
   TOKEN_TTL_SECONDS: 21600,
   CHAT_DAILY_LIMIT: 20,
   CHAT_MAX_CHARS: 900,
+  COMMENT_MAX_CHARS: 500,
   PROP_SPREADSHEET_ID: 'SPREADSHEET_ID',
   PROP_ADMIN_USERNAME: 'ADMIN_USERNAME',
   PROP_ADMIN_PASSWORD: 'ADMIN_PASSWORD',
@@ -40,12 +45,13 @@ const APP = {
 };
 
 /**
- * Kata sandi pemulihan akun admin. Nilainya terlihat di repository publik, jadi
- * jangan dipakai untuk login produksi: jalankan hanya lewat aturUlangPasswordAdmin()
- * bila akses hilang, lalu segera ganti lewat menu PB PII > Atur akun admin.
- * Kata sandi yang disimpan di server selalu berupa hash, bukan teks ini.
+ * Kata sandi awal akun admin dibuat acak ketika setup dijalankan dan hanya
+ * ditampilkan satu kali di layar Apps Script, jadi tidak ada kredensial yang
+ * ikut tersimpan di repository. Yang disimpan di server selalu hash bersalt.
  */
-const DEFAULT_ADMIN_PASSWORD = 'tauhid12';
+function bootstrapAdminPassword_() {
+  return Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+}
 
 const ORG_HEADERS = [
   'id', 'jenjang', 'name', 'province', 'district', 'subdistrict', 'parentId',
@@ -64,6 +70,13 @@ const PARTICIPANT_HEADERS = [
 ];
 const LETTER_HEADERS = [
   'id', 'fromOrgId', 'toOrgId', 'category', 'subject', 'body', 'status', 'createdAt', 'readAt'
+];
+/**
+ * Standar keaktifan berjenjang. `id` sengaja memakai orgId supaya barisnya
+ * dapat dicari dengan orgSetCell_/findRow_ seperti sheet lain.
+ */
+const STANDARD_HEADERS = [
+  'id', 'orgId', 'minPerMonth', 'setByOrgId', 'setByName', 'note', 'updatedAt'
 ];
 
 const LETTER_CATEGORIES = ['Kesekretariatan', 'Kebendaharaan', 'Kelembagaan', 'Eksternal'];
@@ -98,6 +111,16 @@ const SESSION_HEADERS = ['token', 'kind', 'subject', 'createdAt', 'expiresAt'];
 const CHAT_HEADERS = [
   'createdAt', 'kind', 'subject', 'question', 'answer', 'provider', 'status'
 ];
+/** Akun kader biasa: hanya dipakai untuk Tanya PII dan interaksi acara. */
+const KADER_HEADERS = [
+  'id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note'
+];
+/** Satu baris = satu suka. actorKey sudah berisi jenis akun, jadi tidak bertabrakan. */
+const REACTION_HEADERS = ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt'];
+const COMMENT_HEADERS = [
+  'id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text',
+  'status', 'createdAt', 'updatedAt'
+];
 
 // Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
 const SHEET_SCHEMA = [
@@ -110,7 +133,11 @@ const SHEET_SCHEMA = [
   [APP.SHEET_PARTICIPANTS, PARTICIPANT_HEADERS],
   [APP.SHEET_LETTERS, LETTER_HEADERS],
   [APP.SHEET_SESSIONS, SESSION_HEADERS],
-  [APP.SHEET_CHAT, CHAT_HEADERS]
+  [APP.SHEET_CHAT, CHAT_HEADERS],
+  [APP.SHEET_STANDARDS, STANDARD_HEADERS],
+  [APP.SHEET_KADERS, KADER_HEADERS],
+  [APP.SHEET_REACTIONS, REACTION_HEADERS],
+  [APP.SHEET_COMMENTS, COMMENT_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -127,7 +154,13 @@ const DEFAULT_SETTINGS = [
   ['footerText', 'Pengurus Besar — Pelajar Islam Indonesia · Jl. Menteng Raya No. 58, Jakarta Pusat'],
   ['contactEmail', ''],
   ['instagramUrl', ''],
-  ['youtubeUrl', '']
+  ['youtubeUrl', ''],
+  ['keaktifanMinPerMonth', '1'],
+  ['googleClientId', ''],
+  ['turnstileSiteKey', ''],
+  ['turnstileSecret', ''],
+  ['kaderCommentDailyLimit', '10'],
+  ['eventCommentsOpen', 'true']
 ];
 
 const ALLOWED_SETTINGS = [
@@ -144,8 +177,21 @@ const ALLOWED_SETTINGS = [
   'footerText',
   'contactEmail',
   'instagramUrl',
-  'youtubeUrl'
+  'youtubeUrl',
+  'keaktifanMinPerMonth',
+  'googleClientId',
+  'turnstileSiteKey',
+  'turnstileSecret',
+  'kaderCommentDailyLimit',
+  'eventCommentsOpen'
 ];
+
+/**
+ * Kunci yang tidak boleh keluar dari backend. Nilai ini tersimpan di sheet
+ * Settings yang sama dengan teks halaman, jadi umpan publik harus menyaringnya
+ * lebih dulu — kalau tidak, secret Turnstile ikut terkirim ke browser.
+ */
+const SECRET_SETTINGS = ['turnstileSecret'];
 
 /**
  * Buat sheet yang dibutuhkan tanpa menghapus data yang sudah ada, lalu perbaiki
@@ -185,8 +231,9 @@ function setup() {
 
   const punyaKataSandi = Boolean(properties.getProperty(APP.PROP_ADMIN_PASSWORD_HASH)) ||
     Boolean(properties.getProperty(APP.PROP_ADMIN_PASSWORD));
+  const kataSandiAwal = punyaKataSandi ? '' : bootstrapAdminPassword_();
   if (!punyaKataSandi) {
-    saveAdminPassword_(DEFAULT_ADMIN_PASSWORD);
+    saveAdminPassword_(kataSandiAwal);
   }
 
   if (settingsSheet) {
@@ -207,7 +254,7 @@ function setup() {
   }
   laporan.push(punyaKataSandi
     ? 'Kata sandi admin yang sudah ada tetap berlaku; nilai teks polos lama otomatis berubah jadi hash pada login berikutnya.'
-    : 'Kata sandi awal: ' + DEFAULT_ADMIN_PASSWORD + ' — segera ganti lewat menu PB PII > Atur akun admin.');
+    : 'Kata sandi awal admin: ' + kataSandiAwal + ' — catat sekarang, nilainya tidak ditampilkan lagi. Segera ganti lewat menu PB PII > Atur akun admin.');
 
   const message = laporan.join('\n');
   try {
@@ -227,9 +274,10 @@ function setup() {
 function aturUlangPasswordAdmin() {
   const properties = PropertiesService.getScriptProperties();
   properties.setProperty(APP.PROP_ADMIN_USERNAME, 'admin');
-  saveAdminPassword_(DEFAULT_ADMIN_PASSWORD);
+  const kataSandiBaru = bootstrapAdminPassword_();
+  saveAdminPassword_(kataSandiBaru);
   const message =
-    'Akun admin disetel ulang.\n\nUsername: admin\nKata sandi: ' + DEFAULT_ADMIN_PASSWORD +
+    'Akun admin disetel ulang.\n\nUsername: admin\nKata sandi: ' + kataSandiBaru +
     '\n\nSegera ganti melalui menu PB PII > Atur akun admin.';
   try {
     SpreadsheetApp.getUi().alert(message);
@@ -472,7 +520,19 @@ function doPost(event) {
     if (action === 'health') {
       data = health_();
     } else if (action === 'public') {
-      data = publicData_();
+      data = publicData_(body);
+    } else if (action === 'captcha') {
+      data = captchaIssue_(body);
+    } else if (action === 'whoami') {
+      data = whoami_(body);
+    } else if (action === 'kaderLogin') {
+      data = kaderLogin_(body);
+    } else if (action === 'eventThread') {
+      data = eventThread_(body);
+    } else if (action === 'eventLike') {
+      data = eventLike_(body);
+    } else if (action === 'eventComment') {
+      data = eventComment_(body);
     } else if (action === 'chat') {
       data = chat_(body);
     } else if (action === 'chatStatus') {
@@ -502,7 +562,9 @@ function doPost(event) {
   } catch (error) {
     return json_({
       ok: false,
-      error: String(error && error.message ? error.message : error)
+      error: String(error && error.message ? error.message : error),
+      code: String((error && error.code) || ''),
+      retryAfter: Number((error && error.retryAfter) || 0) || undefined
     });
   }
 }
@@ -535,13 +597,14 @@ function adminAction_(action, body) {
 }
 
 function login_(body) {
+  throttle_('login', clientIp_(body));
   const properties = PropertiesService.getScriptProperties();
   const username = String(
     properties.getProperty(APP.PROP_ADMIN_USERNAME) || ''
   ).trim();
 
   if (!username || !adminPasswordReady_()) {
-    throw new Error('Admin belum dikonfigurasi. Pilih menu PB PII > Atur akun admin pada spreadsheet.');
+    throw new Error('Akun admin belum dapat dipakai masuk. Hubungi Pengurus Besar PII.');
   }
   if (
     String(body.username || '').trim().toLowerCase() !== username.toLowerCase() ||
@@ -641,6 +704,7 @@ function timeOf_(value) {
  * layanan AI gratis kecil dan jumlah kader yang memakai juga terbatas.
  */
 function chat_(body) {
+  throttle_('chat', clientIp_(body));
   const me = chatIdentity_(body.token);
   const question = cleanText_(body.message).slice(0, APP.CHAT_MAX_CHARS);
   if (question.length < 3) {
@@ -685,6 +749,12 @@ function chatIdentity_(token) {
   const admin = sessionSubject_(token, 'admin');
   if (admin) {
     return { kind: 'admin', subject: admin, label: 'admin' };
+  }
+
+  const kaderId = sessionSubject_(token, 'kader');
+  if (kaderId) {
+    const row = findRow_(APP.SHEET_KADERS, kaderId);
+    return { kind: 'kader', subject: kaderId, label: (row && cleanText_(row.name)) || 'kader' };
   }
 
   const orgId = sessionSubject_(token, 'org');
@@ -803,7 +873,7 @@ function chatSystemPrompt_(me) {
   ].join(' ');
 }
 
-function publicData_() {
+function publicData_(body) {
   const articles = rows_(APP.SHEET_ARTICLES)
     .filter(function (article) {
       return String(article.status).toLowerCase() === 'published';
@@ -820,10 +890,25 @@ function publicData_() {
       return (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0);
     });
 
+  const orgs = rows_(APP.SHEET_ORGS);
+  const actorKey = body && body.token ? safeActorKey_(body.token) : '';
+
   return {
-    settings: settingsMap_(),
+    settings: publicSettings_(settingsMap_()),
     articles: articles,
-    gallery: gallery
+    gallery: gallery,
+    events: eventsFeed_(orgs, rows_(APP.SHEET_ACTIVITIES), rows_(APP.SHEET_FORMS), rows_(APP.SHEET_PARTICIPANTS), actorKey),
+    keaktifan: keaktifanSettings_()
+  };
+}
+
+/** Nilai bawaan standar keaktifan yang ditetapkan PB lewat sheet Settings. */
+function keaktifanSettings_() {
+  const settings = settingsMap_();
+  const min = Number(settings.keaktifanMinPerMonth);
+  return {
+    defaultMin: isFinite(min) && min >= 0 ? Math.min(60, Math.round(min)) : DEFAULT_KEAKTIFAN_MIN,
+    label: 'minimal kegiatan per bulan'
   };
 }
 
@@ -1104,13 +1189,13 @@ function sheet_(name) {
     .getProperty(APP.PROP_SPREADSHEET_ID);
 
   if (!id) {
-    throw new Error('Database belum disiapkan. Jalankan setup() terlebih dahulu.');
+    throw new Error('Layanan data belum aktif. Silakan coba beberapa saat lagi.');
   }
 
   const spreadsheet = SpreadsheetApp.openById(id);
   const sheet = spreadsheet.getSheetByName(name);
   if (!sheet) {
-    throw new Error('Sheet ' + name + ' belum tersedia. Jalankan setup() terlebih dahulu.');
+    throw new Error('Layanan data belum siap. Silakan coba beberapa saat lagi.');
   }
   return sheet;
 }
@@ -1233,6 +1318,9 @@ function orgLookup_() {
 }
 
 function orgRegister_(body) {
+  throttle_('org-register', clientIp_(body));
+  assertCaptcha_(body);
+
   const jenjang = String(body.jenjang || '').toUpperCase();
   if (['PW', 'PD', 'PK'].indexOf(jenjang) < 0) {
     throw new Error('Jenjang lembaga tidak valid.');
@@ -1299,6 +1387,7 @@ function orgRegister_(body) {
 
 function orgLogin_(body) {
   const email = String(body.email || '').trim().toLowerCase();
+  throttle_('org-login', clientIp_(body) + ':' + email);
   const password = String(body.password || '');
   const org = orgById_(rows_(APP.SHEET_ORGS), null, email);
 
@@ -1351,6 +1440,10 @@ function orgAction_(action, body, org) {
       return orgMarkLetter_(org, body.id, body.status);
     case 'orgVerify':
       return orgVerify_(org, body);
+    case 'orgSetStandard':
+      return orgSetStandard_(org, body);
+    case 'orgUploadImage':
+      return orgUploadImage_(org, body);
     case 'orgLogout':
       if (body.token) CacheService.getScriptCache().remove('orgauth:' + String(body.token));
       return { loggedOut: true };
@@ -1382,12 +1475,24 @@ function orgData_(org) {
 
   const scopeIds = descendantsOf_(orgs, me.id);
   const statFor = buildStats_(activities, forms);
+
+  // Keaktifan dinilai per bulan berjalan; angkanya ditetapkan lembaga di atasnya.
+  const activeMonth = currentMonthKey_();
+  const standards = standardsMap_();
+  const monthIndex = monthlyActivityIndex_(activities);
+  const fallbackMin = keaktifanSettings_().defaultMin;
+  const keaktifanFor = function (id) {
+    return keaktifanFor_(id, orgs, byId, standards, monthIndex, activeMonth, fallbackMin);
+  };
+
   const network = scopeIds.map(function (id) {
     const item = byId[id];
     if (!item) return null;
     return Object.assign(slimOrg_(item), {
       parentName: orgName[item.parentId] || '',
       kpi: statFor(id),
+      keaktifan: keaktifanFor(id),
+      standardSetHere: !!standards[id],
       canVerify: me.jenjang === 'PB' || item.parentId === me.id
     });
   }).filter(Boolean).sort(function (a, b) {
@@ -1451,11 +1556,26 @@ function orgData_(org) {
   const self = orgSelf_(me);
   self.parentName = orgName[me.parentId] || '';
 
+  const trend = [];
+  for (let back = 5; back >= 0; back -= 1) {
+    const key = monthShift_(activeMonth, -back);
+    const bucket = (monthIndex[me.id] || {})[key] || { count: 0, participants: 0 };
+    trend.push({ month: key, count: bucket.count, participants: bucket.participants });
+  }
+
   return {
     org: self,
     jenjangLabel: JENJANG_LABEL[me.jenjang] || me.jenjang,
     categories: LETTER_CATEGORIES,
     kpi: statFor(me.id),
+    keaktifan: keaktifanFor(me.id),
+    keaktifanTrend: trend,
+    keaktifanInfo: {
+      month: activeMonth,
+      defaultMin: fallbackMin,
+      canSetStandards: network.length > 0,
+      ownStandard: !!standards[me.id]
+    },
     stats: {
       activities: activities.filter(function (item) { return item.orgId === me.id; }).length,
       published: activities.filter(function (item) {
@@ -1522,6 +1642,19 @@ function orgSaveActivity_(org, activity) {
   } else {
     sheet.appendRow(row);
   }
+
+  // Satu simpanan langsung menautkan formulir pendaftaran pilihan panitia.
+  const formId = String(activity.formId || '').trim();
+  if (formId) {
+    const form = findRow_(APP.SHEET_FORMS, formId);
+    if (!form) throw new Error('Formulir pendaftaran tidak ditemukan.');
+    if (form.orgId !== org.id) throw new Error('Formulir itu milik lembaga lain.');
+    setCells_(sheet_(APP.SHEET_FORMS), form._row, {
+      activityId: id,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
   return { id: id, status: status };
 }
 
@@ -1654,6 +1787,69 @@ function orgVerify_(org, body) {
   return orgSetStatus_(target.id, body.decision, org.name, body.note);
 }
 
+/**
+ * Standar keaktifan berjenjang: hanya atasan langsung (atau PB) yang boleh
+ * menetapkan minimal kegiatan per bulan untuk lembaga di bawahnya. Angka 0
+ * menghapus ketentuan khusus sehingga lembaga itu kembali ke standar
+ * induknya, dan akhirnya ke nilai bawaan PB di sheet Settings.
+ */
+function orgSetStandard_(org, body) {
+  assertVerified_(org);
+  const orgs = rows_(APP.SHEET_ORGS);
+  const target = orgById_(orgs, String(body.orgId || body.id || ''));
+  if (!target) throw new Error('Lembaga tidak ditemukan.');
+  if (target.id === org.id) throw new Error('Standar lembaga sendiri ditetapkan oleh atasan Anda.');
+  if (target.jenjang === 'PB') throw new Error('Standar Pengurus Besar diatur lewat menu Admin website.');
+  // "Di atasnya" berarti berjenjang: induk langsung maupun leluhur di atasnya.
+  if (ancestorsOf_(orgs, target.id).indexOf(org.id) < 0) {
+    throw new Error('Hanya lembaga di atasnya secara berjenjang yang dapat menetapkan standar ini.');
+  }
+
+  const raw = body.minPerMonth;
+  const cleared = raw === null || raw === '' || raw === false;
+  const min = cleared ? 0 : Math.round(Number(raw));
+  if (!cleared && (!isFinite(min) || min < 0 || min > 60)) {
+    throw new Error('Isi standar keaktifan dengan angka 0 sampai 60 kegiatan per bulan.');
+  }
+
+  const sheet = sheet_(APP.SHEET_STANDARDS);
+  const existing = findRow_(APP.SHEET_STANDARDS, target.id);
+  const now = new Date().toISOString();
+
+  // Nol berarti cabut ketentuan khusus: barisnya dihapus supaya lembaga itu
+  // kembali mewarisi standar induknya, bukan dianggap "boleh nol kegiatan".
+  if (min === 0) {
+    if (existing) sheet.deleteRow(existing._row);
+    return { orgId: target.id, orgName: target.name, minPerMonth: 0, cleared: true, setByName: org.name };
+  }
+
+  if (existing) {
+    setCells_(sheet, existing._row, {
+      minPerMonth: min,
+      setByOrgId: org.id,
+      setByName: org.name,
+      note: cleanText_(body.note).slice(0, 200),
+      updatedAt: now
+    });
+  } else {
+    sheet.appendRow([target.id, target.id, min, org.id, org.name, cleanText_(body.note).slice(0, 200), now]);
+  }
+
+  return {
+    orgId: target.id,
+    orgName: target.name,
+    minPerMonth: min,
+    cleared: min === 0,
+    setByName: org.name
+  };
+}
+
+function orgUploadImage_(org, body) {
+  assertVerified_(org);
+  throttle_('org-upload', clientIp_(body) + ':' + org.id);
+  return uploadImage_(body);
+}
+
 function orgSetStatus_(id, decision, actorLabel, note) {
   const value = String(decision || '').toLowerCase();
   if (['verified', 'rejected', 'pending'].indexOf(value) < 0) {
@@ -1716,7 +1912,7 @@ function adminSavePbAccount_(body) {
   if (used) throw new Error('Email tersebut sudah dipakai akun lembaga lain.');
 
   const pb = orgById_(orgs, APP.PB_ORG_ID);
-  if (!pb) throw new Error('Akun induk PB belum ada. Jalankan setup() terlebih dahulu.');
+  if (!pb) throw new Error('Akun induk PB belum siap dipakai. Silakan coba lagi beberapa saat lagi.');
   const salt = Utilities.getUuid();
   orgSetCell_(APP.SHEET_ORGS, pb.id, 'email', email);
   orgSetCell_(APP.SHEET_ORGS, pb.id, 'passwordHash', hashPassword_(password, salt));
@@ -1748,6 +1944,9 @@ function publicForm_(id) {
 }
 
 function publicRegister_(body) {
+  throttle_('register', clientIp_(body));
+  assertCaptcha_(body);
+
   const form = findRow_(APP.SHEET_FORMS, String(body.formId || ''));
   if (!form) throw new Error('Formulir tidak ditemukan.');
   if (String(form.status) !== 'open') throw new Error('Formulir sudah ditutup.');
@@ -1877,6 +2076,191 @@ function assertVerified_(org) {
   }
 }
 
+// ---------------------------------------------------------------- acara & keaktifan
+
+/** Pemakaian standar bila tidak ada lembaga di atasnya yang menetapkan angka. */
+const DEFAULT_KEAKTIFAN_MIN = 1;
+
+function timeZone_() {
+  try {
+    return Session.getScriptTimeZone() || 'Asia/Jakarta';
+  } catch (error) {
+    return 'Asia/Jakarta';
+  }
+}
+
+function todayKey_() {
+  return Utilities.formatDate(new Date(), timeZone_(), 'yyyy-MM-dd');
+}
+
+function monthKeyOf_(value) {
+  const text = String(value || '');
+  if (/^\d{4}-\d{2}/.test(text)) return text.slice(0, 7);
+  const parsed = new Date(text);
+  if (isNaN(parsed.getTime())) return '';
+  return Utilities.formatDate(parsed, timeZone_(), 'yyyy-MM');
+}
+
+function currentMonthKey_() {
+  return todayKey_().slice(0, 7);
+}
+
+/** Geser kunci bulan 'YYYY-MM' tanpa pusing kalender. */
+function monthShift_(key, delta) {
+  const parts = String(key || '').split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  if (!isFinite(year) || !isFinite(month)) return key;
+  const total = year * 12 + (month - 1) + delta;
+  const nextYear = Math.floor(total / 12);
+  const nextMonth = (total % 12 + 12) % 12 + 1;
+  return nextYear + '-' + ('0' + nextMonth).slice(-2);
+}
+
+function standardsMap_() {
+  const result = {};
+  rows_(APP.SHEET_STANDARDS).forEach(function (row) {
+    const id = String(row.orgId || row.id || '');
+    if (!id) return;
+    const min = Number(row.minPerMonth);
+    if (!isFinite(min) || min < 0) return;
+    result[id] = {
+      minPerMonth: Math.min(60, Math.round(min)),
+      setByOrgId: String(row.setByOrgId || ''),
+      setByName: String(row.setByName || ''),
+      note: String(row.note || ''),
+      updatedAt: String(row.updatedAt || '')
+    };
+  });
+  return result;
+}
+
+/** Kegiatan terbit per lembaga per bulan, beserta jumlah pendaftarnya. */
+function monthlyActivityIndex_(activities) {
+  const index = {};
+  activities.forEach(function (activity) {
+    if (String(activity.status) !== 'published') return;
+    const month = monthKeyOf_(activity.date || activity.createdAt);
+    if (!month) return;
+    if (!index[activity.orgId]) index[activity.orgId] = {};
+    const bucket = index[activity.orgId][month] || (index[activity.orgId][month] = { count: 0, participants: 0, ids: [] });
+    bucket.count += 1;
+    bucket.participants += Number(activity.participants) || 0;
+    bucket.ids.push(activity.id);
+  });
+  return index;
+}
+
+/**
+ * Standar berlaku: angka lembaga itu sendiri, lalu angka lembaga di atasnya
+ * bertingkat (PK -> PD -> PW -> PB), terakhir nilai bawaan dari Settings.
+ */
+function keaktifanFor_(orgId, orgs, byId, standards, monthIndex, month, fallbackMin) {
+  const chain = [orgId].concat(ancestorsOf_(orgs, orgId));
+  let setBy = null;
+  let min = Number(fallbackMin);
+  let source = 'default';
+  for (let i = 0; i < chain.length; i += 1) {
+    const hit = standards[chain[i]];
+    if (hit) {
+      min = hit.minPerMonth;
+      source = 'org';
+      setBy = { orgId: chain[i], name: (byId[chain[i]] || {}).name || chain[i], via: hit.setByName || '' };
+      break;
+    }
+  }
+  if (!isFinite(min) || min < 0) min = DEFAULT_KEAKTIFAN_MIN;
+  const bucket = (monthIndex[orgId] || {})[month] || { count: 0, participants: 0, ids: [] };
+  return {
+    month: month,
+    count: bucket.count,
+    participants: bucket.participants,
+    activityIds: bucket.ids,
+    min: min,
+    sisa: Math.max(0, min - bucket.count),
+    persen: min > 0 ? Math.min(100, Math.round((bucket.count / min) * 100)) : 100,
+    terpenuhi: bucket.count >= min,
+    source: source,
+    setBy: setBy
+  };
+}
+
+/** Umpan daftar acara publik: kegiatan terbit + tautan formulir pendaftarannya. */
+function eventsFeed_(orgs, activities, forms, participants, actorKey) {
+  const byId = {};
+  orgs.forEach(function (org) { byId[org.id] = org; });
+
+  const formFor = {};
+  forms.forEach(function (form) {
+    const activityId = String(form.activityId || '');
+    if (!activityId) return;
+    const current = formFor[activityId];
+    const open = String(form.status) === 'open';
+    if (!current || (String(current.status) !== 'open' && open)) formFor[activityId] = form;
+  });
+
+  const registered = {};
+  participants.forEach(function (row) {
+    registered[row.formId] = (registered[row.formId] || 0) + 1;
+  });
+
+  const today = todayKey_();
+  const floor = Utilities.formatDate(new Date(Date.now() - 120 * 86400000), timeZone_(), 'yyyy-MM-dd');
+  const who = String(actorKey || '');
+  const reactions = reactionIndex_();
+  const comments = commentIndex_();
+
+  return activities
+    .filter(function (activity) {
+      if (String(activity.status) !== 'published') return false;
+      const date = String(activity.date || '');
+      return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= floor;
+    })
+    .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })
+    .slice(0, 120)
+    .map(function (activity) {
+      const host = byId[activity.orgId] || {};
+      const form = formFor[activity.id];
+      const description = cleanText_(activity.description).slice(0, 320);
+      const bucket = reactions[activity.id];
+      const thread = comments[activity.id] || [];
+      return {
+        id: activity.id,
+        title: cleanText_(activity.title),
+        category: cleanText_(activity.category) || 'Kegiatan',
+        date: String(activity.date),
+        upcoming: String(activity.date) >= today,
+        location: cleanText_(activity.location),
+        excerpt: description,
+        coverImage: String(activity.coverImage || ''),
+        likes: bucket ? bucket.count : 0,
+        liked: Boolean(bucket && who && bucket.byKey[who]),
+        commentCount: thread.length,
+        comments: thread.slice(-2).map(function (row) {
+          const view = commentView_(row);
+          view.mine = Boolean(who) && String(row.actorKey) === who;
+          return view;
+        }),
+        host: {
+          id: host.id || activity.orgId,
+          name: host.name || 'Lembaga PII',
+          jenjang: host.jenjang || '',
+          jenjangLabel: JENJANG_LABEL[host.jenjang] || host.jenjang || '',
+          province: host.province || '',
+          district: host.district || ''
+        },
+        form: form ? {
+          id: form.id,
+          title: cleanText_(form.title),
+          status: String(form.status || 'open'),
+          url: 'formulir.html?id=' + encodeURIComponent(String(form.id)),
+          registered: registered[form.id] || 0,
+          quota: Number(activity.participants) || 0
+        } : null
+      };
+    });
+}
+
 function buildStats_(activities, forms) {
   const now = Date.now();
   const d30 = now - 30 * 86400000;
@@ -1997,4 +2381,467 @@ function json_(value) {
   return ContentService
     .createTextOutput(JSON.stringify(value))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ==================================================== keamanan & akun kader
+   Pembatas laju, captcha, login Google untuk kader, serta suka dan komentar
+   pada acara. Semua halaman publik memakai aksi di bawah ini tanpa token
+   pengurus, jadi penjagaannya harus duduk di server, bukan di tombol HTML. */
+
+/**
+ * Anggaran permintaan. `window` dalam detik; `limit` jumlah permintaan
+ * terdekat yang boleh lolos untuk satu kunci (IP atau identitas akun).
+ */
+const RATE_RULES = {
+  'login': { limit: 8, window: 600 },
+  'org-login': { limit: 10, window: 600 },
+  'org-register': { limit: 5, window: 1800 },
+  'register': { limit: 12, window: 600 },
+  'captcha-issue': { limit: 18, window: 600 },
+  'kader-login': { limit: 12, window: 600 },
+  'event-like': { limit: 20, window: 60 },
+  'event-comment': { limit: 4, window: 180 },
+  'event-comment-ip': { limit: 20, window: 600 },
+  'org-upload': { limit: 10, window: 600 },
+  'chat': { limit: 6, window: 60 }
+};
+
+/** Cache script Apps Script dipaksa tenggelam setelah 600 detik. */
+const CACHE_MAX_SECONDS = 600;
+const CAPTCHA_TTL_SECONDS = 600;
+
+function clientIp_(body) {
+  const forwarded = String((body && body.ip) || '').split(',')[0].trim();
+  return forwarded.slice(0, 64) || 'tanpa-ip';
+}
+
+/**
+ * Penghitung jendela geser di CacheService. Cache bersifat sementara, jadi ini
+ * pagar anti-spam, bukan pembukuan; batas yang lebih panjang dijaga oleh
+ * pembatas di sisi Vercel dan kuota harian per akun di sheet.
+ */
+function throttle_(rule, key) {
+  const budget = RATE_RULES[rule] || { limit: 20, window: 600 };
+  const cache = CacheService.getScriptCache();
+  const id = 'rl:' + rule + ':' + String(key || 'tanpa-kunci').slice(0, 120);
+  const now = Date.now();
+
+  let count = 1;
+  let started = now;
+  const stored = cache.get(id);
+  if (stored) {
+    const parts = String(stored).split('|');
+    count = (Number(parts[0]) || 0) + 1;
+    started = Number(parts[1]) || now;
+    if (now - started >= budget.window * 1000) {
+      count = 1;
+      started = now;
+    }
+  }
+
+  if (count > budget.limit) {
+    const wait = Math.max(1, Math.ceil((budget.window * 1000 - (now - started)) / 1000));
+    const error = new Error('Terlalu sering mengirim permintaan. Tunggu ' + wait + ' detik lalu coba lagi.');
+    error.code = 'rate_limited';
+    error.retryAfter = wait;
+    throw error;
+  }
+
+  cache.put(id, count + '|' + started, Math.min(budget.window, CACHE_MAX_SECONDS));
+}
+
+/** Setelan yang boleh dilihat browser; kunci rahasia tidak pernah ikut keluar. */
+function publicSettings_(settings) {
+  const copy = {};
+  Object.keys(settings || {}).forEach(function (key) {
+    if (SECRET_SETTINGS.indexOf(key) >= 0) return;
+    copy[key] = settings[key];
+  });
+  return copy;
+}
+
+function captchaKey_(id) {
+  return 'cap:' + String(id || '').slice(0, 60);
+}
+
+/**
+ * Soal verifikasi. Cloudflare Turnstile dipakai bila kuncinya diisi admin;
+ * kalau tidak, server membuat soal hitung sederhana sendiri sehingga bots
+ * tetap harus membaca dan menjawab, tanpa biaya dan tanpa daftar ke mana pun.
+ */
+function captchaIssue_(body) {
+  throttle_('captcha-issue', clientIp_(body));
+
+  const settings = settingsMap_();
+  const siteKey = String(settings.turnstileSiteKey || '').trim();
+  const secret = String(settings.turnstileSecret || '').trim();
+  if (siteKey && secret) {
+    return { kind: 'turnstile', siteKey: siteKey };
+  }
+
+  const left = 3 + Math.floor(Math.random() * 8);
+  const right = 2 + Math.floor(Math.random() * 9);
+  const id = Utilities.getUuid();
+  CacheService.getScriptCache().put(captchaKey_(id), String(left * right), CAPTCHA_TTL_SECONDS);
+
+  return {
+    kind: 'local',
+    id: id,
+    question: 'Berapa hasil ' + left + ' × ' + right + ' ?',
+    ttlSeconds: CAPTCHA_TTL_SECONDS
+  };
+}
+
+/** Dipanggil tiap aksi tulis publik; sekali pakai supaya tidak bisa diulang. */
+function assertCaptcha_(body) {
+  const settings = settingsMap_();
+  const secret = String(settings.turnstileSecret || '').trim();
+  if (secret) {
+    verifyTurnstile_(secret, body.captchaToken, clientIp_(body));
+    return;
+  }
+
+  const id = String(body.captchaId || '').trim();
+  const answer = String(body.captchaAnswer || '').replace(/\s+/g, '');
+  if (!id || !answer) {
+    const error = new Error('Isi soal verifikasi singkat dulu sebelum mengirim.');
+    error.code = 'captcha';
+    throw error;
+  }
+
+  const cache = CacheService.getScriptCache();
+  const expected = cache.get(captchaKey_(id));
+  if (!expected) {
+    const error = new Error('Waktu verifikasi habis. Ambil soal baru lalu coba lagi.');
+    error.code = 'captcha';
+    throw error;
+  }
+  if (answer !== String(expected)) {
+    cache.remove(captchaKey_(id));
+    const error = new Error('Jawaban verifikasi salah. Periksa kembali soalnya.');
+    error.code = 'captcha';
+    throw error;
+  }
+  cache.remove(captchaKey_(id));
+}
+
+function verifyTurnstile_(secret, token, ip) {
+  if (!token) {
+    const error = new Error('Captcha belum diselesaikan. Centang kotak verifikasi dulu.');
+    error.code = 'captcha';
+    throw error;
+  }
+
+  let claims = {};
+  try {
+    const response = UrlFetchApp.fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'post',
+      payload: { secret: secret, response: String(token).slice(0, 2048), remoteip: ip },
+      muteHttpExceptions: true
+    });
+    claims = JSON.parse(response.getContentText() || '{}');
+  } catch (error) {
+    const failed = new Error('Verifikasi captcha tidak dapat dihubungi. Coba lagi sebentar.');
+    failed.code = 'captcha';
+    throw failed;
+  }
+
+  if (claims.success !== true) {
+    const rejected = new Error('Verifikasi captcha ditolak. Muat ulang halaman lalu coba lagi.');
+    rejected.code = 'captcha';
+    throw rejected;
+  }
+}
+
+/* -------------------------------------------------------------- akun kader */
+
+/**
+ * Login kader lewat Google. Browser menyerahkan ID token dari tombol Google;
+ * token itu diverifikasi ke Google di sisi server, jadi klaim nama/email tidak
+ * pernah dipercaya dari sisi klien.
+ */
+function kaderLogin_(body) {
+  const settings = settingsMap_();
+  const clientId = String(settings.googleClientId || '').trim();
+  if (!clientId) {
+    throw new Error('Masuk dengan Google belum dibuka di website ini.');
+  }
+
+  const idToken = String(body.idToken || '').trim();
+  if (!idToken || idToken.split('.').length !== 3) {
+    throw new Error('Token Google tidak dikenali. Silakan masuk ulang.');
+  }
+
+  throttle_('kader-login', clientIp_(body));
+  const claims = googleClaims_(idToken, clientId);
+
+  const email = String(claims.email || '').trim().toLowerCase();
+  const verified = claims.email_verified === true || claims.email_verified === 'true';
+  if (!email || !verified) {
+    throw new Error('Akun Google tanpa email terverifikasi tidak dapat dipakai masuk.');
+  }
+
+  const now = new Date().toISOString();
+  const sheet = sheet_(APP.SHEET_KADERS);
+  const rows = rows_(APP.SHEET_KADERS);
+  const sub = String(claims.sub || '');
+  let row = null;
+  rows.forEach(function (item) {
+    if (sub && String(item.googleSub) === sub) row = item;
+    else if (!row && String(item.email || '').toLowerCase() === email) row = item;
+  });
+
+  const name = cleanText_(claims.name).slice(0, 90) || email.split('@')[0];
+  const picture = safeUrl_(claims.picture);
+
+  if (row) {
+    orgSetCell_(APP.SHEET_KADERS, row.id, 'name', name);
+    orgSetCell_(APP.SHEET_KADERS, row.id, 'picture', picture);
+    orgSetCell_(APP.SHEET_KADERS, row.id, 'lastLoginAt', now);
+    row = Object.assign({}, row, { name: name, picture: picture });
+  } else {
+    const id = Utilities.getUuid();
+    sheet.appendRow([id, email, name, picture, sub, now, now, '']);
+    row = { id: id, email: email, name: name, picture: picture };
+  }
+
+  const token = sessionPut_('kader', row.id);
+  return {
+    token: token,
+    role: 'kader',
+    kader: { id: row.id, name: name, email: email, picture: picture },
+    expiresIn: APP.TOKEN_TTL_SECONDS
+  };
+}
+
+/** Meminta Google mengonfirmasi sendiri tanda tangan dan isi token. */
+function googleClaims_(idToken, clientId) {
+  let response;
+  try {
+    response = UrlFetchApp.fetch(
+      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken),
+      { muteHttpExceptions: true }
+    );
+  } catch (error) {
+    throw new Error('Google tidak dapat dihubungi untuk memverifikasi login. Coba lagi.');
+  }
+
+  let claims = {};
+  try {
+    claims = JSON.parse(response.getContentText() || '{}');
+  } catch (error) {
+    claims = {};
+  }
+
+  const status = typeof response.getResponseCode === 'function' ? response.getResponseCode() : 200;
+  if (status !== 200 || !claims.sub) {
+    throw new Error('Google menolak token login ini. Silakan masuk ulang.');
+  }
+  if (String(claims.iss || '') !== 'https://accounts.google.com' && String(claims.iss || '') !== 'accounts.google.com') {
+    throw new Error('Token login bukan berasal dari Google.');
+  }
+  if (String(claims.aud || '') !== clientId) {
+    throw new Error('Token login tidak dibuat untuk website ini.');
+  }
+  if (Number(claims.exp) && Number(claims.exp) * 1000 < Date.now()) {
+    throw new Error('Token login sudah kedaluwarsa. Silakan masuk ulang.');
+  }
+  return claims;
+}
+
+/**
+ * Siapa yang berbicara: kader, pengurus, atau admin. `key` dipakai sebagai
+ * pemilik suka/komentar sehingga identitas dari jenis akun berbeda tidak
+ * pernah bertabrakan.
+ */
+function actorOf_(token) {
+  const value = String(token || '');
+  if (!value) throw new Error('Masuk dulu dengan akun Google kader untuk melanjutkan.');
+
+  const kaderId = sessionSubject_(value, 'kader');
+  if (kaderId) {
+    const row = findRow_(APP.SHEET_KADERS, kaderId);
+    return {
+      kind: 'kader', id: kaderId, key: 'k:' + kaderId,
+      name: cleanText_(row && row.name) || 'Kader PII',
+      picture: safeUrl_(row && row.picture)
+    };
+  }
+
+  const orgId = sessionSubject_(value, 'org');
+  if (orgId) {
+    const org = orgById_(rows_(APP.SHEET_ORGS), orgId);
+    return {
+      kind: 'org', id: orgId, key: 'o:' + orgId,
+      name: cleanText_(org && org.name) || 'Pengurus PII', picture: ''
+    };
+  }
+
+  const admin = sessionSubject_(value, 'admin');
+  if (admin) {
+    return { kind: 'admin', id: admin, key: 'a:' + admin, name: 'Admin PB PII', picture: '' };
+  }
+
+  throw new Error('Sesi berakhir atau token tidak valid. Silakan login kembali.');
+}
+
+/** Untuk halaman yang harus tahu apakah pengunjung berhak masuk dashboard. */
+function whoami_(body) {
+  const value = String(body.token || '');
+  if (sessionSubject_(value, 'admin')) return { role: 'admin', name: 'Admin PB PII' };
+
+  const orgId = sessionSubject_(value, 'org');
+  if (orgId) {
+    const org = orgById_(rows_(APP.SHEET_ORGS), orgId);
+    return { role: 'org', id: orgId, name: cleanText_(org && org.name) || orgId, jenjang: (org && org.jenjang) || '' };
+  }
+
+  const kaderId = sessionSubject_(value, 'kader');
+  if (kaderId) {
+    const row = findRow_(APP.SHEET_KADERS, kaderId);
+    const picture = String((row && row.picture) || '');
+    return {
+      role: 'kader',
+      id: kaderId,
+      name: cleanText_(row && row.name) || 'Kader PII',
+      picture: picture.startsWith('https://') ? picture : ''
+    };
+  }
+
+  return { role: 'tamu' };
+}
+
+/* ------------------------------------------------- suka, komentar, bagikan */
+
+function reactionIndex_() {
+  const index = {};
+  rows_(APP.SHEET_REACTIONS).forEach(function (row) {
+    const eventId = String(row.eventId || '');
+    if (!eventId) return;
+    const bucket = index[eventId] || (index[eventId] = { count: 0, byKey: {} });
+    bucket.count += 1;
+    bucket.byKey[String(row.actorKey)] = String(row.id);
+  });
+  return index;
+}
+
+function commentIndex_() {
+  const index = {};
+  const rows = rows_(APP.SHEET_COMMENTS)
+    .filter(function (row) { return String(row.status || 'published') === 'published'; })
+    .sort(function (a, b) { return String(a.createdAt).localeCompare(String(b.createdAt)); });
+
+  rows.forEach(function (row) {
+    const eventId = String(row.eventId || '');
+    if (!eventId) return;
+    (index[eventId] || (index[eventId] = [])).push(row);
+  });
+  return index;
+}
+
+function commentView_(row) {
+  return {
+    id: String(row.id),
+    author: cleanText_(row.actorName) || 'Kader PII',
+    picture: safeUrl_(row.actorPicture),
+    mine: false,
+    text: cleanText_(row.text).slice(0, APP.COMMENT_MAX_CHARS),
+    createdAt: String(row.createdAt || '')
+  };
+}
+
+/** Suka bersifat toggle: menekan tombol yang sama sekali lagi menghapusnya. */
+function eventLike_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('event-like', actor.key);
+
+  const eventId = String(body.eventId || '').trim().slice(0, 64);
+  const activity = findRow_(APP.SHEET_ACTIVITIES, eventId);
+  if (!activity || String(activity.status) !== 'published') {
+    throw new Error('Acara tidak ditemukan atau belum diterbitkan.');
+  }
+
+  const existing = rows_(APP.SHEET_REACTIONS).filter(function (row) {
+    return String(row.eventId) === eventId && String(row.actorKey) === actor.key;
+  });
+
+  existing.forEach(function (row) { deleteRowById_(APP.SHEET_REACTIONS, row.id); });
+  if (!existing.length) {
+    sheet_(APP.SHEET_REACTIONS).appendRow([
+      Utilities.getUuid(), eventId, actor.key, actor.name, 'like', new Date().toISOString()
+    ]);
+  }
+
+  const total = reactionIndex_()[eventId];
+  return { liked: !existing.length, likes: total ? total.count : 0 };
+}
+
+function eventComment_(body) {
+  const settings = settingsMap_();
+  if (String(settings.eventCommentsOpen).toLowerCase() === 'false') {
+    throw new Error('Komentar acara sedang ditutup oleh PB PII.');
+  }
+
+  const actor = actorOf_(body.token);
+  // Tanpa captcha: yang berkomentar sudah terikat akun Google, jadi cukup
+  // pembatas laju per akun dan per jaringan ditambah kuota komentar harian.
+  throttle_('event-comment', actor.key);
+  throttle_('event-comment-ip', clientIp_(body));
+
+  const eventId = String(body.eventId || '').trim().slice(0, 64);
+  const activity = findRow_(APP.SHEET_ACTIVITIES, eventId);
+  if (!activity || String(activity.status) !== 'published') {
+    throw new Error('Acara tidak ditemukan atau belum diterbitkan.');
+  }
+
+  const text = cleanText_(body.text).slice(0, APP.COMMENT_MAX_CHARS);
+  if (text.length < 3) throw new Error('Tulis komentar yang lebih jelas.');
+  if (/@\S+\.\S+|https?:\/\/|wa\.me|\b08\d{6,}\b/i.test(text)) {
+    throw new Error('Komentar tidak boleh memuat tautan, email, atau nomor kontak.');
+  }
+
+  const dayKey = chatDay_(new Date());
+  const today = rows_(APP.SHEET_COMMENTS).filter(function (row) {
+    return String(row.actorKey) === actor.key && String(row.createdAt || '').slice(0, 10) === dayKey;
+  }).length;
+  const limit = Math.max(0, Math.min(50, Number(settings.kaderCommentDailyLimit) || 10));
+  if (today >= limit) {
+    throw new Error('Kuota ' + limit + ' komentar hari ini sudah terpakai. Lanjutkan besok.');
+  }
+
+  const now = new Date().toISOString();
+  const id = Utilities.getUuid();
+  sheet_(APP.SHEET_COMMENTS).appendRow([
+    id, eventId, actor.key, actor.name, actor.picture, text, 'published', now, now
+  ]);
+
+  return { comment: Object.assign(commentView_({ id: id, actorName: actor.name, actorPicture: actor.picture, text: text, createdAt: now }), { mine: true }) };
+}
+
+/**THREAD satu acara; dibaca tanpa login supaya siapa pun bisa ikut menyimak. */
+function eventThread_(body) {
+  const eventId = String(body.eventId || '').trim().slice(0, 64);
+  const actorKey = body.token ? safeActorKey_(body.token) : '';
+  const comments = commentIndex_()[eventId] || [];
+  const reactions = reactionIndex_()[eventId];
+
+  return {
+    eventId: eventId,
+    likes: reactions ? reactions.count : 0,
+    liked: Boolean(reactions && actorKey && reactions.byKey[actorKey]),
+    comments: comments.slice(-60).map(function (row) {
+      const view = commentView_(row);
+      view.mine = Boolean(actorKey) && String(row.actorKey) === actorKey;
+      return view;
+    })
+  };
+}
+
+/** Membaca identitas tanpa menolak tamu: thread tetap tampil untuk yang belum login. */
+function safeActorKey_(token) {
+  try {
+    return actorOf_(token).key;
+  } catch (error) {
+    return '';
+  }
 }

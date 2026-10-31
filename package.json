@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vercel dev",
     "dev:site": "node scripts/dev-server.mjs",
-    "check:backend": "node scripts/check-backend.mjs"
+    "check:backend": "node scripts/check-backend.mjs",
+    "check:gas": "node scripts/check-gas.mjs"
   }
 }

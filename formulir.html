@@ -46,6 +46,7 @@
     .hidden{display:none!important}
     @media(max-width:520px){.card{padding:21px 17px;border-radius:15px}input,textarea{min-height:46px;font-size:16px}.foot a{display:inline-flex;align-items:center;min-height:44px}.brand small{font-size:12px}}
   </style>
+  <link rel="stylesheet" href="/captcha.css">
 </head>
 <body>
   <div class="wrap">
@@ -71,6 +72,7 @@
           <div class="field"><label class="lbl" for="rPhone">Nomor WhatsApp</label><input id="rPhone" inputmode="tel" maxlength="40"></div>
           <div class="field"><label class="lbl" for="rEmail">Email</label><input id="rEmail" type="email" maxlength="160"></div>
           <div class="field"><label class="lbl" for="rNote">Catatan</label><textarea id="rNote" maxlength="1000" placeholder="Kebutuhan khusus, asal daerah, atau pertanyaan."></textarea></div>
+          <div class="field"><span class="lbl">Verifikasi singkat</span><div id="captchaBox"></div></div>
           <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
         </form>
       </div>
@@ -93,6 +95,7 @@
     const $ = (id) => document.getElementById(id);
     const formId = new URLSearchParams(location.search).get('id') || '';
     let formData = null;
+    let verifikasi = null;
 
     function showError(text) {
       $('errorBox').className = 'msg show err';
@@ -127,6 +130,8 @@
         if (formData.status !== 'open') {
           $('closedBox').classList.remove('hidden');
           $('registerForm').classList.add('hidden');
+        } else {
+          verifikasi = window.PBPIICaptcha?.attach($('captchaBox')) || null;
         }
         document.title = formData.title + ' — PB PII';
       } catch (error) {
@@ -145,6 +150,11 @@
         $('formMessage').textContent = 'Isi nomor WhatsApp atau email agar panitia dapat menghubungi.';
         return;
       }
+      if (verifikasi && !verifikasi.valid()) {
+        $('formMessage').className = 'msg show err';
+        $('formMessage').textContent = 'Isi dulu jawaban verifikasi singkat di atas, lalu kirim.';
+        return;
+      }
 
       const button = $('submitBtn');
       button.disabled = true;
@@ -160,23 +170,31 @@
             institution: $('rInstitution').value.trim(),
             phone,
             email,
-            note: $('rNote').value.trim()
+            note: $('rNote').value.trim(),
+            ...(verifikasi ? verifikasi.fields() : {})
           })
         });
         const result = await response.json();
-        if (!result.ok) throw new Error(result.error || 'Pendaftaran gagal.');
+        if (!result.ok) {
+          const error = new Error(result.error || 'Pendaftaran gagal.');
+          error.code = result.code;
+          throw error;
+        }
         $('formView').classList.add('hidden');
         $('successView').classList.remove('hidden');
         $('successText').textContent = 'Terima kasih, ' + name + '. Pendaftaran Anda untuk "' + formData.title + '" tercatat. Panitia akan menghubungi melalui ' + (phone ? 'WhatsApp ' + phone : 'email ' + email) + '.';
       } catch (error) {
         $('formMessage').className = 'msg show err';
         $('formMessage').textContent = error.message;
+        // Jawaban verifikasi sekali pakai, jadi ambil soal baru setiap kali ditolak.
+        if (error.code === 'captcha' && verifikasi) await verifikasi.reload();
       } finally {
         button.disabled = false;
         button.textContent = 'Kirim pendaftaran';
       }
     });
   </script>
+  <script src="captcha.js" defer></script>
   <script src="site.js" defer></script>
   <script src="tanya.js" defer></script>
 </body>

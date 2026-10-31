@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Agenda kegiatan Pelajar Islam Indonesia dari PB, PW, PD, dan PK. Lihat jadwal kajian, ta'lim, latihan kepemimpinan (LBT, LIT, LAT), dan aksi sosial, lalu daftar langsung lewat formulir panitia.">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Acara PB PII">
+  <title>Acara &amp; Kegiatan — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="acara-page">
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="/assets/logo-pii.png" alt="Logo Pelajar Islam Indonesia" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <span><b>PB PII</b><small>Acara &amp; Kegiatan</small></span>
+    </a>
+    <nav id="nav" aria-label="Navigasi utama">
+      <a href="index.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.5h5V20"/></svg><span>Beranda</span></a>
+      <a href="acara.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/></svg><span>Acara</span></a>
+      <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
+      <a href="peta.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a class="nav-extra" href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
+      <a class="nav-extra" href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
+      <button class="nav-more" id="navMore" type="button" aria-expanded="false" aria-controls="navMoreSheet"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.1"/><circle cx="12" cy="7" r="2.1"/><circle cx="18" cy="7" r="2.1"/><circle cx="6" cy="17" r="2.1"/><circle cx="12" cy="17" r="2.1"/><circle cx="18" cy="17" r="2.1"/></svg><span>Lainnya</span></button>
+    </nav>
+    <div class="account-slot" data-account aria-label="Akun kader PII"></div>
+  </header>
+
+  <div class="nav-sheet" id="navMoreSheet" aria-hidden="true">
+    <button class="nav-sheet-backdrop" type="button" tabindex="-1" aria-label="Tutup menu"></button>
+    <div class="nav-sheet-panel">
+      <p class="nav-sheet-title">Menu lengkap PB PII</p>
+      <div class="nav-sheet-grid">
+        <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya PII</span></a>
+        <a href="ibadah.html#quran"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Al-Qur'an</span></a>
+        <a href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang PII</span></a>
+        <a href="index.html#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Sambutan Ketua Umum</span></a>
+        <a href="lembaga.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 20V6.5h9V20M13.5 20V10H20v10M7 9.5h1.5M7 13h1.5M7 16.5h1.5M16 13h1.5M16 16.5h1.5"/></svg><span>Akun lembaga</span></a>
+        <a href="login.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>Admin PB PII</span></a>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section class="ibadah-hero acara-hero">
+      <div class="ibadah-hero-copy">
+        <p class="eyebrow">AGENDA KEGIATAN PII</p>
+        <h1>LBT, LIT, LAT, ta'lim, kajian, dan aksi sosial — daftar dari halaman ini.</h1>
+        <p>Semua acara di bawah dibuat oleh pengurus PB, PW, PD, dan PK melalui dashboard lembaga. Selama formulir panitia masih dibuka, tombol Daftar langsung membawa Anda ke pendaftaran yang benar.</p>
+        <div class="ibadah-pills">
+          <span class="pill" id="acaraCount">Memuat agenda…</span>
+          <span class="pill pill-ghost" id="acaraStandard">Standar keaktifan muat…</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section acara-board" id="acara">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">DAFTAR ACARA</p>
+          <h2>Yang akan datang dan yang baru berlangsung.</h2>
+        </div>
+        <p class="muted">Urutan terdekat lebih dulu. Acara yang formulirnya sudah ditutup tetap tampil sebagai dokumentasi kegiatan.</p>
+      </div>
+
+      <div class="acara-filters" role="search">
+        <div class="acara-chips" id="acaraTabs">
+          <button class="is-active" type="button" data-filter="upcoming">Mendatang</button>
+          <button type="button" data-filter="month">Bulan ini</button>
+          <button type="button" data-filter="all">Semua</button>
+        </div>
+        <label class="acara-search">
+          <span class="sr-only">Cari acara</span>
+          <input id="acaraSearch" type="search" placeholder="Cari kegiatan…" autocomplete="off">
+        </label>
+        <label class="acara-level">
+          <span class="sr-only">Saring jenjang penyelenggara</span>
+          <select id="acaraLevel">
+            <option value="">Semua jenjang</option>
+            <option value="PB">Pengurus Besar</option>
+            <option value="PW">Pengurus Wilayah</option>
+            <option value="PD">Pengurus Daerah</option>
+            <option value="PK">Pengurus Komisariat</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="acara-list" id="acaraList">
+        <div class="acara-skeleton" aria-hidden="true">
+          <span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span>
+        </div>
+      </div>
+      <p class="acara-more muted" id="acaraHidden" hidden></p>
+    </section>
+
+    <section class="section acara-guide" id="cara-buat">
+      <div class="guide-card reveal">
+        <p class="eyebrow">UNTUK PENGURUS</p>
+        <h2>Satu kegiatan tercatat sebagai bukti keaktifan.</h2>
+        <p>Panitia membuat acara di <b>dashboard lembaga → tab Kegiatan</b>, lalu menautkan formulir pendaftaran yang sudah ada. Acara berstatus <i>terbit</i> otomatis muncul di halaman ini, dan setiap bulan kegiatan terhitung pada indikator keaktifan lembaga.</p>
+        <div class="guide-steps">
+          <div><b>1</b><span>Isi judul, tanggal, tempat, dan kategori kegiatan.</span></div>
+          <div><b>2</b><span>Pilih formulir pendaftaran pada kolom <i>Formulir pendaftaran</i> — tautan acara terbentuk sendiri.</span></div>
+          <div><b>3</b><span>Terbitkan. Peserta yang mendaftar tercatat di tab Formulir dan ikut menilai keaktifan.</span></div>
+        </div>
+        <div class="qibla-actions">
+          <a class="button button-solid" href="lembaga.html" data-requires="pengurus">Masuk dashboard lembaga</a>
+          <a class="text-link" href="daftar.html" data-requires="pengurus">Belum punya akun lembaga? Daftar ↗</a>
+        </div>
+      </div>
+      <div class="guide-card reveal" id="keaktifanGuide">
+        <p class="eyebrow">STANDAR KEAKTIFAN BERJENJANG</p>
+        <h2>Atasan yang menetapkan, bawahan yang menjalankan.</h2>
+        <p id="keaktifanExplain">Pengurus Besar menetapkan standar minimal untuk seluruh Indonesia, lalu PW, PD, dan PK dapat menetapkan angka yang lebih spesifik untuk lembaga di bawahnya. Angka terdekat yang berlaku.</p>
+        <p class="muted" id="keaktifanDefault">Standar bawaan website: sedang dimuat…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand footer-brand" href="./">
+      <img src="/assets/logo-pii.png" alt="Logo PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <span><b>PB PII</b><small>Pelajar Islam Indonesia</small></span>
+    </a>
+    <p>Pengurus Besar Pelajar Islam Indonesia</p>
+    <a href="login.html" class="admin-link" data-requires="pengurus">Admin</a>
+    <small>© <span id="year"></span> Pengurus Besar Pelajar Islam Indonesia · Acara diterbitkan oleh pengurus lembaga</small>
+  </footer>
+
+  <script src="akun.js" defer></script>
+  <script src="acara.js" defer></script>
+  <script src="site.js" defer></script>
+  <script src="tanya.js" defer></script>
+</body>
+</html>

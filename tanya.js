@@ -1,85 +1,65 @@
 /**
- * "Tanya PII" — asisten AI yang hanya terbuka bagi kader yang sudah login.
+ * "Tanya PII" — asisten AI resmi PB PII.
  *
- * Token sesi dibaca dari sessionStorage (login.html menyimpan pbpii_admin_token,
- * lembaga.html menyimpan pbpii_org_token). Permintaan dikirim ke /api/chat yang
- * meneruskannya ke Apps Script; kunci AI dan pencacah kuota ada di server, jadi
- * browser tidak pernah memegang kredensial apa pun.
+ * Dua mode dalam satu berkas:
+ *  - tanya.html  → aplikasi chat layar penuh (riwayat, saran, kuota).
+ *  - halaman lain → tombol melayang yang mengarahkan ke halaman tersebut.
+ *
+ * Kunci AI tidak pernah sampai ke browser: pertanyaan dikirim ke /api/chat dan
+ * layanan AI dipanggil di server (Vercel function), dengan fallback ke layanan
+ * gratis tanpa kunci supaya fitur tetap menjawab walau backend Apps Script
+ * belum versi baru.
  */
 (() => {
   'use strict';
 
   const ENDPOINT = window.PBPII_CONFIG?.chatEndpoint || '/api/chat';
+  const PAGE = 'tanya.html';
   const ADMIN_TOKEN_KEY = 'pbpii_admin_token';
   const ORG_TOKEN_KEY = 'pbpii_org_token';
+  const THREAD_KEY = 'pbpii_tanya_thread';
+  const DEVICE_KEY = 'pbpii_tanya_device';
+  const MAX_TURNS = 12;
 
-  const sessionToken = () =>
-    sessionStorage.getItem(ADMIN_TOKEN_KEY) || sessionStorage.getItem(ORG_TOKEN_KEY) || '';
+  const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
 
-  const el = (tag, cls, text) => {
-    const node = document.createElement(tag);
-    if (cls) node.className = cls;
-    if (text != null) node.textContent = text;
-    return node;
-  };
+  /**
+   * Sesi ikut terkirim supaya kuota longgar diberikan ke akun yang benar:
+   * kader (Google) dari PBPIIAkun, pengurus/admin dari sesi login halaman dashboard.
+   */
+  const sessionToken = () => window.PBPIIAkun?.sessionToken?.()
+    || sessionStorage.getItem(ADMIN_TOKEN_KEY)
+    || sessionStorage.getItem(ORG_TOKEN_KEY)
+    || '';
 
-  const fab = el('button', 'tanya-fab');
-  fab.type = 'button';
-  fab.setAttribute('aria-expanded', 'false');
-  fab.setAttribute('aria-controls', 'tanyaPanel');
-  fab.innerHTML =
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg>' +
-    '<span>Tanya PII</span>';
+  function deviceId() {
+    let stored = localStorage.getItem(DEVICE_KEY);
+    if (stored) return stored;
+    const bytes = new Uint8Array(8);
+    (window.crypto || window.msCrypto)?.getRandomValues?.(bytes);
+    stored = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+      || `web${Date.now().toString(36)}`;
+    localStorage.setItem(DEVICE_KEY, stored);
+    return stored;
+  }
 
-  const panel = el('div', 'tanya-panel');
-  panel.id = 'tanyaPanel';
-  panel.setAttribute('role', 'dialog');
-  panel.setAttribute('aria-label', 'Tanya PII');
-  panel.hidden = true;
+  /** Teks AI ditampilkan apa adanya: hanya bold, list, dan baris baru yang dikenali. */
+  function richText(text) {
+    return escapeHTML(text)
+      .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+      .split('\n')
+      .map((line) => {
+        const bullet = line.trim().match(/^[-*•]\s+(.*)$/);
+        return bullet ? `<li>${bullet[1]}</li>` : `<p>${line || '&nbsp;'}</p>`;
+      })
+      .join('')
+      .replace(/(?:<li>.*?<\/li>\s*)+/g, (block) => `<ul>${block}</ul>`);
+  }
 
-  const quota = el('span', 'tanya-quota');
-  const close = el('button', 'tanya-close', '×');
-  close.type = 'button';
-  close.setAttribute('aria-label', 'Tutup Tanya PII');
-
-  const head = el('header', 'tanya-head');
-  head.append(el('strong', '', 'Tanya PII'), quota, close);
-
-  const log = el('div', 'tanya-log');
-  log.setAttribute('aria-live', 'polite');
-
-  const input = el('input');
-  input.name = 'q';
-  input.maxLength = 900;
-  input.autocomplete = 'off';
-  input.placeholder = 'Tanya tentang PII…';
-  input.setAttribute('aria-label', 'Pertanyaan Anda');
-
-  const send = el('button', 'tanya-send', 'Kirim');
-  send.type = 'submit';
-  const form = el('form', 'tanya-form');
-  form.append(input, send);
-
-  const note = el('p', 'tanya-note',
-    'Jawaban dihasilkan AI dan bisa keliru. Untuk keputusan resmi, konfirmasi ke pengurus.');
-
-  panel.append(head, log, form, note);
-  document.body.append(fab, panel);
-
-  const say = (role, text) => {
-    const bubble = el('div', 'tanya-bubble is-' + role, text);
-    log.append(bubble);
-    log.scrollTop = log.scrollHeight;
-    return bubble;
-  };
-
-  const setBusy = (busy) => {
-    send.disabled = busy;
-    input.disabled = busy;
-    fab.classList.toggle('is-busy', busy);
-  };
-
-  const askServer = async (payload) => {
+  async function askServer(payload) {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -87,94 +67,223 @@
     });
     const result = await response.json().catch(() => null);
     if (!result || !result.ok) {
-      throw new Error((result && result.error) || 'Backend tidak dapat dihubungi.');
+      const error = new Error(result?.error || 'Tanya PII tidak dapat dihubungi.');
+      error.retryAfter = Number(result?.retryAfter) || 0;
+      throw error;
     }
     return result.data;
-  };
+  }
 
-  const showQuota = (status) => {
-    quota.textContent = status && typeof status.sisa === 'number'
-      ? 'Sisa ' + status.sisa + ' dari ' + status.batas + ' pertanyaan hari ini'
-      : '';
-  };
+  // ------------------------------------------------------------------- launcher
 
-  const lockScreen = () => {
-    log.replaceChildren();
-    say('system', 'Fitur ini khusus kader yang sudah login. Silakan masuk lewat menu Admin atau daftar akun lembaga.');
-    const links = el('div', 'tanya-links');
-    const admin = el('a', 'text-link', 'Masuk admin →');
-    admin.href = 'login.html';
-    const daftar = el('a', 'text-link', 'Daftar lembaga →');
-    daftar.href = 'daftar.html';
-    links.append(admin, daftar);
-    log.append(links);
-    form.hidden = true;
-    note.hidden = true;
-    quota.textContent = '';
-  };
+  function initLauncher() {
+    const link = document.createElement('a');
+    link.className = 'tanya-fab';
+    link.href = PAGE;
+    link.setAttribute('aria-label', 'Buka Tanya PII');
+    link.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg>' +
+      '<span>Tanya PII</span>';
+    document.body.append(link);
+  }
 
-  const unlockScreen = () => {
-    form.hidden = false;
-    note.hidden = false;
-  };
+  // ------------------------------------------------------------------- halaman
 
-  const setOpen = async (open) => {
-    panel.hidden = !open;
-    fab.setAttribute('aria-expanded', String(open));
-    fab.classList.toggle('is-open', open);
-    if (!open) return;
+  function initChat() {
+    const scroll = document.querySelector('#tanyaScroll');
+    const thread = document.querySelector('#tanyaThread');
+    const intro = document.querySelector('#tanyaIntro');
+    const chips = document.querySelector('#tanyaChips');
+    const form = document.querySelector('#tanyaComposer');
+    const input = document.querySelector('#tanyaInput');
+    const submit = document.querySelector('#tanyaSubmit');
+    const quota = document.querySelector('#tanyaQuota');
+    const reset = document.querySelector('#tanyaReset');
+    if (!scroll || !thread || !form) return;
 
-    const token = sessionToken();
-    if (!token) {
-      lockScreen();
-      input.blur();
-      return;
-    }
-    unlockScreen();
-    if (!log.childElementCount) {
-      say('system', 'Tanyakan apa saja seputar PII: sejarah, kaderisasi, kepengurusan PW/PD/PK, atau cara memakai website ini.');
-    }
+    let turns = [];
     try {
-      showQuota(await askServer({ action: 'chatStatus', token }));
-    } catch (error) {
-      quota.textContent = error.message;
+      const stored = JSON.parse(localStorage.getItem(THREAD_KEY) || '[]');
+      turns = Array.isArray(stored) ? stored.slice(-MAX_TURNS) : [];
+    } catch { turns = []; }
+
+    let busy = false;
+    let retryTimer = null;
+
+    const stick = () => {
+      scroll.scrollTop = scroll.scrollHeight;
+    };
+
+    function bubble(role, content) {
+      const row = document.createElement('div');
+      row.className = `tanya-row is-${role}`;
+      row.innerHTML = `
+        <span class="tanya-avatar" aria-hidden="true">${
+          role === 'assistant'
+            ? '<img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src=\'assets/logo-pii.png\'">'
+            : 'A'
+        }</span>
+        <div class="tanya-msg">${richText(content)}</div>`;
+      thread.append(row);
+      return row;
     }
-    input.focus();
-  };
 
-  fab.addEventListener('click', () => setOpen(panel.hidden));
-  close.addEventListener('click', () => {
-    setOpen(false);
-    fab.focus();
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !panel.hidden) setOpen(false);
-  });
+    function pending(label) {
+      const row = document.createElement('div');
+      row.className = 'tanya-row is-assistant is-pending';
+      row.innerHTML = `
+        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
+        <div class="tanya-msg"><span class="tanya-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="tanya-pending-text">${escapeHTML(label)}</span></div>`;
+      thread.append(row);
+      return row;
+    }
 
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const question = input.value.trim();
-    const token = sessionToken();
-    if (!question || !token) return;
+    function errorRow(message, seconds, onRetry) {
+      const row = document.createElement('div');
+      row.className = 'tanya-row is-assistant is-error';
+      row.innerHTML = `
+        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
+        <div class="tanya-msg">
+          <p>${escapeHTML(message)}</p>
+          <button type="button" class="tanya-retry">Coba lagi</button>
+        </div>`;
+      const button = row.querySelector('.tanya-retry');
+      button.addEventListener('click', () => { clearTimeout(retryTimer); row.remove(); onRetry(); });
+      thread.append(row);
 
-    input.value = '';
-    say('user', question);
-    setBusy(true);
-    const pending = say('system', 'Sedang menuliskan jawaban…');
-    pending.classList.add('is-pending');
+      if (seconds > 0) {
+        let left = seconds;
+        const tick = () => {
+          if (!row.isConnected) return;
+          button.textContent = `Coba lagi (${left}s)`;
+          if (left <= 0) { row.remove(); onRetry(); return; }
+          left -= 1;
+          retryTimer = setTimeout(tick, 1000);
+        };
+        tick();
+      }
+      return row;
+    }
 
-    try {
-      const data = await askServer({ action: 'chat', token, message: question });
-      pending.replaceChildren(document.createTextNode(data.reply));
-      pending.classList.remove('is-pending');
-      showQuota(data);
-    } catch (error) {
-      pending.classList.remove('is-pending');
-      pending.classList.add('is-error');
-      pending.textContent = error.message;
-    } finally {
-      setBusy(false);
+    function paint() {
+      thread.replaceChildren();
+      turns.forEach((turn) => bubble(turn.role, turn.content));
+      intro.hidden = turns.length > 0;
+      stick();
+    }
+
+    const save = () => {
+      localStorage.setItem(THREAD_KEY, JSON.stringify(turns.slice(-MAX_TURNS)));
+    };
+
+    function setBusy(value) {
+      busy = value;
+      submit.disabled = value;
+      input.disabled = value;
+      form.classList.toggle('is-busy', value);
+    }
+
+    async function send(question) {
+      const text = String(question || '').trim();
+      if (!text || busy) return;
+      clearTimeout(retryTimer);
+
+      turns.push({ role: 'user', content: text });
+      if (turns.length > MAX_TURNS) turns = turns.slice(-MAX_TURNS);
+      paint();
+      intro.hidden = true;
+      input.value = '';
+      grow();
+      setBusy(true);
+
+      const history = turns.slice(-MAX_TURNS, -1);
+      const row = pending('Sedang menuliskan jawaban…');
+      const start = Date.now();
+
+      try {
+        const data = await askServer({
+          action: 'chat',
+          message: text,
+          history,
+          token: sessionToken(),
+          device: deviceId()
+        });
+        row.remove();
+        const reply = String(data?.reply || '').trim() || 'Layanan AI tidak menghasilkan jawaban.';
+        turns.push({ role: 'assistant', content: reply });
+        save();
+        paint();
+        showQuota(data, start);
+      } catch (error) {
+        row.remove();
+        paint();
+        errorRow(error.message, Number(error.retryAfter) || 0, () => send(text));
+        stick();
+      } finally {
+        setBusy(false);
+        if (!errorShown()) input.focus();
+      }
+    }
+
+    const errorShown = () => Boolean(thread.querySelector('.is-error'));
+
+    function showQuota(data, askedAt) {
+      if (typeof data?.sisa === 'number') {
+        quota.textContent = `Sisa ${data.sisa} dari ${data.batas || 20} pertanyaan hari ini · ${
+          Math.max(1, Math.round((Date.now() - (askedAt || Date.now())) / 1000))}s`;
+      }
+    }
+
+    async function loadQuota() {
+      try {
+        const status = await askServer({ action: 'chatStatus', token: sessionToken(), device: deviceId() });
+        quota.textContent = `Sisa ${status.sisa} dari ${status.batas} pertanyaan hari ini` +
+          (status.akun && status.akun !== 'tamu' ? ` · ${status.akun}` : '');
+      } catch {
+        quota.textContent = 'Kuota harian berlaku; jawaban tetap dikirim bila layanan AI sedang longgar.';
+      }
+    }
+
+    // Tinggi textarea mengikuti isi, maksimal enam baris.
+    const grow = () => {
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 168)}px`;
+    };
+
+    input.addEventListener('input', grow);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        send(input.value);
+      }
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      send(input.value);
+    });
+    chips?.addEventListener('click', (event) => {
+      const chip = event.target.closest('button');
+      if (chip) send(chip.textContent);
+    });
+    reset?.addEventListener('click', () => {
+      clearTimeout(retryTimer);
+      turns = [];
+      localStorage.removeItem(THREAD_KEY);
+      paint();
+      intro.hidden = false;
+      quota.textContent = 'Kuota harian berlaku.';
+      loadQuota();
       input.focus();
-    }
-  });
+    });
+
+    paint();
+    loadQuota();
+    input.focus({ noScroll: true });
+  }
+
+  if (document.querySelector('#tanyaThread')) {
+    document.addEventListener('DOMContentLoaded', initChat);
+  } else {
+    document.addEventListener('DOMContentLoaded', initLauncher);
+  }
 })();

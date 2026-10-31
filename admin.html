@@ -222,7 +222,6 @@
               <ol>
                 <li>Buka spreadsheet dan tunggu menu <code>PB PII</code> muncul.</li>
                 <li>Pilih <code>Atur akun admin</code>, isi password baru dua kali, lalu simpan.</li>
-                <li>Bila menu belum ada, jalankan <code>setup()</code> di Apps Script lalu muat ulang spreadsheet.</li>
               </ol>
             </div>
             <div class="help-card">
@@ -230,7 +229,6 @@
               <p>Password hanya tersimpan di Script Properties Google, jadi tidak dapat dilihat dari dashboard.</p>
               <ul>
                 <li>Atur ulang lewat <code>PB PII &gt; Atur akun admin</code>.</li>
-                <li>Pastikan URL deployment Apps Script di <code>api/pii.js</code> masih aktif.</li>
                 <li>Sesi login berlaku 6 jam, lalu masuk kembali.</li>
               </ul>
             </div>
@@ -379,6 +377,20 @@
               <div class="field full"><label for="contactEmail">Email resmi</label><input id="contactEmail" name="contactEmail" type="email"></div>
               <div class="field"><label for="instagramUrl">URL Instagram</label><input id="instagramUrl" name="instagramUrl" type="url"></div>
               <div class="field"><label for="youtubeUrl">URL YouTube</label><input id="youtubeUrl" name="youtubeUrl" type="url"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>Acara, keaktifan, dan keamanan</h2>
+            <p class="panel-intro">Angka di bawah dipakai halaman Acara dan dashboard lembaga. Standar keaktifan dapat disetel lebih tinggi oleh lembaga induk untuk bawahan masing-masing.</p>
+            <div class="form-grid">
+              <div class="field"><label for="keaktifanMinPerMonth">Standar keaktifan bawaan (kegiatan/bulan)</label><input id="keaktifanMinPerMonth" name="keaktifanMinPerMonth" type="number" min="0" max="60" step="1"><div class="hint">0 berarti tidak ada target minimal. Range 0–60.</div></div>
+              <div class="field"><label for="kaderCommentDailyLimit">Komentar kader per hari</label><input id="kaderCommentDailyLimit" name="kaderCommentDailyLimit" type="number" min="0" max="50" step="1"><div class="hint">Batas komentar acara untuk satu akun Google dalam sehari.</div></div>
+              <div class="field full">
+                <label class="checkline"><input type="checkbox" id="eventCommentsOpen" name="eventCommentsOpen"> Buka kolom komentar acara untuk akun kader</label>
+              </div>
+              <div class="field full"><label for="googleClientId">Google OAuth Client ID (login kader)</label><input id="googleClientId" name="googleClientId" placeholder="1234567890-abcdef.apps.googleusercontent.com"><div class="hint">Isi dengan Client ID web dari penyedia identitas. Selama kolom ini kosong, tombol masuk Google untuk kader tidak ditampilkan.</div></div>
+              <div class="field full"><label for="turnstileSiteKey">Cloudflare Turnstile Site Key (opsional)</label><input id="turnstileSiteKey" name="turnstileSiteKey"><div class="hint">Verifikasi pendaftaran memakai soal hitung buatan server. Isi kedua kolom Turnstile untuk menggantinya dengan captcha layanan.</div></div>
+              <div class="field full"><label for="turnstileSecret">Cloudflare Turnstile Secret Key</label><input id="turnstileSecret" name="turnstileSecret" type="password" autocomplete="new-password"><div class="hint" id="turnstileSecretHint">Kunci tidak ditampilkan kembali. Kosongkan untuk mempertahankan yang tersimpan.</div></div>
             </div>
           </div>
           <div class="btn-row"><button type="submit" class="btn primary" id="saveSettingsButton">Simpan pengaturan</button></div>
@@ -542,7 +554,7 @@
             notify('Foto berhasil diunggah.');
           } catch (error) {
             const pesan = /aksi tidak dikenal/i.test(error.message)
-              ? 'Backend belum mengenal unggah foto. Tempel gas/Code.gs versi terbaru, jalankan setup(), lalu Deploy ▸ Kelola deployment ▸ New version.'
+              ? 'Unggah foto belum dapat diproses layanan. Silakan coba lagi sebentar, atau tempel URL gambar bila mendesak.'
               : error.message;
             status.textContent = pesan;
             notify('Unggahan gagal: ' + pesan, 'err');
@@ -676,13 +688,21 @@
       const keys = [
         'siteName','tagline','heroTitle','heroText','aboutText','footerText',
         'chairmanName','chairmanRole','chairmanPhoto','chairmanGreeting',
-        'contactEmail','instagramUrl','youtubeUrl'
+        'contactEmail','instagramUrl','youtubeUrl',
+        'keaktifanMinPerMonth','kaderCommentDailyLimit','googleClientId','turnstileSiteKey'
       ];
       keys.forEach(key => {
         if ($(key)) $(key).value = settings[key] || '';
       });
       $('chairmanGreetingVisible').checked =
         String(settings.chairmanGreetingVisible == null ? 'true' : settings.chairmanGreetingVisible).toLowerCase() !== 'false';
+      $('eventCommentsOpen').checked =
+        String(settings.eventCommentsOpen == null ? 'true' : settings.eventCommentsOpen).toLowerCase() !== 'false';
+      // Secret tidak pernah ditampilkan kembali supaya tidak tertangkap riwayat form browser.
+      $('turnstileSecret').value = '';
+      $('turnstileSecretHint').textContent = settings.turnstileSecret
+        ? 'Secret tersimpan di server (' + String(settings.turnstileSecret).length + ' karakter). Kosongkan untuk mempertahankan, isi untuk mengganti.'
+        : 'Belum ada secret. Kosong = verifikasi memakai soal hitung dari server.';
       refreshUploader('chairmanPhoto');
     }
 
@@ -790,6 +810,13 @@
       ].forEach(key => settings[key] = $(key).value.trim());
 
       settings.chairmanGreetingVisible = $('chairmanGreetingVisible').checked ? 'true' : 'false';
+      settings.eventCommentsOpen = $('eventCommentsOpen').checked ? 'true' : 'false';
+      settings.keaktifanMinPerMonth = String(Math.max(0, Math.min(60, Number($('keaktifanMinPerMonth').value) || 0)));
+      settings.kaderCommentDailyLimit = String(Math.max(0, Math.min(50, Number($('kaderCommentDailyLimit').value) || 0)));
+      settings.turnstileSiteKey = $('turnstileSiteKey').value.trim();
+      settings.googleClientId = $('googleClientId').value.trim();
+      // Kolom secret kosong berarti pertahankan kunci yang sudah tersimpan.
+      if ($('turnstileSecret').value.trim()) settings.turnstileSecret = $('turnstileSecret').value.trim();
 
       try {
         await api('saveSettings', {settings});

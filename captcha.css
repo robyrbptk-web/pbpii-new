@@ -1,0 +1,96 @@
+/**
+ * Gaya widget verifikasi singkat (captcha.js) dan panel masuk kader (akun.js).
+ * Berkas kecil ini dipakai halaman yang tidak memuat styles.css (formulir,
+ * daftar) sekaligus halaman publik, supaya tampilan anti-spam tidak pernah beda
+ * dari satu halaman ke halaman lain.
+ */
+.captcha {
+  --captcha-navy: #102b49;
+  --captcha-blue: #176da8;
+  --captcha-line: #d5e0eb;
+  --captcha-muted: #637184;
+  margin: 4px 0 0;
+}
+
+.captcha-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--captcha-line);
+  border-radius: 11px;
+  background: #f7fafc;
+  padding: 10px 12px;
+}
+
+.captcha-question {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--captcha-navy);
+  font-size: 13.5px;
+  font-weight: 750;
+}
+
+.captcha-answer {
+  flex: 0 0 96px;
+  width: 96px;
+  min-height: 44px;
+  border: 1px solid var(--captcha-line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: #fff;
+  color: var(--captcha-navy);
+  font: inherit;
+  font-size: 15px;
+  text-align: center;
+}
+
+.captcha-answer:focus-visible {
+  outline: 2px solid var(--captcha-blue);
+  outline-offset: 1px;
+}
+
+.captcha-refresh {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--captcha-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--captcha-blue);
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.captcha-refresh:active {
+  transform: rotate(120deg);
+}
+
+.captcha-help,
+.captcha-loading {
+  margin: 6px 0 0;
+  color: var(--captcha-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.captcha-help.is-error {
+  color: #a51e27;
+}
+
+.captcha .cf-turnstile,
+.captcha-box iframe {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .captcha-answer {
+    flex: 0 0 84px;
+    width: 84px;
+    font-size: 16px;
+  }
+
+  .captcha-question {
+    font-size: 13px;
+  }
+}

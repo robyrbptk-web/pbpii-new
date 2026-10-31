@@ -22,14 +22,34 @@
       <span><b>PB PII</b><small>PII Global View</small></span>
     </a>
     <nav id="nav" aria-label="Navigasi utama">
-      <a href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
+      <a href="index.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.5h5V20"/></svg><span>Beranda</span></a>
+      <a href="acara.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/></svg><span>Acara</span></a>
       <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
-      <a href="index.html#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Ketua</span></a>
-      <a href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
-      <a href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
-      <a href="peta.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a href="peta.html" aria-current="page" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a class="nav-extra" href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
+      <a class="nav-extra" href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
+      <a class="nav-extra" href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
+      <button class="nav-more" id="navMore" type="button" aria-expanded="false" aria-controls="navMoreSheet"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.1"/><circle cx="12" cy="7" r="2.1"/><circle cx="18" cy="7" r="2.1"/><circle cx="6" cy="17" r="2.1"/><circle cx="12" cy="17" r="2.1"/><circle cx="18" cy="17" r="2.1"/></svg><span>Lainnya</span></button>
     </nav>
+    <div class="account-slot" data-account aria-label="Akun kader PII"></div>
   </header>
+
+  <div class="nav-sheet" id="navMoreSheet" aria-hidden="true">
+    <button class="nav-sheet-backdrop" type="button" tabindex="-1" aria-label="Tutup menu"></button>
+    <div class="nav-sheet-panel">
+      <p class="nav-sheet-title">Menu lengkap PB PII</p>
+      <div class="nav-sheet-grid">
+        <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya PII</span></a>
+        <a href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri kegiatan</span></a>
+        <a href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang PII</span></a>
+        <a href="index.html#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Sambutan Ketua Umum</span></a>
+        <a href="index.html#data"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M10 19V4M15 19v-7M20 19v-11"/></svg><span>Data terbuka</span></a>
+        <a href="index.html#ibadah"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Jadwal sholat</span></a>
+        <a href="lembaga.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 20V6.5h9V20M13.5 20V10H20v10M7 9.5h1.5M7 13h1.5M7 16.5h1.5M16 13h1.5M16 16.5h1.5"/></svg><span>Akun lembaga</span></a>
+        <a href="login.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>Admin PB PII</span></a>
+      </div>
+    </div>
+  </div>
 
   <main class="globe-shell">
     <div class="globe-toolbar">
@@ -207,6 +227,7 @@
       else startGlobe();
     })();
   </script>
+  <script src="akun.js" defer></script>
   <script src="site.js" defer></script>
 </body>
 </html>

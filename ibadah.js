@@ -82,6 +82,7 @@
 
   let schedule = null;
   let activeCity = null;
+  let qiblaDegrees = null;
   let locationToken = 0;
   let lastPrayer;
   let lastDayCheck = 0;
@@ -925,17 +926,145 @@
     if (status) status.textContent = message;
   }
 
+  function setQiblaAccuracy(message) {
+    const line = document.querySelector('#qiblaAccuracy');
+    if (line) line.textContent = message;
+  }
+
+  const compass = { on: false, heading: 0, smoothed: null, signalledAt: 0, aligned: false, vibrated: false };
+
+  /** Selisih sudut terdekat, supaya 359° → 1° tidak dihitung berputar 358°. */
+  function deltaAngle(from, to) {
+    return ((to - from + 540) % 360) - 180;
+  }
+
+  function paintQibla() {
+    const rose = document.querySelector('#qiblaRose');
+    const needle = document.querySelector('#qiblaNeedle');
+    const card = document.querySelector('#qiblaCard');
+    if (!needle || qiblaDegrees === null) return;
+
+    const manual = Number(document.querySelector('#qiblaManual')?.value || 0);
+    const heading = compass.on ? compass.heading : manual;
+    const relative = (qiblaDegrees - heading + 360) % 360;
+
+    rose?.style.setProperty('transform', `rotate(${(-heading).toFixed(1)}deg)`);
+    needle.style.transform = `rotate(${relative.toFixed(1)}deg)`;
+
+    const aligned = Math.abs(deltaAngle(0, relative)) <= 6;
+    card?.classList.toggle('is-aligned', aligned);
+    if (aligned && compass.on && !compass.vibrated) {
+      navigator.vibrate?.(22);
+      compass.vibrated = true;
+      setQiblaAccuracy('Menghadap Ka\'bah. Jaga ponsel tetap datar sejauh mungkin dari logam.');
+    } else if (!aligned) {
+      compass.vibrated = false;
+      if (compass.on) {
+        const side = deltaAngle(0, relative) > 0 ? 'kanan' : 'kiri';
+        setQiblaAccuracy(`Kompas aktif · putar badan ke ${side} sampai kotak hijau berada di atas.`);
+      }
+    }
+  }
+
+  function onOrientation(event) {
+    let raw = null;
+    if (Number.isFinite(event.webkitCompassHeading)) raw = event.webkitCompassHeading;
+    else if (Number.isFinite(event.alpha)) raw = (360 - event.alpha) % 360;
+    if (raw === null) return;
+
+    compass.signalledAt = Date.now();
+    if (Number.isFinite(event.webkitCompassAccuracy) && event.webkitCompassAccuracy >= 0) {
+      setQiblaAccuracy(`Kompas aktif · akurasi ±${Math.round(event.webkitCompassAccuracy)}°. Gerakkan ponsel membentuk angka 8 untuk kalibrasi.`);
+    }
+
+    const previous = compass.smoothed ?? raw;
+    const step = deltaAngle(previous, raw);
+    // Lompatan besar berarti magnetometer baru dikalibrasi: ikuti langsung.
+    compass.smoothed = Math.abs(step) > 90 ? raw : (previous + step * 0.34 + 360) % 360;
+    compass.heading = compass.smoothed;
+    paintQibla();
+  }
+
+  function stopCompass(message) {
+    compass.on = false;
+    compass.smoothed = null;
+    window.removeEventListener('deviceorientationabsolute', onOrientation, true);
+    window.removeEventListener('deviceorientation', onOrientation, true);
+    const button = document.querySelector('#qiblaCompass');
+    if (button) {
+      button.textContent = 'Aktifkan kompas';
+      button.setAttribute('aria-pressed', 'false');
+      button.classList.remove('is-on');
+    }
+    document.querySelector('#qiblaCard')?.classList.remove('is-aligned');
+    if (message) setQiblaAccuracy(message);
+    paintQibla();
+  }
+
+  /**
+   * iOS 13+ hanya mengizinkan sensor kompas setelah tombol ditekan, jadi
+   * permintaan izin harus tetap berada di dalam gesture pengguna.
+   */
+  async function startCompass(button) {
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      setQiblaAccuracy('Perangkat ini tidak punya sensor kompas. Gunakan geseran utara di bawah.');
+      return;
+    }
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      let granted = 'granted';
+      try {
+        granted = await DeviceOrientationEvent.requestPermission();
+      } catch {
+        granted = 'denied';
+      }
+      if (granted !== 'granted') {
+        setQiblaAccuracy('Izin kompas ditolak. Gunakan geseran utara di bawah.');
+        return;
+      }
+    }
+
+    compass.signalledAt = 0;
+    window.addEventListener('deviceorientationabsolute', onOrientation, true);
+    window.addEventListener('deviceorientation', onOrientation, true);
+    compass.on = true;
+    button.textContent = 'Kompas aktif — matikan';
+    button.setAttribute('aria-pressed', 'true');
+    button.classList.add('is-on');
+    setQiblaAccuracy('Kompas aktif. Letakkan ponsel datar dan jauhkan dari logam atau casing bermagnet.');
+    paintQibla();
+
+    setTimeout(() => {
+      if (compass.on && compass.signalledAt === 0) {
+        stopCompass('Sensor kompas tidak mengirim data dari peramban ini. Gunakan geseran utara di bawah.');
+      }
+    }, 3000);
+  }
+
+  function initCompass() {
+    const button = document.querySelector('#qiblaCompass');
+    const manual = document.querySelector('#qiblaManual');
+    button?.addEventListener('click', () => {
+      if (compass.on) stopCompass('Kompas dimatikan. Arah kiblat tetap dapat diputar manual.');
+      else startCompass(button);
+    });
+    manual?.addEventListener('input', () => {
+      if (compass.on) stopCompass('Kompas dimatikan karena utara diatur manual.');
+      setQiblaAccuracy(`Utara kompas diatur ke ${Number(manual.value)}°. Selesaikan memutar cincin agar jarum hijau menunjuk Ka'bah.`);
+      paintQibla();
+    });
+  }
+
   async function loadQibla(lat, lon, sourceLabel) {
     setQiblaStatus(`Menghitung arah kiblat dari ${sourceLabel}…`);
     try {
       const body = await getJson(`${API}/qibla?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
       const direction = Number(body.data?.direction);
       if (!Number.isFinite(direction)) throw new Error('Arah kiblat tidak tersedia.');
-      const needle = document.querySelector('#qiblaNeedle');
-      if (needle) needle.setAttribute('transform', `rotate(${direction.toFixed(1)} 100 100)`);
+      qiblaDegrees = direction;
       setText('#qiblaDegrees', `${direction.toFixed(1)}°`);
       setText('#qiblaSource', `dari ${sourceLabel}`);
       setQiblaStatus(`Kiblat dari ${sourceLabel}: ${direction.toFixed(1)}° dari utara sejati, searah jarum jam.`);
+      paintQibla();
     } catch (error) {
       setQiblaStatus(error.message);
     }
@@ -943,6 +1072,7 @@
 
   function initQibla() {
     loadQibla(SECRETARIAT.lat, SECRETARIAT.lon, SECRETARIAT.label);
+    initCompass();
 
     const button = document.querySelector('#qiblaLocate');
     if (!button) return;
@@ -1000,6 +1130,51 @@
     let currentSurah = Number(storageGet(STORE.surah, '')) || 0;
     let audio = null;
     let audioButton = null;
+
+    const sheet = document.querySelector('#quranSheet');
+    const sheetBody = document.querySelector('#quranSheetBody');
+    const sheetFoot = document.querySelector('#quranSheetFoot');
+    let sheetOpen = false;
+    let sheetEntry = false;
+
+    /** Layar kecil memakai sheet penuh; pembaca inline tetap dipakai di desktop. */
+    const compactScreen = () => window.matchMedia('(max-width: 1024px)').matches;
+
+    function openSheet() {
+      if (!sheet || sheetOpen) return;
+      sheetOpen = true;
+      sheet.classList.add('is-open');
+      sheet.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('is-locked');
+      if (!sheetEntry) {
+        sheetEntry = true;
+        // Tombol back Android menutup surat lebih dulu, tidak langsung keluar halaman.
+        history.pushState({ quranSheet: reader?.number || currentSurah }, '');
+      }
+    }
+
+    function closeSheet() {
+      if (!sheet || !sheetOpen) return;
+      const wasPushed = sheetEntry;
+      sheetOpen = false;
+      sheetEntry = false;
+      sheet.classList.remove('is-open');
+      sheet.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('is-locked');
+      if (wasPushed) history.back();
+    }
+
+    window.addEventListener('popstate', () => {
+      if (sheetEntry) {
+        sheetEntry = false;
+        if (sheetOpen) {
+          sheet.classList.remove('is-open');
+          sheet.setAttribute('aria-hidden', 'true');
+          document.body.classList.remove('is-locked');
+          sheetOpen = false;
+        }
+      }
+    });
 
     function stopAudio() {
       if (audio && !audio.paused) audio.pause();
@@ -1083,6 +1258,31 @@
       const perPage = Number(reader.pagination?.limit) || 100;
       const pages = total > perPage ? Math.ceil(total / perPage) : 1;
 
+      const pager = `
+        <div class="reader-pager">
+          <button type="button" data-surah="${reader.number - 1}" ${reader.number <= 1 ? 'disabled' : ''}>← Sebelumnya</button>
+          ${pages > 1
+            ? `<span class="reader-pages">${Array.from({ length: pages }, (_, index) => `<button type="button" data-page="${index + 1}" class="${index + 1 === reader.page ? 'is-current' : ''}"${index + 1 === reader.page ? ' aria-current="page"' : ''}>${index + 1}</button>`).join('')}</span>`
+            : '<span class="muted">Satu halaman</span>'}
+          <button type="button" data-surah="${reader.number + 1}" ${reader.number >= 114 ? 'disabled' : ''}>Berikutnya →</button>
+        </div>`;
+      const ayatRows = ayahs.length
+        ? ayahs.map(renderAyah).join('')
+        : '<p class="muted">Ayat surat ini belum tersedia.</p>';
+
+      if (sheetOpen && sheetBody) {
+        setText('#quranSheetName', data.name_latin || data.name || 'Surat');
+        setText('#quranSheetMeta', `Surat ke-${Number(data.number) || reader.number} · ${meta}`);
+        const arab = document.querySelector('#quranSheetArab');
+        if (arab) {
+          arab.textContent = data.name || '';
+          arab.hidden = !data.name;
+        }
+        sheetBody.innerHTML = ayatRows;
+        sheetFoot.innerHTML = pager;
+        return;
+      }
+
       readerEl.innerHTML = `
         <div class="reader-head">
           <div>
@@ -1091,13 +1291,20 @@
           </div>
           ${data.audio_url ? `<button class="ayah-play" type="button" data-audio="${escapeHTML(data.audio_url)}" aria-pressed="false">▶ Murattal surat</button>` : ''}
         </div>
-        ${ayahs.length ? ayahs.map(renderAyah).join('') : '<p class="muted">Ayat surat ini belum tersedia.</p>'}
-        <div class="reader-pager">
-          <button type="button" data-surah="${reader.number - 1}" ${reader.number <= 1 ? 'disabled' : ''}>← Surat sebelumnya</button>
-          ${pages > 1
-            ? `<span class="reader-pages">${Array.from({ length: pages }, (_, index) => `<button type="button" data-page="${index + 1}" class="${index + 1 === reader.page ? 'is-current' : ''}"${index + 1 === reader.page ? ' aria-current="page"' : ''}>${index + 1}</button>`).join('')}</span>`
-            : '<span class="muted">Satu halaman penuh</span>'}
-          <button type="button" data-surah="${reader.number + 1}" ${reader.number >= 114 ? 'disabled' : ''}>Surat berikutnya →</button>
+        ${ayatRows}
+        ${pager}`;
+    }
+
+    /** Kartu "lanjutkan" supaya surat terakhir tidak langsung menutupi halaman. */
+    function renderResumeChip() {
+      const surah = surahs.find((item) => Number(item.number) === currentSurah);
+      if (!surah) return;
+      readerEl.innerHTML = `
+        <div class="resume-card">
+          <p class="eyebrow">LANJUTKAN MEMBACA</p>
+          <b>${escapeHTML(surah.name_latin || surah.name || '')}</b>
+          <small>${escapeHTML(surah.revelation || '')} · ${Number(surah.number_of_ayahs) || '?'} ayat</small>
+          <button class="button button-solid" type="button" data-surah="${surah.number}">Buka surat</button>
         </div>`;
     }
 
@@ -1110,11 +1317,19 @@
         reader = cached;
         currentSurah = number;
         storageSet(STORE.surah, String(number));
+        if (compactScreen()) openSheet();
         each('.surah-item', (item) => item.setAttribute('aria-current', item.dataset.surah === String(number) ? 'true' : 'false'));
         renderReader();
+        if (sheetOpen) sheetBody.scrollTop = 0;
         return;
       }
-      readerEl.innerHTML = `<p class="muted">Memuat surat ${number}…</p>`;
+
+      if (compactScreen()) {
+        openSheet();
+        sheetBody.innerHTML = `<p class="muted">Memuat surat ${number}…</p>`;
+      } else {
+        readerEl.innerHTML = `<p class="muted">Memuat surat ${number}…</p>`;
+      }
       try {
         const body = await getJson(`${API}/quran?nomor=${number}&page=${page}&limit=100`);
         reader = { number, page, data: body.data || {}, pagination: body.meta?.pagination || null };
@@ -1124,8 +1339,10 @@
         quranCacheWrite(cacheKey, reader);
         each('.surah-item', (item) => item.setAttribute('aria-current', item.dataset.surah === String(number) ? 'true' : 'false'));
         renderReader();
+        if (sheetOpen) sheetBody.scrollTop = 0;
       } catch (error) {
-        readerEl.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
+        const message = `<p class="muted">${escapeHTML(error.message)}</p>`;
+        if (sheetOpen) sheetBody.innerHTML = message; else readerEl.innerHTML = message;
       }
     }
 
@@ -1134,7 +1351,7 @@
       if (button) openSurah(Number(button.dataset.surah), 1);
     });
 
-    readerEl.addEventListener('click', (event) => {
+    function handleReaderClick(event) {
       const audioButtonEl = event.target.closest('button[data-audio]');
       if (audioButtonEl) {
         toggleAudio(audioButtonEl);
@@ -1143,11 +1360,19 @@
       const pageButton = event.target.closest('button[data-page]');
       if (pageButton && reader) {
         openSurah(reader.number, Number(pageButton.dataset.page));
-        readerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (sheetOpen) sheetBody.scrollTop = 0; else readerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
       const surahButton = event.target.closest('button[data-surah]');
       if (surahButton) openSurah(Number(surahButton.dataset.surah), 1);
+    }
+
+    readerEl.addEventListener('click', handleReaderClick);
+    sheetBody?.addEventListener('click', handleReaderClick);
+    sheetFoot?.addEventListener('click', handleReaderClick);
+    document.querySelector('#quranSheetClose')?.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && sheetOpen) closeSheet();
     });
 
     if (searchInput) {
@@ -1166,7 +1391,8 @@
         return;
       }
       renderSurahList(searchInput?.value || '');
-      if (currentSurah) openSurah(currentSurah, 1);
+      // Surat terakhir hanya dipulihkan sebagai kartu; halaman tidak langsung tertutup sheet.
+      if (currentSurah) renderResumeChip();
     })();
   }
 

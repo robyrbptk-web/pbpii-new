@@ -50,6 +50,7 @@
     .foot a{display:inline-flex;align-items:center;min-height:44px}
     @media(max-width:560px){.grid{grid-template-columns:minmax(0,1fr)}.card{padding:21px 17px;border-radius:15px}.seg{grid-template-columns:1fr}.seg label{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:12px 14px}.seg small{margin:0}.seg small{margin-left:8px}input,select,textarea{font-size:16px}select{max-width:100%}.brand small,.hint{font-size:12px}.seg small{font-size:11.5px}.preview{font-size:12.5px}}
   </style>
+  <link rel="stylesheet" href="/captcha.css">
 </head>
 <body>
   <div class="wrap">
@@ -98,6 +99,7 @@
           <div class="field"><label class="lbl" for="phone">Nomor WhatsApp</label><input id="phone" inputmode="tel" placeholder="08xx"></div>
           <div class="field"><label class="lbl" for="skUrl">Tautan SK / surat tugas</label><input id="skUrl" type="url" placeholder="https://drive.google.com/..."><div class="hint">Opsional, memudahkan verifikasi.</div></div>
           <div class="field full"><label class="lbl" for="note">Catatan untuk verifikator</label><textarea id="note" maxlength="500" placeholder="Contoh: SK periode 2025–2029, kontak sekretaris."></textarea></div>
+          <div class="field full"><label class="lbl">Verifikasi singkat</label><div id="captchaBox"></div><div class="hint">Dipakai untuk menahan pendaftaran ganda dari bot.</div></div>
         </div>
 
         <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
@@ -120,6 +122,7 @@
     };
     let lookup = { provinces: [], wps: [], pds: [] };
     let wilayah = { province: '', regencies: [], regencyCodeByName: {}, districts: [], districtsRegency: '' };
+    let verifikasi = null;
     const wilayahCache = new Map();
 
     const $ = (id) => document.getElementById(id);
@@ -401,6 +404,7 @@
         showMessage(error.message + ' Pendaftaran tetap dapat dikirim, tetapi data induk belum dapat diperiksa.', 'err');
       }
       await loadProvinces();
+      verifikasi = window.PBPIICaptcha?.attach($('captchaBox')) || null;
       syncRegionControls();
       setPreview();
     })();
@@ -420,6 +424,7 @@
       if (level === 'PK' && !subdistrict) return showMessage('Pilih atau tulis nama kecamatan.', 'err');
       if (password.length < 8) return showMessage('Kata sandi minimal 8 karakter.', 'err');
       if (password !== $('password2').value) return showMessage('Kata sandi dan ulangannya tidak sama.', 'err');
+      if (verifikasi && !verifikasi.valid()) return showMessage('Isi dulu jawaban verifikasi singkat, lalu kirim.', 'err');
 
       const payload = {
         action: 'orgRegister',
@@ -431,7 +436,8 @@
         password: password,
         phone: $('phone').value.trim(),
         skUrl: $('skUrl').value.trim(),
-        note: $('note').value.trim()
+        note: $('note').value.trim(),
+        ...(verifikasi ? verifikasi.fields() : {})
       };
 
       const button = $('submitBtn');
@@ -444,7 +450,12 @@
           body: JSON.stringify(payload)
         });
         const result = await response.json();
-        if (!result.ok) throw new Error(result.error || 'Pendaftaran gagal.');
+        if (!result.ok) {
+          const error = new Error(result.error || 'Pendaftaran gagal.');
+          error.code = result.code;
+          throw error;
+        }
+        verifikasi?.reload();
         form.reset();
         document.querySelectorAll('#jenjangSeg label').forEach((label, index) => label.classList.toggle('sel', index === 0));
         wilayah = { province: '', regencies: [], regencyCodeByName: {}, districts: [], districtsRegency: '' };
@@ -457,12 +468,15 @@
         message.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } catch (error) {
         showMessage(error.message, 'err');
+        // Satu soal hanya berlaku sekali, jadi jawaban yang ditolak diganti soal baru.
+        if (error.code === 'captcha') await verifikasi?.reload();
       } finally {
         button.disabled = false;
         button.textContent = 'Kirim pendaftaran';
       }
     });
   </script>
+  <script src="captcha.js" defer></script>
   <script src="site.js" defer></script>
 </body>
 </html>

@@ -22,15 +22,35 @@
       <span><b id="siteName">PB PII</b><small id="siteTagline">Pelajar Islam Indonesia</small></span>
     </a>
     <nav id="nav" aria-label="Navigasi utama">
-      <a href="#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
+      <a href="./"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.5h5V20"/></svg><span>Beranda</span></a>
+      <a href="acara.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/></svg><span>Acara</span></a>
       <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
-      <a href="#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Ketua</span></a>
-      <a href="#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
-      <a href="#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
-      <a href="peta.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a href="peta.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a class="nav-extra" href="#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
+      <a class="nav-extra" href="#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
+      <a class="nav-extra" href="#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang</span></a>
+      <button class="nav-more" id="navMore" type="button" aria-expanded="false" aria-controls="navMoreSheet"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.1"/><circle cx="12" cy="7" r="2.1"/><circle cx="18" cy="7" r="2.1"/><circle cx="6" cy="17" r="2.1"/><circle cx="12" cy="17" r="2.1"/><circle cx="18" cy="17" r="2.1"/></svg><span>Lainnya</span></button>
     </nav>
+    <div class="account-slot" data-account aria-label="Akun kader PII"></div>
     <button class="install-app" id="installApp" type="button" hidden>Instal aplikasi</button>
   </header>
+
+  <div class="nav-sheet" id="navMoreSheet" aria-hidden="true">
+    <button class="nav-sheet-backdrop" type="button" tabindex="-1" aria-label="Tutup menu"></button>
+    <div class="nav-sheet-panel">
+      <p class="nav-sheet-title">Menu lengkap PB PII</p>
+      <div class="nav-sheet-grid">
+        <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya PII</span></a>
+        <a href="#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri kegiatan</span></a>
+        <a href="#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang PII</span></a>
+        <a href="#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Sambutan Ketua Umum</span></a>
+        <a href="#data"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M10 19V4M15 19v-7M20 19v-11"/></svg><span>Data terbuka</span></a>
+        <a href="lembaga.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 20V6.5h9V20M13.5 20V10H20v10M7 9.5h1.5M7 13h1.5M7 16.5h1.5M16 13h1.5M16 16.5h1.5"/></svg><span>Akun lembaga</span></a>
+        <a href="daftar.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M12 8.5v7M8.5 12h7"/></svg><span>Daftar lembaga</span></a>
+        <a href="login.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>Admin PB PII</span></a>
+      </div>
+    </div>
+  </div>
 
   <main>
     <section class="hero">
@@ -40,7 +60,7 @@
         <p id="heroText">Pelajar Islam Indonesia (PII) telah menemani perjalanan bangsa selama puluhan tahun. Dari rahim sejarah itulah lahir kader-kader pelajar yang beriman, berilmu, dan berjuang untuk umat serta negara.</p>
         <div class="hero-actions">
           <a class="button button-light" href="#berita">Ikuti kabar PII <span>↗</span></a>
-          <a class="button button-ghost" href="peta.html">PII Global View</a>
+          <a class="button button-ghost" href="peta.html" data-requires="pengurus">PII Global View</a>
           <a class="button button-ghost" href="#tentang">Kenali PII</a>
         </div>
       </div>
@@ -55,6 +75,18 @@
       <div><strong>Beriman &amp; Berilmu</strong><span>Melahirkan tokoh yang berpengaruh bagi Indonesia</span></div>
     </section>
 
+    <section id="sambutan" class="greeting-section">
+      <div class="greeting-photo" id="chairPhotoWrap">
+        <img id="chairPhoto" src="/assets/logo-pii.png" alt="Ketua Umum PB PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      </div>
+      <div class="greeting-copy">
+        <p class="eyebrow">SAMBUTAN KETUA UMUM PB PII</p>
+        <h2 id="chairmanName">Kevin Prayoga, S.H.</h2>
+        <p class="role" id="chairmanRole">Periode 2026 – 2028</p>
+        <div id="chairmanGreeting" class="greeting-text">Assalamu’alaikum warahmatullahi wabarakatuh. Zaman terus bergerak dan tantangan pelajar hari ini tidak lagi sama dengan satu atau dua dekade yang lalu. PII harus terus berbenah tanpa kehilangan jati dirinya — naik kelas dalam karakter, intelektualitas, dan kepemimpinan.</div>
+      </div>
+    </section>
+
     <section id="gerakan" class="section">
       <div class="section-heading">
         <div>
@@ -62,7 +94,7 @@
           <h2>Ikhtiar Kolektif PB PII</h2>
           <p>Bukan meninggalkan nilai, melainkan memperkuatnya. Bukan menghapus sejarah, tetapi melanjutkannya dengan cara yang lebih adaptif dan progresif.</p>
         </div>
-        <a class="text-link" href="lembaga.html">Lihat kelembagaan PII ↗</a>
+        <a class="text-link" href="lembaga.html" data-requires="pengurus">Lihat kelembagaan PII ↗</a>
       </div>
       <div class="pillar-grid">
         <article class="pillar-card">
@@ -78,7 +110,7 @@
         <article class="pillar-card">
           <b>Lembaga Resmi &amp; Data Keaktifan</b>
           <p>Pengurus Wilayah (provinsi), Pengurus Daerah (kota/kabupaten), dan Pengurus Komisariat (kecamatan) memiliki akun resmi yang diverifikasi berjenjang, mengunggah kegiatan, dan tercatat dalam Indeks Keaktifan.</p>
-          <a class="text-link" href="daftar.html">Daftarkan lembaga ↗</a>
+          <a class="text-link" href="daftar.html" data-requires="pengurus">Daftarkan lembaga ↗</a>
         </article>
       </div>
     </section>
@@ -90,7 +122,7 @@
           <h2>Indonesia dalam Angka</h2>
           <p>Ringkasan langsung dari API data publik yang juga menjadi lapisan informasi di peta global PB PII.</p>
         </div>
-        <a class="text-link" href="peta.html">Buka peta global ↗</a>
+        <a class="text-link" href="peta.html" data-requires="pengurus">Buka peta global ↗</a>
       </div>
       <div class="data-strip" id="dataStrip">
         <div class="data-stat" data-stat="schools"><strong>—</strong><span>Contoh sekolah terdata</span></div>
@@ -123,6 +155,18 @@
       <p class="data-strip-note" data-location-note>Jadwal mengikuti lokasi Anda; bila lokasi belum dikenali, dipakai Kota Jakarta.</p>
     </section>
 
+    <section id="acara" class="section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">ACARA &amp; KEGIATAN</p>
+          <h2>Agenda Pengurus PII</h2>
+          <p>Leadership Basic Training (LBT), LIT, LAT, ta'lim, kajian, dan aksi sosial yang diterbitkan pengurus PB, PW, PD, dan PK — pendaftarannya tersambung langsung ke formulir panitia.</p>
+        </div>
+        <a class="text-link" href="acara.html">Semua agenda &amp; cara daftar ↗</a>
+      </div>
+      <div id="events" class="acara-list"><p class="muted">Memuat agenda…</p></div>
+    </section>
+
     <section id="berita" class="section">
       <div class="section-heading">
         <div>
@@ -130,21 +174,9 @@
           <h2>Aktivitas Terbaru</h2>
           <p>Kabar organisasi, opini, dan pernyataan sikap Pelajar Islam Indonesia untuk dunia pelajar dan kebangsaan.</p>
         </div>
-        <a class="text-link" href="lembaga.html">Keaktifan PW / PD / PK ↗</a>
+        <a class="text-link" href="lembaga.html" data-requires="pengurus">Keaktifan PW / PD / PK ↗</a>
       </div>
       <div id="articles" class="article-grid"><p class="muted">Memuat artikel…</p></div>
-    </section>
-
-    <section id="sambutan" class="greeting-section">
-      <div class="greeting-photo" id="chairPhotoWrap">
-        <img id="chairPhoto" src="/assets/logo-pii.png" alt="Ketua Umum PB PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
-      </div>
-      <div class="greeting-copy">
-        <p class="eyebrow">SAMBUTAN KETUA UMUM PB PII</p>
-        <h2 id="chairmanName">Kevin Prayoga, S.H.</h2>
-        <p class="role" id="chairmanRole">Periode 2026 – 2028</p>
-        <div id="chairmanGreeting" class="greeting-text">Assalamu’alaikum warahmatullahi wabarakatuh. Zaman terus bergerak dan tantangan pelajar hari ini tidak lagi sama dengan satu atau dua dekade yang lalu. PII harus terus berbenah tanpa kehilangan jati dirinya — naik kelas dalam karakter, intelektualitas, dan kepemimpinan.</div>
-      </div>
     </section>
 
     <section id="tentang" class="section about-section">
@@ -158,7 +190,7 @@
         <ul class="about-links">
           <li><a class="text-link" href="#gerakan">Arah gerakan PB PII ↗</a></li>
           <li><a class="text-link" href="#berita">Kabar &amp; gagasan pelajar ↗</a></li>
-          <li><a class="text-link" href="peta.html">Sekretariat PB PII di peta global ↗</a></li>
+          <li><a class="text-link" href="peta.html" data-requires="pengurus">Sekretariat PB PII di peta global ↗</a></li>
         </ul>
       </div>
     </section>
@@ -183,12 +215,13 @@
     <p id="footerText">Pengurus Besar — Pelajar Islam Indonesia · Jl. Menteng Raya No. 58, Jakarta Pusat</p>
     <div class="footer-links" id="footerLinks"></div>
     <nav class="footer-auth" aria-label="Masuk pengelola">
-      <a href="lembaga.html" class="admin-link">Lembaga</a>
-      <a href="login.html" class="admin-link">Admin</a>
+      <a href="lembaga.html" class="admin-link" data-requires="pengurus">Lembaga</a>
+      <a href="login.html" class="admin-link" data-requires="pengurus">Admin</a>
     </nav>
     <small>© <span id="year"></span> Pengurus Besar — Pelajar Islam Indonesia</small>
   </footer>
 
+  <script src="akun.js" defer></script>
   <script src="app.js" defer></script>
   <script src="ibadah.js" defer></script>
   <script src="site.js" defer></script>

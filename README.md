@@ -73,10 +73,10 @@ yang sudah jalan:
    suntingan redaksi. Bedanya: yang pertama memaksa semua kunci kembali ke
    `DEFAULT_SETTINGS`, yang kedua melewati nilai yang sudah pernah diubah lewat
    dashboard.
-6. Lupa password admin: **PB PII > Setel ulang password admin** mengembalikan
-   username `admin` dengan kata sandi awal `DEFAULT_ADMIN_PASSWORD` di `Code.gs`.
-   Setelah itu segera ganti lewat **PB PII > Atur akun admin**; jangan Biarkan
-   kata sandi bawaan terpakai di situs produksi.
+6. Lupa password admin: **PB PII > Setel ulang password admin** membuat username
+   `admin` dengan kata sandi acak baru yang hanya ditampilkan satu kali di layar
+   Apps Script. Catat nilainya, lalu segera ganti lewat **PB PII > Atur akun
+   admin**; repository publik tidak menyimpan kata sandi apa pun.
 
 ## B. Hubungkan ke Vercel
 1. Import repository GitHub ke Vercel dan pilih branch `main`.
@@ -490,11 +490,11 @@ Jika lupa password: buka spreadsheet → menu **PB PII → Atur akun admin** →
 password baru dua kali. Bila menu belum muncul, jalankan `setup()` pada editor
 Apps Script lalu muat ulang spreadsheet. Bila password benar-benar tidak
 diketahui, jalankan `aturUlangPasswordAdmin()` di editor Apps Script (atau menu
-**PB PII → Setel ulang password admin**): akun kembali ke username `admin` dan
-password awal `tauhid12`, lalu segera ganti lewat menu. Username tetap `admin`
-kecuali diubah manual di Script Properties. Halaman `/login.html` dan panel
-bantuan dashboard memuat ringkasan langkah yang sama agar bisa dibuka tanpa
-README.
+**PB PII → Setel ulang password admin**): server membuat kata sandi acak baru dan
+menampilkannya satu kali di editor — catat, lalu segera ganti lewat menu. Tidak ada
+kata sandi yang tertulis di repository. Username tetap `admin` kecuali diubah manual
+di Script Properties. Halaman `/login.html` hanya memuat ringkasan singkat untuk
+pengurus; langkah operasional lengkapnya ada di README ini, bukan di situs publik.
 
 Tombol **Periksa koneksi data** pada dashboard memanggil endpoint publik dan
 menampilkan jumlah artikel terbit/galeri, sehingga bisa dipakai memastikan
@@ -580,6 +580,51 @@ PB. Kategori tetap: **Kesekretariatan**, **Kebendaharaan**, **Kelembagaan**,
 **Eksternal** — tiap bidang di jenjang mana pun dapat menyaring kotak masuk
 sesuai kategorinya, menandai dibaca, dan menandai selesai.
 
+### Umpan acara publik dan standar keaktifan berjenjang
+`/acara.html` menampilkan kegiatan berstatus **terbit** dari semua jenjang, dengan
+pendaftaran yang mengarah ke formulir panitia milik lembaga penyelenggara. Kartu
+acara punya tombol suka, komentar, dan bagikan; komentar dan suka hanya untuk akun
+kader yang sudah masuk Google. Contoh judul yang dipakai bersama: Leadership Basic
+Training (LBT), Leadership Intermediate Training (LIT), Leadership Advance Training
+(LAT), Ta'lim Awal, Ta'lim Wusthom, Ta'lim Ali.
+
+Target minimal kegiatan per bulan dapat disetel berjenjang:
+
+- PB menentukan bawaan lewat **Admin → Pengaturan → Acara, keaktifan, dan keamanan**
+  (kunci `keaktifanMinPerMonth`).
+- Lembaga induk menimpa untuk bawahannya lewat `/lembaga.html` → **Jejaring**
+  (aksi `orgSetStandard`, tersimpan di sheet `Standards`).
+- Dashboard lembaga menunjukkan pencapaian bulan berjalan terhadap standar yang
+  berlaku untuk jenjangnya (`keaktifanFor_`, sumber nilai ditampilkan sebagai
+  `standar PB bawaan` / `standar <induk>`).
+
+Kunci pengaturan lain: `kaderCommentDailyLimit` (kuota komentar kader per hari),
+`eventCommentsOpen` (kolom komentar dibuka/tutup), `googleClientId` (masuk kader),
+`turnstileSiteKey` + `turnstileSecret` (opsional). `turnstileSecret` tidak pernah
+dikirim ke browser.
+
+### Proteksi spam berlapis
+Dua lapisan, keduanya aktif bersamaan:
+
+1. `api/pii.js` (Vercel) — jendela geser per pasangan `aksi|IP`. Baca 240/60s,
+   captcha 30/600s, **semua jalur login (`login`, `orgLogin`, `kaderLogin`)
+   10/600s**, tulis 25/600s, sisanya 90/600s. Penolakan mengembalikan HTTP 429
+   dengan `code: 'rate_limited'` dan header `Retry-After`; proxy juga menyuntikkan
+   `ip` ke body sehingga Apps Script ikut melihat alamat asli pengunjung.
+2. `gas/Code.gs` `throttle_()` — jendela tetap di `CacheService` (TTL maksimum
+   600s) per aturan di `RATE_RULES`: login admin 8/600s, login lembaga 10/600s,
+   pendaftaran lembaga 5/1800s, pendaftaran peserta 12/600s, captcha 18/600s,
+   login kader 12/600s, suka 20/60s, komentar 4/180s per akun, komentar 20/600s
+   per IP, unggah foto 10/600s, chat 6/60s.
+
+Captcha memakai soal hitung yang dibuat server (`captcha.js` + `captchaIssue_`),
+jadi tanpa kunci dan tanpa biaya; ia hanya dipakai di **formulir pendaftaran publik
+dan pendaftaran lembaga**. Kolom komentar acara tidak memakai captcha karena
+penulisnya sudah terikat akun Google, dan dibatasi oleh kuota harian + kedua
+lapis pembatas laju di atas. Bila `turnstileSiteKey` dan `turnstileSecret` diisi,
+`captchaIssue_` otomatis mengembalikan mode Turnstile dan frontend beralih tanpa
+perubahan kode.
+
 ### Catatan migrasi
 Backend ini sengaja masih memakai Google Sheets + Apps Script sebagai langkah
 sementara. Skema baru (`Orgs`, `Activities`, `Forms`, `Participants`, `Letters`)
@@ -647,8 +692,15 @@ dari halaman terkait atau naikkan `CHAT_DAILY_LIMIT` menjadi `0`.
 ## Penting untuk keamanan dan produksi
 - Ini starter/MVP, belum audit keamanan produksi. Gunakan hanya akun admin tepercaya, password kuat, batasi akses editor, dan jangan bagikan URL deployment atau kredensial.
 - Endpoint Apps Script harus dapat dipanggil oleh proxy Vercel. Jangan menaruh `ADMIN_PASSWORD` atau URL rahasia lain di frontend atau repository.
-- Foto galeri dan sampul menggunakan URL gambar publik; upload file langsung belum tersedia.
+- Foto galeri, sampul artikel, dan sampul kegiatan dapat diunggah langsung dari
+  dashboard (`uploadImage` untuk admin, `orgUploadImage` untuk lembaga). Berkas
+  dikompres di browser, jenisnya dibaca dari tanda tangan byte (hanya JPEG/PNG/WebP),
+  disimpan ke folder "PB PII Media" di Drive akun Apps Script, dan disajikan sebagai
+  URL `lh3.googleusercontent.com`. Unggah memerlukan sesi pengurus yang sudah
+  terverifikasi — token kader ditolak.
 - Token sesi disimpan di `sessionStorage` browser dan berlaku sementara; sesi dapat berakhir saat cache dibersihkan.
 - `saveAdminPassword` hanya menyimpan hash SHA-256 bersalt (250 iterasi) di Script Properties, bukan teks kata sandi. Nilai lama yang masih berupa teks polos tetap bisa login dan otomatis dinaikkan menjadi hash pada login berikutnya. Gunakan tetap password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
 - Kunci AI (`AI_API_KEY`) hanya boleh hidup sebagai Script Properties di Apps Script. Jangan pernah memindahkannya ke `.env` Vercel, `api/chat.js`, atau file frontend mana pun: browser yang membuka DevTools bisa membaca apa pun yang dikirim ke sana, padahal fitur ini memang sengaja memakai model gratis tanpa kunci.
 - Untuk penggunaan resmi, tambahkan backup spreadsheet, logging, rate limiting, perlindungan CSRF sesuai kebutuhan, validasi HTML artikel, dan tinjauan keamanan sebelum menerima banyak admin.
+- Masuk kader memakai Google Identity Services. Buat **OAuth client ID ▸ Web application**, lalu tambahkan domain produksi dan `http://127.0.0.1:4173` ke *Authorized JavaScript origins*. Nilai Client ID ditaruh di Settings lewat dashboard admin (kolom `googleClientId`) — bukan di kode, karena browser hanya memakai Client ID publik dan server yang memverifikasi token di `googleClaims_` (issuer, audience, kedaluwarsa). Selama kolom itu kosong, tombol masuk kader dan dialog login tidak ditampilkan sama sekali.
+- Halaman publik tidak boleh memuat instruksi teknis (menempel `Code.gs`, menjalankan `setup`, alur *Deploy ▸ New version*, atau "sampaikan ke admin"). Pesan kesalahan untuk pengunjung dibuat netral; langkah operasional semacam itu hanya boleh muncul di README dan perkakas internal Apps Script.
