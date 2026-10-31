@@ -12,6 +12,7 @@
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/captcha.css">
   <style>
     :root{--auth-navy:#102b49;--auth-blue:#176da8;--ink:#182638;--muted:#637184;--line:#e0e7ef}
     *{box-sizing:border-box}
@@ -63,6 +64,8 @@
         <button class="toggle" id="togglePassword" type="button">Lihat</button>
       </div>
 
+      <div class="captcha" id="loginCaptcha"></div>
+
       <button type="submit" id="submitButton">Masuk ke Dashboard</button>
       <div class="message" id="message" role="status" aria-live="polite"></div>
     </form>
@@ -72,12 +75,21 @@
     <div class="foot">PB PII · Sistem Pengelolaan Konten</div>
   </main>
 
+  <script src="captcha.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
 
     const form = document.getElementById('loginForm');
     const message = document.getElementById('message');
     const submitButton = document.getElementById('submitButton');
+
+    // Verifikasi anti-spam: soal hitung dari server (atau Turnstile bila kunci
+    // Cloudflare sudah diisi di Pengaturan admin).
+    let verifikasi = null;
+    if (window.PBPIICaptcha && document.getElementById('loginCaptcha')) {
+      verifikasi = window.PBPIICaptcha.attach(document.getElementById('loginCaptcha'));
+      verifikasi.ready().catch(() => {});
+    }
 
     function showMessage(text, type) {
       message.className = 'message ' + type;
@@ -104,13 +116,16 @@
           body: JSON.stringify({
             action: 'login',
             username: document.getElementById('username').value.trim(),
-            password: document.getElementById('password').value
+            password: document.getElementById('password').value,
+            ...(verifikasi ? verifikasi.fields() : {})
           })
         });
 
         const result = await response.json();
         if (!response.ok || !result.ok) {
-          throw new Error(result.error || 'Login gagal.');
+          const error = new Error(result.error || 'Login gagal.');
+          error.code = String(result.code || '');
+          throw error;
         }
 
         if (!result.data || !result.data.token) {
@@ -123,6 +138,11 @@
         window.location.href = '/admin.html';
       } catch (error) {
         showMessage(error.message || 'Tidak dapat terhubung ke server.', 'error');
+        // Jawaban verifikasi sekali pakai: minta soal baru setiap kali ditolak.
+        if (verifikasi && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
+          verifikasi.reset();
+          verifikasi.reload?.().catch(() => {});
+        }
       } finally {
         submitButton.disabled = false;
         submitButton.textContent = 'Masuk ke Dashboard';

@@ -21,7 +21,7 @@
   let emailAuth = false;
   let gsiPromise = null;
   let captchaAssets = null;
-  let verifikasi = null;
+  const verifikasi = { google: null, email: null, daftar: null };
   let activeTab = 'email';
   let panelOpen = false;
 
@@ -98,12 +98,22 @@
       token: data.token
     };
     emit();
+    // Jawaban verifikasi Google sudah terpakai; buang widgetnya agar sesi
+    // berikutnya tidak mengirim soal yang sudah kedaluwarsa.
+    if (verifikasi.google) {
+      verifikasi.google = null;
+      document.querySelector('[data-captcha-slot="google"]')?.replaceChildren();
+    }
     closePanel();
     return account;
   }
 
   async function signIn(idToken) {
-    return applySession(await api({ action: 'kaderLogin', idToken }));
+    return applySession(await api({
+      action: 'kaderLogin',
+      idToken,
+      ...(verifikasi.google?.fields?.() || {})
+    }));
   }
 
   function signOut() {
@@ -141,8 +151,9 @@
         client_id: clientId,
         ux_mode: 'popup',
         callback: (response) => {
-          signIn(response.credential).catch((error) => {
+          signIn(response.credential).catch(async (error) => {
             setNotice(error.message);
+            if (error.code === 'captcha' || /verifikasi/i.test(String(error.message))) await ulangiVerifikasi('google');
           });
         }
       });
@@ -191,17 +202,31 @@
     return captchaAssets;
   }
 
-  async function ensureCaptcha(host) {
-    if (!host || verifikasi) return;
+  const captchaSiap = {};
+
+  async function ensureCaptcha(pane) {
+    const host = document.querySelector(`[data-captcha-slot="${pane}"]`);
+    if (!host || verifikasi[pane] || captchaSiap[pane]) return;
+    captchaSiap[pane] = true;
     host.innerHTML = '<p class="captcha-loading" role="status">Menyiapkan verifikasi…</p>';
     try {
       const modul = await captchaAssetsReady();
       if (!modul) throw new Error('Verifikasi formulir gagal dimuat. Muat ulang halaman lalu coba lagi.');
-      verifikasi = modul.attach(host);
-      await verifikasi.ready();
+      verifikasi[pane] = modul.attach(host);
+      await verifikasi[pane].ready();
     } catch (error) {
       host.innerHTML = `<p class="captcha-help is-error">${escapeHTML(error.message)}</p>`;
+    } finally {
+      captchaSiap[pane] = false;
     }
+  }
+
+  /** Jawaban verifikasi sekali pakai: minta soal baru setiap kali server menolak. */
+  async function ulangiVerifikasi(pane) {
+    const state = verifikasi[pane];
+    if (!state) return;
+    state.reset();
+    await state.reload?.().catch(() => {});
   }
 
   function buildPanel() {
@@ -221,6 +246,7 @@
         </div>
         <div class="kader-pane" data-pane="google">
           <div class="kader-google" data-google-slot></div>
+          <div class="kader-captcha" data-captcha-slot="google"></div>
           <p class="kader-hint">Masuk dengan akun Google tanpa membuat kata sandi baru.</p>
         </div>
         <div class="kader-pane" data-pane="email" hidden>
@@ -234,6 +260,7 @@
                 <button class="kader-eye" type="button" aria-pressed="false">Lihat</button>
               </span>
             </label>
+            <div class="kader-captcha" data-captcha-slot="email"></div>
             <button class="kader-go" type="submit">Masuk</button>
             <p class="kader-alt">Belum punya akun? <button class="kader-link" type="button" data-tab="daftar">Daftar dulu</button></p>
           </form>
@@ -252,7 +279,7 @@
                 <button class="kader-eye" type="button" aria-pressed="false">Lihat</button>
               </span>
             </label>
-            <div class="kader-captcha" data-captcha-slot></div>
+            <div class="kader-captcha" data-captcha-slot="daftar"></div>
             <p class="kader-hint">Simpan kata sandi Anda dengan baik. Bila lupa, pemulihan dilakukan lewat pengurus PB PII.</p>
             <button class="kader-go" type="submit">Buat akun kader</button>
             <p class="kader-alt">Sudah punya akun? <button class="kader-link" type="button" data-tab="email">Masuk</button></p>
@@ -286,9 +313,10 @@
         return api({
           action: 'kaderEmailLogin',
           email: String(data.get('email') || '').trim(),
-          password: String(data.get('password') || '')
+          password: String(data.get('password') || ''),
+          ...(verifikasi.email?.fields?.() || {})
         });
-      });
+      }, 'email');
     });
     dialog.querySelector('[data-form-daftar]').addEventListener('submit', (event) => {
       event.preventDefault();
@@ -301,8 +329,8 @@
       if (password.length < 8) { setNotice('Kata sandi minimal 8 karakter.'); return; }
       kirim(event.target, () => api({
         action: 'kaderRegister', name, email, password,
-        ...(verifikasi ? verifikasi.fields() : {})
-      }), () => { verifikasi?.reset(); });
+        ...(verifikasi.daftar?.fields?.() || {})
+      }), 'daftar');
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && panelOpen) closePanel();
@@ -310,7 +338,7 @@
   }
 
   /** Kirim salah satu formulir panel dengan status tombol yang jelas. */
-  async function kirim(form, jalankan, setelah) {
+  async function kirim(form, jalankan, pane) {
     const button = form.querySelector('button[type="submit"]');
     const label = button.textContent;
     button.disabled = true;
@@ -321,16 +349,16 @@
       // Jawaban verifikasi sekali pakai dan kredenter tidak boleh tertinggal
       // di perangkat, jadi formulir dibersihkan untuk pemakaian berikutnya.
       form.reset();
-      verifikasi = null;
-      document.querySelector('[data-captcha-slot]')?.replaceChildren();
+      if (pane) {
+        verifikasi[pane] = null;
+        document.querySelector(`[data-captcha-slot="${pane}"]`)?.replaceChildren();
+      }
     } catch (error) {
       setNotice(error.message || 'Belum berhasil masuk. Coba lagi.');
       // Jawaban verifikasi sekali pakai: soal baru diperlukan setiap kali ditolak.
-      if (error.code === 'captcha' || /verifikasi/i.test(String(error.message))) {
-        verifikasi?.reset();
-        await verifikasi?.reload?.().catch(() => {});
+      if (pane && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
+        await ulangiVerifikasi(pane);
       }
-      setelah?.();
     } finally {
       if (button.isConnected) {
         button.disabled = false;
@@ -383,8 +411,12 @@
       pane.hidden = pane.dataset.pane !== activeTab;
     });
     setNotice('');
-    if (activeTab === 'google') renderGoogleButton(dialog.querySelector('[data-google-slot]'));
-    if (activeTab === 'daftar') ensureCaptcha(dialog.querySelector('[data-captcha-slot]'));
+    if (activeTab === 'google') {
+      renderGoogleButton(dialog.querySelector('[data-google-slot]'));
+      ensureCaptcha('google');
+    }
+    if (activeTab === 'email') ensureCaptcha('email');
+    if (activeTab === 'daftar') ensureCaptcha('daftar');
   }
 
   function openPanel(notice, tab) {

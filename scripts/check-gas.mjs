@@ -460,6 +460,12 @@ function answerOf(question) {
   return String(Number(numbers[0]) * Number(numbers[1]));
 }
 
+/** Semua jalur masuk kini didahului verifikasi: ambil soal, jawab benar. */
+function verifikasiMasuk(ip) {
+  const soal = request({ action: 'captcha', ip });
+  return { captchaId: soal.data.id, captchaAnswer: answerOf(soal.data.question) };
+}
+
 const percobaanLogin = [];
 for (let i = 0; i < 9; i += 1) {
   percobaanLogin.push(request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.9' }));
@@ -468,6 +474,8 @@ check('delapan percobaan login pertama dilayani normal', percobaanLogin.slice(0,
 check('percobaan login kesembilan dibatasi laju', percobaanLogin[8].code, 'rate_limited');
 check('jawaban pembatas menyertakan hitung tunggu', typeof percobaanLogin[8].retryAfter, 'number');
 check('pembatas laju memakai kunci IP dari proxy', gas.clientIp_({ ip: '203.0.113.7, 10.0.0.1' }), '203.0.113.7');
+check('masuk admin tanpa verifikasi ditolak', request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.8' }).code, 'captcha');
+check('masuk lembaga tanpa verifikasi ditolak', request({ action: 'orgLogin', email: 'pk-baru@example.com', password: 'tebakan', ip: '198.51.100.45' }).code, 'captcha');
 
 let lewatBeruntun = 0;
 for (let i = 0; i < gas.RATE_RULES.chat.limit + 1; i += 1) {
@@ -531,7 +539,10 @@ const klaimGoogle = {
   exp: Math.floor(Date.now() / 1000) + 3600
 };
 http.google = klaimGoogle;
-const masukKader = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4' });
+const soalSalahKader = request({ action: 'captcha', ip: '198.51.100.4' });
+check('jawaban verifikasi salah menggagalkan masuk kader',
+  request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', captchaId: soalSalahKader.data.id, captchaAnswer: '999999' }).code, 'captcha');
+const masukKader = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', ...verifikasiMasuk('198.51.100.4') });
 check('kader berhasil masuk dengan Google', masukKader.ok, true);
 check('peran kader dibedakan dari pengurus', masukKader.data.role, 'kader');
 check('nama kader diambil dari klaim Google', masukKader.data.kader.name, 'Bilal Rehnomi');
@@ -543,15 +554,15 @@ check('kader tidak punya jenjang pengurus', 'jenjang' in siapa.data, false);
 check('tamu tanpa token dikenali sebagai tamu', request({ action: 'whoami' }).data.role, 'tamu');
 check('sesi kader kedaluwarsa tidak dianggap kader', request({ action: 'whoami', token: 'ses-kedaluwarsa' }).data.role, 'tamu');
 check('kader lolos sebagai identitas Tanya PII', gas.chatIdentity_({ token: 'ses-rozak' }).kind, 'kader');
-check('token rusak ditolak sebelum diverifikasi', request({ action: 'kaderLogin', idToken: 'abc', ip: '198.51.100.5' }).ok, false);
+check('token rusak ditolak sebelum diverifikasi', request({ action: 'kaderLogin', idToken: 'abc', ip: '198.51.100.5', ...verifikasiMasuk('198.51.100.5') }).ok, false);
 http.google = { ...klaimGoogle, aud: 'klien-punya-orang-lain' };
-check('token Google dari situs lain ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.5' }).error, 'Token login tidak dibuat untuk website ini.');
+check('token Google dari situs lain ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.5', ...verifikasiMasuk('198.51.100.5') }).error, 'Token login tidak dibuat untuk website ini.');
 http.google = { ...klaimGoogle, exp: Math.floor(Date.now() / 1000) - 60 };
-check('token Google kedaluwarsa ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.6' }).error, 'Token login sudah kedaluwarsa. Silakan masuk ulang.');
+check('token Google kedaluwarsa ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.6', ...verifikasiMasuk('198.51.100.6') }).error, 'Token login sudah kedaluwarsa. Silakan masuk ulang.');
 http.google = { ...klaimGoogle, email_verified: false };
-check('email Google belum terverifikasi ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.7' }).ok, false);
+check('email Google belum terverifikasi ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.7', ...verifikasiMasuk('198.51.100.7') }).ok, false);
 http.google = { ...klaimGoogle, name: 'Bilal Baru' };
-const masukKedua = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.8' });
+const masukKedua = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.8', ...verifikasiMasuk('198.51.100.8') });
 check('login ulang memakai baris kader yang sama', rowsOf('Kaders').filter((row) => row.googleSub === 'sub-baru').length, 1);
 check('nama kader diperbarui dari klaim terbaru', masukKedua.data.kader.name, 'Bilal Baru');
 
@@ -573,16 +584,17 @@ const soalGanda = request({ action: 'captcha', ip: '198.51.100.25' });
 const daftarGanda = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Baru', password: 'sandiku456', ip: '198.51.100.25', captchaId: soalGanda.data.id, captchaAnswer: answerOf(soalGanda.data.question) });
 check('email yang sudah punya akun tidak bisa daftar lagi', daftarGanda.error, 'Email ini sudah punya akun kader. Silakan masuk.');
 http.google = { ...klaimGoogle, sub: 'sub-siti', email: 'siti@example.com', name: 'Siti Aminah' };
-const gabungGoogle = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.26' });
+const gabungGoogle = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.26', ...verifikasiMasuk('198.51.100.26') });
 check('akun email yang masuk lewat Google tidak dobel', rowsOf('Kaders').filter((row) => row.email === 'siti@example.com').length, 1);
 check('identitas Google tertaut ke akun email', rowsOf('Kaders').find((row) => row.email === 'siti@example.com').googleSub, 'sub-siti');
 check('masuk Google tetap memberi sesi kader', request({ action: 'whoami', token: gabungGoogle.data.token }).data.role, 'kader');
 http.google = klaimGoogle;
-const masukEmail = request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.21' });
+check('masuk email kader tanpa verifikasi ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.27' }).code, 'captcha');
+const masukEmail = request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.21', ...verifikasiMasuk('198.51.100.21') });
 check('masuk dengan email dan kata sandi', masukEmail.data.role, 'kader');
 check('sesi email dikenal sebagai kader', request({ action: 'whoami', token: masukEmail.data.token }).data.role, 'kader');
-check('kata sandi salah ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.22' }).error, 'Email atau kata sandi salah.');
-check('email yang belum terdaftar gagal diam-diam', request({ action: 'kaderEmailLogin', email: 'tiada@example.com', password: 'apa12345', ip: '198.51.100.23' }).error, 'Email atau kata sandi salah.');
+check('kata sandi salah ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.22', ...verifikasiMasuk('198.51.100.22') }).error, 'Email atau kata sandi salah.');
+check('email yang belum terdaftar gagal diam-diam', request({ action: 'kaderEmailLogin', email: 'tiada@example.com', password: 'apa12345', ip: '198.51.100.23', ...verifikasiMasuk('198.51.100.23') }).error, 'Email atau kata sandi salah.');
 const tembokEmail = [];
 for (let i = 0; i < gas.RATE_RULES['kader-login'].limit + 2; i += 1) {
   tembokEmail.push(request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'tebakan', ip: '198.51.100.24' }));
@@ -716,7 +728,7 @@ check('status pustaka khusus admin', request({ action: 'pustakaStatus', token: '
 check('aksi pustaka tidak dikenal tetap tertahan', request({ action: 'pustakaBukan' }).code === 'aksi', false);
 
 const sehatPustaka = request({ action: 'health' }).data;
-check('health melaporkan korpus pustaka', sehatPustaka.pustaka, { tersedia: true, berkas: 3, potong: 4 });
+check('health melaporkan korpus pustaka', sehatPustaka.pustaka, { tersedia: true, sumber: 'drive', berkas: 3, potong: 4 });
 
 const tanyaKader = request({ action: 'chat', token: 'ses-rozak', message: 'Bagaimana aturan waktu turba dalam kaderisasi?', ip: '198.51.100.85' });
 const promptKader = http.calls.filter((call) => String(call.url).includes('pollinations')).at(-1);

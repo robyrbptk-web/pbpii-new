@@ -11,10 +11,11 @@
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/captcha.css">
   <style>
     :root{--navy:#102b49;--navy-deep:#0c2948;--blue:#176da8;--ink:#182638;--muted:#637184;--line:#e0e7ef;--soft:#f4f7fa;--green:#0e7a3d;--amber:#8a5a00;--red:#c52c35}
     *{box-sizing:border-box}
-    body{margin:0;background:var(--soft);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.55;min-height:100dvh}
+    body{margin:0;background:var(--soft);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.55;min-height:100dvh;overflow-x:hidden}
     button,input,select,textarea{font:inherit}
     a{color:var(--blue);text-decoration:none}
     .hidden{display:none!important}
@@ -142,9 +143,10 @@
       aside{display:none}
       main{padding:18px 15px 96px}
       .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .bottom-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:6px 4px max(6px,env(safe-area-inset-bottom));z-index:30}
-      .bottom-nav button{border:0;background:none;color:#6b7a8b;font-size:9.5px;font-weight:750;padding:7px 2px;border-radius:9px;display:grid;gap:3px;justify-items:center;cursor:pointer}
-      .bottom-nav button b{font-size:15px;font-weight:400;line-height:1}
+      .bottom-nav{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:5px 3px max(5px,env(safe-area-inset-bottom));z-index:30;box-shadow:0 -8px 22px #102b4910}
+      .bottom-nav button,.bottom-nav a{border:0;background:none;color:#66758a;font-size:9.5px;font-weight:750;padding:7px 1px 6px;border-radius:10px;display:grid;gap:3px;justify-items:center;align-content:start;min-height:52px;cursor:pointer;text-decoration:none;min-width:0}
+      .bottom-nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+      .bottom-nav span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .bottom-nav button.active{color:var(--navy);background:#e9f1f8}
       .topbar .who{display:none}
       .page-head h1{font-size:23px}
@@ -157,6 +159,9 @@
       .kpi-score{width:92px;height:92px}
       .item{flex-direction:column}
       .item-actions{justify-content:flex-start}
+      .page-head{flex-wrap:wrap}
+      .captcha-box{flex-wrap:wrap}
+      .captcha-question{flex:1 1 100%}
       .auth-card{padding:24px 18px;border-radius:16px}
       .btn{padding:11px 14px;min-height:44px}
       .auth-brand small,.topbar .brand small,.who,.hint,.stat span,.chip,.bar,
@@ -213,6 +218,7 @@
         <div class="field"><label class="lbl" for="loginPassword">Kata sandi</label>
           <div class="pass-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pass-toggle" id="togglePass">Lihat</button></div>
         </div>
+        <div class="captcha" id="loginCaptcha"></div>
         <button class="btn primary full" type="submit" id="loginBtn">Masuk</button>
         <div class="auth-msg" id="loginMessage" role="status" aria-live="polite"></div>
       </form>
@@ -447,11 +453,12 @@
     </div>
 
     <nav class="bottom-nav" id="bottomNav">
-      <button data-page="ringkasan" class="active"><b>▦</b>Ringkasan</button>
-      <button data-page="kegiatan"><b>▤</b>Kegiatan</button>
-      <button data-page="formulir"><b>▧</b>Formulir</button>
-      <button data-page="surat"><b>✉</b>Surat</button>
-      <button data-page="jejaring"><b>◉</b>Jejaring</button>
+      <button data-page="ringkasan" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="7" height="7" rx="1.8"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.8"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.8"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.8"/></svg><span>Ringkasan</span></button>
+      <button data-page="kegiatan"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="5" width="16.8" height="15.4" rx="2.2"/><path d="M3.6 9.8h16.8M8.3 2.8v4.2M15.7 2.8v4.2"/></svg><span>Kegiatan</span></button>
+      <button data-page="formulir"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.6" y="4.2" width="14.8" height="16.8" rx="2.2"/><path d="M9.2 2.6h5.6v3.1H9.2zM9.2 10.8h6.4M9.2 14.3h6.4M9.2 17.8h3.8"/></svg><span>Formulir</span></button>
+      <button data-page="surat"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.6" width="18" height="13.2" rx="2.2"/><path d="M3.8 7.5l8.2 5.8 8.2-5.8"/></svg><span>Surat</span></button>
+      <button data-page="jejaring"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5.4" r="2.6"/><circle cx="5" cy="18.3" r="2.6"/><circle cx="19" cy="18.3" r="2.6"/><path d="M10.8 7.7L6.2 16.1M13.2 7.7l4.6 8.4M7.6 18.3h8.8"/></svg><span>Jejaring</span></button>
+      <a href="/pustaka"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.2V6a2.4 2.4 0 012.4-2.4H19.5v15.6H6.9a2.4 2.4 0 00-2.4 2.4z"/><path d="M4.5 19.2A2.4 2.4 0 006.9 21.6h12.6v-2.4"/><path d="M9.3 7.8h6M9.3 11.2h6"/></svg><span>Pustaka</span></a>
     </nav>
   </div>
 
@@ -463,6 +470,7 @@
     </div>
   </div>
 
+  <script src="captcha.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
     const TOKEN_KEY = 'pbpii_org_token';
@@ -504,6 +512,7 @@
       const result = await response.json();
       if (!response.ok || !result.ok) {
         const error = new Error(result.error || 'Permintaan gagal.');
+        error.code = String(result.code || '');
         if (/sesi berakhir|token tidak valid/i.test(error.message)) {
           clearSession();
           showAuth();
@@ -562,6 +571,14 @@
       $('togglePass').textContent = visible ? 'Sembunyikan' : 'Lihat';
     });
 
+    // Verifikasi anti-spam: soal hitung dari server (atau Turnstile bila kunci
+    // Cloudflare sudah diisi di Pengaturan admin).
+    let verifikasi = null;
+    if (window.PBPIICaptcha && $('loginCaptcha')) {
+      verifikasi = window.PBPIICaptcha.attach($('loginCaptcha'));
+      verifikasi.ready().catch(() => {});
+    }
+
     $('loginForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const button = $('loginBtn');
@@ -570,7 +587,8 @@
       try {
         const data = await api('orgLogin', {
           email: $('loginEmail').value.trim(),
-          password: $('loginPassword').value
+          password: $('loginPassword').value,
+          ...(verifikasi ? verifikasi.fields() : {})
         });
         sessionStorage.setItem(TOKEN_KEY, data.token);
         sessionStorage.setItem(ORG_KEY, data.org.name);
@@ -578,6 +596,11 @@
         await loadData();
       } catch (error) {
         showLoginMessage(error.message, 'err');
+        // Jawaban verifikasi sekali pakai: minta soal baru setiap kali ditolak.
+        if (verifikasi && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
+          verifikasi.reset();
+          verifikasi.reload?.().catch(() => {});
+        }
       } finally {
         button.disabled = false;
         button.textContent = 'Masuk';

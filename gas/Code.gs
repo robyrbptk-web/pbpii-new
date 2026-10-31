@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-10-31.7';
+const BACKEND_VERSION = '2026-10-31.8';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -27,6 +27,8 @@ const APP = {
   SHEET_KADERS: 'Kaders',
   SHEET_REACTIONS: 'Reactions',
   SHEET_COMMENTS: 'Comments',
+  SHEET_PUSTAKA_BERKAS: 'PustakaBerkas',
+  SHEET_PUSTAKA_POTONG: 'PustakaPotongan',
   TOKEN_TTL_SECONDS: 21600,
   CHAT_DAILY_LIMIT: 20,
   // Tamu boleh mencoba Tanya PII, tapi kuota AI gratis kecil jadi dijatah ketat.
@@ -43,6 +45,7 @@ const APP = {
   PROP_AI_MODEL: 'AI_MODEL',
   PROP_MEDIA_FOLDER: 'MEDIA_FOLDER_ID',
   PROP_PUSAKA_FOLDER: 'PUSAKA_FOLDER_ID',
+  PROP_PUSAKA_IMPOR: 'PUSAKA_IMPOR_KEY',
   PB_ORG_ID: 'pb-pii',
   PB_ORG_NAME: 'Pengurus Besar PII'
 };
@@ -125,6 +128,9 @@ const COMMENT_HEADERS = [
   'id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text',
   'status', 'createdAt', 'updatedAt'
 ];
+/** Korpus pustaka disimpan di sheet supaya tetap terbaca walau Drive belum diizinkan. */
+const PUSTAKA_BERKAS_HEADERS = ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas'];
+const PUSTAKA_POTONG_HEADERS = ['doc', 'halaman', 'teks'];
 
 // Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
 const SHEET_SCHEMA = [
@@ -141,7 +147,9 @@ const SHEET_SCHEMA = [
   [APP.SHEET_STANDARDS, STANDARD_HEADERS],
   [APP.SHEET_KADERS, KADER_HEADERS],
   [APP.SHEET_REACTIONS, REACTION_HEADERS],
-  [APP.SHEET_COMMENTS, COMMENT_HEADERS]
+  [APP.SHEET_COMMENTS, COMMENT_HEADERS],
+  [APP.SHEET_PUSTAKA_BERKAS, PUSTAKA_BERKAS_HEADERS],
+  [APP.SHEET_PUSTAKA_POTONG, PUSTAKA_POTONG_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -339,6 +347,7 @@ function onOpen() {
     .addItem('Atur akun admin', 'configureAdmin')
     .addItem('Setel ulang password admin', 'aturUlangPasswordAdmin')
     .addItem('Salin URL backend (/exec)', 'tampilkanUrlBackend')
+    .addItem('Impor pustaka (siapkan kunci)', 'siapkanPustaka')
     .addItem('Segarkan teks resmi website', 'segarkanTeksResmi')
     .addItem('Ganti teks dengan salinan resmi', 'paksaTeksResmi')
     .addToUi();
@@ -507,24 +516,21 @@ function health_() {
     masalah.push('kata sandi admin belum diatur');
   }
 
-  // Unggah foto dan pustaka berjalan di Drive. Lebih baik kelihatan di
-  // pemeriksaan koneksi daripada saat pengurus menekan tombol unggah.
+  // Unggah foto berjalan di Drive. Pustaka tetap bisa dibaca dari sheet, jadi
+  // hanya unggah foto yang diblokir kalau izin Drive belum ada.
   const drive = driveKesiapan_();
-  let pustaka = { tersedia: false, berkas: 0, potong: 0 };
   if (!drive.media) {
     masalah.push('unggah foto perlu izin Drive: ' + drive.error.slice(0, 90));
-  } else if (!drive.pustaka) {
-    masalah.push('pustaka perlu izin Drive: ' + drive.error.slice(0, 90));
-  } else {
-    const korpus = pustakaKorpus_();
-    pustaka = {
-      tersedia: Boolean(korpus.tersedia),
-      berkas: (korpus.docs || []).length,
-      potong: (korpus.chunks || []).length
-    };
-    if (!korpus.tersedia) {
-      masalah.push('korpus pustaka belum ada: unggah pustaka.json ke folder ' + PUSAKA_FOLDER_NAME);
-    }
+  }
+  const korpus = pustakaKorpus_();
+  const pustaka = {
+    tersedia: Boolean(korpus.tersedia),
+    sumber: korpus.sumber || '',
+    berkas: (korpus.docs || []).length,
+    potong: (korpus.chunks || []).length
+  };
+  if (!korpus.tersedia) {
+    masalah.push('korpus pustaka belum ada: jalankan menu PB PII > Impor pustaka');
   }
 
   return {
@@ -644,6 +650,7 @@ function adminAction_(action, body) {
 
 function login_(body) {
   throttle_('login', clientIp_(body));
+  assertCaptcha_(body);
   const properties = PropertiesService.getScriptProperties();
   const username = String(
     properties.getProperty(APP.PROP_ADMIN_USERNAME) || ''
@@ -1518,6 +1525,7 @@ function orgRegister_(body) {
 function orgLogin_(body) {
   const email = String(body.email || '').trim().toLowerCase();
   throttle_('org-login', clientIp_(body) + ':' + email);
+  assertCaptcha_(body);
   const password = String(body.password || '');
   const org = orgById_(rows_(APP.SHEET_ORGS), null, email);
 
@@ -2564,9 +2572,20 @@ function pustakaFileTerbaru_(folder, nama) {
   return terbaik;
 }
 
-/** Korpus dibaca ulang tiap permintaan: 3 MB tidak muat di CacheService (100 KB). */
+/**
+ * Korpus dibaca ulang tiap permintaan: 3 MB tidak muat di CacheService (100 KB).
+ * Sumbernya berkas pustaka.json di Drive; kalau Drive belum diizinkan, isinya
+ * diambil dari sheet PustakaBerkas/PustakaPotongan yang diisi lewat menu
+ * PB PII > Impor pustaka.
+ */
 function pustakaKorpus_() {
-  const kosong = { tersedia: false, dibuat: '', docs: [], chunks: [] };
+  const drive = pustakaKorpusDrive_();
+  if (drive.tersedia) return drive;
+  return pustakaKorpusSheet_();
+}
+
+function pustakaKorpusDrive_() {
+  const kosong = { tersedia: false, dibuat: '', docs: [], chunks: [], sumber: '' };
   let file;
   try {
     file = pustakaFileTerbaru_(pustakaFolder_(), PUSAKA_KORPUS_NAMA);
@@ -2584,9 +2603,131 @@ function pustakaKorpus_() {
   return {
     tersedia: true,
     dibuat: String(isi.dibuat || ''),
+    sumber: 'drive',
     docs: Array.isArray(isi.docs) ? isi.docs : [],
     chunks: Array.isArray(isi.chunks) ? isi.chunks : []
   };
+}
+
+function pustakaKorpusSheet_() {
+  const kosong = { tersedia: false, dibuat: '', docs: [], chunks: [], sumber: '' };
+  let berkas;
+  let potongan;
+  try {
+    berkas = rows_(APP.SHEET_PUSTAKA_BERKAS);
+    potongan = rows_(APP.SHEET_PUSTAKA_POTONG);
+  } catch (error) {
+    return kosong;
+  }
+  if (!berkas.length || !potongan.length) return kosong;
+
+  return {
+    tersedia: true,
+    dibuat: String(PropertiesService.getScriptProperties().getProperty('PUSAKA_SHEET_DIBUAT') || ''),
+    sumber: 'sheet',
+    docs: berkas.map(function (row) {
+      return {
+        id: String(row.id),
+        judul: String(row.judul || row.id),
+        kategori: String(row.kategori || 'Umum'),
+        ringkas: String(row.ringkas || ''),
+        halaman: Number(row.halaman) || 0,
+        potong: Number(row.potong) || 0,
+        byte: Number(row.byte) || 0,
+        berkas: String(row.berkas || '')
+      };
+    }),
+    chunks: potongan
+      .filter(function (row) { return String(row.teks || '').trim(); })
+      .map(function (row) {
+        return { d: String(row.doc), h: Number(row.halaman) || 0, t: String(row.teks) };
+      })
+  };
+}
+
+/**
+ * Menu PB PII > Impor pustaka: membuat kunci sekali pakai yang dicetak di log
+ * eksekusi. Kunci itu dipakai skrip impor untuk mengisi sheet korpus, lalu
+ * hangus sendiri setelah tahap selesai.
+ */
+function siapkanPustaka() {
+  const key = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').slice(0, 32);
+  PropertiesService.getScriptProperties().setProperty(APP.PROP_PUSAKA_IMPOR, key);
+  const lines = [
+    'Kunci impor pustaka: ' + key,
+    '',
+    'Kirim korpus ke backend dalam tiga tahap: mulai (docs), potongan (chunks), lalu selesai.',
+    'Kunci hilang otomatis setelah tahap selesai. Jalankan lagi bila impor terputus.'
+  ];
+  try {
+    SpreadsheetApp.getUi().alert(lines.join('\n'));
+  } catch (error) {
+    Logger.log(lines.join('\n'));
+  }
+  return key;
+}
+
+/** Impor korpus bertahap; dipanggil skrip lokal, bukan dari halaman publik. */
+function pustakaImpor_(body) {
+  const properties = PropertiesService.getScriptProperties();
+  const expected = String(properties.getProperty(APP.PROP_PUSAKA_IMPOR) || '');
+  if (!expected) {
+    throw new Error('Impor pustaka belum disiapkan. Jalankan siapkanPustaka() dari editor.');
+  }
+  if (String(body.key || '') !== expected) {
+    throw new Error('Kunci impor tidak cocok.');
+  }
+
+  const tahap = String(body.tahap || '');
+  const berkasSheet = sheet_(APP.SHEET_PUSTAKA_BERKAS);
+  const potongSheet = sheet_(APP.SHEET_PUSTAKA_POTONG);
+
+  if (tahap === 'mulai') {
+    const docs = Array.isArray(body.docs) ? body.docs : [];
+    berkasSheet.clearContents();
+    berkasSheet.getRange(1, 1, 1, PUSTAKA_BERKAS_HEADERS.length).setValues([PUSTAKA_BERKAS_HEADERS]);
+    potongSheet.clearContents();
+    potongSheet.getRange(1, 1, 1, PUSTAKA_POTONG_HEADERS.length).setValues([PUSTAKA_POTONG_HEADERS]);
+    const baris = docs.map(function (doc) {
+      return [
+        String(doc.id || ''), String(doc.judul || ''), String(doc.kategori || 'Umum'),
+        String(doc.ringkas || ''), Number(doc.halaman) || 0, Number(doc.potong) || 0,
+        Number(doc.byte) || 0, String(doc.berkas || '')
+      ];
+    });
+    if (baris.length) {
+      berkasSheet.getRange(2, 1, baris.length, PUSTAKA_BERKAS_HEADERS.length).setValues(baris);
+    }
+    return { tahap: 'mulai', berkas: baris.length };
+  }
+
+  if (tahap === 'potongan') {
+    const potongan = Array.isArray(body.potongan) ? body.potongan : [];
+    const baris = potongan
+      .filter(function (item) { return item && String(item.t || '').trim(); })
+      .map(function (item) {
+        return [String(item.d || ''), Number(item.h) || 0, String(item.t)];
+      });
+    if (baris.length) {
+      const start = potongSheet.getLastRow() + 1;
+      potongSheet.getRange(start, 1, baris.length, PUSTAKA_POTONG_HEADERS.length).setValues(baris);
+    }
+    return { tahap: 'potongan', diterima: baris.length, total: Math.max(0, potongSheet.getLastRow() - 1) };
+  }
+
+  if (tahap === 'selesai') {
+    const dibuat = String(body.dibuat || '') || new Date().toISOString();
+    properties.setProperty('PUSAKA_SHEET_DIBUAT', dibuat);
+    properties.deleteProperty(APP.PROP_PUSAKA_IMPOR);
+    return {
+      tahap: 'selesai',
+      dibuat: dibuat,
+      berkas: Math.max(0, berkasSheet.getLastRow() - 1),
+      potong: Math.max(0, potongSheet.getLastRow() - 1)
+    };
+  }
+
+  throw new Error('Tahap impor tidak dikenal: ' + tahap);
 }
 
 function pustakaPeran_(token) {
@@ -2711,7 +2852,14 @@ function pustakaCocok_(korpus, kueri, batas, denganIsi) {
 
 function pustakaDaftar_(peran) {
   const korpus = pustakaKorpus_();
-  const folder = korpus.tersedia ? pustakaFolder_() : null;
+  let folder = null;
+  if (korpus.sumber === 'drive') {
+    try {
+      folder = pustakaFolder_();
+    } catch (error) {
+      folder = null;
+    }
+  }
   const docs = (korpus.docs || []).map(function (doc) {
     const keluar = {
       id: doc.id,
@@ -2737,6 +2885,7 @@ function pustakaDaftar_(peran) {
   return {
     tersedia: korpus.tersedia,
     dibuat: korpus.dibuat,
+    sumber: korpus.sumber || '',
     peran: peran,
     docs: docs,
     kategori: Object.keys(kategori).sort().map(function (nama) {
@@ -2747,6 +2896,9 @@ function pustakaDaftar_(peran) {
 }
 
 function pustakaAksi_(action, body) {
+  // Impor memakai kunci sekali pakai dari Script Properties, bukan sesi pengguna.
+  if (action === 'pustakaImpor') return pustakaImpor_(body || {});
+
   const peran = pustakaPeran_(body && body.token);
   if (!pustakaBoleh_(peran)) {
     throw new Error('Pustaka organisasi khusus akun. Silakan masuk lebih dulu.');
@@ -3038,6 +3190,7 @@ function kaderLogin_(body) {
   }
 
   throttle_('kader-login', clientIp_(body));
+  assertCaptcha_(body);
   const claims = googleClaims_(idToken, clientId);
 
   const email = String(claims.email || '').trim().toLowerCase();
@@ -3129,6 +3282,7 @@ function kaderRegister_(body) {
 function kaderEmailLogin_(body) {
   const email = String(body.email || '').trim().toLowerCase();
   throttle_('kader-login', clientIp_(body) + ':' + email);
+  assertCaptcha_(body);
   const password = String(body.password || '');
 
   const rows = rows_(APP.SHEET_KADERS);
