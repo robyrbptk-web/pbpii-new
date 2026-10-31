@@ -149,9 +149,11 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
 - `#jenjangSeg` di `daftar.html`: radio tersembunyi sekarang `inset:0` di dalam
   label yang `position:relative`. Sebelum ini, `width:100%` warisan dari aturan
   global membuat radio absolut menjulur keluar layar (+55 px gulir horizontal).
-- Pengunjuk **Tanya PII** (`.tanya-fab`) dan panelnya duduk 80 px dari bawah, di
-  atas bar navigasi, bukan menimpanya; kolom_input 16 px/48 px dan tombol kirim
-  ≥44 px. Semua elemen `position:fixed` diuji: nol yang menutupi bar navigasi.
+- Pengunjuk **Tanya PII** (`.tanya-fab`) duduk 80 px dari bawah, di atas bar
+  navigasi, bukan menimpanya; di `/tanya.html` komposer menempel di bawah dengan
+  kolom input 16 px/48 px dan tombol kirim ≥44 px, serta naik setinggi papan ketik
+  lewat `--tanya-keyboard`. Semua elemen `position:fixed` diuji: nol yang menutupi
+  bar navigasi.
 - 114 ringkasan "Tafsir" per ayat di `/ibadah.html`, tombol halaman di pembaca,
   dan tombol ikon di atas globe dinaikkan ke ≥44 px.
 - Lantai huruf: tidak ada teks yang lebih kecil dari 11 px di ponsel, dan nyaris
@@ -270,7 +272,8 @@ Butuh backend versi `2026-10-30.3` atau lebih baru: bila deployment Apps Script
 masih lama, dashboard menampilkan pesan
 *"Backend belum mengenal unggah foto…"*. Maksimal 3 MB per berkas dan hanya
 JPEG/PNG/WebP (dicek dari tanda tangan byte, bukan dari nama file).
-- **Tanya PII** — tombol mengambang di beranda, Ruang Ibadah, dashboard admin, dashboard lembaga, dan formulir yang membuka asisten AI khusus kader. Tamu hanya melihat pesan penguncian beserta tautan login/daftar. Lihat bagian H.
+- **Tanya PII** — halaman chat penuh di `/tanya.html`, dengan tombol mengambang di beranda, Ruang Ibadah, Acara, dashboard admin, dashboard lembaga, dan formulir sebagai pintunya. Bisa dipakai tanpa login (jatah 5 pertanyaan per alamat IP per hari); kader yang masuk mendapat 20. Lihat bagian H.
+- **Akun kader** — dialog **Masuk kader** di kop semua halaman menawarkan tiga jalur: Google (kalau `googleClientId` diisi), email + kata sandi, dan pendaftaran baru dengan captcha. Lihat bagian I.
 - **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
 
 ## D. Peta Global (PII Global View)
@@ -607,20 +610,22 @@ dikirim ke browser.
 Dua lapisan, keduanya aktif bersamaan:
 
 1. `api/pii.js` (Vercel) — jendela geser per pasangan `aksi|IP`. Baca 240/60s,
-   captcha 30/600s, **semua jalur login (`login`, `orgLogin`, `kaderLogin`)
-   10/600s**, tulis 25/600s, sisanya 90/600s. Penolakan mengembalikan HTTP 429
+   captcha 30/600s, **semua jalur login (`login`, `orgLogin`, `kaderLogin`,
+   `kaderEmailLogin`) 10/600s**, tulis (termasuk `kaderRegister`) 25/600s,
+   sisanya 90/600s. Penolakan mengembalikan HTTP 429
    dengan `code: 'rate_limited'` dan header `Retry-After`; proxy juga menyuntikkan
    `ip` ke body sehingga Apps Script ikut melihat alamat asli pengunjung.
 2. `gas/Code.gs` `throttle_()` — jendela tetap di `CacheService` (TTL maksimum
    600s) per aturan di `RATE_RULES`: login admin 8/600s, login lembaga 10/600s,
    pendaftaran lembaga 5/1800s, pendaftaran peserta 12/600s, captcha 18/600s,
-   login kader 12/600s, suka 20/60s, komentar 4/180s per akun, komentar 20/600s
+   login kader 12/600s (Google dan email sama), pendaftaran akun kader 5/1800s,
+   suka 20/60s, komentar 4/180s per akun, komentar 20/600s
    per IP, unggah foto 10/600s, chat 6/60s.
 
 Captcha memakai soal hitung yang dibuat server (`captcha.js` + `captchaIssue_`),
-jadi tanpa kunci dan tanpa biaya; ia hanya dipakai di **formulir pendaftaran publik
-dan pendaftaran lembaga**. Kolom komentar acara tidak memakai captcha karena
-penulisnya sudah terikat akun Google, dan dibatasi oleh kuota harian + kedua
+jadi tanpa kunci dan tanpa biaya; ia hanya dipakai di **formulir pendaftaran publik,
+pendaftaran lembaga, dan pendaftaran akun kader**. Kolom komentar acara tidak memakai captcha karena
+penulisnya sudah terikat akun (Google atau email), dan dibatasi oleh kuota harian + kedua
 lapis pembatas laju di atas. Bila `turnstileSiteKey` dan `turnstileSecret` diisi,
 `captchaIssue_` otomatis mengembalikan mode Turnstile dan frontend beralih tanpa
 perubahan kode.
@@ -631,35 +636,43 @@ sementara. Skema baru (`Orgs`, `Activities`, `Forms`, `Participants`, `Letters`)
 memakai id acak, `parentId`, dan timestamp ISO agar bisa dipetakan langsung ke
 tabel Supabase tanpa mengubah kontrak API frontend.
 
-## H. Tanya PII (asisten AI khusus kader)
+## H. Tanya PII (asisten AI satu halaman penuh)
 
+`/tanya.html` adalah halaman chat satu kolom ala aplikasi percakapan: intro +
+chip contoh pertanyaan, utas jawaban, dan komposer yang menempel di bawah.
 Tombol **Tanya PII** mengambang di pojok kanan bawah `/index.html`,
-`/ibadah.html`, `/admin.html`, `/lembaga.html`, dan `/formulir.html`. Panelnya
-kecil (lebar maksimal 380 px, di HP melebar penuh dan naik 88 px dari bawah agar
-tidak tertutup navigasi bawah) sehingga tetap terpakai tanpa layar penuh.
+`/ibadah.html`, `/acara.html`, `/admin.html`, `/lembaga.html`, dan
+`/formulir.html` hanya sebagai pintu ke halaman itu. Tinggi halaman memakai
+`calc(100dvh - var(--tanya-keyboard))` supaya komposer tidak tertutup papan
+ketik di HP.
 
-**Kunci login.** Pertanyaan hanya dilayani kalau token di `sessionStorage`
- dikenali backend: `pbpii_admin_token` (login admin) atau `pbpii_org_token`
-(login lembaga). Tamu dan token palsu mendapat balasan
-*"Tanya PII khusus kader yang sudah login…"* dan antarmuka hanya menampilkan
-tautan ke `/login.html` dan `/daftar.html`. gerbangnya ada di Apps Script, bukan
-di browser, jadi menambahkan tombol di halaman lain tidak akan membuka fitur ini
-untuk publik.
+**Boleh tanpa login.** Tamu ikut bisa bertanya, tapi jatahnya kecil dan diikat
+ke alamat jaringan, bukan ke browser: `APP.CHAT_GUEST_DAILY_LIMIT` (bawaan **5**)
+pertanyaan per alamat IP per hari. Kader yang masuk mendapat
+`APP.CHAT_DAILY_LIMIT` (bawaan **20**). Pembatasnya ada di server (proxy
+`/api/chat` + Apps Script), jadi menghapus tombol atau script di halaman lain
+tidak membuka kuota untuk publik. Kalau kuota tamu habis, utas menampilkan baris
+`is-quota` dengan tombol **Daftar akun kader** dan **Masuk dengan akun yang
+sudah ada** yang membuka dialog akun pada tab terkait.
 
-**Kuota harian.** `APP.CHAT_DAILY_LIMIT` (bawaan **20**) pertanyaan **berhasil**
-per akun per hari, dihitung dari sheet `Chat` berdasarkan tanggal lokal
-`Session.getScriptTimeZone()`, jadi reset sendiri setiap tengah malam. Satu akun
-= satu nama pengguna admin atau satu nama lembaga; anggota PB dan kader PK sama
-sama terbatasnya. Panjang pertanyaan dipotong ke `APP.CHAT_MAX_CHARS` (900).
-Sisa kuota ditampilkan di kepala panel (`Sisa 17 dari 20 pertanyaan hari ini`)
-dan dikirim lewat aksi `chatStatus`. Kalau penyedia AI sedang error, pertanyaan
-**tidak** dihitung dan barisnya dicatat dengan status `gagal`.
+**Kuota dicatat di sheet `Chat`.** Proxy memanggil aksi `chatStatus` untuk
+membaca sisa kuota lalu `chatRecord` untuk mencatat pertanyaan-jawaban yang
+berhasil; perhitungan memakai tanggal lokal `Session.getScriptTimeZone()` sehingga
+reset sendiri setiap tengah malam. Panjang pertanyaan dipotong ke
+`APP.CHAT_MAX_CHARS` (900). Kalau deployment Apps Script belum mendukung aksi
+tersebut, proxy jatuh ke pembatas lunak di memori instance (20/hari berakun,
+5/hari per IP, maksimal 4 pertanyaan per menit) agar fitur tetap hidup. Sisa
+kuota muncul di meter komposer (`Sisa 17 dari 20 pertanyaan hari ini`).
 
 **Kunci AI tidak pernah sampai ke browser.** Alurnya
 `tanya.js` → `/api/chat` (proxy Vercel, `maxDuration` 60 dtk karena model gratis
-jauh lebih lambat daripada CMS) → Apps Script `chat` → penyedia. Proxy hanya
-meloloskan aksi `chat` dan `chatStatus`, tidak tahu-menahu soal kunci. Kunci
-disimpan sebagai **Script Properties** di proyek Apps Script:
+jauh lebih lambat daripada CMS) → penyedia AI, dan pencatatan kuota ke Apps
+Script. Proxy hanya meloloskan aksi `chat` dan `chatStatus`. Kunci dibaca dari
+**environment variable Vercel** (`AI_CHAT_URL`, `AI_MODEL`, `AI_API_KEY`, atau
+`GROQ_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`) dan diperiksa berurutan;
+kalau tidak ada kunci yang dipasang, dipakai Pollinations tanpa kunci sehingga
+fitur langsung jalan tanpa pendaftaran apa pun. Deployment Apps Script memakai
+properti proyek dengan nama yang sama (**Project Settings ▸ Properties**):
 
 | Properti | Isi | Bawaan bila kosong |
 | --- | --- | --- |
@@ -667,9 +680,7 @@ disimpan sebagai **Script Properties** di proyek Apps Script:
 | `AI_MODEL` | nama model di penyedia itu | `openai` tanpa kunci, `gpt-4o-mini` dengan kunci |
 | `AI_API_KEY` | kunci penyedia (opsional) | panggilan tanpa header `Authorization` |
 
-Bawaannya karena itu fitur ini langsung jalan tanpa mendaftar apa pun. Untuk
-memakai akun sendiri, isi ketiganya di **Apps Script ▸ Project Settings ▸
-Properties**, tanpa mengubah kode. Contoh penyedia gratis lain:
+Contoh penyedia gratis lain:
 
 - Groq — `AI_CHAT_URL` `https://api.groq.com/openai/v1/chat/completions`, `AI_MODEL` `llama-3.1-8b-instant`.
 - Google Gemini — `AI_CHAT_URL` `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, `AI_MODEL` `gemini-flash-latest`.
@@ -687,7 +698,44 @@ sehingga teks HTML dari model tidak bisa menjadi markup.
 `Sessions` inilah yang membuat login bertahan 6 jam; sebelumnya token ditaruh di
 `CacheService` yang diam-diam memotong umur cache menjadi 10 menit. Untuk
 mematikan fitur AI sepenuhnya, hapus baris `<script src="tanya.js" defer></script>`
-dari halaman terkait atau naikkan `CHAT_DAILY_LIMIT` menjadi `0`.
+dari halaman terkait atau turunkan `CHAT_DAILY_LIMIT` dan `CHAT_GUEST_DAILY_LIMIT`
+menjadi `0`.
+
+## I. Akun kader: Google, email + kata sandi, atau daftar baru
+
+Dialog **Masuk kader** (kop semua halaman, dibangun `akun.js`) menawarkan tiga tab.
+Semuanya menghasilkan sesi dengan `role: 'kader'` — hak yang sama: suka, komentar,
+bagikan acara, dan jatah Tanya PII 20 pertanyaan per hari. Dasbor pengurus,
+`/lembaga.html`, `/admin.html`, dan PII Global View tetap tertutup untuk kader
+(`sessionSubject_` memisahkan tipe sesi, jadi token kader tidak bisa dipakai aksi
+pengurus).
+
+| Tab | Aksi backend | Catatan |
+| --- | --- | --- |
+| Google | `kaderLogin` dengan `idToken` | token divalidasi server di `googleClaims_` (issuer, audience, kedaluwarsa) |
+| Email | `kaderEmailLogin` (`email`, `password`) | kata sandi dibandingkan dengan hash; pesan salah bersifat umum: "Email atau kata sandi salah." |
+| Daftar | `kaderRegister` (`name`, `email`, `password`, captcha) | minimal 8 karakter; email ganda ditolak dengan ajakan login |
+
+Kolom sheet `Kaders` bertambah menjadi `id, email, name, picture, googleSub,
+createdAt, lastLoginAt, note, passwordHash, passwordSalt`. Dua kolom terakhir diisi
+oleh pendaftaran email; `setup()` menambahkannya otomatis pada spreadsheet lama.
+Hash memakai SHA-256 bersalt acak dengan 250 iterasi (`hashPassword_`) dan
+gagalannya (`passwordHash`) tidak pernah keluar dari Apps Script — `whoami` hanya
+mengembalikan `id, name, email, picture`.
+
+Satu orang boleh masuk lewat dua jalur. Kalau suatu saat akun email login dengan
+Google dan alamat emailnya sama, `kaderLogin_` menautkan `googleSub` ke baris yang
+sudah ada sehingga tidak muncul akun ganda.
+
+Captcha wajib hanya pada tab **Daftar**. Jawaban verifikasi sekali pakai dan
+kedaluwarsa, jadi dialog selalu meminta soal baru setelah satu pengiriman sukses
+ataupun gagal — formulir dibersihkan dan widget captcha dipasang ulang.
+
+Google tetap opsional. Buat **OAuth client ID ▸ Web application**, tambahkan domain
+produksi dan `http://127.0.0.1:4173` ke *Authorized JavaScript origins*, lalu isi
+nilainya di Settings lewat dashboard admin (kolom `googleClientId`). Selama kolom
+itu kosong, tab Google disembunyikan dan kader memakai jalur email; dialog tetap
+tampil sehingga fitur tidak terlihat mati.
 
 ## Penting untuk keamanan dan produksi
 - Ini starter/MVP, belum audit keamanan produksi. Gunakan hanya akun admin tepercaya, password kuat, batasi akses editor, dan jangan bagikan URL deployment atau kredensial.
@@ -700,7 +748,7 @@ dari halaman terkait atau naikkan `CHAT_DAILY_LIMIT` menjadi `0`.
   terverifikasi — token kader ditolak.
 - Token sesi disimpan di `sessionStorage` browser dan berlaku sementara; sesi dapat berakhir saat cache dibersihkan.
 - `saveAdminPassword` hanya menyimpan hash SHA-256 bersalt (250 iterasi) di Script Properties, bukan teks kata sandi. Nilai lama yang masih berupa teks polos tetap bisa login dan otomatis dinaikkan menjadi hash pada login berikutnya. Gunakan tetap password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
-- Kunci AI (`AI_API_KEY`) hanya boleh hidup sebagai Script Properties di Apps Script. Jangan pernah memindahkannya ke `.env` Vercel, `api/chat.js`, atau file frontend mana pun: browser yang membuka DevTools bisa membaca apa pun yang dikirim ke sana, padahal fitur ini memang sengaja memakai model gratis tanpa kunci.
+- Kunci AI (`AI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`) hanya boleh hidup di sisi server: **Script Properties** di Apps Script dan/atau **Environment Variables** di Vercel (dibaca `api/chat.js`). Jangan pernah memindahkannya ke file frontend, `akun.js`, `tanya.js`, atau repository mana pun: browser yang membuka DevTools bisa membaca apa pun yang dikirim ke sana. Tanpa kunci apa pun, `api/chat.js` memakai Pollinations gratis — itu memang bawaannya, dan kuota tamu diikat 5 pertanyaan per alamat IP per hari supaya jatah gratis tidak habis.
+- Masuk kader tidak bergantung pada Google: tersedia juga email + kata sandi dan pendaftaran ber-captcha (lihat bagian I). Client ID Google tetap opsional dan ditaruh di Settings lewat dashboard admin (kolom `googleClientId`) — bukan di kode, karena browser hanya memakai Client ID publik dan server yang memverifikasi token di `googleClaims_` (issuer, audience, kedaluwarsa). Selama kolom itu kosong, tab Google disembunyikan dan dialog menampilkan Email/Daftar.
 - Untuk penggunaan resmi, tambahkan backup spreadsheet, logging, rate limiting, perlindungan CSRF sesuai kebutuhan, validasi HTML artikel, dan tinjauan keamanan sebelum menerima banyak admin.
-- Masuk kader memakai Google Identity Services. Buat **OAuth client ID ▸ Web application**, lalu tambahkan domain produksi dan `http://127.0.0.1:4173` ke *Authorized JavaScript origins*. Nilai Client ID ditaruh di Settings lewat dashboard admin (kolom `googleClientId`) — bukan di kode, karena browser hanya memakai Client ID publik dan server yang memverifikasi token di `googleClaims_` (issuer, audience, kedaluwarsa). Selama kolom itu kosong, tombol masuk kader dan dialog login tidak ditampilkan sama sekali.
 - Halaman publik tidak boleh memuat instruksi teknis (menempel `Code.gs`, menjalankan `setup`, alur *Deploy ▸ New version*, atau "sampaikan ke admin"). Pesan kesalahan untuk pengunjung dibuat netral; langkah operasional semacam itu hanya boleh muncul di README dan perkakas internal Apps Script.

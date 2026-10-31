@@ -23,12 +23,12 @@ const READ_ACTIONS = new Set([
 ]);
 
 const WRITE_ACTIONS = new Set([
-  'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'eventLike',
-  'eventComment', 'uploadImage', 'orgUploadImage'
+  'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'kaderEmailLogin',
+  'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage'
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */
-const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin']);
+const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLogin']);
 
 /** Base64 photo uploads are the only payload allowed to be big. */
 const MAX_BODY_BYTES = 220_000;

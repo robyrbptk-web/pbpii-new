@@ -25,7 +25,7 @@ const HEADERS = {
   Sessions: ['token', 'kind', 'subject', 'createdAt', 'expiresAt'],
   Chat: ['createdAt', 'kind', 'subject', 'question', 'answer', 'provider', 'status'],
   Standards: ['id', 'orgId', 'minPerMonth', 'setByOrgId', 'setByName', 'note', 'updatedAt'],
-  Kaders: ['id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note'],
+  Kaders: ['id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note', 'passwordHash', 'passwordSalt'],
   Reactions: ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt'],
   Comments: ['id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text', 'status', 'createdAt', 'updatedAt']
 };
@@ -203,7 +203,7 @@ const exported = [
   'orgSaveActivity_', 'requireOrg_', 'currentMonthKey_', 'todayKey_', 'APP', 'STANDARD_HEADERS',
   'doPost', 'throttle_', 'clientIp_', 'captchaIssue_', 'assertCaptcha_', 'kaderLogin_',
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
-  'actorOf_', 'safeActorKey_', 'chatIdentity_', 'RATE_RULES', 'hashPassword_'
+  'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
@@ -497,7 +497,7 @@ check('whoami mengenali kader', siapa.data.role, 'kader');
 check('kader tidak punya jenjang pengurus', 'jenjang' in siapa.data, false);
 check('tamu tanpa token dikenali sebagai tamu', request({ action: 'whoami' }).data.role, 'tamu');
 check('sesi kader kedaluwarsa tidak dianggap kader', request({ action: 'whoami', token: 'ses-kedaluwarsa' }).data.role, 'tamu');
-check('kader lolos sebagai identitas Tanya PII', gas.chatIdentity_('ses-rozak').kind, 'kader');
+check('kader lolos sebagai identitas Tanya PII', gas.chatIdentity_({ token: 'ses-rozak' }).kind, 'kader');
 check('token rusak ditolak sebelum diverifikasi', request({ action: 'kaderLogin', idToken: 'abc', ip: '198.51.100.5' }).ok, false);
 http.google = { ...klaimGoogle, aud: 'klien-punya-orang-lain' };
 check('token Google dari situs lain ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.5' }).error, 'Token login tidak dibuat untuk website ini.');
@@ -509,6 +509,75 @@ http.google = { ...klaimGoogle, name: 'Bilal Baru' };
 const masukKedua = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.8' });
 check('login ulang memakai baris kader yang sama', rowsOf('Kaders').filter((row) => row.googleSub === 'sub-baru').length, 1);
 check('nama kader diperbarui dari klaim terbaru', masukKedua.data.kader.name, 'Bilal Baru');
+
+// -------------------------------------------------- masuk kader tanpa Google
+
+const daftarTanpaVerifikasi = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20' });
+check('daftar kader dengan email butuh verifikasi', daftarTanpaVerifikasi.code, 'captcha');
+const soalPendek = request({ action: 'captcha', ip: '198.51.100.20' });
+check('kata sandi pendek ditolak', request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'singkat', ip: '198.51.100.20', captchaId: soalPendek.data.id, captchaAnswer: answerOf(soalPendek.data.question) }).error, 'Kata sandi minimal 8 karakter.');
+const soalEmail = request({ action: 'captcha', ip: '198.51.100.20' });
+check('email tidak valid ditolak', request({ action: 'kaderRegister', email: 'bukan-email', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', captchaId: soalEmail.data.id, captchaAnswer: answerOf(soalEmail.data.question) }).error, 'Alamat email tidak valid.');
+const soalDaftar = request({ action: 'captcha', ip: '198.51.100.20' });
+const daftar = request({ action: 'kaderRegister', email: 'Siti@Example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', captchaId: soalDaftar.data.id, captchaAnswer: answerOf(soalDaftar.data.question) });
+check('kader bisa daftar tanpa Google', daftar.data.role, 'kader');
+check('email pendaftaran dinormalkan', daftar.data.kader.email, 'siti@example.com');
+check('satu baris kader baru dibuat', rowsOf('Kaders').filter((row) => row.email === 'siti@example.com').length, 1);
+check('kata sandi disimpan sebagai hash, bukan teks', rowsOf('Kaders').some((row) => row.passwordHash === 'sandiku123'), false);
+const soalGanda = request({ action: 'captcha', ip: '198.51.100.25' });
+const daftarGanda = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Baru', password: 'sandiku456', ip: '198.51.100.25', captchaId: soalGanda.data.id, captchaAnswer: answerOf(soalGanda.data.question) });
+check('email yang sudah punya akun tidak bisa daftar lagi', daftarGanda.error, 'Email ini sudah punya akun kader. Silakan masuk.');
+http.google = { ...klaimGoogle, sub: 'sub-siti', email: 'siti@example.com', name: 'Siti Aminah' };
+const gabungGoogle = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.26' });
+check('akun email yang masuk lewat Google tidak dobel', rowsOf('Kaders').filter((row) => row.email === 'siti@example.com').length, 1);
+check('identitas Google tertaut ke akun email', rowsOf('Kaders').find((row) => row.email === 'siti@example.com').googleSub, 'sub-siti');
+check('masuk Google tetap memberi sesi kader', request({ action: 'whoami', token: gabungGoogle.data.token }).data.role, 'kader');
+http.google = klaimGoogle;
+const masukEmail = request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.21' });
+check('masuk dengan email dan kata sandi', masukEmail.data.role, 'kader');
+check('sesi email dikenal sebagai kader', request({ action: 'whoami', token: masukEmail.data.token }).data.role, 'kader');
+check('kata sandi salah ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.22' }).error, 'Email atau kata sandi salah.');
+check('email yang belum terdaftar gagal diam-diam', request({ action: 'kaderEmailLogin', email: 'tiada@example.com', password: 'apa12345', ip: '198.51.100.23' }).error, 'Email atau kata sandi salah.');
+const tembokEmail = [];
+for (let i = 0; i < gas.RATE_RULES['kader-login'].limit + 2; i += 1) {
+  tembokEmail.push(request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'tebakan', ip: '198.51.100.24' }));
+}
+check('tebakan kata sandi beruntun dari satu email dibatasi', tembokEmail[gas.RATE_RULES['kader-login'].limit].code, 'rate_limited');
+check('sesi email dihitung sebagai identitas kader', gas.chatIdentity_({ token: masukEmail.data.token }).kind, 'kader');
+check('kader non-Google mendapat jatah penuh Tanya PII', gas.chatIdentity_({ token: masukEmail.data.token }).batas, gas.APP.CHAT_DAILY_LIMIT);
+
+// ------------------------------------------------ Tanya PII pengunjung umum
+
+const ipTamu = '198.51.100.60';
+const tamu = gas.chatIdentity_({ ip: ipTamu });
+check('pengunjung tanpa akun jadi identitas tamu', tamu.kind, 'tamu');
+check('tamu dijatah lima pertanyaan sehari', tamu.batas, 5);
+check('kunci tamu stabil sepanjang hari', gas.guestSubject_(ipTamu), gas.guestSubject_(ipTamu));
+check('jaringan lain mendapat kunci berbeda', gas.guestSubject_(ipTamu) === gas.guestSubject_('198.51.100.61'), false);
+const statusTamu = request({ action: 'chatStatus', ip: ipTamu });
+check('status tamu memuat sisa jatah', statusTamu.data, { boleh: true, akun: 'tamu', batas: 5, dipakai: 0, sisa: 5 });
+seed('Chat', Array.from({ length: 5 }, (_unused, index) => ({
+  createdAt: `${today}T0${index}:05:00.000Z`, kind: 'tamu', subject: tamu.subject,
+  question: 'apa itu pii', answer: 'halo', provider: 'gratis', status: 'ok'
+})));
+check('jatah tamu habis setelah lima pertanyaan', request({ action: 'chatStatus', ip: ipTamu }).data.boleh, false);
+check('pertanyaan keenam dari jaringan yang sama ditahan', request({ action: 'chat', ip: ipTamu, message: 'Apa itu PII?' }).error,
+  'Jatah 5 pertanyaan gratis hari ini dari jaringan ini sudah habis. Masuk sebagai kader untuk jatah yang lebih besar, atau coba lagi besok.');
+check('tamu dari jaringan lain masih dapat mencoba', request({ action: 'chatStatus', ip: '198.51.100.61' }).data.boleh, true);
+check('login membuka kuota untuk akun sendiri', request({ action: 'chatStatus', token: 'ses-rozak', ip: ipTamu }).data.batas, gas.APP.CHAT_DAILY_LIMIT);
+
+const ipCatat = '198.51.100.62';
+const catat = request({ action: 'chatRecord', ip: ipCatat, question: 'Apa itu PII?', answer: 'Organisasi pelajar.', provider: 'Pollinations:openai' });
+check('pemakaian dari gerbang AI ikut tercatat', catat.data, { akun: 'tamu', batas: 5, dipakai: 1 });
+check('catatan memakai kunci jaringan yang sama', request({ action: 'chatStatus', ip: ipCatat }).data.dipakai, 1);
+check('catatan tanpa jawaban ditolak', request({ action: 'chatRecord', ip: ipCatat, question: 'apa kabar', answer: '   ' }).ok, false);
+const ipPenuh = '198.51.100.63';
+for (let i = 1; i <= 5; i += 1) request({ action: 'chatRecord', ip: ipPenuh, question: `pertanyaan ${i}`, answer: 'jawaban' });
+check('tamu tidak bisa mencatat lebih dari jatahnya', request({ action: 'chatRecord', ip: ipPenuh, question: 'pertanyaan enam', answer: 'jawaban' }).error,
+  'Kuota harian identitas ini sudah penuh.');
+check('jatah tercatat berlaku juga untuk pertanyaan berikutnya', request({ action: 'chat', ip: ipPenuh, message: 'Apa itu PII?' }).ok, false);
+const catatKader = request({ action: 'chatRecord', token: 'ses-rozak', ip: '198.51.100.64', question: 'Kaderisasi itu apa?', answer: 'Proses pembinaan.' });
+check('akun kader mencatat pemakaian atas namanya sendiri', catatKader.data.akun, 'kader');
 
 const sukaPertama = request({ action: 'eventLike', token: 'ses-rozak', eventId: 'act-lk-tingkat', ip: '198.51.100.9' });
 check('suka pertama tercatat', sukaPertama.data, { liked: true, likes: 1 });

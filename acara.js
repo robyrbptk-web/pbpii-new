@@ -331,7 +331,7 @@
     const id = button.dataset.like;
     const event = eventById(id);
     if (!event || button.disabled) return;
-    const account = await requireLogin('Masuk dengan akun Google untuk menyukai dan mengomentari acara PB PII.');
+    const account = await requireLogin('Masuk sebagai kader untuk menyukai dan mengomentari acara PB PII.');
     if (!account) return;
     button.disabled = true;
     try {
@@ -425,7 +425,7 @@
     if (/@\S+\.\S+|https?:\/\/|wa\.me|\b08\d{6,}\b/i.test(text)) {
       return noteIn(form, 'Komentar tidak boleh memuat tautan, email, atau nomor kontak.');
     }
-    const account = await requireLogin('Masuk dengan akun Google untuk berkomentar di acara PB PII.');
+    const account = await requireLogin('Masuk sebagai kader untuk berkomentar di acara PB PII.');
     if (!account) return;
 
     send.disabled = true;

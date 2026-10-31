@@ -17,6 +17,8 @@ import { DEFAULT_GAS_WEB_APP_URL } from './pii.js';
 const MAX_CHARS = 900;
 const MAX_HISTORY = 8;
 const DAILY_LIMIT = 20;
+/** Pengunjung tanpa akun boleh mencoba, tapi jatahnya kecil dan per alamat IP. */
+const GUEST_DAILY_LIMIT = 5;
 const MINUTE_LIMIT = 4;
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/openai';
@@ -190,16 +192,18 @@ async function askModel(messages) {
   }
 }
 
-/** Kuota Apps Script dipakai kalau deployment-nya sudah mendukung aksi chat. */
-async function gasQuota(body, action) {
+/**
+ * Kuota Apps Script dipakai kalau deployment-nya sudah mendukung aksi chat —
+ * termasuk untuk tamu, yang dihitung per alamat jaringan.
+ */
+async function gasCall(payload, timeoutMs = 12000) {
   const url = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
-  if (!body.token) return null;
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, token: body.token }),
-      signal: AbortSignal.timeout(12000),
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const result = await response.json().catch(() => null);
     if (!result?.ok) return null;
@@ -210,10 +214,33 @@ async function gasQuota(body, action) {
   }
 }
 
-function deviceOf(body) {
-  const device = clean(body.device).slice(0, 64);
-  if (device) return device;
-  return clean(body.token).slice(0, 64) || 'anonim';
+function gasQuota(body, ip) {
+  if (!body.token && !ip) return null;
+  return gasCall({ action: 'chatStatus', token: body.token || '', ip });
+}
+
+/** Balasan yang sudah dikerjakan di sini ikut dicatat agar kuota harian akurat. */
+function gasRecord(body, ip, question, jawaban) {
+  if (!body.token && !ip) return null;
+  return gasCall({
+    action: 'chatRecord',
+    token: body.token || '',
+    ip,
+    question,
+    answer: jawaban.reply,
+    provider: jawaban.provider,
+  }, 9000);
+}
+
+function ipOf(req) {
+  const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || String(req.headers?.['x-real-ip'] || '').trim() || '';
+}
+
+/** Kunci lokal: alamat IP hari ini, karena perangkat kiriman browser bisa dipalsukan. */
+function deviceOf(body, ip) {
+  if (body.token) return String(body.token).slice(0, 64);
+  return ip ? `ip:${ip}`.slice(0, 64) : clean(body.device).slice(0, 40) || 'anonim';
 }
 
 export default async function handler(req, res) {
@@ -229,10 +256,12 @@ export default async function handler(req, res) {
     return;
   }
 
-  const device = deviceOf(body);
+  const ip = ipOf(req);
+  const device = deviceOf(body, ip);
   const entry = usageFor(device);
-  const gas = await gasQuota(body, action);
-  const batas = gas && typeof gas.batas === 'number' ? gas.batas : DAILY_LIMIT;
+  const gas = await gasQuota(body, ip);
+  const defaultBatas = body.token ? DAILY_LIMIT : GUEST_DAILY_LIMIT;
+  const batas = gas && typeof gas.batas === 'number' ? gas.batas : defaultBatas;
 
   if (action === 'chatStatus') {
     const dipakai = gas && typeof gas.dipakai === 'number' ? gas.dipakai : entry.count;
@@ -240,7 +269,7 @@ export default async function handler(req, res) {
       ok: true,
       data: {
         boleh: dipakai < batas,
-        akun: gas?.akun || 'tamu',
+        akun: gas?.akun || (body.token ? 'akun' : 'tamu'),
         batas,
         dipakai,
         sisa: Math.max(0, batas - dipakai),
@@ -258,7 +287,14 @@ export default async function handler(req, res) {
 
   const dipakai = gas && typeof gas.dipakai === 'number' ? gas.dipakai : entry.count;
   if (dipakai >= batas) {
-    reply(res, 200, { ok: false, error: `Kuota ${batas} pertanyaan hari ini sudah habis. Coba lagi besok.` });
+    reply(res, 200, {
+      ok: false,
+      code: 'quota',
+      batas,
+      error: body.token
+        ? `Kuota ${batas} pertanyaan hari ini sudah habis. Coba lagi besok.`
+        : `Jatah ${batas} pertanyaan gratis hari ini sudah habis. Masuk sebagai kader untuk jatah yang lebih besar, atau coba lagi besok.`,
+    });
     return;
   }
   if (entry.recent.length >= MINUTE_LIMIT) {
@@ -282,13 +318,18 @@ export default async function handler(req, res) {
     const jawaban = await askModel(messages);
     entry.count += 1;
     entry.recent.push(Date.now());
+    const catat = await gasRecord(body, ip, question, jawaban);
+    const sisa = catat && typeof catat.dipakai === 'number'
+      ? Math.max(0, (catat.batas || batas) - catat.dipakai)
+      : Math.max(0, batas - dipakai - 1);
     reply(res, 200, {
       ok: true,
       data: {
         reply: jawaban.reply,
         provider: jawaban.provider,
-        sisa: Math.max(0, batas - dipakai - 1),
-        batas,
+        akun: catat?.akun || (gas?.akun || (body.token ? 'akun' : 'tamu')),
+        batas: catat?.batas || batas,
+        sisa,
       },
     });
   } catch (error) {

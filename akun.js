@@ -2,8 +2,9 @@
  * Akun & hak akses — dimuat di semua halaman publik (beranda, acara, ibadah,
  * tanya, peta, formulir, daftar).
  *
- * Kader masuk lewat Google; browser hanya menyerahkan ID token, server yang
- * memverifikasinya. Peran hasil /api/pii action "whoami" dipakai untuk
+ * Kader masuk lewat Google atau lewat email + kata sandi yang dibuat sendiri.
+ * Untuk Google, browser hanya menyerahkan ID token dan server yang
+ * memverifikasinya; peran hasil /api/pii action "whoami" dipakai untuk
  * menyembunyikan tautan dashboard dan PII Global View dari yang bukan pengurus.
  * Token disimpan di localStorage sehingga tidak perlu login ulang tiap buka.
  */
@@ -18,6 +19,9 @@
   let account = { role: 'tamu', name: '' };
   let clientId = '';
   let gsiPromise = null;
+  let captchaAssets = null;
+  let verifikasi = null;
+  let activeTab = 'email';
   let panelOpen = false;
 
   const token = () => localStorage.getItem(TOKEN_KEY) || '';
@@ -77,13 +81,23 @@
     return sessionStorage.getItem('pbpii_admin_token') || sessionStorage.getItem('pbpii_org_token') || '';
   }
 
-  async function signIn(idToken) {
-    const data = await api({ action: 'kaderLogin', idToken });
+  /** Isi sesi yang baru saja dibuat server, lalu tutup panel. */
+  function applySession(data) {
     localStorage.setItem(TOKEN_KEY, data.token);
-    account = { role: 'kader', id: data.kader.id, name: data.kader.name, picture: data.kader.picture, token: data.token };
+    account = {
+      role: data.role || 'kader',
+      id: data.kader?.id || '',
+      name: data.kader?.name || '',
+      picture: data.kader?.picture || '',
+      token: data.token
+    };
     emit();
     closePanel();
     return account;
+  }
+
+  async function signIn(idToken) {
+    return applySession(await api({ action: 'kaderLogin', idToken }));
   }
 
   function signOut() {
@@ -122,7 +136,7 @@
         ux_mode: 'popup',
         callback: (response) => {
           signIn(response.credential).catch((error) => {
-            setNotice(host, error.message);
+            setNotice(error.message);
           });
         }
       });
@@ -139,11 +153,49 @@
     })[character]);
   }
 
-  function setNotice(host, message) {
+  function setNotice(message) {
     const box = document.querySelector('.kader-notice');
     if (!box) return;
     box.textContent = message || '';
     box.hidden = !message;
+  }
+
+  /** Berkas captcha hanya diambil saat tab daftar pertama kali dibuka. */
+  function loadAsset(tag, src, attributes) {
+    const selector = tag === 'link' ? `link[href="${src}"]` : `script[src="${src}"]`;
+    const existing = document.querySelector(selector);
+    if (existing) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const node = document.createElement(tag);
+      Object.entries(attributes).forEach(([key, value]) => { node[key] = value; });
+      node.onload = () => resolve();
+      node.onerror = () => reject(new Error('Verifikasi formulir gagal dimuat. Muat ulang halaman lalu coba lagi.'));
+      document.head.append(node);
+    });
+  }
+
+  function captchaAssetsReady() {
+    if (window.PBPIICaptcha) return Promise.resolve(window.PBPIICaptcha);
+    if (!captchaAssets) {
+      captchaAssets = Promise.all([
+        loadAsset('link', '/captcha.css', { rel: 'stylesheet', href: '/captcha.css' }),
+        loadAsset('script', '/captcha.js', { src: '/captcha.js' })
+      ]).then(() => window.PBPIICaptcha || null, (error) => { captchaAssets = null; throw error; });
+    }
+    return captchaAssets;
+  }
+
+  async function ensureCaptcha(host) {
+    if (!host || verifikasi) return;
+    host.innerHTML = '<p class="captcha-loading" role="status">Menyiapkan verifikasi…</p>';
+    try {
+      const modul = await captchaAssetsReady();
+      if (!modul) throw new Error('Verifikasi formulir gagal dimuat. Muat ulang halaman lalu coba lagi.');
+      verifikasi = modul.attach(host);
+      await verifikasi.ready();
+    } catch (error) {
+      host.innerHTML = `<p class="captcha-help is-error">${escapeHTML(error.message)}</p>`;
+    }
   }
 
   function buildPanel() {
@@ -151,39 +203,195 @@
     const dialog = document.createElement('dialog');
     dialog.className = 'kader-dialog';
     dialog.innerHTML = `
-      <form method="dialog" class="kader-card">
+      <div class="kader-card">
         <button class="kader-close" type="button" aria-label="Tutup">×</button>
         <img class="kader-mark" src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
         <h2>Masuk sebagai kader</h2>
-        <p>Akun Google dipakai untuk menyukai dan mengomentari acara serta memakai Tanya PII. Data pengurus dan PII Global View tetap tertutup untuk akun kader.</p>
-        <div class="kader-google" data-google-slot></div>
-        <p class="kader-notice" hidden></p>
+        <p class="kader-lead">Pakai akun kader untuk menyukai dan mengomentari acara serta memperbesar jatah Tanya PII. Dasbor pengurus tetap tertutup.</p>
+        <div class="kader-tabs" role="tablist" aria-label="Pilih cara masuk">
+          <button class="kader-tab" type="button" role="tab" data-tab="google">Google</button>
+          <button class="kader-tab" type="button" role="tab" data-tab="email">Email</button>
+          <button class="kader-tab" type="button" role="tab" data-tab="daftar">Daftar</button>
+        </div>
+        <div class="kader-pane" data-pane="google">
+          <div class="kader-google" data-google-slot></div>
+          <p class="kader-hint">Masuk dengan akun Google tanpa membuat kata sandi baru.</p>
+        </div>
+        <div class="kader-pane" data-pane="email" hidden>
+          <form class="kader-form" data-form-email novalidate>
+            <label class="kader-field"><span>Email</span>
+              <input type="email" name="email" autocomplete="email" inputmode="email" required placeholder="nama@email.com">
+            </label>
+            <label class="kader-field"><span>Kata sandi</span>
+              <span class="kader-pass">
+                <input type="password" name="password" autocomplete="current-password" required placeholder="Kata sandi akun Anda">
+                <button class="kader-eye" type="button" aria-pressed="false">Lihat</button>
+              </span>
+            </label>
+            <button class="kader-go" type="submit">Masuk</button>
+            <p class="kader-alt">Belum punya akun? <button class="kader-link" type="button" data-tab="daftar">Daftar dulu</button></p>
+          </form>
+        </div>
+        <div class="kader-pane" data-pane="daftar" hidden>
+          <form class="kader-form" data-form-daftar novalidate>
+            <label class="kader-field"><span>Nama</span>
+              <input type="text" name="name" autocomplete="name" required placeholder="Nama yang tampil pada komentar">
+            </label>
+            <label class="kader-field"><span>Email</span>
+              <input type="email" name="email" autocomplete="email" inputmode="email" required placeholder="nama@email.com">
+            </label>
+            <label class="kader-field"><span>Kata sandi</span>
+              <span class="kader-pass">
+                <input type="password" name="password" autocomplete="new-password" minlength="8" required placeholder="Minimal 8 karakter">
+                <button class="kader-eye" type="button" aria-pressed="false">Lihat</button>
+              </span>
+            </label>
+            <div class="kader-captcha" data-captcha-slot></div>
+            <p class="kader-hint">Simpan kata sandi Anda dengan baik. Bila lupa, pemulihan dilakukan lewat pengurus PB PII.</p>
+            <button class="kader-go" type="submit">Buat akun kader</button>
+            <p class="kader-alt">Sudah punya akun? <button class="kader-link" type="button" data-tab="email">Masuk</button></p>
+          </form>
+        </div>
+        <p class="kader-notice" role="status" aria-live="polite" hidden></p>
         <p class="kader-fine">Dengan masuk, Anda bersedia menampilkan nama pada komentar acara PB PII.</p>
-      </form>`;
+      </div>`;
     document.body.append(dialog);
 
     dialog.querySelector('.kader-close').addEventListener('click', closePanel);
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) closePanel();
     });
+    dialog.querySelectorAll('[data-tab]').forEach((button) => {
+      button.addEventListener('click', () => setActive(button.dataset.tab));
+    });
+    dialog.querySelectorAll('.kader-eye').forEach((button) => {
+      button.addEventListener('click', () => {
+        const input = button.parentElement.querySelector('input');
+        const shown = input.type === 'text';
+        input.type = shown ? 'password' : 'text';
+        button.setAttribute('aria-pressed', String(!shown));
+        button.textContent = shown ? 'Lihat' : 'Sembunyi';
+      });
+    });
+    dialog.querySelector('[data-form-email]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      kirim(event.target, () => {
+        const data = new FormData(event.target);
+        return api({
+          action: 'kaderEmailLogin',
+          email: String(data.get('email') || '').trim(),
+          password: String(data.get('password') || '')
+        });
+      });
+    });
+    dialog.querySelector('[data-form-daftar]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const data = new FormData(event.target);
+      const name = String(data.get('name') || '').trim();
+      const email = String(data.get('email') || '').trim();
+      const password = String(data.get('password') || '');
+      if (name.length < 3) { setNotice('Tulis nama minimal 3 karakter.'); return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setNotice('Alamat email belum benar.'); return; }
+      if (password.length < 8) { setNotice('Kata sandi minimal 8 karakter.'); return; }
+      kirim(event.target, () => api({
+        action: 'kaderRegister', name, email, password,
+        ...(verifikasi ? verifikasi.fields() : {})
+      }), () => { verifikasi?.reset(); });
+    });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && panelOpen) closePanel();
     });
   }
 
-  function openPanel(notice) {
+  /** Kirim salah satu formulir panel dengan status tombol yang jelas. */
+  async function kirim(form, jalankan, setelah) {
+    const button = form.querySelector('button[type="submit"]');
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Mengirim…';
+    setNotice('');
+    try {
+      applySession(await jalankan());
+      // Jawaban verifikasi sekali pakai dan kredenter tidak boleh tertinggal
+      // di perangkat, jadi formulir dibersihkan untuk pemakaian berikutnya.
+      form.reset();
+      verifikasi = null;
+      document.querySelector('[data-captcha-slot]')?.replaceChildren();
+    } catch (error) {
+      setNotice(error.message || 'Belum berhasil masuk. Coba lagi.');
+      // Jawaban verifikasi sekali pakai: soal baru diperlukan setiap kali ditolak.
+      if (error.code === 'captcha' || /verifikasi/i.test(String(error.message))) {
+        verifikasi?.reset();
+        await verifikasi?.reload?.().catch(() => {});
+      }
+      setelah?.();
+    } finally {
+      if (button.isConnected) {
+        button.disabled = false;
+        button.textContent = label;
+      }
+    }
+  }
+
+  let keyboardWatch = null;
+
+  /** Safari iOS tidak mengecilkan viewport tata letak saat papan ketik muncul,
+      jadi lembar diangkat sendiri supaya tombol kirim tidak tertutup. */
+  function watchKeyboard() {
+    const viewport = window.visualViewport;
+    if (!viewport || keyboardWatch) return;
+    const ukur = () => {
+      const naik = window.innerHeight - viewport.height - viewport.offsetTop;
+      const tinggi = naik > 60 ? Math.round(naik) : 0;
+      document.documentElement.style.setProperty('--kader-keyboard', `${tinggi}px`);
+    };
+    keyboardWatch = ukur;
+    viewport.addEventListener('resize', ukur);
+    viewport.addEventListener('scroll', ukur);
+    ukur();
+  }
+
+  function releaseKeyboard() {
+    if (!keyboardWatch) return;
+    window.visualViewport?.removeEventListener('resize', keyboardWatch);
+    window.visualViewport?.removeEventListener('scroll', keyboardWatch);
+    keyboardWatch = null;
+    document.documentElement.style.removeProperty('--kader-keyboard');
+  }
+
+  function setActive(tab) {
+    const dialog = document.querySelector('.kader-dialog');
+    if (!dialog) return;
+    activeTab = tab === 'google' && !clientId ? 'email' : (tab || activeTab);
+    dialog.querySelectorAll('[data-tab]').forEach((button) => {
+      const on = button.dataset.tab === activeTab;
+      button.classList.toggle('is-active', on);
+      if (button.getAttribute('role') === 'tab') button.setAttribute('aria-selected', String(on));
+    });
+    dialog.querySelector('[data-tab="google"]')?.toggleAttribute('hidden', !clientId);
+    dialog.querySelectorAll('[data-pane]').forEach((pane) => {
+      pane.hidden = pane.dataset.pane !== activeTab;
+    });
+    setNotice('');
+    if (activeTab === 'google') renderGoogleButton(dialog.querySelector('[data-google-slot]'));
+    if (activeTab === 'daftar') ensureCaptcha(dialog.querySelector('[data-captcha-slot]'));
+  }
+
+  function openPanel(notice, tab) {
     buildPanel();
     const dialog = document.querySelector('.kader-dialog');
     panelOpen = true;
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
     document.body.classList.add('has-kader-dialog');
-    setNotice(dialog.querySelector('[data-google-slot]'), notice);
-    renderGoogleButton(dialog.querySelector('[data-google-slot]'));
+    setActive(tab || (clientId ? 'google' : 'email'));
+    setNotice(notice);
+    watchKeyboard();
   }
 
   function closePanel() {
     panelOpen = false;
+    releaseKeyboard();
     const dialog = document.querySelector('.kader-dialog');
     if (!dialog) return;
     if (typeof dialog.close === 'function' && dialog.open) dialog.close();
@@ -210,14 +418,12 @@
     const isStaff = account.role === 'admin' || account.role === 'org';
     slots.forEach((slot) => {
       if (account.role === 'tamu') {
-        // Tanpa Client ID, masuk kader belum dapat ditawarkan; slot dibiarkan
-        // kosong supaya pengunjung tidak menemukan jalan buntu di halaman.
-        slot.innerHTML = clientId ? `<button class="account-button is-guest" type="button" data-account-open>
+        slot.innerHTML = `<button class="account-button is-guest" type="button" data-account-open>
           <span class="account-avatar" aria-hidden="true">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="3.4"/><path d="M5.4 19.2c.6-3.2 2.8-5.1 6.6-5.1s6 1.9 6.6 5.1"/></svg>
           </span>
           <span class="account-label">Masuk kader</span>
-        </button>` : '';
+        </button>`;
       } else {
         const initial = (account.name || 'K').trim().charAt(0).toUpperCase();
         const photo = account.picture

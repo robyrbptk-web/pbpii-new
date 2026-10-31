@@ -29,6 +29,8 @@ const APP = {
   SHEET_COMMENTS: 'Comments',
   TOKEN_TTL_SECONDS: 21600,
   CHAT_DAILY_LIMIT: 20,
+  // Tamu boleh mencoba Tanya PII, tapi kuota AI gratis kecil jadi dijatah ketat.
+  CHAT_GUEST_DAILY_LIMIT: 5,
   CHAT_MAX_CHARS: 900,
   COMMENT_MAX_CHARS: 500,
   PROP_SPREADSHEET_ID: 'SPREADSHEET_ID',
@@ -113,7 +115,8 @@ const CHAT_HEADERS = [
 ];
 /** Akun kader biasa: hanya dipakai untuk Tanya PII dan interaksi acara. */
 const KADER_HEADERS = [
-  'id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note'
+  'id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note',
+  'passwordHash', 'passwordSalt'
 ];
 /** Satu baris = satu suka. actorKey sudah berisi jenis akun, jadi tidak bertabrakan. */
 const REACTION_HEADERS = ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt'];
@@ -527,6 +530,10 @@ function doPost(event) {
       data = whoami_(body);
     } else if (action === 'kaderLogin') {
       data = kaderLogin_(body);
+    } else if (action === 'kaderRegister') {
+      data = kaderRegister_(body);
+    } else if (action === 'kaderEmailLogin') {
+      data = kaderEmailLogin_(body);
     } else if (action === 'eventThread') {
       data = eventThread_(body);
     } else if (action === 'eventLike') {
@@ -537,6 +544,8 @@ function doPost(event) {
       data = chat_(body);
     } else if (action === 'chatStatus') {
       data = chatStatus_(body);
+    } else if (action === 'chatRecord') {
+      data = chatRecord_(body);
     } else if (action === 'login') {
       data = login_(body);
     } else if (action === 'logout') {
@@ -699,22 +708,23 @@ function timeOf_(value) {
 }
 
 /**
- * Asisten "Tanya PII". Hanya untuk sesi login (admin atau lembaga) dan dibatasi
- * APP.CHAT_DAILY_LIMIT pertanyaan berhasil per akun per hari, karena kuota
- * layanan AI gratis kecil dan jumlah kader yang memakai juga terbatas.
+ * Asisten "Tanya PII". Kuota layanan AI gratis kecil, jadi per hari dibatasi:
+ * APP.CHAT_DAILY_LIMIT untuk akun yang login dan APP.CHAT_GUEST_DAILY_LIMIT
+ * untuk pengunjung tanpa akun, dihitung per alamat jaringan.
  */
 function chat_(body) {
   throttle_('chat', clientIp_(body));
-  const me = chatIdentity_(body.token);
+  const me = chatIdentity_(body);
   const question = cleanText_(body.message).slice(0, APP.CHAT_MAX_CHARS);
   if (question.length < 3) {
     throw new Error('Tulis pertanyaan dengan jelas.');
   }
 
   const dipakai = chatUsageToday_(me);
-  if (dipakai >= APP.CHAT_DAILY_LIMIT) {
-    throw new Error('Kuota ' + APP.CHAT_DAILY_LIMIT + ' pertanyaan hari ini untuk ' +
-      me.label + ' sudah habis. Coba lagi besok.');
+  if (dipakai >= me.batas) {
+    throw new Error(me.kind === 'tamu'
+      ? 'Jatah ' + me.batas + ' pertanyaan gratis hari ini dari jaringan ini sudah habis. Masuk sebagai kader untuk jatah yang lebih besar, atau coba lagi besok.'
+      : 'Kuota ' + me.batas + ' pertanyaan hari ini untuk ' + me.label + ' sudah habis. Coba lagi besok.');
   }
 
   let jawaban;
@@ -729,40 +739,81 @@ function chat_(body) {
   return {
     reply: jawaban.reply,
     provider: jawaban.provider,
-    sisa: Math.max(0, APP.CHAT_DAILY_LIMIT - dipakai - 1)
+    akun: me.kind,
+    batas: me.batas,
+    sisa: Math.max(0, me.batas - dipakai - 1)
   };
 }
 
 function chatStatus_(body) {
-  const me = chatIdentity_(body.token);
+  const me = chatIdentity_(body);
   const dipakai = chatUsageToday_(me);
   return {
-    boleh: dipakai < APP.CHAT_DAILY_LIMIT,
+    boleh: dipakai < me.batas,
     akun: me.label,
-    batas: APP.CHAT_DAILY_LIMIT,
+    batas: me.batas,
     dipakai: dipakai,
-    sisa: Math.max(0, APP.CHAT_DAILY_LIMIT - dipakai)
+    sisa: Math.max(0, me.batas - dipakai)
   };
 }
 
-function chatIdentity_(token) {
+function chatIdentity_(body) {
+  const token = (body && body.token) || '';
   const admin = sessionSubject_(token, 'admin');
   if (admin) {
-    return { kind: 'admin', subject: admin, label: 'admin' };
+    return { kind: 'admin', subject: admin, label: 'admin', batas: APP.CHAT_DAILY_LIMIT };
   }
 
   const kaderId = sessionSubject_(token, 'kader');
   if (kaderId) {
     const row = findRow_(APP.SHEET_KADERS, kaderId);
-    return { kind: 'kader', subject: kaderId, label: (row && cleanText_(row.name)) || 'kader' };
+    return { kind: 'kader', subject: kaderId, label: (row && cleanText_(row.name)) || 'kader',
+      batas: APP.CHAT_DAILY_LIMIT };
   }
 
   const orgId = sessionSubject_(token, 'org');
-  if (!orgId) {
-    throw new Error('Tanya PII khusus kader yang sudah login. Silakan masuk terlebih dahulu.');
+  if (orgId) {
+    const org = orgById_(rows_(APP.SHEET_ORGS), orgId);
+    return { kind: 'org', subject: orgId, label: (org && cleanText_(org.name)) || orgId,
+      batas: APP.CHAT_DAILY_LIMIT };
   }
-  const org = orgById_(rows_(APP.SHEET_ORGS), orgId);
-  return { kind: 'org', subject: orgId, label: (org && cleanText_(org.name)) || orgId };
+
+  // Tanpa sesi apa pun: tetap boleh mencoba, tapi dijatah per alamat jaringan.
+  // Alamatnya tidak disimpan apa adanya — cukup sidik jarinya untuk menghitung kuota.
+  return {
+    kind: 'tamu',
+    subject: guestSubject_(clientIp_(body)),
+    label: 'tamu',
+    batas: APP.CHAT_GUEST_DAILY_LIMIT
+  };
+}
+
+/** Kunci stabil per IP per hari; diganti esok sehingga jatah tamu reset sendiri. */
+function guestSubject_(ip) {
+  return bytesToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,
+    String(ip) + '|' + chatDay_(new Date()) + '|pbpii')).slice(0, 32);
+}
+
+/**
+ * Pencatatan pemakaian dari gerbang AI sisi server (Vercel). Jawaban bisa
+ * dihasilkan di Apps Script atau di function serverless, jadi keduanya melapor
+ * ke sini supaya jatah harian tetap terhitung walau layanannya di luar
+ * Apps Script.
+ */
+function chatRecord_(body) {
+  throttle_('chat', clientIp_(body));
+  const me = chatIdentity_(body);
+  const question = cleanText_(body.question).slice(0, APP.CHAT_MAX_CHARS);
+  const answer = cleanText_(body.answer).slice(0, 4000);
+  if (question.length < 3 || !answer) {
+    throw new Error('Pertanyaan atau jawaban tidak lengkap.');
+  }
+  const dipakai = chatUsageToday_(me);
+  if (dipakai >= me.batas) {
+    throw new Error('Kuota harian identitas ini sudah penuh.');
+  }
+  logChat_(me, question, answer, cleanText_(body.provider).slice(0, 60) || 'serverless', 'ok');
+  return { akun: me.kind, batas: me.batas, dipakai: dipakai + 1 };
 }
 
 function chatUsageToday_(me) {
@@ -2399,6 +2450,7 @@ const RATE_RULES = {
   'register': { limit: 12, window: 600 },
   'captcha-issue': { limit: 18, window: 600 },
   'kader-login': { limit: 12, window: 600 },
+  'kader-register': { limit: 5, window: 1800 },
   'event-like': { limit: 20, window: 60 },
   'event-comment': { limit: 4, window: 180 },
   'event-comment-ip': { limit: 20, window: 600 },
@@ -2598,10 +2650,15 @@ function kaderLogin_(body) {
     orgSetCell_(APP.SHEET_KADERS, row.id, 'name', name);
     orgSetCell_(APP.SHEET_KADERS, row.id, 'picture', picture);
     orgSetCell_(APP.SHEET_KADERS, row.id, 'lastLoginAt', now);
+    // Akun yang awalnya dibuat dengan email dikunci ke identitas Google-nya
+    // supaya login berikutnya tidak lagi bergantung pada alamat email.
+    if (sub && String(row.googleSub || '') !== sub) {
+      orgSetCell_(APP.SHEET_KADERS, row.id, 'googleSub', sub);
+    }
     row = Object.assign({}, row, { name: name, picture: picture });
   } else {
     const id = Utilities.getUuid();
-    sheet.appendRow([id, email, name, picture, sub, now, now, '']);
+    sheet.appendRow([id, email, name, picture, sub, now, now, '', '', '']);
     row = { id: id, email: email, name: name, picture: picture };
   }
 
@@ -2610,6 +2667,79 @@ function kaderLogin_(body) {
     token: token,
     role: 'kader',
     kader: { id: row.id, name: name, email: email, picture: picture },
+    expiresIn: APP.TOKEN_TTL_SECONDS
+  };
+}
+
+/**
+ * Daftar akun kader tanpa Google: email dan kata sandi. Pintu ini dibuka untuk
+ * publik, jadi memakai captcha yang sama dengan pendaftaran peserta kegiatan.
+ */
+function kaderRegister_(body) {
+  throttle_('kader-register', clientIp_(body));
+  assertCaptcha_(body);
+
+  const email = String(body.email || '').trim().toLowerCase();
+  const name = cleanText_(body.name).slice(0, 90);
+  const password = String(body.password || '');
+
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    throw new Error('Alamat email tidak valid.');
+  }
+  if (name.length < 3) throw new Error('Tulis nama Anda minimal 3 karakter.');
+  if (password.length < 8) throw new Error('Kata sandi minimal 8 karakter.');
+
+  const rows = rows_(APP.SHEET_KADERS);
+  let terpakai = false;
+  rows.forEach(function (row) {
+    if (String(row.email || '').toLowerCase() === email) terpakai = true;
+  });
+  if (terpakai) throw new Error('Email ini sudah punya akun kader. Silakan masuk.');
+
+  const salt = Utilities.getUuid();
+  const id = Utilities.getUuid();
+  const now = new Date().toISOString();
+  sheet_(APP.SHEET_KADERS).appendRow([
+    id, email, name, '', '', now, now, '', hashPassword_(password, salt), salt
+  ]);
+
+  const token = sessionPut_('kader', id);
+  return {
+    token: token,
+    role: 'kader',
+    kader: { id: id, name: name, email: email, picture: '' },
+    expiresIn: APP.TOKEN_TTL_SECONDS
+  };
+}
+
+/** Masuk kader dengan email + kata sandi, untuk yang tidak memakai Google. */
+function kaderEmailLogin_(body) {
+  const email = String(body.email || '').trim().toLowerCase();
+  throttle_('kader-login', clientIp_(body) + ':' + email);
+  const password = String(body.password || '');
+
+  const rows = rows_(APP.SHEET_KADERS);
+  let row = null;
+  rows.forEach(function (item) {
+    if (String(item.email || '').toLowerCase() === email) row = item;
+  });
+
+  if (!row || !row.passwordHash || !row.passwordSalt ||
+      hashPassword_(password, row.passwordSalt) !== String(row.passwordHash)) {
+    throw new Error('Email atau kata sandi salah.');
+  }
+
+  orgSetCell_(APP.SHEET_KADERS, row.id, 'lastLoginAt', new Date().toISOString());
+  const token = sessionPut_('kader', row.id);
+  return {
+    token: token,
+    role: 'kader',
+    kader: {
+      id: row.id,
+      name: cleanText_(row.name) || 'Kader PII',
+      email: email,
+      picture: safeUrl_(row.picture)
+    },
     expiresIn: APP.TOKEN_TTL_SECONDS
   };
 }

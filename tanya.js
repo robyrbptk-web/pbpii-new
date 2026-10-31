@@ -27,7 +27,7 @@
 
   /**
    * Sesi ikut terkirim supaya kuota longgar diberikan ke akun yang benar:
-   * kader (Google) dari PBPIIAkun, pengurus/admin dari sesi login halaman dashboard.
+   * kader (Google atau email) dari PBPIIAkun, pengurus/admin dari sesi login halaman dashboard.
    */
   const sessionToken = () => window.PBPIIAkun?.sessionToken?.()
     || sessionStorage.getItem(ADMIN_TOKEN_KEY)
@@ -68,7 +68,9 @@
     const result = await response.json().catch(() => null);
     if (!result || !result.ok) {
       const error = new Error(result?.error || 'Tanya PII tidak dapat dihubungi.');
+      error.code = String(result?.code || '');
       error.retryAfter = Number(result?.retryAfter) || 0;
+      error.batas = Number(result?.batas) || 0;
       throw error;
     }
     return result.data;
@@ -165,6 +167,24 @@
       return row;
     }
 
+    /** Jatah habis: tawarkan jalan keluar, bukan tombol coba ulang yang buntu. */
+    function upgradeRow(message) {
+      const row = document.createElement('div');
+      row.className = 'tanya-row is-assistant is-quota';
+      row.innerHTML = `
+        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
+        <div class="tanya-msg">
+          <p>${escapeHTML(message)}</p>
+          <button type="button" class="tanya-upgrade" data-tab="daftar">Daftar akun kader</button>
+          <button type="button" class="tanya-upgrade is-plain" data-tab="email">Masuk dengan akun yang sudah ada</button>
+        </div>`;
+      row.querySelectorAll('.tanya-upgrade').forEach((button) => {
+        button.addEventListener('click', () => window.PBPIIAkun?.openPanel('', button.dataset.tab));
+      });
+      thread.append(row);
+      return row;
+    }
+
     function paint() {
       thread.replaceChildren();
       turns.forEach((turn) => bubble(turn.role, turn.content));
@@ -217,8 +237,10 @@
       } catch (error) {
         row.remove();
         paint();
-        errorRow(error.message, Number(error.retryAfter) || 0, () => send(text));
+        if (error.code === 'quota') upgradeRow(error.message);
+        else errorRow(error.message, Number(error.retryAfter) || 0, () => send(text));
         stick();
+        loadQuota();
       } finally {
         setBusy(false);
         if (!errorShown()) input.focus();
@@ -228,19 +250,43 @@
     const errorShown = () => Boolean(thread.querySelector('.is-error'));
 
     function showQuota(data, askedAt) {
-      if (typeof data?.sisa === 'number') {
-        quota.textContent = `Sisa ${data.sisa} dari ${data.batas || 20} pertanyaan hari ini · ${
-          Math.max(1, Math.round((Date.now() - (askedAt || Date.now())) / 1000))}s`;
-      }
+      if (typeof data?.sisa !== 'number') return;
+      paintMeter({
+        sisa: data.sisa,
+        batas: data.batas,
+        akun: data.akun || (sessionToken() ? 'akun' : 'tamu'),
+        detik: Math.max(1, Math.round((Date.now() - (askedAt || Date.now())) / 1000))
+      });
     }
 
     async function loadQuota() {
       try {
         const status = await askServer({ action: 'chatStatus', token: sessionToken(), device: deviceId() });
-        quota.textContent = `Sisa ${status.sisa} dari ${status.batas} pertanyaan hari ini` +
-          (status.akun && status.akun !== 'tamu' ? ` · ${status.akun}` : '');
+        paintMeter({
+          sisa: status.sisa,
+          batas: status.batas,
+          akun: status.akun || (sessionToken() ? 'akun' : 'tamu'),
+          habis: status.boleh === false
+        });
       } catch {
         quota.textContent = 'Kuota harian berlaku; jawaban tetap dikirim bila layanan AI sedang longgar.';
+      }
+    }
+
+    /** Pill kuota: singkat agar muat di layar kecil, plus pintasan masuk saat jatah tamu habis. */
+    function paintMeter({ sisa, batas, akun, detik, habis }) {
+      const tamu = akun === 'tamu';
+      const nama = window.PBPIIAkun?.account?.().name || '';
+      const inti = `Sisa ${sisa}/${batas || (tamu ? 5 : 20)} pertanyaan hari ini`;
+      const ekor = tamu ? ' · gratis dari jaringan ini' : (nama ? ` · ${nama}` : '');
+      quota.textContent = inti + ekor + (detik ? ` · ${detik}s` : '');
+      if (tamu && (habis || sisa === 0)) {
+        const tombol = document.createElement('button');
+        tombol.type = 'button';
+        tombol.className = 'tanya-quota-cta';
+        tombol.textContent = 'Masuk kader, jatah naik jadi 20';
+        tombol.addEventListener('click', () => window.PBPIIAkun?.openPanel('', 'daftar'));
+        quota.append(' ', tombol);
       }
     }
 
@@ -271,14 +317,35 @@
       localStorage.removeItem(THREAD_KEY);
       paint();
       intro.hidden = false;
-      quota.textContent = 'Kuota harian berlaku.';
       loadQuota();
       input.focus();
     });
 
+    // Ganti akun (misal baru daftar) langsung memperbarui jatah yang tampil.
+    let tokenTerakhir = sessionToken();
+    window.PBPIIAkun?.onChange?.(() => {
+      if (sessionToken() === tokenTerakhir) return;
+      tokenTerakhir = sessionToken();
+      loadQuota();
+    });
+
+    // Papan ketik ponsel tidak boleh menutupi kolom tulis, terutama di iOS.
+    const viewport = window.visualViewport;
+    if (viewport) {
+      const ukur = () => {
+        const naik = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+        const terbuka = naik > 60;
+        document.documentElement.style.setProperty('--tanya-keyboard', `${terbuka ? naik : 0}px`);
+        document.body.classList.toggle('tanya-keyboard-up', terbuka);
+        if (terbuka) stick();
+      };
+      viewport.addEventListener('resize', ukur);
+      viewport.addEventListener('scroll', ukur);
+    }
+
     paint();
     loadQuota();
-    input.focus({ noScroll: true });
+    if (!window.matchMedia('(pointer: coarse)').matches) input.focus({ noScroll: true });
   }
 
   if (document.querySelector('#tanyaThread')) {
