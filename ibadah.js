@@ -20,6 +20,8 @@
     cityAt: 'pbpii:ibadah-city-at',
     adzan: 'pbpii:ibadah-adzan',
     surah: 'pbpii:ibadah-surah',
+    page: 'pbpii:ibadah-page',
+    fontScale: 'pbpii:ibadah-quran-font-scale',
     position: 'pbpii:ibadah-position',
     tasbih: 'pbpii:ibadah-tasbih',
   };
@@ -1458,6 +1460,7 @@
     let surahs = [];
     let reader = null;
     let currentSurah = Number(storageGet(STORE.surah, '')) || 0;
+    let currentPage = Math.max(1, Number(storageGet(STORE.page, '1')) || 1);
     /** Pemutar murattal: satu Audio untuk semua tombol, jadi tidak ada tabrak audio. */
     let player = null;
     let track = null;
@@ -1467,16 +1470,46 @@
     const sheetFoot = document.querySelector('#quranSheetFoot');
     let sheetOpen = false;
     let sheetEntry = false;
+    let sheetOpener = null;
+    if (sheet) sheet.inert = true;
+
+    let fontScale = Number(storageGet(STORE.fontScale, '1'));
+    if (!Number.isFinite(fontScale)) fontScale = 1;
+    fontScale = Math.min(1.6, Math.max(0.85, fontScale));
+    const paintFontScale = () => {
+      const rootFont = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const scaledClamp = (min, viewport, max) => `${Math.min(
+        max * rootFont,
+        Math.max(min * rootFont, window.innerWidth * viewport / 100),
+      ) * fontScale}px`;
+      document.documentElement.style.setProperty('--quran-font-scale', String(fontScale));
+      document.documentElement.style.setProperty('--quran-arabic-size', scaledClamp(1.5, 4.6, 1.95));
+      document.documentElement.style.setProperty('--quran-basmalah-size', scaledClamp(1.45, 4.4, 1.75));
+      document.documentElement.style.setProperty('--quran-translation-size', `${0.93 * rootFont * fontScale}px`);
+      document.documentElement.style.setProperty('--quran-tafsir-size', `${0.85 * rootFont * fontScale}px`);
+    };
+    paintFontScale();
+    window.addEventListener('resize', paintFontScale, { passive: true });
+    document.querySelectorAll('[data-font-adjust]').forEach((button) => {
+      button.addEventListener('click', () => {
+        fontScale = Math.min(1.6, Math.max(0.85, fontScale + Number(button.dataset.fontAdjust)));
+        storageSet(STORE.fontScale, String(fontScale));
+        paintFontScale();
+      });
+    });
 
     /** Layar kecil memakai sheet penuh; pembaca inline tetap dipakai di desktop. */
     const compactScreen = () => window.matchMedia('(max-width: 1024px)').matches;
 
     function openSheet() {
       if (!sheet || sheetOpen) return;
+      sheetOpener = document.activeElement;
       sheetOpen = true;
       sheet.classList.add('is-open');
+      sheet.inert = false;
       sheet.setAttribute('aria-hidden', 'false');
       document.body.classList.add('is-locked');
+      document.querySelector('#quranSheetClose')?.focus();
       if (!sheetEntry) {
         sheetEntry = true;
         // Tombol back Android menutup surat lebih dulu, tidak langsung keluar halaman.
@@ -1491,12 +1524,14 @@
       sheetOpen = false;
       sheetEntry = false;
       sheet.classList.remove('is-open');
+      sheet.inert = true;
       sheet.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('is-locked');
       // Halaman di balik sheet masih menampilkan kartu surat lama: perbarui ke
       // surat yang barusan dibaca supaya tombolnya tidak membuka surat lain.
       renderResumeChip();
       if (wasPushed) history.back();
+      sheetOpener?.focus();
     }
 
     window.addEventListener('popstate', () => {
@@ -1507,7 +1542,9 @@
           sheet.classList.remove('is-open');
           sheet.setAttribute('aria-hidden', 'true');
           document.body.classList.remove('is-locked');
+          sheet.inert = true;
           sheetOpen = false;
+          sheetOpener?.focus();
         }
       }
     });
@@ -1756,7 +1793,7 @@
 
       if (sheetOpen && sheetBody) {
         setText('#quranSheetName', latin);
-        setText('#quranSheetMeta', `Surat ke-${Number(data.number) || reader.number} · ${meta}`);
+        setText('#quranSheetMeta', `Surat ke-${Number(data.number) || reader.number} · Halaman ${reader.page} · ${meta}`);
         const sheetButton = document.querySelector('#quranSheetAudio');
         if (sheetButton) {
           sheetButton.dataset.audio = fullUrl;
@@ -1795,8 +1832,8 @@
         <div class="resume-card">
           <p class="eyebrow">LANJUTKAN MEMBACA</p>
           <b>${escapeHTML(surah.name_latin || surah.name || '')}</b>
-          <small>${escapeHTML(surah.revelation || '')} · ${Number(surah.number_of_ayahs) || '?'} ayat</small>
-          <button class="button button-solid" type="button" data-surah="${surah.number}">Buka surat</button>
+          <small>${escapeHTML(surah.revelation || '')} · ${Number(surah.number_of_ayahs) || '?'} ayat · Halaman ${currentPage}</small>
+          <button class="button button-solid" type="button" data-resume="${surah.number}" data-page="${currentPage}">Lanjutkan membaca</button>
         </div>`;
     }
 
@@ -1808,7 +1845,9 @@
       if (cached) {
         reader = cached;
         currentSurah = number;
+        currentPage = page;
         storageSet(STORE.surah, String(number));
+        storageSet(STORE.page, String(page));
         if (compactScreen()) openSheet();
         each('.surah-item', (item) => item.setAttribute('aria-current', item.dataset.surah === String(number) ? 'true' : 'false'));
         renderReader();
@@ -1826,7 +1865,9 @@
         const body = await getJson(`${API}/quran?nomor=${number}&page=${page}&limit=100`);
         reader = { number, page, data: body.data || {}, pagination: body.meta?.pagination || null };
         currentSurah = number;
+        currentPage = page;
         storageSet(STORE.surah, String(number));
+        storageSet(STORE.page, String(page));
         // Teks ayat tidak berubah, jadi cukup sekali diunduh per perangkat.
         quranCacheWrite(cacheKey, reader);
         each('.surah-item', (item) => item.setAttribute('aria-current', item.dataset.surah === String(number) ? 'true' : 'false'));
@@ -1839,6 +1880,11 @@
     }
 
     list.addEventListener('click', (event) => {
+      const resume = event.target.closest('button[data-resume]');
+      if (resume) {
+        openSurah(Number(resume.dataset.resume), Number(resume.dataset.page) || 1);
+        return;
+      }
       const button = event.target.closest('button[data-surah]');
       if (button) openSurah(Number(button.dataset.surah), 1);
     });

@@ -214,6 +214,21 @@ nav a:hover,
   font-size: 1.08rem;
 }
 
+.hero-copy .source-note {
+  display: block;
+  margin-top: 12px;
+  color: #c6d9e8;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
+.pillar-card .source-note,
+.about-section .source-note {
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -571,6 +586,46 @@ body.is-locked {
   font-size: 1.06rem;
   line-height: 1.75;
 }
+
+.reader-article h3,
+.reader-article h4 {
+  margin: 1.5em 0 .55em;
+  color: var(--navy);
+  line-height: 1.35;
+}
+
+.reader-article ul,
+.reader-article ol {
+  padding-left: 1.4em;
+  margin: 0 0 18px;
+  line-height: 1.75;
+}
+
+.reader-article blockquote {
+  margin: 22px 0;
+  padding: 12px 18px;
+  border-left: 3px solid var(--green);
+  background: var(--soft);
+  color: var(--navy);
+}
+
+.reader-article img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 22px auto;
+  border-radius: 12px;
+}
+
+.reader-article a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: .15em;
+}
+
+.reader-article [data-size="small"] { font-size: .88em; }
+.reader-article [data-size="large"] { font-size: 1.2em; }
+.reader-article [data-font="serif"] { font-family: Georgia, "Times New Roman", serif; }
 
 .reader-lead {
   color: var(--navy);
@@ -1024,6 +1079,14 @@ footer > small {
   }
 }
 
+@media (max-width: 680px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1157,7 +1220,7 @@ nav a:hover {
 }
 
 .install-app {
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid #d8e3ec;
   border-radius: 999px;
   padding: 0 15px;
@@ -2422,6 +2485,37 @@ nav a[aria-current='page']::after {
   margin-bottom: 26px;
 }
 
+.acara-feed-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 780px;
+  margin: 0 auto 12px;
+}
+
+.acara-feed-status p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.acara-feed-status button {
+  min-height: 44px;
+  border: 0;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--blue);
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.acara-feed-status button[hidden] {
+  display: none;
+}
+
 .acara-chips {
   display: flex;
   gap: 7px;
@@ -2499,7 +2593,8 @@ nav a[aria-current='page']::after {
 
 .acara-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: minmax(0, 780px);
+  justify-content: center;
   gap: 20px;
 }
 
@@ -2591,6 +2686,46 @@ nav a[aria-current='page']::after {
   padding: 19px 20px 21px;
 }
 
+.acara-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.acara-author-avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #d6e2ee;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f1f7fc, #e1edf7);
+  color: var(--navy);
+  font-size: .92rem;
+  font-weight: 800;
+}
+
+.acara-author > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.acara-author b {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: .86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acara-author small {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
 .acara-meta {
   display: flex;
   flex-wrap: wrap;
@@ -2680,9 +2815,51 @@ nav a[aria-current='page']::after {
   font-weight: 650;
 }
 
+.acara-calendar {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.acara-calendar:hover {
+  border-color: #b9cfe4;
+  background: var(--soft);
+}
+
 .acara-more {
   margin: 18px 0 0;
   font-size: .82rem;
+}
+
+.acara-load-more {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 16px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.acara-load-more span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 500;
 }
 
 .acara-more[hidden] {
@@ -3443,7 +3620,9 @@ body.has-kader-dialog {
   }
 
   /* iOS berhenti memperbesar halaman saat kolom diisi bila teksnya 16px. */
-  .kader-field input {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
     font-size: 16px;
   }
 }
@@ -3463,7 +3642,8 @@ body.has-kader-dialog {
 
 @media (max-width: 900px) {
   .acara-list {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: minmax(0, 780px);
+    justify-content: center;
   }
 }
 
@@ -3584,36 +3764,6 @@ body.has-kader-dialog {
   color: var(--muted);
   font-size: .96rem;
   line-height: 1.6;
-}
-
-.tanya-chips {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 9px;
-}
-
-.tanya-chips button {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: #fff;
-  color: #2f4358;
-  font: inherit;
-  font-size: .87rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: transform .16s ease, border-color .16s ease, background-color .16s ease;
-}
-
-.tanya-chips button:hover {
-  border-color: #a9cbe6;
-  background: #f2f8fc;
-  transform: translateY(-1px);
-}
-
-.tanya-chips button:active {
-  transform: scale(.98);
 }
 
 .tanya-thread {
@@ -3795,6 +3945,10 @@ body.has-kader-dialog {
   margin-top: 11px;
   border-top: 1px dashed #cfdeec;
   padding-top: 9px;
+}
+
+.tanya-sumber.is-empty {
+  border-top-style: solid;
 }
 
 .tanya-sumber-title {
@@ -3986,7 +4140,21 @@ body.has-kader-dialog {
 
 @media (max-width: 680px) {
   .tanya-scroll {
-    padding: 18px 14px 6px;
+    padding: 14px 14px 6px;
+  }
+
+  .tanya-intro {
+    padding: 14px 0 8px;
+  }
+
+  .tanya-intro img {
+    width: 52px;
+    height: 52px;
+  }
+
+  .tanya-intro > p {
+    margin-bottom: 14px;
+    font-size: .9rem;
   }
 
   .tanya-msg {
@@ -4026,8 +4194,21 @@ body.has-kader-dialog {
     font-size: .78rem;
   }
 
-  .tanya-chips {
-    grid-template-columns: 1fr;
+  .tanya-composer {
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .tanya-meter {
+    align-items: flex-start;
+  }
+
+  .tanya-meter > span {
+    min-width: 0;
+  }
+
+  .tanya-reset {
+    flex: 0 0 auto;
   }
 
   .tanya-disclaimer {

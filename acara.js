@@ -9,7 +9,7 @@
 (() => {
   const API = window.PBPII_CONFIG?.apiEndpoint || '/api/pii';
   const CACHE_KEY = 'pbpii_acara_feed';
-  const MAX_CARD = 24;
+  const PAGE_SIZE = 12;
 
   const listEl = document.querySelector('#acaraList');
   const tabsEl = document.querySelector('#acaraTabs');
@@ -19,9 +19,12 @@
   const standardEl = document.querySelector('#acaraStandard');
   const defaultEl = document.querySelector('#keaktifanDefault');
   const hiddenEl = document.querySelector('#acaraHidden');
+  const resultCountEl = document.querySelector('#acaraResultCount');
+  const resetFiltersEl = document.querySelector('#acaraResetFilters');
   if (!listEl) return;
 
   const state = { events: [], filter: 'upcoming', query: '', level: '', defaultMin: null, stale: false };
+  let visibleCount = PAGE_SIZE;
   /** Utas yang sedang dibuka, supaya repaint tidak menghapus komentar yang sedang ditulis. */
   const open = new Set();
   let deepHandled = false;
@@ -49,6 +52,10 @@
     const url = String(value || '').trim();
     return /^https:\/\//i.test(url) ? escapeHTML(url) : 'assets/logo-pii.png';
   };
+  const calendarText = (value) => String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\r?\n/g, '\\n')
+    .replace(/([,;])/g, '\\$1');
 
   /** Satu jalur POST untuk semua aksi: error server selalu punya pesan + kode. */
   async function api(body) {
@@ -167,6 +174,7 @@
     const id = escapeHTML(event.id);
     const likes = Number(event.likes) || 0;
     const replies = Number(event.commentCount) || 0;
+    const organizer = event.host?.name || 'Lembaga PII';
 
     return `
       <article class="acara-card${canReveal ? ' reveal' : ''}${event.upcoming ? '' : ' is-past'}" data-event="${id}">
@@ -176,6 +184,10 @@
           ${event.upcoming ? '' : '<span class="acara-tag-lampau">Sudah berlangsung</span>'}
         </div>
         <div class="acara-body">
+          <div class="acara-author">
+            <span class="acara-author-avatar" aria-hidden="true">${escapeHTML(initials(organizer))}</span>
+            <span><b>${escapeHTML(organizer)}</b><small>${escapeHTML(event.host?.jenjangLabel || event.host?.jenjang || 'Penyelenggara')}</small></span>
+          </div>
           <div class="acara-meta">
             <span>${escapeHTML(event.category || 'Kegiatan')}</span>
             <span class="acara-jenjang">${escapeHTML(event.host?.jenjangLabel || event.host?.jenjang || 'PII')}</span>
@@ -184,7 +196,10 @@
           <p class="acara-when">${escapeHTML(longDate(event.date))}</p>
           ${place ? `<p class="acara-where">${escapeHTML(place)}</p>` : ''}
           ${event.excerpt ? `<p class="acara-desc">${escapeHTML(event.excerpt)}</p>` : ''}
-          <div class="acara-actions">${cta}${quota}</div>
+          <div class="acara-actions">
+            ${cta}${quota}
+            <button class="acara-calendar" type="button" data-calendar="${id}"><small>Tambahkan ke kalender</small></button>
+          </div>
           <div class="acara-social">
             <button class="acara-like${event.liked ? ' is-on' : ''}" type="button" data-like="${id}"
               aria-pressed="${event.liked ? 'true' : 'false'}" aria-label="Suka acara ini">
@@ -367,6 +382,52 @@
       } catch (error) {
         if (error?.name === 'AbortError') return;
       }
+
+      function downloadCalendar(button) {
+        const event = eventById(button.dataset.calendar);
+        if (!event || !/^\d{4}-\d{2}-\d{2}$/.test(String(event.date || ''))) {
+          toast(button, 'Tanggal acara belum valid untuk ditambahkan ke kalender.');
+          return;
+        }
+
+        const [year, month, day] = event.date.split('-').map(Number);
+        const start = new Date(Date.UTC(year, month - 1, day));
+        if (start.getUTCFullYear() !== year || start.getUTCMonth() !== month - 1 || start.getUTCDate() !== day) {
+          toast(button, 'Tanggal acara belum valid untuk ditambahkan ke kalender.');
+          return;
+        }
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 1);
+        const dateStamp = (value) => value.toISOString().slice(0, 10).replace(/-/g, '');
+        const eventUrl = new URL(`acara.html?event=${encodeURIComponent(event.id)}`, location.href).href;
+        const lines = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//Pelajar Islam Indonesia//Agenda Acara//ID',
+          'CALSCALE:GREGORIAN',
+          'BEGIN:VEVENT',
+          `UID:${encodeURIComponent(String(event.id))}@pbpii.or.id`,
+          `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+          `DTSTART;VALUE=DATE:${dateStamp(start)}`,
+          `DTEND;VALUE=DATE:${dateStamp(end)}`,
+          `SUMMARY:${calendarText(event.title)}`,
+          `DESCRIPTION:${calendarText(event.excerpt)}`,
+          `LOCATION:${calendarText(event.location)}`,
+          `URL:${eventUrl}`,
+          'END:VEVENT',
+          'END:VCALENDAR',
+          ''
+        ];
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        const fileName = String(event.title || 'acara-pii').normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'acara-pii';
+        link.href = URL.createObjectURL(blob);
+        link.download = `${fileName}.ics`;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        flash(button, 'Berkas kalender siap');
+      }
     }
     try {
       await navigator.clipboard.writeText(link);
@@ -460,6 +521,8 @@
     if (talk) return open.has(talk.dataset.thread) ? hideThread(talk.dataset.thread) : showThread(talk.dataset.thread);
     const share = event.target.closest('[data-share]');
     if (share) return shareEvent(share);
+    const calendar = event.target.closest('[data-calendar]');
+    if (calendar) return downloadCalendar(calendar);
   });
 
   listEl.addEventListener('submit', (event) => {
@@ -471,7 +534,13 @@
 
   function paint() {
     const rows = state.events.filter(matches).sort(order);
-    const shown = rows.slice(0, MAX_CARD);
+    const shown = rows.slice(0, visibleCount);
+    if (resultCountEl) {
+      resultCountEl.textContent = `Menampilkan ${shown.length} dari ${rows.length} acara`;
+    }
+    if (resetFiltersEl) {
+      resetFiltersEl.hidden = state.filter === 'upcoming' && !state.query && !state.level;
+    }
 
     if (!rows.length) {
       listEl.innerHTML = state.stale
@@ -488,13 +557,42 @@
     });
     const extra = rows.length - shown.length;
     hiddenEl.hidden = extra <= 0;
-    hiddenEl.textContent = extra > 0 ? `${extra} acara lain cocok — persempit dengan pencarian atau jenjang.` : '';
+    hiddenEl.innerHTML = extra > 0
+      ? `<button class="acara-load-more" type="button" data-load-more> Tampilkan ${Math.min(PAGE_SIZE, extra)} acara berikutnya <span>(${extra} tersisa)</span></button>`
+      : '';
 
     const upcoming = state.events.filter((event) => event.upcoming).length;
     countEl.textContent = upcoming
       ? `${upcoming} agenda mendatang`
       : `${state.events.length} dokumentasi kegiatan`;
   }
+
+  hiddenEl?.addEventListener('click', (event) => {
+    if (!event.target.closest('[data-load-more]')) return;
+    visibleCount += PAGE_SIZE;
+    paint();
+    const next = hiddenEl.querySelector('[data-load-more]');
+    if (next) next.focus();
+    else {
+      listEl.setAttribute('tabindex', '-1');
+      listEl.focus();
+    }
+  });
+
+  resetFiltersEl?.addEventListener('click', () => {
+    state.filter = 'upcoming';
+    state.query = '';
+    state.level = '';
+    visibleCount = PAGE_SIZE;
+    if (searchEl) searchEl.value = '';
+    if (levelEl) levelEl.value = '';
+    tabsEl?.querySelectorAll('button[data-filter]').forEach((button) => {
+      const active = button.dataset.filter === 'upcoming';
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    paint();
+  });
 
   function applyKeaktifan(defaultMin) {
     if (!Number.isFinite(defaultMin)) return;
@@ -549,17 +647,24 @@
     const button = event.target.closest('button[data-filter]');
     if (!button) return;
     state.filter = button.dataset.filter;
-    [...tabsEl.querySelectorAll('button')].forEach((item) => item.classList.toggle('is-active', item === button));
+    visibleCount = PAGE_SIZE;
+    [...tabsEl.querySelectorAll('button')].forEach((item) => {
+      const active = item === button;
+      item.classList.toggle('is-active', active);
+      item.setAttribute('aria-pressed', String(active));
+    });
     paint();
   });
 
   searchEl?.addEventListener('input', () => {
     state.query = searchEl.value.trim().toLowerCase();
+    visibleCount = PAGE_SIZE;
     paint();
   });
 
   levelEl?.addEventListener('change', () => {
     state.level = levelEl.value;
+    visibleCount = PAGE_SIZE;
     paint();
   });
 

@@ -17,8 +17,10 @@
   const ADMIN_TOKEN_KEY = 'pbpii_admin_token';
   const ORG_TOKEN_KEY = 'pbpii_org_token';
   const THREAD_KEY = 'pbpii_tanya_thread';
+  const THREAD_VERSION_KEY = 'pbpii_tanya_thread_version';
   const DEVICE_KEY = 'pbpii_tanya_device';
   const MAX_TURNS = 12;
+  const THREAD_VERSION = '2';
 
   const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -81,13 +83,17 @@
     const scroll = document.querySelector('#tanyaScroll');
     const thread = document.querySelector('#tanyaThread');
     const intro = document.querySelector('#tanyaIntro');
-    const chips = document.querySelector('#tanyaChips');
     const form = document.querySelector('#tanyaComposer');
     const input = document.querySelector('#tanyaInput');
     const submit = document.querySelector('#tanyaSubmit');
     const quota = document.querySelector('#tanyaQuota');
     const reset = document.querySelector('#tanyaReset');
     if (!scroll || !thread || !form) return;
+
+    if (localStorage.getItem(THREAD_VERSION_KEY) !== THREAD_VERSION) {
+      localStorage.removeItem(THREAD_KEY);
+      localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
+    }
 
     let turns = [];
     try {
@@ -110,9 +116,16 @@
      * Nama berkas + halaman yang tadi dikutip model. Isinya tidak ikut dikirim ke
      * browser, hanya judul, kategori, dan nomor halaman sebagai rujukan pembaca.
      */
-    function sumberBlok(rujukan) {
+    function sumberBlok(rujukan, status) {
       const daftar = (Array.isArray(rujukan) ? rujukan : []).filter((item) => item && item.judul);
-      if (!daftar.length) return '';
+      if (!daftar.length) {
+        const keterangan = status === 'access_required'
+          ? 'Perlu masuk untuk membuka sumber Pustaka.'
+          : status === 'no_source' ? 'Belum ditemukan kutipan Pustaka yang relevan.' : '';
+        return keterangan
+          ? `<div class="tanya-sumber is-empty"><p class="tanya-sumber-title">${escapeHTML(keterangan)}</p></div>`
+          : '';
+      }
       const baris = daftar.slice(0, 3).map((sumber) => {
         const halaman = Array.isArray(sumber.halaman) && sumber.halaman.length
           ? (sumber.halaman[0] === sumber.halaman[1] ? ` hal. ${sumber.halaman[0]}` : ` hal. ${sumber.halaman[0]}-${sumber.halaman[1]}`)
@@ -126,7 +139,7 @@
       return `<div class="tanya-sumber"><p class="tanya-sumber-title">Dijawab dari berkas organisasi${tautan}:</p><ul>${baris}</ul></div>`;
     }
 
-    function bubble(role, content, rujukan) {
+    function bubble(role, content, rujukan, status) {
       const row = document.createElement('div');
       row.className = `tanya-row is-${role}`;
       row.innerHTML = `
@@ -135,7 +148,7 @@
             ? '<img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src=\'assets/logo-pii.png\'">'
             : 'A'
         }</span>
-        <div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan) : ''}</div>`;
+        <div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, status) : ''}</div>`;
       thread.append(row);
       return row;
     }
@@ -199,13 +212,14 @@
 
     function paint(paksa) {
       thread.replaceChildren();
-      turns.forEach((turn) => bubble(turn.role, turn.content, turn.rujukan));
+      turns.forEach((turn) => bubble(turn.role, turn.content, turn.rujukan, turn.status));
       intro.hidden = turns.length > 0;
       stick(paksa);
     }
 
     const save = () => {
       localStorage.setItem(THREAD_KEY, JSON.stringify(turns.slice(-MAX_TURNS)));
+      localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
     };
 
     function setBusy(value) {
@@ -228,7 +242,6 @@
       grow();
       setBusy(true);
 
-      const history = turns.slice(-MAX_TURNS, -1).map(({ role, content }) => ({ role, content }));
       const row = pending('Sedang menuliskan jawaban…');
       stick(true);
       const start = Date.now();
@@ -237,22 +250,27 @@
         const data = await askServer({
           action: 'chat',
           message: text,
-          history,
           token: sessionToken(),
           device: deviceId()
         });
         row.remove();
         const reply = String(data?.reply || '').trim() || 'Layanan AI tidak menghasilkan jawaban.';
+        const rujukan = (Array.isArray(data?.rujukan) ? data.rujukan : [])
+          .filter((sumber) => sumber?.judul)
+          .map((sumber) => ({
+            judul: String(sumber.judul).slice(0, 120),
+            kategori: String(sumber.kategori || '').slice(0, 40),
+            halaman: Array.isArray(sumber.halaman) ? sumber.halaman.slice(0, 2) : [],
+          }));
+        const status = ['access_required', 'no_source'].includes(data?.status) ? data.status : '';
+        if (!status && !rujukan.length) {
+          throw new Error('Jawaban tidak dilengkapi rujukan berkas PII, jadi tidak ditampilkan.');
+        }
         turns.push({
           role: 'assistant',
           content: reply,
-          rujukan: (Array.isArray(data?.rujukan) ? data.rujukan : [])
-            .filter((sumber) => sumber?.judul)
-            .map((sumber) => ({
-              judul: String(sumber.judul).slice(0, 120),
-              kategori: String(sumber.kategori || '').slice(0, 40),
-              halaman: Array.isArray(sumber.halaman) ? sumber.halaman.slice(0, 2) : [],
-            })),
+          rujukan,
+          status,
         });
         save();
         paint();
@@ -283,6 +301,10 @@
     }
 
     async function loadQuota() {
+      if (!sessionToken()) {
+        quota.textContent = 'Masuk dengan akun kader atau pengurus yang memiliki akses Pustaka untuk bertanya.';
+        return;
+      }
       try {
         const status = await askServer({ action: 'chatStatus', token: sessionToken(), device: deviceId() });
         paintMeter({
@@ -330,14 +352,11 @@
       event.preventDefault();
       send(input.value);
     });
-    chips?.addEventListener('click', (event) => {
-      const chip = event.target.closest('button');
-      if (chip) send(chip.textContent);
-    });
     reset?.addEventListener('click', () => {
       clearTimeout(retryTimer);
       turns = [];
       localStorage.removeItem(THREAD_KEY);
+      localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
       paint(true);
       intro.hidden = false;
       loadQuota();

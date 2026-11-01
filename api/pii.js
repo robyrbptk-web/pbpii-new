@@ -25,16 +25,16 @@ const READ_ACTIONS = new Set([
 
 const WRITE_ACTIONS = new Set([
   'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'kaderEmailLogin',
-  'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage'
+  'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage'
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */
 const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLogin']);
 
-/** Base64 photo uploads are the only payload allowed to be big. */
+/** Base64 media/PDF uploads are the only payloads allowed to be large. */
 const MAX_BODY_BYTES = 220_000;
 const MAX_UPLOAD_BYTES = 4_500_000;
-const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage']);
+const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage', 'orgUploadPdf', 'orgUploadLetterImage']);
 
 const hits = new Map();
 
@@ -102,7 +102,9 @@ export default async function handler(req, res) {
     return res.status(413).json({
       ok: false,
       error: isUpload
-        ? 'Foto terlalu besar untuk diunggah (maksimal sekitar 3 MB).'
+        ? action === 'orgUploadPdf'
+          ? 'Lampiran PDF terlalu besar untuk diunggah (maksimal 2,5 MB).'
+          : 'Foto terlalu besar untuk diunggah (maksimal sekitar 3 MB).'
         : 'Permintaan terlalu besar untuk diproses.'
     });
   }

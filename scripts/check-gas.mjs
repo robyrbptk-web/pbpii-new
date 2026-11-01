@@ -14,14 +14,14 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const HEADERS = {
-  Articles: ['id', 'title', 'slug', 'category', 'excerpt', 'content', 'coverImage', 'author', 'status', 'createdAt', 'updatedAt'],
+  Articles: ['id', 'title', 'slug', 'category', 'excerpt', 'content', 'coverImage', 'author', 'status', 'createdAt', 'updatedAt', 'seoTitle', 'seoDescription', 'seoKeywords'],
   Gallery: ['id', 'title', 'imageUrl', 'caption', 'featured', 'sortOrder', 'createdAt'],
   Settings: ['key', 'value'],
   Orgs: ['id', 'jenjang', 'name', 'province', 'district', 'subdistrict', 'parentId', 'email', 'passwordHash', 'passwordSalt', 'phone', 'skUrl', 'status', 'verifiedBy', 'verifiedAt', 'createdAt', 'updatedAt', 'lastLoginAt', 'note'],
   Activities: ['id', 'orgId', 'title', 'category', 'date', 'location', 'description', 'participants', 'coverImage', 'status', 'createdAt', 'updatedAt'],
   Forms: ['id', 'orgId', 'activityId', 'title', 'description', 'status', 'createdAt', 'updatedAt'],
   Participants: ['id', 'formId', 'orgId', 'name', 'institution', 'phone', 'email', 'note', 'createdAt'],
-  Letters: ['id', 'fromOrgId', 'toOrgId', 'category', 'subject', 'body', 'status', 'createdAt', 'readAt'],
+  Letters: ['id', 'fromOrgId', 'toOrgId', 'category', 'subject', 'body', 'status', 'createdAt', 'readAt', 'replyToId', 'threadId', 'attachmentId', 'attachmentName'],
   Sessions: ['token', 'kind', 'subject', 'createdAt', 'expiresAt'],
   Chat: ['createdAt', 'kind', 'subject', 'question', 'answer', 'provider', 'status'],
   Standards: ['id', 'orgId', 'minPerMonth', 'setByOrgId', 'setByName', 'note', 'updatedAt'],
@@ -131,7 +131,8 @@ const Utilities = {
   getUuid: () => `fixture-${(++uuidSeq).toString(16).padStart(4, '0')}`,
   computeDigest: (_algo, value) => Array.from(createHash('sha256').update(String(value)).digest()),
   DigestAlgorithm: { SHA_256: 'SHA_256' },
-  base64Decode: (raw) => Array.from(Buffer.from(String(raw), 'base64'))
+  base64Decode: (raw) => Array.from(Buffer.from(String(raw), 'base64')),
+  base64Encode: (bytes) => Buffer.from(bytes).toString('base64')
 };
 
 /** CacheService palsu: hitungan jendela geser dan captcha harus benar-benar hidup. */
@@ -221,20 +222,47 @@ const pustakaFile = {
 const fakeFolder = {
   getId: () => 'fixture-folder-media',
   getName: () => 'PB PII Media',
+  setSharing() {},
   getFilesByName(nama) {
     const berkas = String(nama) === 'pustaka.json' ? [pustakaFile] : [];
     let index = 0;
     return { hasNext: () => index < berkas.length, next: () => berkas[index++] };
   },
   createFile(name, bytes, mime) {
-    driveFiles.push({ name: String(name), bytes: bytes.length, mime: String(mime) });
-    return { getId: () => `fixture-file-${driveFiles.length}`, setSharing() {} };
+    const record = {
+      id: `fixture-file-${driveFiles.length + 1}`,
+      name: String(name),
+      bytes: Array.from(bytes),
+      mime: String(mime),
+      description: '',
+      sharing: null
+    };
+    driveFiles.push(record);
+    return {
+      getId: () => record.id,
+      getName: () => record.name,
+      getMimeType: () => record.mime,
+      getDescription: () => record.description,
+      setDescription: (value) => { record.description = String(value); },
+      setSharing: (access, permission) => { record.sharing = { access, permission }; },
+      getBlob: () => ({ getBytes: () => record.bytes.slice() })
+    };
   }
 };
 const DriveApp = {
-  Access: { ANYONE_WITH_LINK: 'ANYONE_WITH_LINK' },
-  Permission: { LIMITED: 'LIMITED' },
+  Access: { ANYONE_WITH_LINK: 'ANYONE_WITH_LINK', PRIVATE: 'PRIVATE' },
+  Permission: { VIEW: 'VIEW' },
   getFolderById: () => fakeFolder,
+  getFileById(id) {
+    const record = driveFiles.find((file) => file.id === String(id));
+    if (!record) throw new Error('Berkas Drive tidak ditemukan.');
+    return {
+      getName: () => record.name,
+      getMimeType: () => record.mime,
+      getDescription: () => record.description,
+      getBlob: () => ({ getBytes: () => record.bytes.slice() })
+    };
+  },
   getFoldersByName: () => ({ hasNext: () => true, next: () => fakeFolder }),
   createFolder: () => fakeFolder
 };
@@ -247,7 +275,9 @@ const exported = [
   'doPost', 'throttle_', 'clientIp_', 'captchaIssue_', 'assertCaptcha_', 'kaderLogin_',
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
   'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_',
-  'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_'
+  'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_',
+  'ensureDefaultSettings_', 'sanitizeArticleHtml_', 'sanitizeLetterHtml_', 'saveArticle_', 'uploadImage_',
+  'orgUploadPdf_', 'orgUploadLetterImage_', 'orgSendLetter_', 'orgReadLetterAttachment_', 'orgReadLetterImage_'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
@@ -334,6 +364,144 @@ function check(label, actual, expected) {
   const e = JSON.stringify(expected);
   checks.push({ label, ok: a === e, actual: a, expected: e });
 }
+
+const savedSettings = SHEETS.Settings;
+SHEETS.Settings = [
+  { key: 'heroTitle', value: 'Organisasi Pelajar Tertua di Indonesia, Bergerak Sejak 4 Mei 1947' },
+  { key: 'heroText', value: 'Salinan yang sudah diubah redaksi.' },
+  { key: 'aboutText', value: 'Pelajar Islam Indonesia (PII) berdiri di Yogyakarta pada 4 Mei 1947 dan menjadi organisasi pelajar tertua di Indonesia. PII bergerak dalam bidang pendidikan dan kebudayaan dengan tujuan mewujudkan kesempurnaan pendidikan dan kebudayaan yang sesuai dengan Islam bagi segenap rakyat Indonesia dan umat manusia.' }
+];
+gas.ensureDefaultSettings_(new FakeSheet('Settings'));
+check('homepage defaults migrate without overwriting editorial copy', [
+  rowsOf('Settings').find((row) => row.key === 'heroTitle')?.value,
+  rowsOf('Settings').find((row) => row.key === 'heroText')?.value,
+  rowsOf('Settings').find((row) => row.key === 'aboutText')?.value
+], [
+  'Membina Pelajar, Menguatkan Pendidikan dan Kebudayaan',
+  'Salinan yang sudah diubah redaksi.',
+  'Buku Panduan Kelembagaan (PII) mencatat bahwa Pelajar Islam Indonesia lahir pada 4 Mei 1947 dan merupakan organisasi pelajar Islam tertua di Indonesia. Ebook Ta’dib PII merumuskan tujuan PII sebagai kesempurnaan pendidikan dan kebudayaan yang sesuai dengan Islam bagi seluruh rakyat Indonesia dan umat manusia.'
+]);
+SHEETS.Settings = savedSettings;
+
+const savedArticle = gas.saveArticle_({
+  title: 'Panduan kegiatan pelajar',
+  slug: 'panduan-kegiatan-pelajar',
+  status: 'published',
+  content: '<h2>Persiapan</h2><p>Baca <a href="https://example.org/panduan">panduan</a>.</p>',
+  seoTitle: 'Panduan kegiatan pelajar PII',
+  seoDescription: 'Langkah ringkas untuk menyiapkan kegiatan pelajar.',
+  seoKeywords: 'PII, kegiatan, pelajar'
+});
+const savedArticleRow = rowsOf('Articles').find((row) => row.id === savedArticle.id);
+check('article rich text and SEO metadata are stored safely', [
+  savedArticleRow.slug,
+  savedArticleRow.content,
+  savedArticleRow.seoTitle,
+  savedArticleRow.seoDescription,
+  savedArticleRow.seoKeywords
+], [
+  'panduan-kegiatan-pelajar',
+  '<h2>Persiapan</h2><p>Baca <a href="https://example.org/panduan" rel="noopener noreferrer">panduan</a>.</p>',
+  'Panduan kegiatan pelajar PII',
+  'Langkah ringkas untuk menyiapkan kegiatan pelajar.',
+  'PII, kegiatan, pelajar'
+]);
+
+check('article sanitizer removes scripts and unsafe formatting attributes', gas.sanitizeArticleHtml_(
+  '<h2 style="color:red">Aman</h2><p onclick="evil()">Teks <a href="javascript:alert(1)">tautan</a></p>' +
+  '<script>alert(1)</script><img src="https://example.org/foto.jpg" onerror="evil()" alt="Foto">'
+), '<h2>Aman</h2><p>Teks <a>tautan</a></p><img src="https://example.org/foto.jpg" alt="Foto" loading="lazy">');
+check('letter sanitizer allows private image references but blocks external images', gas.sanitizeLetterHtml_(
+  '<p>Isi surat</p><img src="https://example.org/pixel.png"><img src="pbpii-letter-image:private-image" alt="Rapat">'
+), '<p>Isi surat</p><img src="pbpii-letter-image:private-image" alt="Rapat" loading="lazy">');
+
+const photo = gas.uploadImage_({
+  name: 'cover.jpg',
+  data: Buffer.from([0xFF, 0xD8, 0xFF, 0x00]).toString('base64')
+});
+check('uploaded photos receive a working link-view permission', driveFiles.find((file) => file.id === photo.fileId)?.sharing, {
+  access: 'ANYONE_WITH_LINK',
+  permission: 'VIEW'
+});
+
+const senderOrg = rowsOf('Orgs').find((row) => row.id === 'pk-untan');
+const receiverOrg = rowsOf('Orgs').find((row) => row.id === 'pd-pontianak');
+const privateImage = gas.orgUploadLetterImage_(senderOrg, {
+  name: 'Foto rapat.jpg',
+  data: Buffer.from([0xFF, 0xD8, 0xFF, 0x00]).toString('base64'),
+  ip: 'letter-image-upload-fixture'
+});
+check('letter inline images remain private in Drive', driveFiles.find((file) => file.id === privateImage.fileId)?.sharing, {
+  access: 'PRIVATE',
+  permission: 'VIEW'
+});
+const pdfBytes = Buffer.from('%PDF-1.7\nPII letter fixture');
+const attachment = gas.orgUploadPdf_(senderOrg, {
+  name: 'Surat resmi.pdf',
+  data: pdfBytes.toString('base64'),
+  ip: 'letter-upload-fixture'
+});
+const sentLetter = gas.orgSendLetter_(senderOrg, {
+  toOrgId: receiverOrg.id,
+  category: 'Kelembagaan',
+  subject: 'Permohonan koordinasi',
+  body: 'Isi surat resmi dengan gambar <img src="pbpii-letter-image:' + privateImage.fileId + '" alt="Foto rapat">',
+  attachmentId: attachment.fileId,
+  attachmentName: attachment.name
+});
+const receivedPdf = gas.orgReadLetterAttachment_(receiverOrg, sentLetter.id);
+check('letter PDF is readable by its recipient', [
+  receivedPdf.name,
+  receivedPdf.mime,
+  Buffer.from(receivedPdf.data, 'base64').toString()
+], [attachment.name, 'application/pdf', pdfBytes.toString()]);
+check('letter PDF remains private in Drive', driveFiles.find((file) => file.id === attachment.fileId)?.sharing, {
+  access: 'PRIVATE',
+  permission: 'VIEW'
+});
+const receivedImage = gas.orgReadLetterImage_(receiverOrg, sentLetter.id, privateImage.fileId);
+check('a recipient can read only inline images embedded in their letter', [
+  receivedImage.mime,
+  Buffer.from(receivedImage.data, 'base64').toString('hex')
+], ['image/jpeg', 'ffd8ff00']);
+const reply = gas.orgSendLetter_(receiverOrg, {
+  toOrgId: senderOrg.id,
+  category: 'Kelembagaan',
+  subject: 'Re: Permohonan koordinasi',
+  body: 'Balasan untuk surat tersebut.',
+  replyToId: sentLetter.id
+});
+check('a direct superior can reply in the original letter thread', [
+  reply.replyToId,
+  reply.threadId
+], [sentLetter.id, sentLetter.threadId]);
+let deniedReply = false;
+try {
+  gas.orgSendLetter_(receiverOrg, {
+    toOrgId: 'pw-kalbar',
+    category: 'Kelembagaan',
+    subject: 'Balasan salah tujuan',
+    body: 'Tidak boleh keluar dari percakapan.',
+    replyToId: sentLetter.id
+  });
+} catch (error) {
+  deniedReply = /Balasan harus dikirim/.test(error.message);
+}
+check('letter replies cannot be redirected to another organization', deniedReply, true);
+let deniedPdfRead = false;
+try {
+  gas.orgReadLetterAttachment_(rowsOf('Orgs').find((row) => row.id === 'pw-kalbar'), sentLetter.id);
+} catch (error) {
+  deniedPdfRead = /hanya dapat dibuka/.test(error.message);
+}
+check('unrelated organizations cannot read letter attachments', deniedPdfRead, true);
+let deniedImageRead = false;
+try {
+  gas.orgReadLetterImage_(rowsOf('Orgs').find((row) => row.id === 'pw-kalbar'), sentLetter.id, privateImage.fileId);
+} catch (error) {
+  deniedImageRead = /hanya dapat dibuka/.test(error.message);
+}
+check('unrelated organizations cannot read private letter images', deniedImageRead, true);
 
 const orgs = [];
 const byId = {};
@@ -735,23 +903,29 @@ const promptKader = http.calls.filter((call) => String(call.url).includes('polli
 const sistemKader = JSON.parse(promptKader.options.payload).messages[0].content;
 check('jawaban Tanya PII ikut mengirim kutipan berkas', /Waktu turba tidak dibatasi/.test(sistemKader), true);
 check('kutipan menyebut nama berkas dan nomor halaman', /Ebook Ta'dib PII \(halaman 120-124\)/.test(sistemKader), true);
-check('prompt memerintahkan merujuk berkas', /BERKAS ORGANISASI PII YANG RELEVAN/.test(sistemKader), true);
+check('prompt membatasi fakta pada kutipan Pustaka', /SATU-SATUNYA SUMBER FAKTA/.test(sistemKader), true);
 check('jawaban AI membawa daftar rujukan', tanyaKader.data.rujukan[0].judul, "Ebook Ta'dib PII");
 check('rujukan tidak ikut mengirim teks mentah', tanyaKader.data.rujukan[0].isi, undefined);
 
-request({ action: 'chat', message: 'Apa itu turba?', ip: '198.51.100.86' });
-const promptTamu = http.calls.filter((call) => String(call.url).includes('pollinations')).at(-1);
-check('pengunjung tidak menerima isi berkas internal',
-  /Waktu turba tidak dibatasi/.test(JSON.parse(promptTamu.options.payload).messages[0].content), false);
+const panggilanAITamuSebelum = http.calls.filter((call) => String(call.url).includes('pollinations')).length;
+const tanyaTamu = request({ action: 'chat', message: 'Apa itu turba?', ip: '198.51.100.86' });
+check('tamu tanpa akses Pustaka tidak menerima jawaban AI', tanyaTamu.ok, false);
+check('model tidak dipanggil tanpa akses Pustaka',
+  http.calls.filter((call) => String(call.url).includes('pollinations')).length, panggilanAITamuSebelum);
 
 const korpus = gas.pustakaKorpus_();
 check('pencarian kata yang tidak ada menghasilkan kosong', gas.pustakaCocok_(korpus, 'zirkoniumpalsu', 8).length, 0);
-check('rujukan AI untuk tamu kosong', gas.pustakaRujukanAI_('turba', 'tamu').length, 0);
+check('rujukan AI untuk tamu ditolak',
+  /memiliki akses Pustaka/.test(captureError(() => gas.pustakaRujukanAI_('turba', 'tamu'))), true);
+check('rujukan AI tanpa kecocokan memadai ditolak',
+  /belum ditemukan kutipan/i.test(captureError(() => gas.pustakaRujukanAI_('zirkonium palsu', 'kader'))), true);
 check('bentuk sitasi prompt', gas.pustakaPromptBagian_([]), '');
 
 const konteksAI = request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'aturan waktu turba', ip: '198.51.100.87' });
 check('gerbang AI minta potongan penuh ke Apps Script', /Waktu turba tidak dibatasi/.test(String(konteksAI.data.hasil[0].isi)), true);
 check('potongan rujukan dibatasi panjangnya', konteksAI.data.hasil.every((item) => String(item.isi).length <= 1400), true);
+check('konteks tanpa kecocokan substansial tetap kosong',
+  request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'apa itu', ip: '198.51.100.88' }).data.hasil.length, 0);
 
 // ------------------------------------------------------------------ laporan
 

@@ -117,6 +117,36 @@
     .letter .body{padding:0 14px 14px;color:#3d4d60;font-size:12.5px;white-space:pre-wrap;border-top:1px dashed var(--line);padding-top:12px;margin-top:2px}
     .letter .letter-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
     .letter.unread summary{background:#f7fbff}
+    .thread-messages{display:grid;gap:10px;padding:12px 14px}
+    .thread-message{min-width:0;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fbfcfd}
+    .thread-message.mine{background:#f0f7fc}
+    .thread-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;color:var(--navy);font-size:11.5px}
+    .thread-message .body{padding:0;border:0;margin:0;color:#3d4d60;font-size:13px;overflow-wrap:anywhere}
+    .thread-message .letter-actions{margin-top:10px}
+    .pdf-viewer{width:min(96vw,1000px);height:min(92dvh,900px);padding:0;border:0;border-radius:14px;box-shadow:0 18px 70px #061a2c66;overflow:hidden}
+    .pdf-viewer::backdrop{background:#07192acc}
+    .pdf-viewer-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)}
+    .pdf-viewer-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:750}
+    .pdf-viewer iframe{display:block;width:100%;height:calc(100% - 60px);border:0;background:#f2f4f6}
+    .attachment-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .attachment-tools input{max-width:100%;padding:8px}
+    .reply-context{padding:10px 12px;border:1px solid #cbdceb;background:#f2f7fb;border-radius:9px;color:var(--navy);font-size:12px}
+    .letter-editor-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#f8fafc}
+    .letter-editor-toolbar button,.letter-editor-toolbar select{width:auto;min-height:40px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font-weight:700}
+    .letter-editor-toolbar input[type="file"][hidden]{display:none}
+    .letter-rich-editor{min-height:210px;padding:13px;border:1px solid var(--line);border-radius:0 0 10px 10px;overflow-wrap:anywhere;line-height:1.7;outline:none}
+    .letter-rich-editor:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
+    .letter-rich-editor:empty::before{content:attr(data-placeholder);color:var(--muted)}
+    .letter-rich-editor img,.thread-message .body img{display:block;max-width:100%;height:auto;margin:12px auto;border-radius:9px}
+    .letter-rich-editor img[data-letter-image-id]{width:min(360px,100%);min-height:120px;object-fit:contain;background:#eef3f7}
+    .letter-rich-editor blockquote,.thread-message .body blockquote{margin:12px 0;padding:8px 12px;border-left:3px solid #86a9c5;background:#f2f7fb}
+    .letter-rich-editor [data-size="small"],.thread-message [data-size="small"]{font-size:.88em}
+    .letter-rich-editor [data-size="large"],.thread-message [data-size="large"]{font-size:1.2em}
+    .letter-rich-editor [data-font="serif"],.thread-message [data-font="serif"]{font-family:Georgia,"Times New Roman",serif}
+    .thread-message .body p{margin:0 0 10px}
+    .thread-message .body p:last-child{margin-bottom:0}
+    .thread-message .body ul,.thread-message .body ol{padding-left:1.35em}
+    .thread-message .body a{color:var(--blue);text-decoration:underline;text-underline-offset:.15em}
     table{width:100%;border-collapse:collapse;font-size:12px}
     th,td{text-align:left;padding:8px 7px;border-bottom:1px solid var(--line);vertical-align:top}
     th{color:var(--muted);font-size:10.5px;letter-spacing:.4px;text-transform:uppercase}
@@ -168,6 +198,10 @@
       .network-card .meta,.network-card .kpi-mini{font-size:11.5px}
       .who b{font-size:12px}
       th{font-size:11px}
+      .pdf-viewer{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0}
+      .thread-message{padding:10px}
+      .letter-editor-toolbar button,.letter-editor-toolbar select{min-height:44px}
+      .letter-rich-editor{min-height:180px}
     }
     .akt-bar{height:9px;border-radius:99px;background:#e8eef4;overflow:hidden;margin:2px 0 10px}
     .akt-bar>i{display:block;height:100%;width:0;border-radius:99px;background:var(--blue);transition:width .45s ease}
@@ -397,9 +431,35 @@
                 <div class="field"><label class="lbl" for="lTo">Tujuan *</label><select id="lTo" required></select></div>
                 <div class="field"><label class="lbl" for="lCategory">Kategori *</label><select id="lCategory"></select></div>
                 <div class="field full"><label class="lbl" for="lSubject">Subjek *</label><input id="lSubject" maxlength="180" required></div>
-                <div class="field full"><label class="lbl" for="lBody">Isi surat *</label><textarea id="lBody" maxlength="8000" required placeholder="Tulis isi surat atau pesan."></textarea></div>
+                <div class="field full">
+                  <label class="lbl" for="lBodyEditor">Isi surat *</label>
+                  <div class="letter-editor-toolbar" role="toolbar" aria-label="Pemformatan surat">
+                    <button type="button" data-letter-command="formatBlock" data-letter-value="p">Paragraf</button>
+                    <button type="button" data-letter-command="formatBlock" data-letter-value="h3">Judul</button>
+                    <button type="button" data-letter-command="bold" aria-label="Tebal"><b>B</b></button>
+                    <button type="button" data-letter-command="italic" aria-label="Miring"><i>I</i></button>
+                    <button type="button" data-letter-command="underline" aria-label="Garis bawah"><u>U</u></button>
+                    <button type="button" data-letter-command="insertUnorderedList">• Daftar</button>
+                    <button type="button" data-letter-command="insertOrderedList">1. Daftar</button>
+                    <button type="button" data-letter-command="formatBlock" data-letter-value="blockquote">Kutipan</button>
+                    <button type="button" id="letterAddLink">Tautkan</button>
+                    <select id="letterFont" aria-label="Jenis huruf surat"><option value="">Font</option><option value="Arial">Sans-serif</option><option value="Georgia">Serif</option></select>
+                    <select id="letterFontSize" aria-label="Ukuran huruf surat"><option value="">Ukuran</option><option value="2">Kecil</option><option value="3">Normal</option><option value="5">Besar</option></select>
+                    <button type="button" id="letterAddImage">Sisipkan gambar</button>
+                    <input id="letterInlineImage" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                  </div>
+                  <div id="lBodyEditor" class="letter-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Isi surat" data-placeholder="Tulis isi surat, gunakan toolbar untuk format, tautan, dan gambar."></div>
+                  <textarea id="lBody" class="hidden" tabindex="-1" aria-hidden="true"></textarea>
+                  <p class="hint">Gambar surat disimpan privat dan hanya dapat dilihat pengirim serta penerima.</p>
+                </div>
+                <div class="field full"><label class="lbl" for="lAttachment">Lampiran PDF (opsional)</label>
+                  <div class="attachment-tools"><input id="lAttachment" type="file" accept="application/pdf,.pdf"><button class="btn secondary hidden" id="removeLetterAttachment" type="button">Hapus lampiran</button></div>
+                  <p class="hint" id="letterAttachmentStatus">PDF maksimal 2,5 MB. Lampiran hanya dapat dibuka pengirim dan penerima.</p>
+                </div>
               </div>
-              <div class="btn-row"><button class="btn primary" type="submit">Kirim surat</button></div>
+              <input id="lReplyToId" type="hidden" value="">
+              <div class="reply-context hidden" id="replyContext" role="status"></div>
+              <div class="btn-row"><button class="btn primary" id="sendLetterBtn" type="submit">Kirim surat</button><button class="btn secondary hidden" id="cancelReply" type="button">Batal membalas</button></div>
             </form>
           </div>
           <div class="panel">
@@ -451,6 +511,10 @@
         </section>
       </main>
     </div>
+    <dialog class="pdf-viewer" id="letterPdfViewer" aria-label="Pratinjau lampiran PDF">
+      <div class="pdf-viewer-head"><span class="pdf-viewer-title" id="pdfViewerTitle">Lampiran surat</span><div class="item-actions"><a class="btn secondary" id="pdfDownload" href="#" download>Unduh PDF</a><button class="btn secondary" id="closePdfViewer" type="button">Tutup</button></div></div>
+      <iframe id="pdfViewerFrame" title="Pratinjau berkas PDF"></iframe>
+    </dialog>
 
     <nav class="bottom-nav" id="bottomNav">
       <button data-page="ringkasan" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="7" height="7" rx="1.8"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.8"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.8"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.8"/></svg><span>Ringkasan</span></button>
@@ -996,7 +1060,204 @@
 
     // ------------------------------------------------------------------ surat
 
+    function safeLetterHref(value) {
+      const href = String(value || '').trim();
+      if (/^https:\/\/[^\s]+$/i.test(href) || /^mailto:[^\s@]+@[^\s@]+$/i.test(href)) return href;
+      if (/^(?:\/(?!\/)|#|\.\/|\.\.\/)[^\s]*$/.test(href) && !/[\\\u0000-\u001f]/.test(href)) return href;
+      return '';
+    }
+
+    const LETTER_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+    function sanitizeLetterMarkup(value) {
+      const raw = String(value || '');
+      if (!/<\s*[a-z/][^>]*>/i.test(raw)) {
+        return raw.split(/\n\s*\n/).map((text) => text.trim()
+          ? '<p>' + esc(text).replace(/\n/g, '<br>') + '</p>'
+          : '').filter(Boolean).join('');
+      }
+      const parsed = new DOMParser().parseFromString(raw, 'text/html');
+      const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','ul','ol','li','blockquote','a','img','span','font']);
+      const blocked = new Set(['script','style','iframe','object','svg','math','template']);
+      const voids = new Set(['br','hr','img']);
+      const copy = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
+        if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+        const sourceTag = node.tagName.toLowerCase();
+        if (blocked.has(sourceTag)) return document.createDocumentFragment();
+        const tag = sourceTag === 'font' ? 'span' : sourceTag;
+        if (!allowed.has(sourceTag)) {
+          const fragment = document.createDocumentFragment();
+          node.childNodes.forEach((child) => fragment.append(copy(child)));
+          return fragment;
+        }
+        const element = document.createElement(tag);
+        if (tag === 'a') {
+          const href = safeLetterHref(node.getAttribute('href'));
+          if (href) {
+            element.href = href;
+            element.rel = 'noopener noreferrer';
+          }
+        } else if (tag === 'img') {
+          const src = String(node.getAttribute('src') || '');
+          const match = src.match(/^pbpii-letter-image:([a-zA-Z0-9_-]+)$/)
+            || String(node.getAttribute('data-letter-image-id') || '').match(/^([a-zA-Z0-9_-]+)$/);
+          if (!match) return document.createDocumentFragment();
+          element.setAttribute('src', LETTER_IMAGE_PLACEHOLDER);
+          element.dataset.letterImageId = match[1];
+          element.setAttribute('alt', String(node.getAttribute('alt') || 'Gambar surat').slice(0, 300));
+          element.loading = 'lazy';
+          return element;
+        } else if (tag === 'span') {
+          const size = sourceTag === 'font'
+            ? (['1','2'].includes(node.getAttribute('size')) ? 'small' : ['4','5','6','7'].includes(node.getAttribute('size')) ? 'large' : '')
+            : node.getAttribute('data-size');
+          const font = sourceTag === 'font'
+            ? (/georgia|times|serif/i.test(node.getAttribute('face') || '') ? 'serif' : /arial|sans/i.test(node.getAttribute('face') || '') ? 'sans' : '')
+            : node.getAttribute('data-font');
+          if (['small','normal','large'].includes(size)) element.dataset.size = size;
+          if (['serif','sans'].includes(font)) element.dataset.font = font;
+        }
+        if (!voids.has(tag)) node.childNodes.forEach((child) => element.append(copy(child)));
+        return element;
+      };
+      const output = document.createElement('div');
+      parsed.body.childNodes.forEach((node) => output.append(copy(node)));
+      return output.innerHTML;
+    }
+
+    function renderLetterBody(content, letterId) {
+      const raw = String(content || '');
+      const html = sanitizeLetterMarkup(raw);
+      if (!/<\s*[a-z/][^>]*>/i.test(raw)) return html;
+      const container = document.createElement('div');
+      container.innerHTML = html;
+      container.querySelectorAll('img[src]').forEach((image) => {
+        if (image.dataset.letterImageId) image.dataset.letterId = letterId;
+      });
+      return container.innerHTML;
+    }
+
+    function serializeLetterMarkup(value) {
+      const container = document.createElement('div');
+      container.innerHTML = sanitizeLetterMarkup(value);
+      container.querySelectorAll('img[data-letter-image-id]').forEach((image) => {
+        image.setAttribute('src', 'pbpii-letter-image:' + image.dataset.letterImageId);
+        image.removeAttribute('data-letter-image-id');
+      });
+      return container.innerHTML;
+    }
+
+    const privateLetterImageUrls = new Set();
+    function releasePrivateLetterImages() {
+      privateLetterImageUrls.forEach((url) => URL.revokeObjectURL(url));
+      privateLetterImageUrls.clear();
+    }
+
+    async function hydratePrivateLetterImages() {
+      const images = document.querySelectorAll('.thread-message img[data-letter-image-id]');
+      await Promise.all(Array.from(images).map(async (image) => {
+        try {
+          const result = await api('orgReadLetterImage', {
+            id: image.dataset.letterId,
+            imageId: image.dataset.letterImageId
+          });
+          const binary = atob(result.data);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+          const url = URL.createObjectURL(new Blob([bytes], { type: result.mime }));
+          privateLetterImageUrls.add(url);
+          if (image.isConnected) image.src = url;
+          else URL.revokeObjectURL(url);
+        } catch (error) {
+          image.alt = 'Gambar surat tidak dapat dibuka.';
+          image.title = 'Gambar surat tidak dapat dibuka: ' + error.message;
+        }
+      }));
+    }
+
+    const letterEditor = $('lBodyEditor');
+    let savedLetterRange = null;
+    const saveLetterRange = () => {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount && letterEditor.contains(selection.anchorNode)) {
+        savedLetterRange = selection.getRangeAt(0).cloneRange();
+      }
+    };
+    const restoreLetterRange = () => {
+      letterEditor.focus();
+      if (!savedLetterRange) return;
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(savedLetterRange);
+    };
+    const insertLetterHtml = (html) => {
+      restoreLetterRange();
+      document.execCommand('insertHTML', false, html);
+      saveLetterRange();
+    };
+
+    document.querySelector('.letter-editor-toolbar').addEventListener('mousedown', (event) => {
+      if (event.target.closest('button')) saveLetterRange();
+    });
+    document.querySelector('.letter-editor-toolbar').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-letter-command]');
+      if (!button) return;
+      restoreLetterRange();
+      document.execCommand(button.dataset.letterCommand, false, button.dataset.letterValue || null);
+      saveLetterRange();
+    });
+    $('letterFont').addEventListener('change', (event) => {
+      if (!event.target.value) return;
+      restoreLetterRange();
+      document.execCommand('fontName', false, event.target.value);
+      event.target.value = '';
+    });
+    $('letterFontSize').addEventListener('change', (event) => {
+      if (!event.target.value) return;
+      restoreLetterRange();
+      document.execCommand('fontSize', false, event.target.value);
+      event.target.value = '';
+    });
+    $('letterAddLink').addEventListener('click', () => {
+      const href = safeLetterHref(prompt('Masukkan URL HTTPS, alamat email, atau tautan bagian halaman:'));
+      if (!href) return;
+      restoreLetterRange();
+      document.execCommand('createLink', false, href);
+    });
+    $('letterAddImage').addEventListener('click', () => $('letterInlineImage').click());
+    $('letterInlineImage').addEventListener('change', async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const button = $('letterAddImage');
+      button.disabled = true;
+      try {
+        const prepared = await prepareImage(file);
+        const saved = await api('orgUploadLetterImage', { name: prepared.name, data: prepared.data });
+        const alt = saved.name || file.name || 'Gambar surat';
+        insertLetterHtml('<img data-letter-image-id="' + esc(saved.fileId) + '" alt="' + esc(alt) + '">');
+        toast('Gambar surat tersimpan privat.');
+      } catch (error) {
+        toast('Gambar surat gagal ditambahkan: ' + error.message);
+      } finally {
+        event.target.value = '';
+        button.disabled = false;
+      }
+    });
+    letterEditor.addEventListener('keyup', saveLetterRange);
+    letterEditor.addEventListener('mouseup', saveLetterRange);
+    letterEditor.addEventListener('paste', (event) => {
+      event.preventDefault();
+      const html = event.clipboardData.getData('text/html');
+      if (html) insertLetterHtml(sanitizeLetterMarkup(html));
+      else insertLetterHtml(esc(event.clipboardData.getData('text/plain')).replace(/\n/g, '<br>'));
+    });
+    letterEditor.addEventListener('drop', (event) => {
+      event.preventDefault();
+      toast('Untuk menyisipkan gambar, gunakan tombol Sisipkan gambar.');
+    });
+
     function renderLetters() {
+      releasePrivateLetterImages();
       $('lTo').innerHTML = state.contacts.length
         ? state.contacts.map((org) => '<option value="' + esc(org.id) + '">' + esc(org.name) + ' (' + esc(org.jenjang) + ')</option>').join('')
         : '<option value="">Belum ada tujuan yang tersedia</option>';
@@ -1008,32 +1269,64 @@
         (value === 'all' ? 'Semua' : value === 'unread' ? 'Belum dibaca' : value) + '</button>'
       )).join('');
 
-      const inbox = state.letters.inbox.filter((letter) => {
-        if (letterFilter === 'all') return true;
-        if (letterFilter === 'unread') return letter.status === 'unread';
-        return letter.category === letterFilter;
+      const groups = new Map();
+      [...state.letters.inbox, ...state.letters.outbox].forEach((letter) => {
+        const key = String(letter.threadId || letter.id);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(letter);
       });
+      const threads = Array.from(groups.values()).map((messages) =>
+        messages.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+      );
+      const inboxThreads = threads.filter((messages) => messages.some((item) => item.toOrgId === state.org.id));
+      const outboxThreads = threads.filter((messages) => messages.some((item) => item.fromOrgId === state.org.id));
+      const matchesFilter = (messages) => {
+        if (letterFilter === 'all') return true;
+        if (letterFilter === 'unread') return messages.some((item) => item.toOrgId === state.org.id && item.status === 'unread');
+        return messages.some((item) => item.category === letterFilter);
+      };
+      const renderThread = (messages) => {
+        const latest = messages[messages.length - 1];
+        const hasUnread = messages.some((item) => item.toOrgId === state.org.id && item.status === 'unread');
+        const unreadCount = messages.filter((item) => item.toOrgId === state.org.id && item.status === 'unread').length;
+        const otherName = latest.fromOrgId === state.org.id ? latest.toName : latest.fromName;
+        const replyTarget = latest.fromOrgId === state.org.id ? latest.toOrgId : latest.fromOrgId;
+        const replyName = latest.fromOrgId === state.org.id ? latest.toName : latest.fromName;
+        return '<details class="letter ' + (hasUnread ? 'unread' : '') + '">' +
+          '<summary><span class="badge cat">' + esc(latest.category) + '</span>' +
+          '<span class="sub">' + esc(latest.subject) + '</span>' +
+          '<span class="badge">' + messages.length + ' pesan' + (unreadCount ? ' · ' + unreadCount + ' baru' : '') + '</span>' +
+          '<small style="color:#7b8898;font-size:11px">' + esc(otherName) + ' · ' + fmtDate(latest.createdAt) + '</small></summary>' +
+          '<div class="thread-messages">' + messages.map((letter) => {
+            const isMine = letter.fromOrgId === state.org.id;
+            const actions = [];
+            if (letter.attachmentId) {
+              actions.push('<button class="btn secondary" type="button" data-open-letter-pdf="' + esc(letter.id) + '" data-pdf-name="' + esc(letter.attachmentName || 'Lampiran surat.pdf') + '">Buka PDF · ' + esc(letter.attachmentName || 'Lampiran') + '</button>');
+            }
+            if (!isMine && letter.status === 'unread') {
+              actions.push('<button class="btn secondary" type="button" data-letter="' + esc(letter.id) + '" data-status="read">Tandai dibaca</button>');
+            }
+            if (!isMine && letter.status !== 'done') {
+              actions.push('<button class="btn ghost" type="button" data-letter="' + esc(letter.id) + '" data-status="done">Tandai selesai</button>');
+            }
+            return '<article class="thread-message ' + (isMine ? 'mine' : '') + '">' +
+              '<div class="thread-head"><b>' + esc(letter.fromName) + ' → ' + esc(letter.toName) + '</b><time>' + fmtDate(letter.createdAt) + '</time></div>' +
+              '<div class="body">' + renderLetterBody(letter.body, letter.id) + '</div>' +
+              (actions.length ? '<div class="letter-actions">' + actions.join('') + '</div>' : '') +
+              '</article>';
+          }).join('') + '</div>' +
+          (canWrite() ? '<div class="letter-actions" style="padding:0 14px 14px"><button class="btn primary" type="button" data-reply-to="' + esc(latest.id) +
+            '" data-reply-target="' + esc(replyTarget) + '" data-reply-category="' + esc(latest.category) +
+            '" data-reply-subject="' + esc(latest.subject) + '">Balas kepada ' + esc(replyName) + '</button></div>' : '') +
+          '</details>';
+      };
 
       $('inboxCount').textContent = state.letters.inbox.filter((letter) => letter.status === 'unread').length + ' belum dibaca';
-      $('inboxList').innerHTML = inbox.map((letter) => (
-        '<details class="letter ' + (letter.status === 'unread' ? 'unread' : '') + '">' +
-        '<summary><span class="badge cat">' + esc(letter.category) + '</span><span class="sub">' + esc(letter.subject) + '</span>' +
-        '<span class="badge ' + (letter.status === 'unread' ? 'pending' : 'verified') + '">' +
-        (letter.status === 'unread' ? 'BARU' : letter.status === 'done' ? 'SELESAI' : 'DIBACA') + '</span>' +
-        '<small style="color:#7b8898;font-size:11px">' + esc(letter.fromName) + ' · ' + fmtDate(letter.createdAt) + '</small></summary>' +
-        '<div class="body">' + esc(letter.body) + '</div>' +
-        '<div class="letter-actions">' +
-        (letter.status !== 'read' ? '<button class="btn secondary" type="button" data-letter="' + esc(letter.id) + '" data-status="read">Tandai dibaca</button>' : '') +
-        (letter.status !== 'done' ? '<button class="btn ghost" type="button" data-letter="' + esc(letter.id) + '" data-status="done">Tandai selesai</button>' : '') +
-        '</div></details>'
-      )).join('') || '<div class="empty">Tidak ada surat pada saringan ini.</div>';
-
-      $('outboxList').innerHTML = state.letters.outbox.map((letter) => (
-        '<details class="letter"><summary><span class="badge cat">' + esc(letter.category) + '</span>' +
-        '<span class="sub">' + esc(letter.subject) + '</span><small style="color:#7b8898;font-size:11px">Ke ' +
-        esc(letter.toName) + ' · ' + fmtDate(letter.createdAt) + '</small></summary>' +
-        '<div class="body">' + esc(letter.body) + '</div></details>'
-      )).join('') || '<div class="empty">Belum ada surat terkirim.</div>';
+      $('inboxList').innerHTML = inboxThreads.filter(matchesFilter).map(renderThread).join('') ||
+        '<div class="empty">Tidak ada surat pada saringan ini.</div>';
+      $('outboxList').innerHTML = outboxThreads.map(renderThread).join('') ||
+        '<div class="empty">Belum ada surat terkirim.</div>';
+      hydratePrivateLetterImages();
     }
 
     $('letterFilters').addEventListener('click', (event) => {
@@ -1046,20 +1339,151 @@
     $('letterForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!canWrite()) return toast('Akun belum terverifikasi.');
+      const body = serializeLetterMarkup(letterEditor.innerHTML);
+      if (!letterEditor.textContent.trim() && !/<img\b[^>]*src="pbpii-letter-image:[a-zA-Z0-9_-]+"/i.test(body)) {
+        return toast('Tambahkan isi surat sebelum mengirim.');
+      }
+      const button = $('sendLetterBtn');
+      button.disabled = true;
       try {
+        const isReply = Boolean($('lReplyToId').value);
+        let attachment = stagedLetterPdf;
+        const file = $('lAttachment').files[0];
+        if (file && !attachment) {
+          const data = await readPdfAsBase64(file);
+          attachment = await api('orgUploadPdf', { name: file.name, data });
+          stagedLetterPdf = attachment;
+        }
         await api('orgSendLetter', {
           toOrgId: $('lTo').value,
           category: $('lCategory').value,
           subject: $('lSubject').value.trim(),
-          body: $('lBody').value
+          body,
+          replyToId: $('lReplyToId').value,
+          attachmentId: attachment ? attachment.fileId : '',
+          attachmentName: attachment ? attachment.name : ''
         });
-        $('lSubject').value = '';
-        $('lBody').value = '';
+        $('letterForm').reset();
+        letterEditor.innerHTML = '';
+        stagedLetterPdf = null;
+        $('letterAttachmentStatus').textContent = 'PDF maksimal 2,5 MB. Lampiran hanya dapat dibuka pengirim dan penerima.';
+        $('removeLetterAttachment').classList.add('hidden');
+        clearReplyMode();
         await loadData();
-        toast('Surat terkirim.');
+        toast(isReply ? 'Balasan surat terkirim.' : 'Surat terkirim.');
       } catch (error) {
         toast(error.message);
+      } finally {
+        button.disabled = false;
       }
+    });
+
+    let stagedLetterPdf = null;
+    $('lAttachment').addEventListener('change', async (event) => {
+      stagedLetterPdf = null;
+      const file = event.target.files[0];
+      $('removeLetterAttachment').classList.add('hidden');
+      if (!file) return;
+      if (file.size > 2.5 * 1024 * 1024) {
+        event.target.value = '';
+        $('letterAttachmentStatus').textContent = 'Ukuran PDF melebihi batas 2,5 MB.';
+        return toast('Ukuran lampiran PDF maksimal 2,5 MB.');
+      }
+      if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+        event.target.value = '';
+        $('letterAttachmentStatus').textContent = 'Pilih berkas PDF.';
+        return toast('Lampiran surat harus berformat PDF.');
+      }
+      const signature = await file.slice(0, 5).text();
+      if (signature !== '%PDF-') {
+        event.target.value = '';
+        $('letterAttachmentStatus').textContent = 'Berkas tidak memiliki format PDF yang valid.';
+        return toast('Berkas yang dipilih bukan PDF valid.');
+      }
+      $('letterAttachmentStatus').textContent = file.name + ' · ' + (file.size / 1024 / 1024).toFixed(2) + ' MB · siap dilampirkan.';
+      $('removeLetterAttachment').classList.remove('hidden');
+    });
+    $('removeLetterAttachment').addEventListener('click', () => {
+      $('lAttachment').value = '';
+      stagedLetterPdf = null;
+      $('letterAttachmentStatus').textContent = 'PDF maksimal 2,5 MB. Lampiran hanya dapat dibuka pengirim dan penerima.';
+      $('removeLetterAttachment').classList.add('hidden');
+    });
+
+    function readPdfAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('PDF gagal dibaca oleh browser.'));
+        reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function clearReplyMode() {
+      $('lReplyToId').value = '';
+      $('lTo').disabled = false;
+      $('lCategory').disabled = false;
+      $('replyContext').classList.add('hidden');
+      $('cancelReply').classList.add('hidden');
+      $('sendLetterBtn').textContent = 'Kirim surat';
+    }
+
+    $('cancelReply').addEventListener('click', clearReplyMode);
+
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-reply-to]');
+      if (!button) return;
+      const target = button.dataset.replyTarget;
+      if (!state.contacts.some((org) => org.id === target)) return toast('Tujuan balasan tidak lagi tersedia.');
+      $('lTo').value = target;
+      $('lCategory').value = button.dataset.replyCategory;
+      $('lTo').disabled = true;
+      $('lCategory').disabled = true;
+      $('lReplyToId').value = button.dataset.replyTo;
+      const subject = button.dataset.replySubject || '';
+      $('lSubject').value = /^re:/i.test(subject) ? subject : 'Re: ' + subject;
+      letterEditor.innerHTML = '';
+      $('replyContext').textContent = 'Membalas dalam percakapan: ' + subject + ' · tujuan dan kategori mengikuti surat asal.';
+      $('replyContext').classList.remove('hidden');
+      $('cancelReply').classList.remove('hidden');
+      $('sendLetterBtn').textContent = 'Kirim balasan';
+      setPage('surat');
+      $('lBody').focus();
+    });
+
+    let activePdfUrl = '';
+    async function openLetterPdf(id, name) {
+      try {
+        const result = await api('orgReadLetterAttachment', { id });
+        const binary = atob(result.data);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        if (activePdfUrl) URL.revokeObjectURL(activePdfUrl);
+        activePdfUrl = URL.createObjectURL(blob);
+        $('pdfViewerTitle').textContent = result.name || name || 'Lampiran surat';
+        $('pdfViewerFrame').src = activePdfUrl;
+        $('pdfDownload').href = activePdfUrl;
+        $('pdfDownload').download = result.name || name || 'lampiran-surat.pdf';
+        $('letterPdfViewer').showModal();
+      } catch (error) {
+        toast('Lampiran tidak dapat dibuka: ' + error.message);
+      }
+    }
+
+    function closeLetterPdf() {
+      const dialog = $('letterPdfViewer');
+      if (dialog.open) dialog.close();
+    }
+    $('closePdfViewer').addEventListener('click', closeLetterPdf);
+    $('letterPdfViewer').addEventListener('click', (event) => {
+      if (event.target === $('letterPdfViewer')) closeLetterPdf();
+    });
+    $('letterPdfViewer').addEventListener('close', () => {
+      $('pdfViewerFrame').src = 'about:blank';
+      $('pdfDownload').removeAttribute('href');
+      if (activePdfUrl) URL.revokeObjectURL(activePdfUrl);
+      activePdfUrl = '';
     });
 
     async function markLetter(id, status) {
@@ -1291,6 +1715,8 @@
       if (delP) return deleteParticipant(delP.dataset.deleteParticipant);
       const letter = target.closest('[data-letter]');
       if (letter) return markLetter(letter.dataset.letter, letter.dataset.status);
+      const attachment = target.closest('[data-open-letter-pdf]');
+      if (attachment) return openLetterPdf(attachment.dataset.openLetterPdf, attachment.dataset.pdfName);
       const standard = target.closest('[data-set-standard]');
       if (standard) return setStandard(standard);
       const bind = target.closest('[data-form-for]');

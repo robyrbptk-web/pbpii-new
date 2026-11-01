@@ -4,13 +4,27 @@ Fondasi website publik PB PII dengan artikel, sambutan Ketua Umum yang bisa diub
 
 ## Catatan copywriting dan sumber
 
-Naskah halaman depan mengikuti susunan dan bahasa situs resmi PB PII, https://pbpii.or.id/ — khususnya https://pbpii.or.id/profil-organisasi/, https://pbpii.or.id/misi-dan-eksistensi-pii/, https://pbpii.or.id/tujuan-pelajar-islam-indonesia/, dan https://pbpii.or.id/sejarah-perjuangan-pelajar-islam-indonesia/. PII berdiri di Yogyakarta pada 4 Mei 1947 dan bergerak dalam pendidikan serta kebudayaan sesuai Islam; slogan yang dipakai **#PIILevelUp** (menggantikan #BergerakBerjamaah) dengan Ketua Umum PB PII **Kevin Prayoga, S.H.** Bagian "Arah Gerakan" menautkan program yang diumumkan PB PII (PII Level Up, Komunitas Pelajar Literasi, kelembagaan dan data keaktifan).
+Salinan utama halaman depan merujuk berkas PII yang tersedia di Pustaka:
+**Buku Panduan Kelembagaan (PII)** (hlm. 1–5) untuk sejarah, falsafah gerakan,
+dan khittah perjuangan; serta **Ebook Ta’dib PII** (hlm. 6–9) untuk kaderisasi
+dan tujuan pendidikan-kebudayaan PII. Nama dokumen dan halaman sumber
+ditampilkan dekat salinan yang merujuknya.
 
-Tautan di website ini sengaja tidak ada yang menunjuk ke `pbpii.or.id`: alamat tersebut hanya sumber copywriting, bukan tautan yang ditampilkan pengunjung. Semua tautan bersifat internal (`#gerakan`, `#berita`, `lembaga.html`, `peta.html`), dan satu-satunya tautan keluar di beranda adalah Google Maps lokasi sekretariat.
+Sambutan Ketua Umum dan bagian kabar/galeri adalah konten editorial atau
+dinamis, bukan kutipan dari dua berkas tersebut. Sambutan Ketua Umum pada
+starter ini adalah naskah editorial awal, bukan pernyataan resmi Ketua Umum,
+dan `chairmanName` masih placeholder. Admin perlu menyunting dan menyetujuinya
+sebelum dipublikasikan.
 
 Sambutan Ketua Umum pada starter ini adalah naskah editorial awal, bukan kutipan atau pernyataan resmi Ketua Umum, dan `chairmanName` masih placeholder. Admin perlu menyunting dan menyetujuinya sebelum dipublikasikan. Nama, foto, periode, dan teks sambutan diubah dari dashboard.
 
-Teks bawaan disimpan di sheet `Settings` dan hanya ditambahkan bila kuncinya belum ada. Untuk menyisipkan kunci copywriting baru ke spreadsheet yang sudah jalan tanpa menimpa hasil suntingan redaksi, jalankan **PB PII > Segarkan teks resmi website** di menu spreadsheet (atau `segarkanTeksResmi(true)` dari Apps Script untuk memaksa semua nilai kembali ke salinan resmi).
+Teks bawaan disimpan di sheet `Settings`. Saat `setup()` dijalankan, salinan
+hero dan tentang yang masih persis sama dengan teks starter lama diperbarui
+otomatis; nilai yang pernah disunting redaksi tetap dipertahankan. Untuk
+menyisipkan kunci copywriting baru ke spreadsheet yang sudah jalan tanpa
+menimpa hasil suntingan redaksi, jalankan **PB PII > Segarkan teks resmi
+website** di menu spreadsheet (atau `segarkanTeksResmi(true)` dari Apps Script
+untuk memaksa semua nilai kembali ke salinan resmi).
 
 ## A. Buat Google Sheets dan Apps Script
 Jika spreadsheet dan Apps Script sudah dibuat sebelumnya, mulai dari langkah 2. Jangan membuat spreadsheet baru untuk database yang sudah berisi data.
@@ -19,7 +33,7 @@ Jika spreadsheet dan Apps Script sudah dibuat sebelumnya, mulai dari langkah 2. 
 2. Pilih **Extensions > Apps Script**.
 3. Di panel Files, buka `Code.gs`, ganti isinya dengan file `gas/Code.gs` dari folder proyek, lalu klik **Save**.
 4. Buat file HTML: klik tanda **+** di sebelah Files > **HTML**, beri nama persis `AdminSetup`, lalu salin isi file `gas/AdminSetup.html` ke dalamnya. Klik **Save**.
-5. Di dropdown fungsi pada toolbar Apps Script, pilih `setup`, lalu klik **Run**. Berikan izin Google yang diminta. Fungsi ini membuat sheet yang belum ada dan menyiapkan username `admin`; tidak menghapus artikel atau data yang sudah tersimpan.
+5. Di dropdown fungsi pada toolbar Apps Script, pilih `setup`, lalu klik **Run**. Berikan izin Google yang diminta, termasuk akses Drive untuk foto dan lampiran surat. Fungsi ini membuat sheet yang belum ada dan menyiapkan username `admin`; tidak menghapus artikel atau data yang sudah tersimpan.
 6. Kembali ke spreadsheet dan muat ulang halaman. Klik menu baru **PB PII > Atur akun admin**.
 7. Masukkan password admin yang Anda inginkan dua kali di dialog, lalu klik **Simpan akun admin**. Password disimpan di Script Properties Google, bukan di file website.
 8. Di Apps Script pilih **Deploy > Manage deployments**. Klik ikon pensil pada deployment Web App, pilih **New version**, lalu klik **Deploy**. Jika diminta, izinkan kembali akses yang diperlukan.
@@ -65,7 +79,7 @@ yang sudah jalan:
    kode lama sehingga fitur lembaga (daftar PW/PD/PK) menjawab "Sesi berakhir".
 4. Bukti bahwa versi baru benar-benar melayani: buka URL `/exec` di browser, atau
    kirim `POST` `{action:"health"}`. Balasan memuat `version` (stamp di `Code.gs`,
-   sekarang `2026-10-30.1`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
+   sekarang `2026-11-01.3`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
    `masalah`. Versi yang lebih lama dari stamp berarti langkah 3 belum selesai.
    Endpoint ini sengaja tidak mengembalikan kata sandi, token, maupun isi data.
 5. Teks kop website: jalankan **PB PII > Ganti teks dengan salinan resmi** pada
@@ -254,7 +268,7 @@ Yang benar adalah repository di dalam `pbpii-web` (`.git` milik sendiri);
 
 ## C. Fitur yang ada
 - Halaman depan responsif untuk desktop, tablet, dan HP; pada layar kecil memakai navigasi bawah bergaya aplikasi.
-- Artikel: tambah, edit, hapus, draft/published, kategori, ringkasan, isi, dan **unggah foto sampul langsung dari dashboard** (link HTTPS tetap tersedia sebagai opsi). Pembaca di situs membuka artikel pada layar penuh.
+- Artikel: tambah, edit, hapus, draft/published, kategori, ringkasan, isi rich-text (tautan, heading, daftar, kutipan, jenis/ukuran huruf, dan gambar inline), sampul, serta metadata SEO dan pratinjau hasil pencarian. HTML disaring di browser dan backend sebelum ditampilkan. Pembaca mendukung tautan artikel yang dapat dibagikan dan tetap aman untuk konten lama berbentuk teks biasa.
 - Pengaturan: judul dan teks hero, nama/jabatan/foto Ketua Umum (foto bisa diunggah), sambutan, tampil/sembunyikan sambutan, profil ringkas, footer, email, dan tautan media sosial.
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan, dengan unggah foto langsung.
 - Login admin dan lembaga dengan token sesi persisten di sheet `Sessions` (bukan lagi `CacheService`, yang diam-diam memotong umur token menjadi 10 menit).
@@ -282,9 +296,26 @@ Butuh backend versi `2026-10-30.3` atau lebih baru: bila deployment Apps Script
 masih lama, dashboard menampilkan pesan
 *"Backend belum mengenal unggah foto…"*. Maksimal 3 MB per berkas dan hanya
 JPEG/PNG/WebP (dicek dari tanda tangan byte, bukan dari nama file).
+
+Lampiran surat memakai folder Drive **PB PII Surat** yang tidak dibagikan lewat
+tautan publik. Akses melalui `orgReadLetterAttachment` memeriksa bahwa sesi
+lembaga adalah pengirim atau penerima surat terkait; jangan mengubah folder ini
+menjadi *anyone with link*.
 - **Tanya PII** — halaman chat penuh di `/tanya.html`, dengan tombol mengambang di beranda, Ruang Ibadah, Acara, dashboard admin, dashboard lembaga, dan formulir sebagai pintunya. Bisa dipakai tanpa login (jatah 5 pertanyaan per alamat IP per hari); kader yang masuk mendapat 20. Lihat bagian H.
 - **Akun kader** — dialog **Masuk kader** di kop semua halaman menawarkan tiga jalur: Google (kalau `googleClientId` diisi), email + kata sandi, dan pendaftaran baru dengan captcha. Lihat bagian I.
 - **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
+
+### Surat lembaga dan lampiran PDF
+
+Surat lembaga mendukung percakapan berutas: penerima dapat membalas pengirim
+surat yang sama, dengan tujuan dan kategori dikunci mengikuti surat asal.
+Isi surat dapat diformat, diberi tautan dan gambar inline; gambar disimpan
+privat bersama lampiran, bukan memakai URL foto publik. Lampiran PDF dibatasi
+2,5 MB, divalidasi di backend, dan hanya dapat dibuka oleh pengirim atau
+penerima setelah sesi lembaga terautentikasi. Dashboard menampilkan pratinjau
+PDF di dalam aplikasi serta tautan unduh Blob sementara; tidak ada tautan Drive
+publik yang dibagikan. Menjalankan `setup()` dan menerbitkan versi Apps Script
+baru diperlukan agar izin Drive serta endpoint surat terbaru aktif.
 
 ## D. Peta Global (PII Global View)
 
@@ -656,14 +687,15 @@ Tombol **Tanya PII** mengambang di pojok kanan bawah `/index.html`,
 `calc(100dvh - var(--tanya-keyboard))` supaya komposer tidak tertutup papan
 ketik di HP.
 
-**Boleh tanpa login.** Tamu ikut bisa bertanya, tapi jatahnya kecil dan diikat
-ke alamat jaringan, bukan ke browser: `APP.CHAT_GUEST_DAILY_LIMIT` (bawaan **5**)
-pertanyaan per alamat IP per hari. Kader yang masuk mendapat
-`APP.CHAT_DAILY_LIMIT` (bawaan **20**). Pembatasnya ada di server (proxy
-`/api/chat` + Apps Script), jadi menghapus tombol atau script di halaman lain
-tidak membuka kuota untuk publik. Kalau kuota tamu habis, utas menampilkan baris
-`is-quota` dengan tombol **Daftar akun kader** dan **Masuk dengan akun yang
-sudah ada** yang membuka dialog akun pada tab terkait.
+**Akses sumber memerlukan akun.** Tanya PII hanya menjawab jika sesi pengguna
+memiliki akses ke Pustaka organisasi dan pencarian menemukan kutipan yang cukup
+relevan. Tanpa sesi, korpus, atau kecocokan, model AI tidak dipanggil; pengguna
+mendapat penjelasan bahwa jawaban belum tersedia. Batas akses Pustaka tetap
+mengikuti `Settings.pustakaMinRole`.
+
+Kader yang masuk mendapat `APP.CHAT_DAILY_LIMIT` (bawaan **20**) pertanyaan per
+hari. Pembatasnya ada di server (proxy `/api/chat` + Apps Script), jadi
+menghapus tombol atau script di halaman lain tidak membuka kuota.
 
 **Kuota dicatat di sheet `Chat`.** Proxy memanggil aksi `chatStatus` untuk
 membaca sisa kuota lalu `chatRecord` untuk mencatat pertanyaan-jawaban yang
@@ -671,8 +703,8 @@ berhasil; perhitungan memakai tanggal lokal `Session.getScriptTimeZone()` sehing
 reset sendiri setiap tengah malam. Panjang pertanyaan dipotong ke
 `APP.CHAT_MAX_CHARS` (900). Kalau deployment Apps Script belum mendukung aksi
 tersebut, proxy jatuh ke pembatas lunak di memori instance (20/hari berakun,
-5/hari per IP, maksimal 4 pertanyaan per menit) agar fitur tetap hidup. Sisa
-kuota muncul di meter komposer (`Sisa 17 dari 20 pertanyaan hari ini`).
+maksimal 4 pertanyaan per menit) agar fitur tetap hidup. Sisa kuota akun muncul
+di meter komposer (`Sisa 17 dari 20 pertanyaan hari ini`).
 
 **Kunci AI tidak pernah sampai ke browser.** Alurnya
 `tanya.js` → `/api/chat` (proxy Vercel, `maxDuration` 60 dtk karena model gratis
@@ -680,9 +712,9 @@ jauh lebih lambat daripada CMS) → penyedia AI, dan pencatatan kuota ke Apps
 Script. Proxy hanya meloloskan aksi `chat` dan `chatStatus`. Kunci dibaca dari
 **environment variable Vercel** (`AI_CHAT_URL`, `AI_MODEL`, `AI_API_KEY`, atau
 `GROQ_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`) dan diperiksa berurutan;
-kalau tidak ada kunci yang dipasang, dipakai Pollinations tanpa kunci sehingga
-fitur langsung jalan tanpa pendaftaran apa pun. Deployment Apps Script memakai
-properti proyek dengan nama yang sama (**Project Settings ▸ Properties**):
+kalau tidak ada kunci, Pollinations dipakai tanpa konfigurasi kunci AI
+tambahan. Deployment Apps Script memakai properti proyek dengan nama yang sama
+(**Project Settings ▸ Properties**):
 
 | Properti | Isi | Bawaan bila kosong |
 | --- | --- | --- |
@@ -695,11 +727,12 @@ Contoh penyedia gratis lain:
 - Groq — `AI_CHAT_URL` `https://api.groq.com/openai/v1/chat/completions`, `AI_MODEL` `llama-3.1-8b-instant`.
 - Google Gemini — `AI_CHAT_URL` `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, `AI_MODEL` `gemini-flash-latest`.
 
-Jawaban dibangun dari system prompt yang berisi nama situs, slogan `#PIILevelUp`,
-nama Ketua Umum, dan fakta sejarah PII dari sheet `Settings`, dengan instruksi
-maksimal 160 kata serta larangan mengarang nama/tanggal, berpolitik praktis, atau
-berfatwa. Semua balasan (dari mana pun) dimasukkan ke DOM lewat `textContent`,
-sehingga teks HTML dari model tidak bisa menjadi markup.
+Setiap pemanggilan model wajib menyertakan kutipan Pustaka yang relevan sebagai
+satu-satunya sumber fakta. Fakta dari Settings, riwayat percakapan, dan ingatan
+model tidak dipakai sebagai sumber; tanpa kutipan, request berhenti sebelum
+layanan AI dipanggil. Jawaban menyebut nama berkas dan halaman, maksimal 160
+kata, serta tidak boleh menebak saat kutipan tidak cukup. Frontend juga menolak
+menampilkan jawaban AI tanpa rujukan.
 
 **Dua sheet baru** dibuat otomatis oleh `setup()`: `Sessions`
 (`token, kind, subject, createdAt, expiresAt`) dan `Chat`
@@ -760,5 +793,5 @@ tampil sehingga fitur tidak terlihat mati.
 - `saveAdminPassword` hanya menyimpan hash SHA-256 bersalt (250 iterasi) di Script Properties, bukan teks kata sandi. Nilai lama yang masih berupa teks polos tetap bisa login dan otomatis dinaikkan menjadi hash pada login berikutnya. Gunakan tetap password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
 - Kunci AI (`AI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`) hanya boleh hidup di sisi server: **Script Properties** di Apps Script dan/atau **Environment Variables** di Vercel (dibaca `api/chat.js`). Jangan pernah memindahkannya ke file frontend, `akun.js`, `tanya.js`, atau repository mana pun: browser yang membuka DevTools bisa membaca apa pun yang dikirim ke sana. Tanpa kunci apa pun, `api/chat.js` memakai Pollinations gratis — itu memang bawaannya, dan kuota tamu diikat 5 pertanyaan per alamat IP per hari supaya jatah gratis tidak habis.
 - Masuk kader tidak bergantung pada Google: tersedia juga email + kata sandi dan pendaftaran ber-captcha (lihat bagian I). Client ID Google tetap opsional dan ditaruh di Settings lewat dashboard admin (kolom `googleClientId`) — bukan di kode, karena browser hanya memakai Client ID publik dan server yang memverifikasi token di `googleClaims_` (issuer, audience, kedaluwarsa). Selama kolom itu kosong, tab Google disembunyikan dan dialog menampilkan Email/Daftar.
-- Untuk penggunaan resmi, tambahkan backup spreadsheet, logging, rate limiting, perlindungan CSRF sesuai kebutuhan, validasi HTML artikel, dan tinjauan keamanan sebelum menerima banyak admin.
+- Untuk penggunaan resmi, siapkan backup spreadsheet, logging operasional, tinjauan keamanan, serta pengelolaan izin Apps Script/Drive sebelum menambah banyak admin. Artikel dan surat sudah memakai sanitasi HTML allowlist; tetap tinjau perubahan format baru sebelum dipakai di produksi.
 - Halaman publik tidak boleh memuat instruksi teknis (menempel `Code.gs`, menjalankan `setup`, alur *Deploy ▸ New version*, atau "sampaikan ke admin"). Pesan kesalahan untuk pengunjung dibuat netral; langkah operasional semacam itu hanya boleh muncul di README dan perkakas internal Apps Script.

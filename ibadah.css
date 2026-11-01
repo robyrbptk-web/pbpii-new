@@ -1107,7 +1107,7 @@
   margin: 2px 0 14px;
   color: #123a26;
   font-family: var(--ib-arabic);
-  font-size: clamp(1.45rem, 4.4vw, 1.75rem);
+  font-size: var(--quran-basmalah-size, clamp(1.45rem, 4.4vw, 1.75rem));
   line-height: 2.2;
   text-align: center;
 }
@@ -1176,7 +1176,7 @@
   margin: 0 0 10px;
   color: #123a26;
   font-family: var(--ib-arabic);
-  font-size: clamp(1.5rem, 4.6vw, 1.95rem);
+  font-size: var(--quran-arabic-size, clamp(1.5rem, 4.6vw, 1.95rem));
   line-height: 2.35;
   text-align: right;
 }
@@ -1200,13 +1200,13 @@
 .ayah-text {
   margin: 0;
   color: #4a3a25;
-  font-size: .93rem;
+  font-size: var(--quran-translation-size, .93rem);
 }
 
 .ayah-tafsir {
   margin-top: 10px;
   color: #5b4a2e;
-  font-size: .85rem;
+  font-size: var(--quran-tafsir-size, .85rem);
 }
 
 .ayah-tafsir summary {
@@ -1368,6 +1368,32 @@
   color: #fff;
   cursor: pointer;
   transition: transform .16s ease, background .2s ease, color .2s ease;
+}
+
+.quran-sheet-tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.quran-text-adjust {
+  display: grid;
+  width: 36px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.quran-text-adjust:active {
+  transform: scale(.94);
 }
 
 .quran-sheet-audio svg {

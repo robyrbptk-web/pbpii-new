@@ -25,6 +25,7 @@
     });
   }
 
+  syncPustakaAccess();
   initNavSheet();
   initReveal();
   initScrollProgress();
@@ -78,6 +79,19 @@
     paint();
   }
 
+  /** Tautan Pustaka selalu mengikuti sesi kader/pengurus di semua halaman. */
+  function syncPustakaAccess() {
+    const update = () => {
+      document.body.classList.toggle(
+        'ada-sesi',
+        Boolean(window.PBPIIAkun?.sessionToken?.())
+      );
+    };
+
+    update();
+    window.PBPIIAkun?.onChange?.(update);
+  }
+
   const button = document.getElementById('installApp');
   let installPrompt = null;
 
@@ -120,13 +134,25 @@
     const setOpen = (open) => {
       sheet.classList.toggle('is-open', open);
       sheet.setAttribute('aria-hidden', open ? 'false' : 'true');
+      sheet.inert = !open;
       toggle.setAttribute('aria-expanded', String(open));
       toggle.classList.toggle('is-open', open);
+      if (open) {
+        sheet.querySelector('.nav-sheet-grid a:not([hidden])')?.focus();
+      } else if (sheet.contains(document.activeElement)) {
+        toggle.focus();
+      }
     };
 
     toggle.addEventListener('click', () => setOpen(!isOpen()));
     sheet.querySelector('.nav-sheet-backdrop')?.addEventListener('click', () => setOpen(false));
-    sheet.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setOpen(false)));
+    sheet.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => {
+      sheet.inert = true;
+      sheet.classList.remove('is-open');
+      sheet.setAttribute('aria-hidden', 'true');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.classList.remove('is-open');
+    }));
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && isOpen()) {
         setOpen(false);
@@ -137,5 +163,6 @@
     window.matchMedia('(min-width: 681px)').addEventListener('change', (event) => {
       if (event.matches && isOpen()) setOpen(false);
     });
+    sheet.inert = true;
   }
 })();

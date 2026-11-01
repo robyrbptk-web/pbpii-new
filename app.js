@@ -97,6 +97,8 @@ function renderArticle(article, index) {
 /* ------------------------------------------------------ pembaca layar penuh */
 
 let publishedArticles = [];
+let activeArticleSlug = '';
+let originalArticleMetadata = null;
 
 function articleParagraphs(content) {
   return String(content || '')
@@ -105,6 +107,130 @@ function articleParagraphs(content) {
     .filter(Boolean)
     .map((paragraph) => `<p>${formatLines(paragraph)}</p>`)
     .join('');
+}
+
+function articleContentHtml(content) {
+  const raw = String(content || '');
+  if (!/<\s*[a-z/][^>]*>/i.test(raw)) return articleParagraphs(raw);
+
+  const parsed = new DOMParser().parseFromString(raw, 'text/html');
+  const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','ul','ol','li','blockquote','a','img','span','font']);
+  const blocked = new Set(['script','style','iframe','object','svg','math','template']);
+  const voids = new Set(['br','hr','img']);
+  const safeHref = (value) => {
+    const href = String(value || '').trim();
+    if (/^https:\/\/[^\s]+$/i.test(href) || /^mailto:[^\s@]+@[^\s@]+$/i.test(href)) return href;
+    return /^(?:\/(?!\/)|#|\.\/|\.\.\/)[^\s]*$/.test(href) && !/[\\\u0000-\u001f]/.test(href) ? href : '';
+  };
+  const copy = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
+    if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+    const sourceTag = node.tagName.toLowerCase();
+    if (blocked.has(sourceTag)) return document.createDocumentFragment();
+    const tag = sourceTag === 'font' ? 'span' : sourceTag;
+    if (!allowed.has(sourceTag)) {
+      const fragment = document.createDocumentFragment();
+      node.childNodes.forEach((child) => fragment.append(copy(child)));
+      return fragment;
+    }
+
+    const element = document.createElement(tag);
+    if (tag === 'a') {
+      const href = safeHref(node.getAttribute('href'));
+      if (href) {
+        element.setAttribute('href', href);
+        element.setAttribute('rel', 'noopener noreferrer');
+        if (/^https:\/\//i.test(href)) element.setAttribute('target', '_blank');
+      }
+    } else if (tag === 'img') {
+      const src = String(node.getAttribute('src') || '').trim();
+      if (!/^https:\/\/[^\s]+$/i.test(src)) return document.createDocumentFragment();
+      element.setAttribute('src', src);
+      element.setAttribute('alt', String(node.getAttribute('alt') || '').slice(0, 300));
+      element.setAttribute('loading', 'lazy');
+      return element;
+    } else if (tag === 'span') {
+      const size = sourceTag === 'font'
+        ? (['1','2'].includes(node.getAttribute('size')) ? 'small' : ['4','5','6','7'].includes(node.getAttribute('size')) ? 'large' : '')
+        : node.getAttribute('data-size');
+      const font = sourceTag === 'font'
+        ? (/georgia|times|serif/i.test(node.getAttribute('face') || '') ? 'serif' : /arial|sans/i.test(node.getAttribute('face') || '') ? 'sans' : '')
+        : node.getAttribute('data-font');
+      if (['small','normal','large'].includes(size)) element.dataset.size = size;
+      if (['serif','sans'].includes(font)) element.dataset.font = font;
+    }
+    if (!voids.has(tag)) node.childNodes.forEach((child) => element.append(copy(child)));
+    return element;
+  };
+  const output = document.createElement('div');
+  parsed.body.childNodes.forEach((node) => output.append(copy(node)));
+  return output.innerHTML;
+}
+
+function setArticleMetadata(article) {
+  const selectors = [
+    ['description', 'name'],
+    ['keywords', 'name'],
+    ['og:title', 'property'],
+    ['og:description', 'property'],
+    ['og:image', 'property']
+  ];
+  if (!originalArticleMetadata) {
+    originalArticleMetadata = {
+      title: document.title,
+      elements: selectors.map(([value, attribute]) => {
+        const selector = `meta[${attribute}="${value}"]`;
+        const element = document.querySelector(selector);
+        return { selector, element, content: element?.getAttribute('content') || '' };
+      }),
+      canonical: document.querySelector('link[rel="canonical"]'),
+      canonicalHref: document.querySelector('link[rel="canonical"]')?.getAttribute('href') || ''
+    };
+  }
+  const title = String(article.seoTitle || article.title || 'Artikel PB PII');
+  const description = String(article.seoDescription || article.excerpt || '')
+    .replace(/\s+/g, ' ').trim().slice(0, 180);
+  document.title = `${title} | PB PII`;
+  const values = {
+    description,
+    keywords: String(article.seoKeywords || '').slice(0, 300),
+    'og:title': title,
+    'og:description': description,
+    'og:image': /^https:\/\//i.test(String(article.coverImage || '')) ? String(article.coverImage) : ''
+  };
+  selectors.forEach(([key, attribute]) => {
+    let element = document.querySelector(`meta[${attribute}="${key}"]`);
+    if (!element) {
+      element = document.createElement('meta');
+      element.setAttribute(attribute, key);
+      document.head.appendChild(element);
+    }
+    element.setAttribute('content', values[key]);
+  });
+  let canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.appendChild(canonical);
+  }
+  const url = new URL(location.href);
+  url.searchParams.set('artikel', String(article.slug || ''));
+  canonical.href = url.href;
+}
+
+function restoreArticleMetadata() {
+  if (!originalArticleMetadata) return;
+  document.title = originalArticleMetadata.title;
+  originalArticleMetadata.elements.forEach(({ selector, element, content }) => {
+    const current = document.querySelector(selector);
+    if (element) element.setAttribute('content', content);
+    else current?.remove();
+  });
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (originalArticleMetadata.canonical) {
+    originalArticleMetadata.canonical.setAttribute('href', originalArticleMetadata.canonicalHref);
+  } else canonical?.remove();
+  originalArticleMetadata = null;
 }
 
 function readerDialog() {
@@ -130,7 +256,18 @@ function readerDialog() {
     if (dialog.open) dialog.close();
     document.body.classList.remove('is-locked');
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    restoreArticleMetadata();
+    const url = new URL(location.href);
+    if (url.searchParams.get('artikel') === activeArticleSlug
+      || history.state?.pbpiiArticle === activeArticleSlug) {
+      url.searchParams.delete('artikel');
+      const state = { ...(history.state || {}) };
+      delete state.pbpiiArticle;
+      history.replaceState(state, '', url);
+    }
+    activeArticleSlug = '';
   };
+  dialog.closeArticleReader = shutdown;
 
   dialog.querySelector('.reader-close').addEventListener('click', shutdown);
   const expand = dialog.querySelector('.reader-expand');
@@ -162,10 +299,22 @@ function readerDialog() {
   return dialog;
 }
 
-function openReader(index) {
+function openReader(index, directLink = false) {
   const article = publishedArticles[index];
   if (!article) return;
   const dialog = readerDialog();
+  const slug = String(article.slug || '');
+  activeArticleSlug = slug;
+  if (slug) {
+    const url = new URL(location.href);
+    url.searchParams.set('artikel', slug);
+    history[directLink ? 'replaceState' : 'pushState'](
+      { ...(history.state || {}), pbpiiArticle: slug },
+      '',
+      url
+    );
+    setArticleMetadata(article);
+  }
   const date = article.createdAt
     ? new Date(article.createdAt).toLocaleDateString('id-ID', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -184,7 +333,7 @@ function openReader(index) {
       </div>
       <h2>${escapeHTML(article.title)}</h2>
       ${article.excerpt ? `<p class="reader-lead">${escapeHTML(article.excerpt)}</p>` : ''}
-      ${articleParagraphs(article.content || article.excerpt || '')}
+      ${articleContentHtml(article.content || article.excerpt || '')}
       <p class="reader-byline">${escapeHTML(article.author || 'Redaksi PB PII')}</p>
     </div>`;
   if (dialog.open) dialog.close();
@@ -199,6 +348,9 @@ function bindArticleReader() {
   });
 }
 
+window.addEventListener('popstate', () => {
+  document.querySelector('#articleReader')?.closeArticleReader?.();
+});
 
 function showLoadError(title, description) {
   $('#articles').innerHTML = `
@@ -347,12 +499,17 @@ async function init() {
       ? safeImageUrl(settings.chairmanPhoto)
       : LOGO_URL;
 
-    const articles = Array.isArray(data.articles) ? data.articles.slice(0, 6) : [];
+    const articles = Array.isArray(data.articles) ? data.articles : [];
     publishedArticles = articles;
     $('#articles').innerHTML = articles.length
-      ? articles.map(renderArticle).join('')
+      ? articles.slice(0, 6).map((article, index) => renderArticle(article, index)).join('')
       : `<div class="empty-state"><h3>Artikel segera hadir</h3><p>Ruang ini akan memuat berita, opini, dan kabar kegiatan PB PII.</p></div>`;
     bindArticleReader();
+    const requestedArticle = new URLSearchParams(location.search).get('artikel');
+    const requestedIndex = requestedArticle
+      ? publishedArticles.findIndex((article) => String(article.slug || '') === requestedArticle)
+      : -1;
+    if (requestedIndex >= 0) openReader(requestedIndex, true);
 
     const gallery = Array.isArray(data.gallery) ? data.gallery : [];
     $('#gallery').innerHTML = gallery.length
