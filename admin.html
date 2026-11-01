@@ -23,15 +23,19 @@
     .brand img{width:40px;height:47px;object-fit:contain}
     .brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.6px}
     .top-actions{display:flex;align-items:center;gap:10px}
-    .user-name{font-size:12px;color:var(--muted)}
+    .user-chip{display:flex;align-items:center;gap:9px;padding:5px 13px 5px 6px;border:1px solid var(--line);border-radius:999px;background:#fbfdfb}
+    .user-avatar{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--dark));color:#fff;font-size:12px;font-weight:850;letter-spacing:.3px}
+    .user-name{font-size:12px;color:var(--muted);font-weight:700}
     .layout{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:calc(100vh - 72px)}
     aside{position:sticky;top:72px;align-self:start;height:calc(100vh - 72px);overflow-y:auto;background:linear-gradient(180deg,#fff 0%,#fbfdfb 100%);border-right:1px solid #dfe7e2;padding:27px 16px}
     .side-label{font-size:10px;color:#849188;font-weight:850;letter-spacing:1.35px;padding:0 12px;margin-bottom:12px}
-    .tab{position:relative;display:flex;width:100%;align-items:center;gap:12px;padding:12px;border:0;background:transparent;border-radius:11px;text-align:left;font-weight:700;color:#56645a;cursor:pointer;margin-bottom:5px;transition:background .16s ease,color .16s ease,transform .16s ease}
-    .tab.active,.tab:hover{background:#eaf5ed;color:var(--dark)}
-    .tab.active{box-shadow:inset 3px 0 0 var(--green)}
+    .tab{position:relative;display:flex;width:100%;align-items:center;gap:12px;padding:11px 12px;border:0;background:transparent;border-radius:11px;text-align:left;font-weight:700;color:#56645a;cursor:pointer;margin-bottom:5px;transition:background .16s ease,color .16s ease}
+    .tab:hover{background:#f0f7f2;color:var(--dark)}
+    .tab.active{background:linear-gradient(90deg,#e6f4ea 0%,#f3faf5 100%);color:var(--dark)}
+    .tab.active::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:99px;background:var(--green)}
     .tab:focus-visible,.btn:focus-visible{outline:3px solid #087a3640;outline-offset:2px}
-    .tab .tab-icon{width:20px;flex:0 0 20px;text-align:center;font-size:16px}
+    .tab .tab-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px}
+    .tab .tab-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.7}
     .side-bottom{margin-top:28px;border-top:1px solid var(--line);padding-top:18px}
     main{padding:34px clamp(22px,3vw,42px);min-width:0}
     .page-head{display:flex;justify-content:space-between;align-items:start;gap:18px;margin-bottom:25px}
@@ -75,7 +79,6 @@
     .empty{border:1px dashed #d3ddd4;border-radius:10px;padding:25px;text-align:center;color:var(--muted);font-size:13px}
     .hidden{display:none!important}
     .hint{font-size:11px;color:var(--muted);margin-top:5px}
-    .mobile-menu{display:none}
     .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
     .toolbar .search{flex:1 1 220px;min-width:0}
     .toolbar .search input{width:100%}
@@ -92,17 +95,16 @@
     .message{position:fixed;z-index:60;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));width:min(94vw,520px);margin:0;box-shadow:0 16px 44px #0f241733;opacity:0;transform:translate(-50%,14px);pointer-events:none;transition:opacity .2s ease,transform .2s ease}
     .message.show{opacity:1;transform:translate(-50%,0)}
     @media(max-width:850px){
-      body{padding-bottom:calc(74px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
+      body{padding-bottom:calc(78px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
       .layout{grid-template-columns:1fr;min-height:0}
-      aside{position:fixed;inset:auto 0 0;align-self:auto;width:100%;height:auto;overflow:visible}
-      aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;border:0;border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 96%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
+      aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;width:100%;height:auto;overflow:visible;border:0;border-top:1px solid var(--line);padding:7px 6px calc(7px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 97%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
       .side-label,.side-bottom{display:none}
-      .tab{flex-direction:column;justify-content:center;gap:3px;min-height:52px;margin:0;padding:6px 4px;border-radius:11px;font-size:10.5px;line-height:1.2;text-align:center}
-      .tab .tab-icon{font-size:16px}
-      .tab.active{background:#eaf6ed}
+      .tab{flex-direction:column;justify-content:center;gap:4px;min-height:54px;margin:0;padding:6px 4px;border-radius:12px;font-size:10px;line-height:1.2;text-align:center}
+      .tab.active{background:#e6f4ea}
+      .tab.active::before{content:'';position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:24px;height:3px;border-radius:99px;background:var(--green)}
+      .user-chip{display:none}
       main{padding:20px 16px calc(28px + env(safe-area-inset-bottom))}
       .topbar{height:auto;min-height:60px;padding:max(8px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left))}
-      .user-name{display:none}
       input,select,textarea{font-size:16px}
       .message{bottom:calc(88px + env(safe-area-inset-bottom))}
       .btn,.chip,.tab{min-height:44px}
@@ -190,7 +192,7 @@
       <span>PB PII <small>PENGELOLAAN WEBSITE</small></span>
     </a>
     <div class="top-actions">
-      <span class="user-name" id="userName"></span>
+      <span class="user-chip"><span class="user-avatar" id="userAvatar" aria-hidden="true">A</span><span class="user-name" id="userName"></span></span>
       <a class="btn secondary" href="/" target="_blank" rel="noopener">Lihat website ↗</a>
       <button class="btn secondary" id="logoutButton" type="button">Keluar</button>
     </div>
@@ -199,12 +201,12 @@
   <div class="layout">
     <aside>
       <div class="side-label">MENU UTAMA</div>
-      <button class="tab active" data-page="overview"><span class="tab-icon" aria-hidden="true">▦</span><span>Ringkasan</span></button>
-      <button class="tab" data-page="articles"><span class="tab-icon" aria-hidden="true">▤</span><span>Artikel</span></button>
-      <button class="tab" data-page="lembaga"><span class="tab-icon" aria-hidden="true">◉</span><span>Lembaga</span></button>
-      <button class="tab" data-page="settings"><span class="tab-icon" aria-hidden="true">⚙</span><span>Pengaturan</span></button>
-      <button class="tab" data-page="gallery"><span class="tab-icon" aria-hidden="true">▧</span><span>Galeri</span></button>
-      <a class="tab" href="/pustaka"><span class="tab-icon" aria-hidden="true">▣</span><span>Pustaka</span></a>
+      <button class="tab active" data-page="overview"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.8"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.8"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.8"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.8"/></svg></span><span>Ringkasan</span></button>
+      <button class="tab" data-page="articles"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4.5h8.5L18 8v11.5H6z"/><path d="M14.5 4.5V8H18M9 12h6M9 15.5h4"/></svg></span><span>Artikel</span></button>
+      <button class="tab" data-page="lembaga"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.5 20V6.5h9V20M13.5 20V10H20v10M7 9.5h1.5M7 13h1.5M7 16.5h1.5M16 13h1.5M16 16.5h1.5"/></svg></span><span>Lembaga</span></button>
+      <button class="tab" data-page="settings"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg></span><span>Pengaturan</span></button>
+      <button class="tab" data-page="gallery"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg></span><span>Galeri</span></button>
+      <a class="tab" href="/pustaka"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span><span>Pustaka</span></a>
       <div class="side-bottom"></div>
     </aside>
 
@@ -596,11 +598,23 @@
       const target = $(inputId);
       if (!box || !target) return;
       const preview = box.querySelector('.upload-preview');
+      const status = box.querySelector('.upload-status');
       const url = String(target.value || '');
+      preview.onerror = () => {
+        preview.hidden = true;
+        if (status) status.textContent = 'Tautan foto tidak dapat dimuat. Periksa izin akses gambar atau unggah ulang.';
+      };
+      preview.onload = () => {
+        preview.hidden = false;
+      };
       // src kosong tetap bernilai URL halaman kalau tidak dilepas, jadi ikonnya
-      // muncul sebagai gambar rusak.
-      if (/^https:\/\//i.test(url)) {
-        preview.src = url;
+      // muncul sebagai gambar rusak. URL gambar Drive lama dinormalkan dulu.
+      const norm = /^https:\/\/lh3\.googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/i.exec(url);
+      const src = norm
+        ? 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(norm[1]) + '&export=view&authuser=0'
+        : url;
+      if (/^https:\/\//i.test(src)) {
+        preview.src = src;
         preview.hidden = false;
       } else {
         preview.removeAttribute('src');
@@ -625,12 +639,15 @@
             target.value = saved.url;
             preview.src = saved.url;
             preview.hidden = false;
-            status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan tombol simpan untuk menempelkannya.';
+            const formName = target.id === 'chairmanPhoto' ? 'pengaturan' : target.id === 'articleCover' ? 'artikel' : 'galeri';
+            status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan Simpan ' + formName + ' untuk menampilkannya.';
             notify('Foto berhasil diunggah.');
           } catch (error) {
             const pesan = /aksi tidak dikenal/i.test(error.message)
               ? 'Unggah foto belum dapat diproses layanan. Silakan coba lagi sebentar, atau tempel URL gambar bila mendesak.'
-              : error.message;
+              : /authorization|perlu izin|izinkan|tidak memiliki izin/i.test(error.message)
+                ? 'Penyimpanan foto di Drive belum diizinkan. Buka editor Apps Script, jalankan fungsi apa pun sekali lalu setujui izinnya, kemudian terbitkan ulang versi web.'
+                : error.message;
             status.textContent = pesan;
             notify('Unggahan gagal: ' + pesan, 'err');
           } finally {
@@ -845,6 +862,7 @@
 
     $('userName').textContent = localStorage.getItem('pbpii_admin_username') || 'Administrator';
     $('sessionUser').textContent = $('userName').textContent;
+    $('userAvatar').textContent = ($('userName').textContent.trim().charAt(0) || 'A').toUpperCase();
 
     let articleQuery = '';
     let articleFilter = 'all';

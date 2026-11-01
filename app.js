@@ -19,7 +19,15 @@ function formatLines(value = '') {
 
 function safeImageUrl(value) {
   const url = String(value || '').trim();
-  return /^https:\/\//i.test(url) ? escapeHTML(url) : LOGO_URL;
+  if (!/^https:\/\//i.test(url)) return LOGO_URL;
+  /* URL gambar Drive lama (lh3.googleusercontent.com/d/<id>) kini 404 walau
+     berkasnya dibagikan publik; alihkan ke CDN unduh Drive yang bebas
+     pengalihan consent. */
+  const lama = url.match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/i);
+  if (lama) {
+    return 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(lama[1]) + '&export=view&authuser=0';
+  }
+  return escapeHTML(url);
 }
 
 function renderFooterLinks(settings) {
@@ -495,7 +503,12 @@ async function init() {
       $('#chairmanGreeting').innerHTML = formatLines(settings.chairmanGreeting || '');
     }
 
-    $('#chairPhoto').src = settings.chairmanPhoto
+    const chairPhoto = $('#chairPhoto');
+    chairPhoto.onerror = () => {
+      chairPhoto.onerror = null;
+      chairPhoto.src = LOGO_URL;
+    };
+    chairPhoto.src = settings.chairmanPhoto
       ? safeImageUrl(settings.chairmanPhoto)
       : LOGO_URL;
 

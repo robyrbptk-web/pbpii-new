@@ -50,7 +50,12 @@
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeImage = (value) => {
     const url = String(value || '').trim();
-    return /^https:\/\//i.test(url) ? escapeHTML(url) : 'assets/logo-pii.png';
+    if (!/^https:\/\//i.test(url)) return 'assets/logo-pii.png';
+    /* URL gambar Drive lama (lh3.googleusercontent.com/d/<id>) kini 404 walau
+       berkasnya dibagikan publik; alihkan ke CDN unduh Drive yang bebas
+       pengalihan consent. */
+    const lama = url.match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/i);
+    return lama ? 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(lama[1]) + '&export=view&authuser=0' : escapeHTML(url);
   };
   const calendarText = (value) => String(value || '')
     .replace(/\\/g, '\\\\')

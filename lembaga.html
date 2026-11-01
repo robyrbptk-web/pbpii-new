@@ -142,17 +142,23 @@
     .recipient-empty{grid-column:1/-1;margin:0;padding:8px;color:var(--muted);font-size:12px}
     .recipient-field:disabled .recipient-list{opacity:.68}
     .letter-editor-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#f8fafc}
-    .letter-editor-toolbar button,.letter-editor-toolbar select{width:auto;min-height:40px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font-weight:700}
-    .letter-editor-toolbar input[type="file"][hidden]{display:none}
-    .letter-rich-editor{min-height:210px;padding:13px;border:1px solid var(--line);border-radius:0 0 10px 10px;overflow-wrap:anywhere;line-height:1.7;outline:none}
-    .letter-rich-editor:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
-    .letter-rich-editor:empty::before{content:attr(data-placeholder);color:var(--muted)}
-    .letter-rich-editor img,.thread-message .body img{display:block;max-width:100%;height:auto;margin:12px auto;border-radius:9px}
+    .article-editor-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#f8fafc}
+    .letter-editor-toolbar button,.letter-editor-toolbar select,.article-editor-toolbar button,.article-editor-toolbar select{width:auto;min-height:40px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font-weight:700}
+    .letter-editor-toolbar input[type="file"][hidden],.article-editor-toolbar input[type="file"][hidden]{display:none}
+    .letter-rich-editor,.article-rich-editor{min-height:210px;padding:13px;border:1px solid var(--line);border-radius:0 0 10px 10px;overflow-wrap:anywhere;line-height:1.7;outline:none}
+    .letter-rich-editor:focus,.article-rich-editor:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
+    .letter-rich-editor:empty::before,.article-rich-editor:empty::before{content:attr(data-placeholder);color:var(--muted)}
+    .letter-rich-editor img,.article-rich-editor img,.thread-message .body img{display:block;max-width:100%;height:auto;margin:12px auto;border-radius:9px}
     .letter-rich-editor img[data-letter-image-id]{width:min(360px,100%);min-height:120px;object-fit:contain;background:#eef3f7}
     .letter-rich-editor blockquote,.thread-message .body blockquote{margin:12px 0;padding:8px 12px;border-left:3px solid #86a9c5;background:#f2f7fb}
     .letter-rich-editor [data-size="small"],.thread-message [data-size="small"]{font-size:.88em}
     .letter-rich-editor [data-size="large"],.thread-message [data-size="large"]{font-size:1.2em}
     .letter-rich-editor [data-font="serif"],.thread-message [data-font="serif"]{font-family:Georgia,"Times New Roman",serif}
+    .article-rich-editor h2,.article-rich-editor h3,.article-rich-editor h4{line-height:1.35}
+    .article-rich-editor blockquote{margin:12px 0;padding:8px 12px;border-left:3px solid #86a9c5;background:#f2f7fb}
+    .article-rich-editor [data-size="small"]{font-size:.88em}
+    .article-rich-editor [data-size="large"]{font-size:1.2em}
+    .article-rich-editor [data-font="serif"]{font-family:Georgia,"Times New Roman",serif}
     .thread-message .body p{margin:0 0 10px}
     .thread-message .body p:last-child{margin-bottom:0}
     .thread-message .body ul,.thread-message .body ol{padding-left:1.35em}
@@ -183,7 +189,7 @@
       aside{display:none}
       main{padding:18px 15px 96px}
       .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .bottom-nav{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:5px 3px max(5px,env(safe-area-inset-bottom));z-index:30;box-shadow:0 -8px 22px #102b4910}
+      .bottom-nav{display:grid;grid-template-columns:repeat(7,1fr);position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:5px 3px max(5px,env(safe-area-inset-bottom));z-index:30;box-shadow:0 -8px 22px #102b4910}
       .bottom-nav button,.bottom-nav a{border:0;background:none;color:#66758a;font-size:9.5px;font-weight:750;padding:7px 1px 6px;border-radius:10px;display:grid;gap:3px;justify-items:center;align-content:start;min-height:52px;cursor:pointer;text-decoration:none;min-width:0}
       .bottom-nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
       .bottom-nav span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -210,8 +216,8 @@
       th{font-size:11px}
       .pdf-viewer{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0}
       .thread-message{padding:10px}
-      .letter-editor-toolbar button,.letter-editor-toolbar select{min-height:44px}
-      .letter-rich-editor{min-height:180px}
+      .letter-editor-toolbar button,.letter-editor-toolbar select,.article-editor-toolbar button,.article-editor-toolbar select{min-height:44px}
+      .letter-rich-editor,.article-rich-editor{min-height:180px}
     }
     .akt-bar{height:9px;border-radius:99px;background:#e8eef4;overflow:hidden;margin:2px 0 10px}
     .akt-bar>i{display:block;height:100%;width:0;border-radius:99px;background:var(--blue);transition:width .45s ease}
@@ -291,6 +297,7 @@
         <div class="side-label">MENU LEMBAGA</div>
         <button class="tab active" data-page="ringkasan">Ringkasan</button>
         <button class="tab" data-page="kegiatan">Kegiatan <span class="count" id="tabActivities">0</span></button>
+        <button class="tab" data-page="artikel">Artikel <span class="count" id="tabArticles">0</span></button>
         <button class="tab" data-page="formulir">Formulir <span class="count" id="tabForms">0</span></button>
         <button class="tab" data-page="surat">Surat <span class="count" id="tabLetters">0</span></button>
         <button class="tab" data-page="jejaring">Jejaring <span class="count" id="tabNetwork">0</span></button>
@@ -403,6 +410,74 @@
           <div class="panel">
             <div class="list-head"><h2>Kegiatan lembaga</h2></div>
             <div class="item-list" id="activityList"><div class="empty">Memuat…</div></div>
+          </div>
+        </section>
+
+        <section id="page-artikel" class="hidden">
+          <div class="page-head">
+            <div><h1>Artikel</h1><p>Tulis berita lembaga dan terbitkan di halaman artikel website PB PII.</p></div>
+            <button class="btn primary" type="button" id="newOrgArticle">+ Tulis artikel</button>
+          </div>
+          <div class="panel hidden" id="orgArticleEditor">
+            <h2 id="orgArticleFormTitle">Artikel baru</h2>
+            <p class="intro">Artikel terbit akan tampil untuk publik. Draft hanya terlihat oleh lembaga Anda dan admin.</p>
+            <form id="orgArticleForm">
+              <input type="hidden" id="orgArticleId">
+              <div class="grid2">
+                <div class="field full"><label class="lbl" for="orgArticleTitle">Judul artikel *</label><input id="orgArticleTitle" maxlength="180" required></div>
+                <div class="field"><label class="lbl" for="orgArticleCategory">Kategori</label>
+                  <select id="orgArticleCategory"><option>Berita</option><option>Kaderisasi</option><option>Pendidikan</option><option>Sosial</option><option>Dakwah</option><option>Organisasi</option><option>Opini</option></select>
+                </div>
+                <div class="field"><label class="lbl" for="orgArticleStatus">Status</label><select id="orgArticleStatus"><option value="draft">Draft</option><option value="published">Terbitkan</option></select></div>
+                <div class="field full"><label class="lbl" for="orgArticleExcerpt">Ringkasan artikel</label><textarea id="orgArticleExcerpt" maxlength="500" rows="3" placeholder="Ringkasan singkat yang tampil pada kartu berita."></textarea></div>
+                <div class="field full"><label class="lbl" for="orgArticleCover">Sampul artikel</label>
+                  <div class="uploader" data-upload-for="orgArticleCover">
+                    <label class="upload-drop">
+                      <input type="file" accept="image/*" hidden>
+                      <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan sendiri</span>
+                      <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera</span>
+                    </label>
+                    <img class="upload-preview" alt="" hidden>
+                    <p class="upload-status" role="status"></p>
+                  </div>
+                  <details class="upload-link"><summary>Pakai link gambar (opsional)</summary><input id="orgArticleCover" type="url" placeholder="https://..."></details>
+                </div>
+                <div class="field full">
+                  <label class="lbl" for="orgArticleContentEditor">Isi artikel *</label>
+                  <div class="article-editor-toolbar" role="toolbar" aria-label="Pemformatan artikel lembaga">
+                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="p">Paragraf</button>
+                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="h2">Judul 2</button>
+                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="h3">Judul 3</button>
+                    <button type="button" data-org-article-command="bold" aria-label="Tebal"><b>B</b></button>
+                    <button type="button" data-org-article-command="italic" aria-label="Miring"><i>I</i></button>
+                    <button type="button" data-org-article-command="underline" aria-label="Garis bawah"><u>U</u></button>
+                    <button type="button" data-org-article-command="strikeThrough" aria-label="Coret"><s>S</s></button>
+                    <button type="button" data-org-article-command="insertUnorderedList">• Daftar</button>
+                    <button type="button" data-org-article-command="insertOrderedList">1. Daftar</button>
+                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="blockquote">Kutipan</button>
+                    <button type="button" data-org-article-command="undo">↶</button>
+                    <button type="button" data-org-article-command="redo">↷</button>
+                    <button type="button" data-org-article-command="removeFormat">Hapus format</button>
+                    <button type="button" id="orgArticleAddLink">Tautkan</button>
+                    <select id="orgArticleFont" aria-label="Jenis huruf"><option value="">Jenis huruf</option><option value="Arial">Sans-serif</option><option value="Georgia">Serif</option></select>
+                    <select id="orgArticleFontSize" aria-label="Ukuran huruf"><option value="">Ukuran huruf</option><option value="2">Kecil</option><option value="3">Normal</option><option value="5">Besar</option></select>
+                    <button type="button" id="orgArticleAddImage">Sisipkan gambar</button>
+                    <button type="button" data-org-article-command="insertHorizontalRule">Garis pemisah</button>
+                    <input id="orgArticleInlineImage" type="file" accept="image/*" hidden>
+                  </div>
+                  <div id="orgArticleContentEditor" class="article-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Isi artikel lembaga" data-placeholder="Tulis artikel dengan paragraf, judul, daftar, tautan, dan gambar."></div>
+                  <p class="hint">Format dan gambar akan disaring aman saat disimpan. Tekan tombol simpan setelah unggahan selesai.</p>
+                </div>
+                <div class="field"><label class="lbl" for="orgArticleSeoTitle">Judul SEO</label><input id="orgArticleSeoTitle" maxlength="70"></div>
+                <div class="field"><label class="lbl" for="orgArticleSeoKeywords">Kata kunci</label><input id="orgArticleSeoKeywords" maxlength="300" placeholder="PII, pendidikan, kaderisasi"></div>
+                <div class="field full"><label class="lbl" for="orgArticleSeoDescription">Deskripsi SEO</label><textarea id="orgArticleSeoDescription" maxlength="180" rows="3"></textarea></div>
+              </div>
+              <div class="btn-row"><button class="btn primary" type="submit" id="saveOrgArticleBtn">Simpan artikel</button><button class="btn secondary" type="button" id="cancelOrgArticle">Batal</button></div>
+            </form>
+          </div>
+          <div class="panel">
+            <div class="list-head"><h2>Artikel lembaga</h2></div>
+            <div class="item-list" id="orgArticleList"><div class="empty">Memuat…</div></div>
           </div>
         </section>
 
@@ -537,9 +612,10 @@
     </dialog>
 
     <nav class="bottom-nav" id="bottomNav">
-      <button data-page="ringkasan" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="7" height="7" rx="1.8"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.8"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.8"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.8"/></svg><span>Ringkasan</span></button>
+      <button data-page="ringkasan" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="7" height="7" rx="1.8"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.8"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.8"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.8"/></svg><span>Ringkas</span></button>
       <button data-page="kegiatan"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="5" width="16.8" height="15.4" rx="2.2"/><path d="M3.6 9.8h16.8M8.3 2.8v4.2M15.7 2.8v4.2"/></svg><span>Kegiatan</span></button>
-      <button data-page="formulir"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.6" y="4.2" width="14.8" height="16.8" rx="2.2"/><path d="M9.2 2.6h5.6v3.1H9.2zM9.2 10.8h6.4M9.2 14.3h6.4M9.2 17.8h3.8"/></svg><span>Formulir</span></button>
+      <button data-page="artikel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14M5 9.5h14M5 14.5h8M5 19.5h8"/></svg><span>Artikel</span></button>
+      <button data-page="formulir"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.6" y="4.2" width="14.8" height="16.8" rx="2.2"/><path d="M9.2 2.6h5.6v3.1H9.2zM9.2 10.8h6.4M9.2 14.3h6.4M9.2 17.8h3.8"/></svg><span>Form</span></button>
       <button data-page="surat"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.6" width="18" height="13.2" rx="2.2"/><path d="M3.8 7.5l8.2 5.8 8.2-5.8"/></svg><span>Surat</span></button>
       <button data-page="jejaring"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5.4" r="2.6"/><circle cx="5" cy="18.3" r="2.6"/><circle cx="19" cy="18.3" r="2.6"/><path d="M10.8 7.7L6.2 16.1M13.2 7.7l4.6 8.4M7.6 18.3h8.8"/></svg><span>Jejaring</span></button>
       <a href="/pustaka"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.2V6a2.4 2.4 0 012.4-2.4H19.5v15.6H6.9a2.4 2.4 0 00-2.4 2.4z"/><path d="M4.5 19.2A2.4 2.4 0 006.9 21.6h12.6v-2.4"/><path d="M9.3 7.8h6M9.3 11.2h6"/></svg><span>Pustaka</span></a>
@@ -717,6 +793,7 @@
       $('topUser').textContent = state.org.email || 'Akun lembaga';
       $('topStatus').innerHTML = statusBadge(state.org.status);
       $('tabActivities').textContent = state.stats.published;
+      $('tabArticles').textContent = (state.articles || []).filter((item) => item.status === 'published').length;
       $('tabForms').textContent = state.stats.forms;
       $('tabLetters').textContent = state.stats.unread;
       $('tabNetwork').textContent = state.stats.networkSize;
@@ -724,6 +801,7 @@
       renderBanner();
       renderRingkasan();
       renderActivities();
+      renderOrgArticles();
       renderForms();
       renderLetters();
       renderNetwork();
@@ -930,6 +1008,236 @@
           '<button class="btn danger" type="button" data-delete-activity="' + esc(item.id) + '">Hapus</button></div></div>';
       }).join('') || '<div class="empty">Belum ada kegiatan. Tambahkan kegiatan pertama lembaga Anda.</div>';
     }
+
+    // --------------------------------------------------------------- artikel
+
+    const orgArticleEditor = $('orgArticleContentEditor');
+    let savedOrgArticleRange = null;
+    const saveOrgArticleRange = () => {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount && orgArticleEditor.contains(selection.anchorNode)) {
+        savedOrgArticleRange = selection.getRangeAt(0).cloneRange();
+      }
+    };
+    const restoreOrgArticleRange = () => {
+      orgArticleEditor.focus();
+      if (!savedOrgArticleRange) return;
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(savedOrgArticleRange);
+    };
+    const insertOrgArticleHtml = (html) => {
+      restoreOrgArticleRange();
+      document.execCommand('insertHTML', false, html);
+      saveOrgArticleRange();
+    };
+    const safeOrgArticleHref = (value) => {
+      const href = String(value || '').trim();
+      if (/^https:\/\/[^\s]+$/i.test(href) || /^mailto:[^\s@]+@[^\s@]+$/i.test(href)) return href;
+      if (/^(?:\/(?!\/)|#|\.\/|\.\.\/)[^\s]*$/.test(href) && !/[\\\u0000-\u001f]/.test(href)) return href;
+      return '';
+    };
+    function sanitizeOrgArticleMarkup(value) {
+      const raw = String(value || '');
+      if (!/<\s*[a-z/][^>]*>/i.test(raw)) {
+        return raw.split(/\n\s*\n/).map((paragraph) => paragraph.trim()
+          ? '<p>' + esc(paragraph).replace(/\n/g, '<br>') + '</p>'
+          : '').filter(Boolean).join('');
+      }
+      const source = new DOMParser().parseFromString(raw, 'text/html');
+      const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','ul','ol','li','blockquote','a','img','span','font']);
+      const blocked = new Set(['script','style','iframe','object','svg','math','template']);
+      const voids = new Set(['br','hr','img']);
+      const copy = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
+        if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+        const sourceTag = node.tagName.toLowerCase();
+        if (blocked.has(sourceTag)) return document.createDocumentFragment();
+        const tag = sourceTag === 'font' ? 'span' : sourceTag;
+        if (!allowed.has(sourceTag)) {
+          const fragment = document.createDocumentFragment();
+          node.childNodes.forEach((child) => fragment.append(copy(child)));
+          return fragment;
+        }
+        const element = document.createElement(tag);
+        if (tag === 'a') {
+          const href = safeOrgArticleHref(node.getAttribute('href'));
+          if (href) {
+            element.setAttribute('href', href);
+            element.setAttribute('rel', 'noopener noreferrer');
+          }
+        } else if (tag === 'img') {
+          const src = String(node.getAttribute('src') || '').trim();
+          if (!/^https:\/\/[^\s]+$/i.test(src)) return document.createDocumentFragment();
+          element.setAttribute('src', src);
+          element.setAttribute('alt', String(node.getAttribute('alt') || '').slice(0, 300));
+          element.setAttribute('loading', 'lazy');
+          return element;
+        } else if (tag === 'span') {
+          const size = sourceTag === 'font'
+            ? (['1','2'].includes(node.getAttribute('size')) ? 'small' : ['4','5','6','7'].includes(node.getAttribute('size')) ? 'large' : '')
+            : node.getAttribute('data-size');
+          const font = sourceTag === 'font'
+            ? (/georgia|times|serif/i.test(node.getAttribute('face') || '') ? 'serif' : /arial|sans/i.test(node.getAttribute('face') || '') ? 'sans' : '')
+            : node.getAttribute('data-font');
+          if (['small','normal','large'].includes(size)) element.dataset.size = size;
+          if (['serif','sans'].includes(font)) element.dataset.font = font;
+        }
+        if (!voids.has(tag)) node.childNodes.forEach((child) => element.append(copy(child)));
+        return element;
+      };
+      const output = document.createElement('div');
+      source.body.childNodes.forEach((node) => output.append(copy(node)));
+      return output.innerHTML;
+    }
+
+    function renderOrgArticles() {
+      $('orgArticleList').innerHTML = (state.articles || []).map((article) => (
+        '<div class="item"><div class="item-main"><h3>' + esc(article.title) + ' ' +
+        '<span class="badge ' + (article.status === 'published' ? 'verified' : 'pending') + '">' +
+        (article.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3><p>' +
+        esc(article.category || 'Berita') + ' · diperbarui ' + fmtDate(article.updatedAt) + '</p></div>' +
+        '<div class="item-actions"><button class="btn secondary" type="button" data-edit-org-article="' + esc(article.id) + '">Edit</button></div></div>'
+      )).join('') || '<div class="empty">Belum ada artikel. Mulai tulis berita lembaga Anda.</div>';
+    }
+
+    function resetOrgArticleForm() {
+      $('orgArticleForm').reset();
+      $('orgArticleId').value = '';
+      $('orgArticleStatus').value = 'draft';
+      $('orgArticleFormTitle').textContent = 'Artikel baru';
+      orgArticleEditor.innerHTML = '';
+      savedOrgArticleRange = null;
+      refreshUploader('orgArticleCover');
+    }
+
+    $('newOrgArticle').addEventListener('click', () => {
+      if (!canWrite()) return toast('Akun belum terverifikasi, jadi artikel belum dapat diterbitkan.');
+      resetOrgArticleForm();
+      $('orgArticleEditor').classList.remove('hidden');
+      $('orgArticleTitle').focus();
+    });
+    $('cancelOrgArticle').addEventListener('click', () => $('orgArticleEditor').classList.add('hidden'));
+    $('orgArticleForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!canWrite()) return toast('Akun belum terverifikasi, jadi artikel belum dapat diterbitkan.');
+      const content = sanitizeOrgArticleMarkup(orgArticleEditor.innerHTML);
+      if (!orgArticleEditor.textContent.trim()) {
+        toast('Tambahkan teks isi artikel sebelum menyimpan.');
+        orgArticleEditor.focus();
+        return;
+      }
+      const button = $('saveOrgArticleBtn');
+      button.disabled = true;
+      try {
+        await api('orgSaveArticle', { article: {
+          id: $('orgArticleId').value,
+          title: $('orgArticleTitle').value.trim(),
+          category: $('orgArticleCategory').value,
+          excerpt: $('orgArticleExcerpt').value.trim(),
+          coverImage: $('orgArticleCover').value.trim(),
+          content,
+          status: $('orgArticleStatus').value,
+          seoTitle: $('orgArticleSeoTitle').value.trim(),
+          seoDescription: $('orgArticleSeoDescription').value.trim(),
+          seoKeywords: $('orgArticleSeoKeywords').value.trim()
+        }});
+        $('orgArticleEditor').classList.add('hidden');
+        await loadData();
+        toast('Artikel berhasil disimpan.');
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $('orgArticleList').addEventListener('click', (event) => {
+      const edit = event.target.closest('[data-edit-org-article]');
+      if (!edit) return;
+      const article = (state.articles || []).find((item) => item.id === edit.dataset.editOrgArticle);
+      if (!article) return;
+      $('orgArticleForm').reset();
+      $('orgArticleFormTitle').textContent = 'Edit artikel';
+      $('orgArticleId').value = article.id || '';
+      $('orgArticleTitle').value = article.title || '';
+      $('orgArticleCategory').value = article.category || 'Berita';
+      $('orgArticleExcerpt').value = article.excerpt || '';
+      $('orgArticleCover').value = article.coverImage || '';
+      orgArticleEditor.innerHTML = sanitizeOrgArticleMarkup(article.content || '');
+      savedOrgArticleRange = null;
+      $('orgArticleStatus').value = article.status || 'draft';
+      $('orgArticleSeoTitle').value = article.seoTitle || '';
+      $('orgArticleSeoDescription').value = article.seoDescription || '';
+      $('orgArticleSeoKeywords').value = article.seoKeywords || '';
+      refreshUploader('orgArticleCover');
+      $('orgArticleEditor').classList.remove('hidden');
+      $('orgArticleEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    const orgArticleToolbar = document.querySelector('.article-editor-toolbar');
+    orgArticleToolbar.addEventListener('mousedown', (event) => {
+      if (event.target.closest('button,select')) saveOrgArticleRange();
+    });
+    orgArticleToolbar.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-org-article-command]');
+      if (!button) return;
+      restoreOrgArticleRange();
+      document.execCommand(button.dataset.orgArticleCommand, false, button.dataset.orgArticleValue || null);
+      saveOrgArticleRange();
+    });
+    $('orgArticleFont').addEventListener('change', (event) => {
+      if (!event.target.value) return;
+      restoreOrgArticleRange();
+      document.execCommand('fontName', false, event.target.value);
+      event.target.value = '';
+    });
+    $('orgArticleFontSize').addEventListener('change', (event) => {
+      if (!event.target.value) return;
+      restoreOrgArticleRange();
+      document.execCommand('fontSize', false, event.target.value);
+      event.target.value = '';
+    });
+    $('orgArticleAddLink').addEventListener('click', () => {
+      const href = safeOrgArticleHref(prompt('Masukkan URL HTTPS, alamat email, atau tautan bagian halaman:'));
+      if (!href) return;
+      restoreOrgArticleRange();
+      document.execCommand('createLink', false, href);
+      saveOrgArticleRange();
+    });
+    $('orgArticleAddImage').addEventListener('click', () => {
+      saveOrgArticleRange();
+      $('orgArticleInlineImage').click();
+    });
+    $('orgArticleInlineImage').addEventListener('change', async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const button = $('orgArticleAddImage');
+      button.disabled = true;
+      try {
+        const prepared = await prepareImage(file);
+        const saved = await api('orgUploadImage', { name: prepared.name, data: prepared.data });
+        insertOrgArticleHtml('<img src="' + esc(saved.url) + '" alt="">');
+        toast('Gambar artikel berhasil diunggah.');
+      } catch (error) {
+        toast('Gambar gagal ditambahkan: ' + error.message);
+      } finally {
+        event.target.value = '';
+        button.disabled = false;
+      }
+    });
+    orgArticleEditor.addEventListener('keyup', saveOrgArticleRange);
+    orgArticleEditor.addEventListener('mouseup', saveOrgArticleRange);
+    orgArticleEditor.addEventListener('input', saveOrgArticleRange);
+    orgArticleEditor.addEventListener('paste', (event) => {
+      event.preventDefault();
+      const html = event.clipboardData.getData('text/html');
+      if (html) insertOrgArticleHtml(sanitizeOrgArticleMarkup(html));
+      else insertOrgArticleHtml(esc(event.clipboardData.getData('text/plain')).replace(/\n/g, '<br>'));
+    });
+    orgArticleEditor.addEventListener('drop', (event) => {
+      event.preventDefault();
+      toast('Gunakan tombol Sisipkan gambar untuk menambahkan foto.');
+    });
 
     // --------------------------------------------------------------- formulir
 
@@ -1763,7 +2071,8 @@
             target.value = saved.url;
             preview.src = saved.url;
             preview.hidden = false;
-            status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan simpan kegiatan untuk menempelkannya.';
+            const formName = target.id === 'orgArticleCover' ? 'artikel' : 'kegiatan';
+            status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan simpan ' + formName + ' untuk menampilkannya.';
             toast('Foto berhasil diunggah.');
           } catch (error) {
             const pesan = /tidak dikenal/i.test(error.message)

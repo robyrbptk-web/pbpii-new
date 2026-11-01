@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const HEADERS = {
-  Articles: ['id', 'title', 'slug', 'category', 'excerpt', 'content', 'coverImage', 'author', 'status', 'createdAt', 'updatedAt', 'seoTitle', 'seoDescription', 'seoKeywords'],
+  Articles: ['id', 'title', 'slug', 'category', 'excerpt', 'content', 'coverImage', 'author', 'status', 'createdAt', 'updatedAt', 'seoTitle', 'seoDescription', 'seoKeywords', 'orgId'],
   Gallery: ['id', 'title', 'imageUrl', 'caption', 'featured', 'sortOrder', 'createdAt'],
   Settings: ['key', 'value'],
   Orgs: ['id', 'jenjang', 'name', 'province', 'district', 'subdistrict', 'parentId', 'email', 'passwordHash', 'passwordSalt', 'phone', 'skUrl', 'status', 'verifiedBy', 'verifiedAt', 'createdAt', 'updatedAt', 'lastLoginAt', 'note'],
@@ -27,7 +27,9 @@ const HEADERS = {
   Standards: ['id', 'orgId', 'minPerMonth', 'setByOrgId', 'setByName', 'note', 'updatedAt'],
   Kaders: ['id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note', 'passwordHash', 'passwordSalt'],
   Reactions: ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt'],
-  Comments: ['id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text', 'status', 'createdAt', 'updatedAt']
+  Comments: ['id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text', 'status', 'createdAt', 'updatedAt'],
+  PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas'],
+  PustakaPotongan: ['doc', 'halaman', 'teks']
 };
 
 const SHEETS = {};
@@ -186,6 +188,7 @@ const ContentService = {
 
 /** DriveApp palsu: folder media PB PII cukup satu, tiap unggah tercatat. */
 const driveFiles = [];
+let includePustakaCorpus = true;
 
 /**
  * Korpus pustaka palsu: kalimat aslinya dipotong dari berkas kebinan PII supaya
@@ -224,7 +227,13 @@ const fakeFolder = {
   getName: () => 'PB PII Media',
   setSharing() {},
   getFilesByName(nama) {
-    const berkas = String(nama) === 'pustaka.json' ? [pustakaFile] : [];
+    const berkas = [];
+    if (String(nama) === 'pustaka.json' && includePustakaCorpus) berkas.push(pustakaFile);
+    driveFiles.filter((file) => file.name === String(nama)).forEach((record) => berkas.push({
+      getId: () => record.id,
+      getName: () => record.name,
+      getLastUpdated: () => new Date(record.updatedAt || '2026-10-31T02:04:57.927Z')
+    }));
     let index = 0;
     return { hasNext: () => index < berkas.length, next: () => berkas[index++] };
   },
@@ -271,13 +280,14 @@ const source = readFileSync(new URL('../gas/Code.gs', import.meta.url), 'utf8');
 const exported = [
   'monthShift_', 'monthlyActivityIndex_', 'standardsMap_', 'keaktifanFor_',
   'eventsFeed_', 'publicData_', 'orgData_', 'orgSetStandard_', 'keaktifanSettings_',
-  'orgSaveActivity_', 'requireOrg_', 'currentMonthKey_', 'todayKey_', 'APP', 'STANDARD_HEADERS',
+  'orgSaveActivity_', 'orgSaveArticle_', 'requireOrg_', 'currentMonthKey_', 'todayKey_', 'APP', 'STANDARD_HEADERS',
   'doPost', 'throttle_', 'clientIp_', 'captchaIssue_', 'assertCaptcha_', 'kaderLogin_',
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
   'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_',
   'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_',
   'ensureDefaultSettings_', 'sanitizeArticleHtml_', 'sanitizeLetterHtml_', 'saveArticle_', 'uploadImage_',
-  'orgUploadPdf_', 'orgUploadLetterImage_', 'orgSendLetter_', 'orgReadLetterAttachment_', 'orgReadLetterImage_'
+  'orgUploadPdf_', 'orgUploadLetterImage_', 'orgSendLetter_', 'orgReadLetterAttachment_', 'orgReadLetterImage_',
+  'pustakaDaftar_'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
@@ -411,6 +421,40 @@ check('article sanitizer removes scripts and unsafe formatting attributes', gas.
   '<h2 style="color:red">Aman</h2><p onclick="evil()">Teks <a href="javascript:alert(1)">tautan</a></p>' +
   '<script>alert(1)</script><img src="https://example.org/foto.jpg" onerror="evil()" alt="Foto">'
 ), '<h2>Aman</h2><p>Teks <a>tautan</a></p><img src="https://example.org/foto.jpg" alt="Foto" loading="lazy">');
+const orgArticle = gas.orgSaveArticle_(
+  { id: 'pk-untan', name: 'PK Universitas Tanjungpura', status: 'verified' },
+  { title: 'Kegiatan Kaderisasi', status: 'published', content: '<h2>Pelaksanaan</h2><script>buruk()</script><p>Berita lembaga.</p>' }
+);
+const storedOrgArticle = rowsOf('Articles').find((row) => row.id === orgArticle.id);
+check('verified organization can publish a sanitized article under its ownership', [
+  storedOrgArticle.orgId,
+  storedOrgArticle.author,
+  storedOrgArticle.status,
+  storedOrgArticle.content
+], [
+  'pk-untan',
+  'PK Universitas Tanjungpura',
+  'published',
+  '<h2>Pelaksanaan</h2><p>Berita lembaga.</p>'
+]);
+check('organization article is included in its own dashboard', gas.orgData_({ id: 'pk-untan' }).articles
+  .some((article) => article.id === orgArticle.id), true);
+check('published organization article is included in public content', gas.publicData_().articles
+  .some((article) => article.id === orgArticle.id), true);
+const duplicateOrgArticle = gas.orgSaveArticle_(
+  { id: 'pk-untan', name: 'PK Universitas Tanjungpura', status: 'verified' },
+  { title: 'Kegiatan Kaderisasi', status: 'draft', content: '<p>Draft kedua.</p>' }
+);
+check('organization article slugs remain unique across entries',
+  rowsOf('Articles').find((row) => row.id === duplicateOrgArticle.id).slug !== storedOrgArticle.slug, true);
+check('organization cannot edit another organization article', captureError(() => gas.orgSaveArticle_(
+  { id: 'pk-poltek', name: 'PK Poltek Negeri Pontianak', status: 'verified' },
+  { id: orgArticle.id, title: 'Diambil alih', status: 'published', content: '<p>Tidak boleh.</p>' }
+)), 'Artikel ini bukan milik lembaga Anda.');
+check('unverified organization cannot publish articles', captureError(() => gas.orgSaveArticle_(
+  { id: 'pd-singkawang', name: 'PD Kota Singkawang', status: 'pending' },
+  { title: 'Belum terverifikasi', status: 'published', content: '<p>Draft.</p>' }
+)), 'Akun lembaga belum diverifikasi. Tunggu persetujuan atasan atau hubungi PB PII.');
 check('letter sanitizer allows private image references but blocks external images', gas.sanitizeLetterHtml_(
   '<p>Isi surat</p><img src="https://example.org/pixel.png"><img src="pbpii-letter-image:private-image" alt="Rapat">'
 ), '<p>Isi surat</p><img src="pbpii-letter-image:private-image" alt="Rapat" loading="lazy">');
@@ -874,7 +918,15 @@ const jpegBase64 = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 
 const fileSebelumUpload = driveFiles.length;
 const unggah = request({ action: 'orgUploadImage', token: 'ses-pd', name: 'sampul-lk-1', data: jpegBase64, ip: '203.0.113.50' });
 check('pengurus bisa mengunggah sampul acara', unggah.ok, true);
-check('hasil unggah berupa URL publik Google', unggah.data.url.startsWith('https://lh3.googleusercontent.com/d/'), true);
+const artikelLewatApi = request({
+  action: 'orgSaveArticle',
+  token: 'ses-pd',
+  article: { title: 'Berita PD Pontianak', status: 'published', content: '<p>Berita melalui API lembaga.</p>' }
+});
+check('orgSaveArticle is routed through an authenticated organization session',
+  [artikelLewatApi.ok, rowsOf('Articles').find((row) => row.id === artikelLewatApi.data.id)?.orgId],
+  [true, 'pd-pontianak']);
+check('hasil unggah berupa URL publik Google', unggah.data.url.startsWith('https://drive.usercontent.google.com/download?id='), true);
 check('jenis berkas dibaca dari tanda tangan byte', unggah.data.mime, 'image/jpeg');
 check('berkas masuk ke folder media PB PII', driveFiles.length, fileSebelumUpload + 1);
 check('nama berkas mengikuti judul dan ekstensi', /\.jpg$/.test(driveFiles[driveFiles.length - 1].name), true);
@@ -907,6 +959,19 @@ check('penolakan pustaka memakai bahasa pengurus',
 const daftarPustaka = request({ action: 'pustakaList', token: 'ses-rozak' });
 check('kader menerima daftar berkas pustaka', daftarPustaka.data.docs.length, 3);
 check('daftar pustaka melaporkan korpus siap', daftarPustaka.data.tersedia, true);
+seed('PustakaBerkas', pustakaFixture.docs.map((doc) => ({ ...doc })));
+seed('PustakaPotongan', pustakaFixture.chunks.map((chunk) => ({
+  doc: chunk.d,
+  halaman: chunk.h[0],
+  teks: chunk.t
+})));
+driveFiles.push({ id: 'fixture-ebook-original', name: "Ebook Ta'dib PII (tanpa password).pdf" });
+includePustakaCorpus = false;
+const daftarPustakaDariSheet = gas.pustakaDaftar_('kader');
+includePustakaCorpus = true;
+check('original PDF links are resolved when the searchable corpus falls back to sheets',
+  [daftarPustakaDariSheet.sumber, daftarPustakaDariSheet.docs.find((doc) => doc.id === 'ebook-ta-dib-pii')?.tautan],
+  ['sheet', 'https://drive.google.com/file/d/fixture-ebook-original/view']);
 
 const cariLbt = request({ action: 'pustakaCari', token: 'ses-rozak', q: 'apa itu LBT', ip: '198.51.100.80' });
 check('sesi kader bisa mencari isi berkas', cariLbt.ok, true);

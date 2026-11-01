@@ -1,6 +1,6 @@
 # Website PB PII — starter
 
-Fondasi website publik PB PII dengan artikel, sambutan Ketua Umum yang bisa diubah dari dashboard, serta galeri yang dapat dipilih admin. Frontend statis di Vercel, backend dan penyimpanan di Google Apps Script + Google Sheets.
+Fondasi website publik PB PII dengan artikel, sambutan Ketua Umum yang bisa diubah dari dashboard, serta galeri yang dapat dipilih admin. Akun lembaga terverifikasi juga dapat membuat artikel publik melalui editor visual. Frontend statis di Vercel, backend dan penyimpanan di Google Apps Script + Google Sheets.
 
 ## Catatan copywriting dan sumber
 
@@ -9,6 +9,10 @@ Salinan utama halaman depan merujuk berkas PII yang tersedia di Pustaka:
 dan khittah perjuangan; serta **Ebook Ta’dib PII** (hlm. 6–9) untuk kaderisasi
 dan tujuan pendidikan-kebudayaan PII. Nama dokumen dan halaman sumber
 ditampilkan dekat salinan yang merujuknya.
+
+Pratinjau PDF asli di Pustaka memerlukan PDF berkas di folder Google Drive
+`PB PII Pustaka` dengan nama yang sama persis seperti kolom `berkas` di indeks.
+Indeks/cuplikan pencarian dari Google Sheets tidak menyimpan salinan PDF asli.
 
 Sambutan Ketua Umum dan bagian kabar/galeri adalah konten editorial atau
 dinamis, bukan kutipan dari dua berkas tersebut. Sambutan Ketua Umum pada
@@ -70,7 +74,8 @@ yang sudah jalan:
 
 1. Editor Apps Script > tempel isi `gas/Code.gs` terbaru ke `Code.gs` > **Save**.
 2. Jalankan `setup` dari dropdown fungsi. Sheet baru (Orgs, Activities, Forms,
-   Participants, Letters) dibuat, kolom yang kurang ditambahkan, dan artikel serta
+   Participants, Letters) dibuat, kolom yang kurang ditambahkan (termasuk
+   `Articles.orgId` untuk kepemilikan artikel lembaga), dan artikel serta
    pengaturan lama tidak disentuh. `setup()` berakhir dengan laporan: daftar sheet
    yang dibuat, kolom yang ditambal, dan sheet yang perlu ditinjau manual karena
    susunan kolomnya berbeda dari skema (tidak pernah diubah otomatis).
@@ -79,7 +84,7 @@ yang sudah jalan:
    kode lama sehingga fitur lembaga (daftar PW/PD/PK) menjawab "Sesi berakhir".
 4. Bukti bahwa versi baru benar-benar melayani: buka URL `/exec` di browser, atau
    kirim `POST` `{action:"health"}`. Balasan memuat `version` (stamp di `Code.gs`,
-   sekarang `2026-11-01.3`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
+   sekarang `2026-11-01.5`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
    `masalah`. Versi yang lebih lama dari stamp berarti langkah 3 belum selesai.
    Endpoint ini sengaja tidak mengembalikan kata sandi, token, maupun isi data.
 5. Teks kop website: jalankan **PB PII > Ganti teks dengan salinan resmi** pada

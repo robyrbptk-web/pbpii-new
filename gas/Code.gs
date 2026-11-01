@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-01.4';
+const BACKEND_VERSION = '2026-11-01.5';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -131,7 +131,7 @@ const PROVINCE_ALIASES = {
 const ARTICLE_HEADERS = [
   'id', 'title', 'slug', 'category', 'excerpt', 'content',
   'coverImage', 'author', 'status', 'createdAt', 'updatedAt',
-  'seoTitle', 'seoDescription', 'seoKeywords'
+  'seoTitle', 'seoDescription', 'seoKeywords', 'orgId'
 ];
 const GALLERY_HEADERS = [
   'id', 'title', 'imageUrl', 'caption',
@@ -1122,7 +1122,8 @@ function saveArticle_(article) {
     now,
     cleanText_(article.seoTitle || title).slice(0, 70),
     cleanText_(article.seoDescription || article.excerpt).slice(0, 180),
-    cleanText_(article.seoKeywords).slice(0, 300)
+    cleanText_(article.seoKeywords).slice(0, 300),
+    existing ? String(existing.orgId || '') : ''
   ];
 
   if (existing) {
@@ -1131,6 +1132,61 @@ function saveArticle_(article) {
     sheet.appendRow(row);
   }
 
+  return { id: id, slug: row[2], status: status };
+}
+
+function orgSaveArticle_(org, article) {
+  assertVerified_(org);
+  throttle_('org-article', org.id);
+
+  const title = String(article.title || '').trim();
+  if (!title) throw new Error('Judul artikel wajib diisi.');
+  const status = String(article.status || 'draft').toLowerCase();
+  if (['draft', 'published'].indexOf(status) < 0) {
+    throw new Error('Status artikel tidak valid.');
+  }
+  const rawContent = String(article.content || '');
+  if (rawContent.length > 30000) {
+    throw new Error('Isi artikel maksimal 30.000 karakter.');
+  }
+
+  const sheet = sheet_(APP.SHEET_ARTICLES);
+  const id = String(article.id || Utilities.getUuid()).trim();
+  const existing = findRow_(APP.SHEET_ARTICLES, id);
+  if (existing && String(existing.orgId || '') !== org.id) {
+    throw new Error('Artikel ini bukan milik lembaga Anda.');
+  }
+  const slug = slugify_(article.slug || title);
+  const duplicateSlug = rows_(APP.SHEET_ARTICLES).some(function (item) {
+    return String(item.id) !== id && String(item.slug) === slug;
+  });
+  const suffix = '-' + slugify_(org.id) + '-' + id.slice(0, 8);
+  const uniqueSlug = duplicateSlug ? slug.slice(0, 120 - suffix.length) + suffix : slug;
+  const now = new Date().toISOString();
+  const excerpt = cleanText_(article.excerpt).slice(0, 500);
+  const row = [
+    id,
+    title.slice(0, 180),
+    uniqueSlug,
+    cleanText_(article.category || 'Berita').slice(0, 60) || 'Berita',
+    excerpt,
+    sanitizeArticleHtml_(rawContent),
+    safeUrl_(article.coverImage),
+    cleanText_(org.name).slice(0, 120),
+    status,
+    existing ? existing.createdAt : now,
+    now,
+    cleanText_(article.seoTitle || title).slice(0, 70),
+    cleanText_(article.seoDescription || excerpt).slice(0, 180),
+    cleanText_(article.seoKeywords).slice(0, 300),
+    org.id
+  ];
+
+  if (existing) {
+    sheet.getRange(existing._row, 1, 1, row.length).setValues([row]);
+  } else {
+    sheet.appendRow(row);
+  }
   return { id: id, slug: row[2], status: status };
 }
 
@@ -1623,7 +1679,9 @@ function uploadImage_(body) {
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
   return {
-    url: 'https://lh3.googleusercontent.com/d/' + file.getId() + '=w1600',
+    // lh3.googleusercontent.com/d/<id> kini 404 untuk berkas Drive biasa;
+    // CDN unduh Drive ini tetap hidup selama berkas dibagikan siapa pun.
+    url: 'https://drive.usercontent.google.com/download?id=' + file.getId() + '&export=view&authuser=0',
     fileId: file.getId(),
     bytes: bytes.length,
     mime: mime
@@ -1821,6 +1879,8 @@ function orgAction_(action, body, org) {
   switch (action) {
     case 'orgData':
       return orgData_(org);
+    case 'orgSaveArticle':
+      return orgSaveArticle_(org, body.article || {});
     case 'orgProfile':
       return orgProfile_(org, body);
     case 'orgSaveActivity':
@@ -1964,6 +2024,11 @@ function orgData_(org) {
 
   const self = orgSelf_(me);
   self.parentName = orgName[me.parentId] || '';
+  const ownArticles = rows_(APP.SHEET_ARTICLES).filter(function (article) {
+    return String(article.orgId || '') === me.id;
+  }).sort(function (a, b) {
+    return String(b.updatedAt).localeCompare(String(a.updatedAt));
+  }).slice(0, 200);
 
   const trend = [];
   for (let back = 5; back >= 0; back -= 1) {
@@ -1998,6 +2063,7 @@ function orgData_(org) {
       networkSize: network.length
     },
     activities: ownActivities,
+    articles: ownArticles,
     networkActivities: networkActivities,
     forms: formsAll,
     letters: { inbox: inbox, outbox: outbox },
@@ -2956,6 +3022,19 @@ function pustakaFolder_() {
   }
 }
 
+function pustakaFolderTerpasang_() {
+  const stored = PropertiesService.getScriptProperties().getProperty(APP.PROP_PUSAKA_FOLDER);
+  if (stored) {
+    try {
+      return DriveApp.getFolderById(stored);
+    } catch (error) {
+      // Folder terhapus manual: cari folder bernama pustaka tanpa membuat yang baru.
+    }
+  }
+  const found = DriveApp.getFoldersByName(PUSAKA_FOLDER_NAME);
+  return found.hasNext() ? found.next() : null;
+}
+
 function pustakaFileTerbaru_(folder, nama) {
   const daftar = folder.getFilesByName(nama);
   let terbaik = null;
@@ -3255,12 +3334,10 @@ function pustakaCocok_(korpus, kueri, batas, denganIsi) {
 function pustakaDaftar_(peran) {
   const korpus = pustakaKorpus_();
   let folder = null;
-  if (korpus.sumber === 'drive') {
-    try {
-      folder = pustakaFolder_();
-    } catch (error) {
-      folder = null;
-    }
+  try {
+    folder = pustakaFolderTerpasang_();
+  } catch (error) {
+    folder = null;
   }
   const docs = (korpus.docs || []).map(function (doc) {
     const keluar = {
@@ -3416,6 +3493,7 @@ const RATE_RULES = {
   'event-comment': { limit: 4, window: 180 },
   'event-comment-ip': { limit: 20, window: 600 },
   'org-upload': { limit: 10, window: 600 },
+  'org-article': { limit: 20, window: 600 },
   'pustaka-cari': { limit: 40, window: 60 },
   'pustaka-baca': { limit: 40, window: 60 },
   'chat': { limit: 6, window: 60 }
