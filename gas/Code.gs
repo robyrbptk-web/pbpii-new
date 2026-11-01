@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-01.3';
+const BACKEND_VERSION = '2026-11-01.4';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -1584,9 +1584,10 @@ function driveKesiapan_() {
 
 /** Jenis berkas dibaca dari tanda tangan byte, bukan dari label yang dikirim browser. */
 function imageKind_(bytes) {
-  const fourCC = (offset) => String.fromCharCode.apply(null, bytes.slice(offset, offset + 4));
-  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
-  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+  const byte = (value) => value & 0xFF;
+  const fourCC = (offset) => String.fromCharCode.apply(null, bytes.slice(offset, offset + 4).map(byte));
+  if (byte(bytes[0]) === 0xFF && byte(bytes[1]) === 0xD8 && byte(bytes[2]) === 0xFF) return 'image/jpeg';
+  if (byte(bytes[0]) === 0x89 && byte(bytes[1]) === 0x50 && byte(bytes[2]) === 0x4E && byte(bytes[3]) === 0x47) return 'image/png';
   if (fourCC(0) === 'RIFF' && fourCC(8) === 'WEBP') return 'image/webp';
   return '';
 }
@@ -2143,7 +2144,15 @@ function orgDeleteParticipant_(org, id) {
 
 function orgSendLetter_(org, body) {
   assertVerified_(org);
-  const toOrgId = String(body.toOrgId || '').trim();
+  const requestedTargets = Array.isArray(body.toOrgIds) ? body.toOrgIds : [body.toOrgId || ''];
+  const toOrgIds = requestedTargets.map(function (id) { return String(id || '').trim(); });
+  if (!toOrgIds.length || toOrgIds.some(function (id) { return !id; })) {
+    throw new Error('Pilih setidaknya satu lembaga tujuan.');
+  }
+  if (toOrgIds.length > 500) throw new Error('Maksimal 500 lembaga untuk satu pengiriman.');
+  if (toOrgIds.some(function (id, index) { return toOrgIds.indexOf(id) !== index; })) {
+    throw new Error('Lembaga tujuan yang sama tidak dapat dipilih lebih dari sekali.');
+  }
   const category = String(body.category || '').trim();
   const subject = cleanText_(body.subject).slice(0, 180);
   const rawContent = String(body.body || '').trim().slice(0, 8000);
@@ -2155,6 +2164,9 @@ function orgSendLetter_(org, body) {
   const bodyText = cleanText_(decodeArticleEntity_(content.replace(/<[^>]*>/g, '')));
   const hasPrivateImage = /<img\b[^>]*src="pbpii-letter-image:[a-zA-Z0-9_-]+"/i.test(content);
   if (!subject || (!bodyText && !hasPrivateImage)) throw new Error('Subjek dan isi surat wajib diisi.');
+  if (replyToId && toOrgIds.length !== 1) {
+    throw new Error('Balasan hanya dapat dikirim kepada satu lembaga dalam percakapan.');
+  }
   if (/<img\b[^>]*src="pbpii-letter-image:/i.test(content)) {
     const imageIds = [];
     const imagePattern = /<img\b[^>]*src="pbpii-letter-image:([a-zA-Z0-9_-]+)"/gi;
@@ -2176,7 +2188,7 @@ function orgSendLetter_(org, body) {
       throw new Error('Surat yang akan dibalas tidak ditemukan atau bukan milik lembaga Anda.');
     }
     const expectedTarget = parent.fromOrgId === org.id ? parent.toOrgId : parent.fromOrgId;
-    if (toOrgId !== expectedTarget) {
+    if (toOrgIds[0] !== expectedTarget) {
       throw new Error('Balasan harus dikirim kepada lembaga pada surat yang dipilih.');
     }
     if (category !== parent.category) {
@@ -2186,17 +2198,19 @@ function orgSendLetter_(org, body) {
   }
 
   const orgs = rows_(APP.SHEET_ORGS);
-  const target = orgById_(orgs, toOrgId);
-  if (!target || String(target.status) !== 'verified') {
-    throw new Error('Lembaga tujuan belum terverifikasi.');
-  }
-  if (target.id === org.id) throw new Error('Tidak dapat mengirim surat ke lembaga sendiri.');
-
   const scopeIds = descendantsOf_(orgs, org.id);
   const ancestorIds = ancestorsOf_(orgs, org.id);
-  const allowed = org.jenjang === 'PB' || target.jenjang === 'PB'
-    || scopeIds.indexOf(target.id) >= 0 || ancestorIds.indexOf(target.id) >= 0;
-  if (!allowed) throw new Error('Surat hanya dapat dikirim ke atasan atau bawahan dalam jejaring Anda.');
+  const targets = toOrgIds.map(function (toOrgId) {
+    const target = orgById_(orgs, toOrgId);
+    if (!target || String(target.status) !== 'verified') {
+      throw new Error('Semua lembaga tujuan harus sudah terverifikasi.');
+    }
+    if (target.id === org.id) throw new Error('Tidak dapat mengirim surat ke lembaga sendiri.');
+    const allowed = org.jenjang === 'PB' || target.jenjang === 'PB'
+      || scopeIds.indexOf(target.id) >= 0 || ancestorIds.indexOf(target.id) >= 0;
+    if (!allowed) throw new Error('Surat hanya dapat dikirim ke atasan atau bawahan dalam jejaring Anda.');
+    return target;
+  });
 
   let attachmentName = '';
   if (attachmentId) {
@@ -2208,13 +2222,25 @@ function orgSendLetter_(org, body) {
     attachmentName = cleanText_(body.attachmentName).slice(0, 180) || file.getName();
   }
 
-  const id = Utilities.getUuid();
-  if (!threadId) threadId = id;
-  sheet_(APP.SHEET_LETTERS).appendRow([
-    id, org.id, target.id, category, subject, content, 'unread', new Date().toISOString(), '',
-    replyToId, threadId, attachmentId, attachmentName
-  ]);
-  return { id: id, threadId: threadId, replyToId: replyToId };
+  const createdAt = new Date().toISOString();
+  const sheet = sheet_(APP.SHEET_LETTERS);
+  const rows = targets.map(function (target) {
+    const id = Utilities.getUuid();
+    const recipientThreadId = threadId || id;
+    return [
+      id, org.id, target.id, category, subject, content, 'unread', createdAt, '',
+      replyToId, recipientThreadId, attachmentId, attachmentName
+    ];
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+  const first = rows[0];
+  return {
+    id: first[0],
+    threadId: first[10],
+    replyToId: replyToId,
+    ids: rows.map(function (row) { return row[0]; }),
+    count: rows.length
+  };
 }
 
 function orgReadLetterAttachment_(org, id) {

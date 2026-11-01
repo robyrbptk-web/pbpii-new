@@ -131,7 +131,7 @@ const Utilities = {
   getUuid: () => `fixture-${(++uuidSeq).toString(16).padStart(4, '0')}`,
   computeDigest: (_algo, value) => Array.from(createHash('sha256').update(String(value)).digest()),
   DigestAlgorithm: { SHA_256: 'SHA_256' },
-  base64Decode: (raw) => Array.from(Buffer.from(String(raw), 'base64')),
+  base64Decode: (raw) => Array.from(Buffer.from(String(raw), 'base64'), (byte) => byte > 127 ? byte - 256 : byte),
   base64Encode: (bytes) => Buffer.from(bytes).toString('base64')
 };
 
@@ -423,6 +423,12 @@ check('uploaded photos receive a working link-view permission', driveFiles.find(
   access: 'ANYONE_WITH_LINK',
   permission: 'VIEW'
 });
+check('JPEG signature is detected from signed Apps Script bytes', photo.mime, 'image/jpeg');
+const pngPhoto = gas.uploadImage_({
+  name: 'cover.png',
+  data: Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x00]).toString('base64')
+});
+check('PNG signature is detected from signed Apps Script bytes', pngPhoto.mime, 'image/png');
 
 const senderOrg = rowsOf('Orgs').find((row) => row.id === 'pk-untan');
 const receiverOrg = rowsOf('Orgs').find((row) => row.id === 'pd-pontianak');
@@ -449,6 +455,29 @@ const sentLetter = gas.orgSendLetter_(senderOrg, {
   attachmentId: attachment.fileId,
   attachmentName: attachment.name
 });
+const massLetter = gas.orgSendLetter_(senderOrg, {
+  toOrgIds: ['pd-pontianak', 'pw-kalbar'],
+  category: 'Kelembagaan',
+  subject: 'Undangan koordinasi jejaring',
+  body: '<p>Mohon hadir dalam koordinasi.</p>'
+});
+check('one letter can be sent to multiple verified superior organizations', [
+  massLetter.count,
+  massLetter.ids.length,
+  rowsOf('Letters').filter((row) => massLetter.ids.includes(row.id)).map((row) => row.toOrgId).sort()
+], [2, 2, ['pd-pontianak', 'pw-kalbar']]);
+let deniedMassRecipient = false;
+try {
+  gas.orgSendLetter_(senderOrg, {
+    toOrgIds: ['pd-pontianak', 'pd-singkawang'],
+    category: 'Kelembagaan',
+    subject: 'Tujuan di luar jejaring',
+    body: 'Tidak boleh terkirim sebagian.'
+  });
+} catch (error) {
+  deniedMassRecipient = /jejaring/.test(error.message);
+}
+check('mass delivery is rejected if any recipient is outside the sender network', deniedMassRecipient, true);
 const receivedPdf = gas.orgReadLetterAttachment_(receiverOrg, sentLetter.id);
 check('letter PDF is readable by its recipient', [
   receivedPdf.name,

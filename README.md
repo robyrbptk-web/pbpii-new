@@ -292,10 +292,10 @@ Sampul artikel, foto Ketua Umum, dan foto galeri bisa langsung diunggah dari
 4. URL itu masuk ke kolom `coverImage` / `imageUrl` yang sudah ada — jadi **tidak
    ada perubahan struktur sheet** dan artikel lama tetap jalan.
 
-Butuh backend versi `2026-10-30.3` atau lebih baru: bila deployment Apps Script
-masih lama, dashboard menampilkan pesan
-*"Backend belum mengenal unggah foto…"*. Maksimal 3 MB per berkas dan hanya
-JPEG/PNG/WebP (dicek dari tanda tangan byte, bukan dari nama file).
+Butuh backend dengan aksi `uploadImage`. Berkas gambar yang didukung browser
+diperkecil dan dikonversi ke JPEG sebelum dikirim; ukuran berkas asli maksimal
+25 MB dan hasil konversi maksimal 2,5 MB. Backend memeriksa tanda tangan byte
+JPEG/PNG/WebP, bukan nama berkas.
 
 Lampiran surat memakai folder Drive **PB PII Surat** yang tidak dibagikan lewat
 tautan publik. Akses melalui `orgReadLetterAttachment` memeriksa bahwa sesi
@@ -785,7 +785,8 @@ tampil sehingga fitur tidak terlihat mati.
 - Endpoint Apps Script harus dapat dipanggil oleh proxy Vercel. Jangan menaruh `ADMIN_PASSWORD` atau URL rahasia lain di frontend atau repository.
 - Foto galeri, sampul artikel, dan sampul kegiatan dapat diunggah langsung dari
   dashboard (`uploadImage` untuk admin, `orgUploadImage` untuk lembaga). Berkas
-  dikompres di browser, jenisnya dibaca dari tanda tangan byte (hanya JPEG/PNG/WebP),
+  diperkecil dan dikonversi ke JPEG di browser (format gambar yang bisa dibaca browser),
+  lalu jenis hasilnya diperiksa dari tanda tangan byte (JPEG/PNG/WebP),
   disimpan ke folder "PB PII Media" di Drive akun Apps Script, dan disajikan sebagai
   URL `lh3.googleusercontent.com`. Unggah memerlukan sesi pengurus yang sudah
   terverifikasi — token kader ditolak.

@@ -131,6 +131,16 @@
     .attachment-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .attachment-tools input{max-width:100%;padding:8px}
     .reply-context{padding:10px 12px;border:1px solid #cbdceb;background:#f2f7fb;border-radius:9px;color:var(--navy);font-size:12px}
+    .recipient-field{min-width:0;margin:0;padding:0;border:0}
+    .recipient-field legend{padding:0}
+    .recipient-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+    .recipient-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:7px;max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:9px;background:#fbfcfd}
+    .recipient-option{display:flex;align-items:center;gap:9px;min-width:0;margin:0;padding:9px 10px;border:1px solid transparent;border-radius:8px;background:#fff;color:var(--ink);font-size:12px;cursor:pointer}
+    .recipient-option:hover{border-color:#cbdceb;background:#f5f9fc}
+    .recipient-option input{width:17px;height:17px;flex:0 0 auto;margin:0;accent-color:var(--blue)}
+    .recipient-option span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .recipient-empty{grid-column:1/-1;margin:0;padding:8px;color:var(--muted);font-size:12px}
+    .recipient-field:disabled .recipient-list{opacity:.68}
     .letter-editor-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#f8fafc}
     .letter-editor-toolbar button,.letter-editor-toolbar select{width:auto;min-height:40px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font-weight:700}
     .letter-editor-toolbar input[type="file"][hidden]{display:none}
@@ -374,7 +384,7 @@
                 <div class="field full"><label class="lbl" for="aCover">Foto sampul kegiatan</label>
                   <div class="uploader" data-upload-for="aCover">
                     <label class="upload-drop">
-                      <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                      <input type="file" accept="image/*" hidden>
                       <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan di Drive PB PII</span>
                       <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
                     </label>
@@ -428,25 +438,35 @@
             <p class="intro">Surat hanya dapat dikirim dalam jejaring Anda (atasan/bawahan) dan ke/dari PB PII.</p>
             <form id="letterForm">
               <div class="grid2">
-                <div class="field"><label class="lbl" for="lTo">Tujuan *</label><select id="lTo" required></select></div>
+                <fieldset class="recipient-field field full" id="lToGroup">
+                  <legend class="lbl">Tujuan *</legend>
+                  <p class="hint">Pilih satu atau beberapa lembaga di atas atau di bawah Anda. Maksimal 500 penerima per pengiriman.</p>
+                  <div class="recipient-tools"><span class="hint" id="recipientCount">Belum ada tujuan dipilih.</span><button class="btn ghost" type="button" id="selectAllRecipients">Pilih semua</button></div>
+                  <div id="lTo" class="recipient-list" role="group" aria-label="Pilih lembaga tujuan"></div>
+                </fieldset>
                 <div class="field"><label class="lbl" for="lCategory">Kategori *</label><select id="lCategory"></select></div>
                 <div class="field full"><label class="lbl" for="lSubject">Subjek *</label><input id="lSubject" maxlength="180" required></div>
                 <div class="field full">
                   <label class="lbl" for="lBodyEditor">Isi surat *</label>
                   <div class="letter-editor-toolbar" role="toolbar" aria-label="Pemformatan surat">
                     <button type="button" data-letter-command="formatBlock" data-letter-value="p">Paragraf</button>
-                    <button type="button" data-letter-command="formatBlock" data-letter-value="h3">Judul</button>
+                    <button type="button" data-letter-command="formatBlock" data-letter-value="h2">Judul 2</button>
+                    <button type="button" data-letter-command="formatBlock" data-letter-value="h3">Judul 3</button>
                     <button type="button" data-letter-command="bold" aria-label="Tebal"><b>B</b></button>
                     <button type="button" data-letter-command="italic" aria-label="Miring"><i>I</i></button>
                     <button type="button" data-letter-command="underline" aria-label="Garis bawah"><u>U</u></button>
+                    <button type="button" data-letter-command="strikeThrough" aria-label="Coret"><s>S</s></button>
+                    <button type="button" data-letter-command="undo" aria-label="Urungkan">↶</button>
+                    <button type="button" data-letter-command="redo" aria-label="Ulangi">↷</button>
                     <button type="button" data-letter-command="insertUnorderedList">• Daftar</button>
                     <button type="button" data-letter-command="insertOrderedList">1. Daftar</button>
                     <button type="button" data-letter-command="formatBlock" data-letter-value="blockquote">Kutipan</button>
+                    <button type="button" data-letter-command="removeFormat" aria-label="Hapus pemformatan">Hapus format</button>
                     <button type="button" id="letterAddLink">Tautkan</button>
                     <select id="letterFont" aria-label="Jenis huruf surat"><option value="">Font</option><option value="Arial">Sans-serif</option><option value="Georgia">Serif</option></select>
                     <select id="letterFontSize" aria-label="Ukuran huruf surat"><option value="">Ukuran</option><option value="2">Kecil</option><option value="3">Normal</option><option value="5">Besar</option></select>
                     <button type="button" id="letterAddImage">Sisipkan gambar</button>
-                    <input id="letterInlineImage" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <input id="letterInlineImage" type="file" accept="image/*" hidden>
                   </div>
                   <div id="lBodyEditor" class="letter-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Isi surat" data-placeholder="Tulis isi surat, gunakan toolbar untuk format, tautan, dan gambar."></div>
                   <textarea id="lBody" class="hidden" tabindex="-1" aria-hidden="true"></textarea>
@@ -1259,8 +1279,12 @@
     function renderLetters() {
       releasePrivateLetterImages();
       $('lTo').innerHTML = state.contacts.length
-        ? state.contacts.map((org) => '<option value="' + esc(org.id) + '">' + esc(org.name) + ' (' + esc(org.jenjang) + ')</option>').join('')
-        : '<option value="">Belum ada tujuan yang tersedia</option>';
+        ? state.contacts.map((org) =>
+          '<label class="recipient-option"><input type="checkbox" name="letterRecipient" value="' + esc(org.id) +
+          '"><span>' + esc(org.name) + ' · ' + esc(org.jenjang) + '</span></label>'
+        ).join('')
+        : '<p class="recipient-empty">Belum ada tujuan yang tersedia.</p>';
+      updateRecipientCount();
       $('lCategory').innerHTML = state.categories.map((category) => '<option>' + esc(category) + '</option>').join('');
 
       const filters = ['all', 'unread'].concat(state.categories);
@@ -1329,6 +1353,30 @@
       hydratePrivateLetterImages();
     }
 
+    function selectedLetterRecipients() {
+      return Array.from(document.querySelectorAll('#lTo input[name="letterRecipient"]:checked'))
+        .map((input) => input.value);
+    }
+
+    function updateRecipientCount() {
+      const count = selectedLetterRecipients().length;
+      $('recipientCount').textContent = count
+        ? count + (count === 1 ? ' lembaga dipilih.' : ' lembaga dipilih.')
+        : 'Belum ada tujuan dipilih.';
+      $('selectAllRecipients').textContent = count === state.contacts.length && count
+        ? 'Batalkan pilihan'
+        : 'Pilih semua';
+    }
+
+    $('lTo').addEventListener('change', updateRecipientCount);
+    $('selectAllRecipients').addEventListener('click', () => {
+      const pilihSemua = selectedLetterRecipients().length !== state.contacts.length;
+      $('lTo').querySelectorAll('input[name="letterRecipient"]').forEach((input) => {
+        input.checked = pilihSemua;
+      });
+      updateRecipientCount();
+    });
+
     $('letterFilters').addEventListener('click', (event) => {
       const chip = event.target.closest('[data-filter]');
       if (!chip) return;
@@ -1343,6 +1391,10 @@
       if (!letterEditor.textContent.trim() && !/<img\b[^>]*src="pbpii-letter-image:[a-zA-Z0-9_-]+"/i.test(body)) {
         return toast('Tambahkan isi surat sebelum mengirim.');
       }
+      const toOrgIds = selectedLetterRecipients();
+      if (!toOrgIds.length) return toast('Pilih setidaknya satu lembaga tujuan.');
+      if (toOrgIds.length > 500) return toast('Maksimal 500 lembaga untuk satu pengiriman.');
+      if (toOrgIds.length > 1 && !confirm('Kirim surat ini ke ' + toOrgIds.length + ' lembaga sekaligus?')) return;
       const button = $('sendLetterBtn');
       button.disabled = true;
       try {
@@ -1355,7 +1407,7 @@
           stagedLetterPdf = attachment;
         }
         await api('orgSendLetter', {
-          toOrgId: $('lTo').value,
+          toOrgIds,
           category: $('lCategory').value,
           subject: $('lSubject').value.trim(),
           body,
@@ -1364,13 +1416,16 @@
           attachmentName: attachment ? attachment.name : ''
         });
         $('letterForm').reset();
+        updateRecipientCount();
         letterEditor.innerHTML = '';
         stagedLetterPdf = null;
         $('letterAttachmentStatus').textContent = 'PDF maksimal 2,5 MB. Lampiran hanya dapat dibuka pengirim dan penerima.';
         $('removeLetterAttachment').classList.add('hidden');
         clearReplyMode();
         await loadData();
-        toast(isReply ? 'Balasan surat terkirim.' : 'Surat terkirim.');
+        toast(isReply ? 'Balasan surat terkirim.' : toOrgIds.length > 1
+          ? 'Surat terkirim ke ' + toOrgIds.length + ' lembaga.'
+          : 'Surat terkirim.');
       } catch (error) {
         toast(error.message);
       } finally {
@@ -1421,7 +1476,9 @@
 
     function clearReplyMode() {
       $('lReplyToId').value = '';
-      $('lTo').disabled = false;
+      $('lToGroup').disabled = false;
+      $('lTo').querySelectorAll('input[name="letterRecipient"]').forEach((input) => { input.checked = false; });
+      updateRecipientCount();
       $('lCategory').disabled = false;
       $('replyContext').classList.add('hidden');
       $('cancelReply').classList.add('hidden');
@@ -1435,9 +1492,11 @@
       if (!button) return;
       const target = button.dataset.replyTarget;
       if (!state.contacts.some((org) => org.id === target)) return toast('Tujuan balasan tidak lagi tersedia.');
-      $('lTo').value = target;
+      $('lTo').querySelectorAll('input[name="letterRecipient"]').forEach((input) => {
+        input.checked = input.value === target;
+      });
+      $('lToGroup').disabled = true;
       $('lCategory').value = button.dataset.replyCategory;
-      $('lTo').disabled = true;
       $('lCategory').disabled = true;
       $('lReplyToId').value = button.dataset.replyTo;
       const subject = button.dataset.replySubject || '';
@@ -1599,32 +1658,71 @@
     // ------------------------------------------------------------- unggah foto
 
     const UPLOAD_MAX_EDGE = 1600;
-    const UPLOAD_QUALITY = 0.82;
+    const UPLOAD_MAX_BYTES = 2.5 * 1024 * 1024;
 
-    /** Foto diperkecil di browser sebelum dikirim: unggahan tetap ringan untuk Apps Script. */
+    /** Foto diperkecil adaptif agar payload JSON selalu di bawah batas server. */
     async function prepareImage(file) {
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-        throw new Error('Pilih berkas JPEG, PNG, atau WebP.');
+      if (!file || (!/^image\//i.test(file.type) && !/\.(?:avif|bmp|gif|heic|heif|jfif|jpe?g|png|svg|tif{1,2}|webp|ico)$/i.test(file.name))) {
+        throw new Error('Pilih berkas gambar yang didukung perangkat Anda.');
       }
-      if (!('createImageBitmap' in window)) {
-        throw new Error('Browser ini tidak mendukung pemrosesan foto; pakai link gambar HTTPS.');
+      if (file.size > 25 * 1024 * 1024) {
+        throw new Error('Ukuran foto asli maksimal 25 MB.');
       }
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(bitmap.width * scale);
-      canvas.height = Math.round(bitmap.height * scale);
-      const context = canvas.getContext('2d');
-      context.fillStyle = '#fff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      if (bitmap.close) bitmap.close();
-      const dataUrl = canvas.toDataURL('image/jpeg', UPLOAD_QUALITY);
-      return {
-        name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg',
-        data: dataUrl.split(',')[1],
-        bytes: Math.round(dataUrl.length * 0.75)
-      };
+      let image;
+      let bitmap;
+      let objectUrl = '';
+      try {
+        if ('createImageBitmap' in window) {
+          try { bitmap = await createImageBitmap(file); } catch (error) { /* Coba decoder gambar browser di bawah. */ }
+        }
+        if (!bitmap) {
+          objectUrl = URL.createObjectURL(file);
+          image = new Image();
+          image.src = objectUrl;
+          try {
+            await image.decode();
+          } catch (error) {
+            throw new Error('Browser tidak dapat membaca format foto ini. Coba simpan ulang sebagai JPEG atau PNG.');
+          }
+        }
+        const source = bitmap || image;
+        const width = Number(source.width || source.naturalWidth);
+        const height = Number(source.height || source.naturalHeight);
+        if (!width || !height) throw new Error('Foto tidak dapat dibaca. Coba simpan ulang sebagai JPEG atau PNG.');
+
+        let scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(width, height));
+        let data = '';
+        let bytes = 0;
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(width * scale));
+          canvas.height = Math.max(1, Math.round(height * scale));
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('Foto tidak dapat diproses di browser ini.');
+          context.fillStyle = '#fff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(source, 0, 0, canvas.width, canvas.height);
+          const quality = Math.max(0.42, 0.82 - attempt * 0.08);
+          data = canvas.toDataURL('image/jpeg', quality).split(',')[1] || '';
+          bytes = Math.ceil(data.length * 0.75);
+          if (bytes <= UPLOAD_MAX_BYTES) break;
+          scale *= 0.8;
+        }
+        if (!data || bytes > UPLOAD_MAX_BYTES) {
+          throw new Error('Foto masih terlalu besar setelah diperkecil. Pilih foto lain atau gunakan tautan gambar HTTPS.');
+        }
+        return {
+          name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg',
+          data,
+          bytes
+        };
+      } catch (error) {
+        if (error instanceof Error && error.message) throw error;
+        throw new Error('Foto gagal dibaca. Coba simpan ulang sebagai JPEG atau PNG.');
+      } finally {
+        if (bitmap && bitmap.close) bitmap.close();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }
     }
 
     /** Tampilkan kembali sampul yang sudah tersimpan saat editor kegiatan dibuka. */

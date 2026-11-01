@@ -516,129 +516,36 @@
       background: rgb(255 255 255 / 14%);
     }
 
-    .pustaka-progress {
-      flex: 0 0 auto;
-      height: 3px;
-      background: #e3edf5;
-    }
-
-    .pustaka-progress i {
-      display: block;
-      width: 0;
-      height: 100%;
-      background: var(--blue);
-      transition: width .12s linear;
-    }
-
     .pustaka-reader-body {
       flex: 1 1 auto;
-      padding: 28px clamp(16px, 5vw, 40px) 36px;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      -webkit-overflow-scrolling: touch;
-      background:
-        radial-gradient(circle at 50% 0%, #ffffff, transparent 88%),
-        #faf9f6;
+      min-height: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #e8edf2;
     }
 
-    /* Semua blok isi dipusatkan dengan lebar baca buku (± 70 karakter). */
-    .pustaka-reader-body > * {
-      max-width: 700px;
-      margin-inline: auto;
+    .pustaka-reader-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
     }
 
-    .pustaka-halaman {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-block: 32px 16px;
-      color: var(--blue);
-      font-size: .7rem;
-      font-weight: 800;
-      letter-spacing: .16em;
-      text-transform: uppercase;
+    .pustaka-reader-fallback {
+      max-width: 600px;
+      margin: 10vh auto;
+      padding: 22px;
+      color: var(--muted);
+      text-align: center;
     }
 
-    .pustaka-halaman::before,
-    .pustaka-halaman::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: #dce5ee;
-    }
-
-    .pustaka-halaman:first-child {
-      margin-block-start: 0;
-    }
-
-    .pustaka-text {
-      margin-block: 0 18px;
-      color: #2b3540;
-      font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
-      font-size: 1.05rem;
-      line-height: 1.85;
-    }
-
-    .pustaka-text mark,
     .pustaka-cuplikan mark {
       border-radius: 3px;
       padding: 0 2px;
       background: #ffedaa;
       color: inherit;
       font-weight: 700;
-    }
-
-    @media (min-width: 681px) {
-      .pustaka-text {
-        text-align: justify;
-        hyphens: auto;
-        -webkit-hyphens: auto;
-      }
-    }
-
-    .pustaka-reader-foot {
-      flex: 0 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      border-top: 1px solid var(--line);
-      padding: 9px clamp(12px, 4vw, 26px) calc(env(safe-area-inset-bottom) + 9px);
-      background: #fff;
-    }
-
-    .pustaka-reader-foot span {
-      color: var(--muted);
-      font-size: .76rem;
-    }
-
-    .pustaka-more {
-      display: inline-flex;
-      align-items: center;
-      min-height: 42px;
-      border: 1px solid #bcd2e6;
-      border-radius: 11px;
-      padding: 9px 15px;
-      background: #fff;
-      color: var(--blue);
-      font: inherit;
-      font-size: .84rem;
-      font-weight: 800;
-      cursor: pointer;
-      transition: transform .16s ease, background-color .16s ease;
-    }
-
-    .pustaka-more:hover {
-      background: var(--sky);
-    }
-
-    .pustaka-more:active {
-      transform: scale(.97);
-    }
-
-    .pustaka-more:disabled {
-      opacity: .55;
-      cursor: progress;
     }
 
     .pustaka-skeleton {
@@ -839,22 +746,18 @@
     </div>
   </main>
 
-  <!-- Pembaca isi berkas: layar penuh seperti ruang baca aplikasi, ada tombol kembali. -->
-  <div class="pustaka-reader" id="pustakaReader" role="dialog" aria-modal="true" aria-label="Pembaca isi berkas pustaka" aria-hidden="true">
+  <div class="pustaka-reader" id="pustakaReader" role="dialog" aria-modal="true" aria-label="Pembaca PDF pustaka" aria-hidden="true">
     <header class="pustaka-reader-bar">
       <button class="pustaka-back" id="pustakaReaderClose" type="button" aria-label="Kembali ke daftar pustaka">←</button>
       <div class="pustaka-reader-title">
         <b id="pustakaReaderJudul">—</b>
         <small id="pustakaReaderMeta">Memilih berkas</small>
       </div>
-      <a class="pustaka-reader-pdf" id="pustakaReaderPdf" href="#" target="_blank" rel="noopener" hidden>PDF asli ↗</a>
+      <a class="pustaka-reader-pdf" id="pustakaReaderPdf" href="#" target="_blank" rel="noopener" hidden>Buka PDF asli ↗</a>
     </header>
-    <div class="pustaka-progress" aria-hidden="true"><i id="pustakaProgress"></i></div>
-    <div class="pustaka-reader-body" id="pustakaReaderBody"></div>
-    <footer class="pustaka-reader-foot">
-      <span id="pustakaReaderInfo">Siap membaca.</span>
-      <button class="pustaka-more" id="pustakaReaderMore" type="button">Muat bagian berikutnya</button>
-    </footer>
+    <div class="pustaka-reader-body" id="pustakaReaderBody">
+      <iframe class="pustaka-reader-frame" id="pustakaReaderFrame" title="Pratinjau PDF asli" allowfullscreen hidden></iframe>
+    </div>
   </div>
 
   <footer>
@@ -877,10 +780,8 @@
     /**
      * Pustaka Organisasi — sisi depan berkas kebinan PII.
      *
-     * Semua isi datang dari Apps Script melalui /api/pii (aksi pustakaList,
-     * pustakaCari, pustakaBaca) dan dibungkus { ok, data }. Teks dari server
-     * selalu dimasukkan lewat textContent, jadi tidak ada markup yang bisa
-     * diselipkan lewat judul, ringkas, maupun cuplikan.
+     * Metadata dan pencarian isi datang dari Apps Script. Berkas dibaca lewat
+     * pratinjau PDF asli agar tata letak, halaman, dan tipografinya tetap utuh.
      */
     (() => {
       'use strict';
@@ -889,8 +790,6 @@
       const DEBUR = 400;
       const BATAS_HASIL = 12;
       const MUAT_BERKAS = 10;
-      const POTONG_PER_MUAT = 12;
-      const POTONG_LOMPAT = 40;
       const ADMIN_TOKEN_KEY = 'pbpii_admin_token';
       const ORG_TOKEN_KEY = 'pbpii_org_token';
 
@@ -913,9 +812,8 @@
       const pembacaJudul = el('pustakaReaderJudul');
       const pembacaMeta = el('pustakaReaderMeta');
       const pembacaBody = el('pustakaReaderBody');
-      const pembacaInfo = el('pustakaReaderInfo');
-      const pembacaMore = el('pustakaReaderMore');
       const pembacaPdf = el('pustakaReaderPdf');
+      const pembacaFrame = el('pustakaReaderFrame');
 
       /** Sesi mengikuti pola situs: kader dari akun.js, pengurus dari sesi login.
           Token disimpan di localStorage agar sesi tetap hidup walau tab ditutup. */
@@ -935,8 +833,7 @@
         scope: '',
         kueri: '',
         hasil: [],
-        jeda: null,
-        baca: null
+        jeda: null
       };
 
       function tautanAman(nilai) {
@@ -1331,29 +1228,10 @@
 
       // ---------------------------------------------------------------- pembaca
 
-      function blokIsi(potong, mulaiIndex) {
-        (potong || []).slice(mulaiIndex || 0).forEach((item) => {
-          const nomor = labelHalaman(item?.h);
-          /* Penanda halaman hanya ditulis saat nomornya berganti; pembandingnya
-             disimpan di keadaan pembaca supaya muatan berikutnya nyambung. */
-          if (nomor && nomor !== state.baca?.halamanTerakhir) {
-            if (state.baca) state.baca.halamanTerakhir = nomor;
-            const label = document.createElement('p');
-            label.className = 'pustaka-halaman';
-            label.textContent = `Halaman ${nomor}`;
-            pembacaBody.append(label);
-          }
-          const paragraf = document.createElement('p');
-          paragraf.className = 'pustaka-text';
-          isiParagraf(paragraf, String(item?.t || ''));
-          pembacaBody.append(paragraf);
-        });
-      }
-
       /** Isi selalu lewat textNode; <mark> hanya melilit kata kunci pencarian,
           jadi tidak ada markup dari teks server yang bisa hidup. */
       function isiParagraf(node, teks, kueriAsli) {
-        const kueri = String(kueriAsli === undefined ? state.baca?.kueri : kueriAsli).trim();
+        const kueri = String(kueriAsli === undefined ? state.kueri : kueriAsli).trim();
         const kata = kueri.length >= 3
           ? [...new Set(kueri.toLowerCase().split(/\s+/).filter((k) => k.length >= 3))]
             .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -1376,14 +1254,6 @@
         });
       }
 
-      function ubahAksiBaca() {
-        const sisa = Number(state.baca?.sisa) || 0;
-        pembacaMore.hidden = sisa <= 0;
-        pembacaInfo.textContent = sisa > 0
-          ? `${sisa} bagian lagi tersedia pada berkas ini.`
-          : 'Anda sudah berada di bagian akhir berkas.';
-      }
-
       function bukaLayar() {
         pembaca.classList.add('is-open');
         pembaca.setAttribute('aria-hidden', 'false');
@@ -1394,150 +1264,44 @@
         pembaca.classList.remove('is-open');
         pembaca.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('pustaka-membaca');
-        state.baca = null;
+        pembacaFrame.removeAttribute('src');
       }
 
-      async function bukaPembaca(id, target, informasi) {
+      function tautanPratinjauPdf(nilai, halaman) {
+        const aman = tautanAman(nilai);
+        if (!aman) return '';
+        const url = new URL(aman);
+        const fileId = url.hostname === 'drive.google.com'
+          ? url.pathname.match(/^\/file\/d\/([a-zA-Z0-9_-]+)\/(?:view|preview)\/?$/)?.[1]
+          : '';
+        if (!fileId) return aman;
+        return 'https://drive.google.com/file/d/' + fileId + '/preview'
+          + (Number(halaman) > 0 ? '#page=' + Math.floor(Number(halaman)) : '');
+      }
+
+      function bukaPembaca(id, target, informasi) {
         if (!id) return;
         const doc = { ...(state.docs.find((item) => String(item.id) === String(id)) || {}), ...(informasi || {}) };
-        state.baca = { id, mulai: 0, sisa: 0, busy: true, kueri: String(informasi?.kueri || '') };
         const pdf = tautanAman(doc.tautan);
+        const preview = tautanPratinjauPdf(pdf, target);
         pembacaPdf.hidden = !pdf;
         if (pdf) pembacaPdf.href = pdf;
         pembacaJudul.textContent = String(doc.judul || id);
         pembacaMeta.textContent = [String(doc.kategori || ''), Number(doc.halaman) ? `${doc.halaman} halaman` : '']
-          .filter(Boolean).join(' · ') || 'Isi berkas';
-        pembacaBody.replaceChildren();
-        pembacaInfo.textContent = 'Memuat isi berkas…';
-        pembacaMore.hidden = true;
+          .filter(Boolean).join(' · ') || 'PDF asli';
+        pembacaFrame.hidden = !preview;
+        pembacaFrame.title = 'PDF asli: ' + String(doc.judul || id);
+        pembacaFrame.removeAttribute('src');
+        if (preview) {
+          pembacaFrame.src = preview;
+          pembacaBody.replaceChildren(pembacaFrame);
+        } else {
+          const fallback = document.createElement('p');
+          fallback.className = 'pustaka-reader-fallback';
+          fallback.textContent = 'PDF asli untuk berkas ini belum tersedia. Silakan hubungi pengurus pustaka.';
+          pembacaBody.replaceChildren(fallback);
+        }
         bukaLayar();
-
-        try {
-          /* Nomor halaman tidak bisa dikonversi langsung ke indeks potongan,
-             jadi berkas dibaca maju beberapa muatan sampai halaman yang dicari lewat. */
-          const tujuan = Number(target) || 0;
-          const muatan = tujuan ? POTONG_LOMPAT : POTONG_PER_MUAT;
-          let jawaban = await api({ action: 'pustakaBaca', doc: id, mulai: 0, jumlah: muatan });
-          let index = 0;
-          if (tujuan) {
-            let ditemukan = -1;
-            let mulai = 0;
-            let percobaan = 0;
-            while (ditemukan < 0 && percobaan < 5) {
-              const potong = Array.isArray(jawaban?.potong) ? jawaban.potong : [];
-              ditemukan = potong.findIndex((item) => {
-                const daftar = Array.isArray(item?.h) ? item.h.map(Number) : [];
-                if (!daftar.length) return false;
-                return daftar[0] <= tujuan && tujuan <= (daftar[daftar.length - 1] || daftar[0]);
-              });
-              if (ditemukan < 0) {
-                const lewat = potong.findIndex((item) => (Array.isArray(item?.h) ? Number(item.h[0]) : 0) >= tujuan);
-                if (lewat >= 0) ditemukan = lewat;
-              }
-              if (ditemukan >= 0) { index = ditemukan; break; }
-              const sisaSebelumnya = Number(jawaban?.sisa) || 0;
-              if (sisaSebelumnya <= 0) break;
-              mulai += potong.length;
-              percobaan += 1;
-              if (percobaan >= 5) break;
-              jawaban = await api({ action: 'pustakaBaca', doc: id, mulai, jumlah: POTONG_LOMPAT });
-            }
-            if (ditemukan < 0) {
-              index = 0;
-              jawaban = await api({ action: 'pustakaBaca', doc: id, mulai: 0, jumlah: POTONG_PER_MUAT });
-            }
-          }
-          const potong = Array.isArray(jawaban?.potong) ? jawaban.potong : [];
-          if (!potong.length) {
-            const kosong = document.createElement('p');
-            kosong.className = 'pustaka-note';
-            kosong.textContent = 'Belum ada bagian teks yang bisa ditampilkan dari berkas ini.';
-            pembacaBody.append(kosong);
-            pembacaInfo.textContent = 'Berkas ini hanya menyediakan PDF-nya.';
-            state.baca.busy = false;
-            return;
-          }
-          state.baca.mulai = (Number(jawaban?.mulai) || 0) + potong.length;
-          state.baca.sisa = Number(jawaban?.sisa) || 0;
-          blokIsi(potong, index);
-          if (index > 0) {
-            const catatan = document.createElement('p');
-            catatan.className = 'pustaka-meta';
-            catatan.textContent = 'Bagian ini dibuka pada halaman yang dicari dari hasil pencarian.';
-            pembacaBody.prepend(catatan);
-          }
-          /* Nomor halaman belum tentu tersedia, jadi kalau berkas dibuka dari
-             pencarian majukan muatan sampai kata kuncinya benar-benar tampil,
-             lalu letakkan layar tepat di sana. */
-          if (state.baca.kueri.trim() && !pembacaBody.querySelector('mark')) {
-            const batasMuat = 3;
-            let muatan = 0;
-            while (!pembacaBody.querySelector('mark')
-              && (Number(state.baca.sisa) || 0) > 0
-              && muatan < batasMuat) {
-              const lanjut = await api({
-                action: 'pustakaBaca', doc: id, mulai: state.baca.mulai, jumlah: POTONG_LOMPAT
-              });
-              const lagi = Array.isArray(lanjut?.potong) ? lanjut.potong : [];
-              if (!lagi.length) break;
-              state.baca.mulai = (Number(lanjut?.mulai) || state.baca.mulai) + lagi.length;
-              state.baca.sisa = Number(lanjut?.sisa) || 0;
-              blokIsi(lagi, 0);
-              muatan += 1;
-            }
-          }
-          const cocok = pembacaBody.querySelector('mark');
-          if (cocok) cocok.scrollIntoView({ block: 'center' });
-          else pembacaBody.scrollTop = 0;
-          ubahAksiBaca();
-        } catch (error) {
-          if (butuhLogin(error.message)) {
-            suruhMasuk();
-            return;
-          }
-          const gagalEl = document.createElement('p');
-          gagalEl.className = 'pustaka-note pustaka-error';
-          gagalEl.textContent = pesanPengurus(error.message);
-          pembacaBody.replaceChildren(gagalEl);
-          pembacaInfo.textContent = 'Tutup tampilan baca, lalu buka berkasnya lagi.';
-        } finally {
-          if (state.baca) state.baca.busy = false;
-        }
-      }
-
-      async function muatBerikutnya() {
-        if (!state.baca || state.baca.busy || (Number(state.baca.sisa) || 0) <= 0) return;
-        state.baca.busy = true;
-        pembacaMore.disabled = true;
-        pembacaInfo.textContent = 'Memuat bagian berikutnya…';
-        try {
-          const jawaban = await api({ action: 'pustakaBaca', doc: state.baca.id, mulai: state.baca.mulai, jumlah: POTONG_PER_MUAT });
-          const potong = Array.isArray(jawaban?.potong) ? jawaban.potong : [];
-          if (!potong.length) {
-            state.baca.sisa = 0;
-            ubahAksiBaca();
-            return;
-          }
-          const sebelum = pembacaBody.scrollHeight - pembacaBody.clientHeight;
-          blokIsi(potong, 0);
-          state.baca.mulai = (Number(jawaban?.mulai) ?? state.baca.mulai) + potong.length;
-          state.baca.sisa = Number(jawaban?.sisa) || 0;
-          ubahAksiBaca();
-          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            pembacaBody.scrollTop = sebelum;
-          } else {
-            pembacaBody.scrollTo({ top: sebelum, behavior: 'smooth' });
-          }
-        } catch (error) {
-          if (butuhLogin(error.message)) {
-            suruhMasuk();
-            return;
-          }
-          pembacaInfo.textContent = 'Bagian berikutnya belum dapat dimuat. Silakan coba lagi.';
-        } finally {
-          state.baca = state.baca ? { ...state.baca, busy: false } : null;
-          pembacaMore.disabled = false;
-        }
       }
 
       // ------------------------------------------------------------------- paut
@@ -1592,14 +1356,6 @@
       });
 
       el('pustakaReaderClose').addEventListener('click', tutupPembaca);
-      pembacaMore.addEventListener('click', muatBerikutnya);
-      const pembacaProgress = el('pustakaProgress');
-      pembacaBody.addEventListener('scroll', () => {
-        const penuh = pembacaBody.scrollHeight - pembacaBody.clientHeight;
-        pembacaProgress.style.width = penuh > 0
-          ? `${Math.min(100, Math.round((pembacaBody.scrollTop / penuh) * 100))}%`
-          : '0%';
-      }, { passive: true });
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && pembaca.classList.contains('is-open')) tutupPembaca();
       });

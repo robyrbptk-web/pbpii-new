@@ -18,23 +18,26 @@
     body{margin:0;background:var(--soft);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.55}
     button,input,textarea,select{font:inherit}
     a{text-decoration:none;color:inherit}
-    .topbar{height:70px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;gap:16px;position:sticky;top:0;z-index:10}
+    .topbar{height:72px;background:rgb(255 255 255 / 96%);border-bottom:1px solid #dfe7e2;box-shadow:0 4px 18px #102b4908;display:flex;align-items:center;justify-content:space-between;padding:0 30px;gap:16px;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px)}
     .brand{display:flex;align-items:center;gap:12px;font-weight:850}
     .brand img{width:40px;height:47px;object-fit:contain}
     .brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.6px}
     .top-actions{display:flex;align-items:center;gap:10px}
     .user-name{font-size:12px;color:var(--muted)}
-    .layout{display:grid;grid-template-columns:235px minmax(0,1fr);min-height:calc(100vh - 70px)}
-    aside{background:#fff;border-right:1px solid var(--line);padding:24px 15px}
-    .side-label{font-size:10px;color:#8a968d;font-weight:800;letter-spacing:1.3px;padding:0 12px;margin-bottom:10px}
-    .tab{display:flex;width:100%;align-items:center;gap:11px;padding:12px;border:0;background:transparent;border-radius:9px;text-align:left;font-weight:700;color:#58665c;cursor:pointer;margin-bottom:5px}
-    .tab.active,.tab:hover{background:#eaf6ed;color:var(--green)}
+    .layout{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:calc(100vh - 72px)}
+    aside{position:sticky;top:72px;align-self:start;height:calc(100vh - 72px);overflow-y:auto;background:linear-gradient(180deg,#fff 0%,#fbfdfb 100%);border-right:1px solid #dfe7e2;padding:27px 16px}
+    .side-label{font-size:10px;color:#849188;font-weight:850;letter-spacing:1.35px;padding:0 12px;margin-bottom:12px}
+    .tab{position:relative;display:flex;width:100%;align-items:center;gap:12px;padding:12px;border:0;background:transparent;border-radius:11px;text-align:left;font-weight:700;color:#56645a;cursor:pointer;margin-bottom:5px;transition:background .16s ease,color .16s ease,transform .16s ease}
+    .tab.active,.tab:hover{background:#eaf5ed;color:var(--dark)}
+    .tab.active{box-shadow:inset 3px 0 0 var(--green)}
+    .tab:focus-visible,.btn:focus-visible{outline:3px solid #087a3640;outline-offset:2px}
+    .tab .tab-icon{width:20px;flex:0 0 20px;text-align:center;font-size:16px}
     .side-bottom{margin-top:28px;border-top:1px solid var(--line);padding-top:18px}
-    main{padding:32px;min-width:0}
+    main{padding:34px clamp(22px,3vw,42px);min-width:0}
     .page-head{display:flex;justify-content:space-between;align-items:start;gap:18px;margin-bottom:25px}
     .page-head h1{margin:0;font-size:28px;letter-spacing:-.8px}
     .page-head p{margin:5px 0 0;color:var(--muted)}
-    .panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:24px;margin-bottom:20px}
+    .panel{background:#fff;border:1px solid #e1e9e3;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 8px 26px #102b4906}
     .panel h2{font-size:17px;margin:0 0 5px}
     .panel-intro{color:var(--muted);font-size:13px;margin:0 0 20px}
     .form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:17px}
@@ -91,6 +94,7 @@
     @media(max-width:850px){
       body{padding-bottom:calc(74px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
       .layout{grid-template-columns:1fr;min-height:0}
+      aside{position:fixed;inset:auto 0 0;align-self:auto;width:100%;height:auto;overflow:visible}
       aside{position:fixed;inset:auto 0 0;z-index:40;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;border:0;border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));background:rgb(255 255 255 / 96%);backdrop-filter:blur(16px);box-shadow:0 -8px 26px #102b490b}
       .side-label,.side-bottom{display:none}
       .tab{flex-direction:column;justify-content:center;gap:3px;min-height:52px;margin:0;padding:6px 4px;border-radius:11px;font-size:10.5px;line-height:1.2;text-align:center}
@@ -153,7 +157,7 @@
       .upload-link summary{display:flex;align-items:center;min-height:44px}
       .checkline{min-height:44px}
     }
-      .rich-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;padding:9px;background:#f8faf8}
+      .rich-toolbar{position:sticky;top:72px;z-index:2;display:flex;align-items:center;gap:7px;flex-wrap:wrap;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;padding:9px;background:#f8faf8}
       .rich-toolbar button,.rich-toolbar select{width:auto;min-height:40px;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font-weight:700}
       .rich-toolbar input[type="file"][hidden]{display:none}
       .rich-editor{min-height:300px;padding:16px;border:1px solid var(--line);border-radius:0 0 10px 10px;overflow-wrap:anywhere;line-height:1.75;outline:none}
@@ -251,7 +255,7 @@
               <div class="field full"><label for="articleCover">Sampul artikel</label>
                 <div class="uploader" data-upload-for="articleCover">
                   <label class="upload-drop">
-                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <input type="file" accept="image/*" hidden>
                     <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan sendiri</span>
                     <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
                   </label>
@@ -270,9 +274,13 @@
                   <button type="button" data-command="bold" aria-label="Tebal"><b>B</b></button>
                   <button type="button" data-command="italic" aria-label="Miring"><i>I</i></button>
                   <button type="button" data-command="underline" aria-label="Garis bawah"><u>U</u></button>
+                  <button type="button" data-command="strikeThrough" aria-label="Coret"><s>S</s></button>
+                  <button type="button" data-command="undo" aria-label="Urungkan">↶</button>
+                  <button type="button" data-command="redo" aria-label="Ulangi">↷</button>
                   <button type="button" data-command="insertUnorderedList" aria-label="Daftar berpoin">• Daftar</button>
                   <button type="button" data-command="insertOrderedList" aria-label="Daftar bernomor">1. Daftar</button>
                   <button type="button" data-command="formatBlock" data-value="blockquote">Kutipan</button>
+                  <button type="button" data-command="removeFormat" aria-label="Hapus pemformatan">Hapus format</button>
                   <button type="button" id="articleAddLink">Tautkan</button>
                   <select id="articleFont" aria-label="Jenis huruf">
                     <option value="">Jenis huruf</option><option value="Arial">Sans-serif</option><option value="Georgia">Serif</option>
@@ -282,7 +290,7 @@
                   </select>
                   <button type="button" id="articleAddImage">Sisipkan gambar</button>
                   <button type="button" data-command="insertHorizontalRule">Garis pemisah</button>
-                  <input id="articleInlineImage" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                  <input id="articleInlineImage" type="file" accept="image/*" hidden>
                 </div>
                 <div id="articleContentEditor" class="rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Isi artikel" data-placeholder="Tulis artikel dengan paragraf yang rapi. Gunakan toolbar untuk format, tautan, dan gambar."></div>
                 <textarea id="articleContent" class="hidden" tabindex="-1" aria-hidden="true"></textarea>
@@ -383,7 +391,7 @@
               <div class="field full"><label for="chairmanPhoto">Foto Ketua Umum</label>
                 <div class="uploader" data-upload-for="chairmanPhoto">
                   <label class="upload-drop">
-                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <input type="file" accept="image/*" hidden>
                     <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan sendiri</span>
                     <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
                   </label>
@@ -437,7 +445,7 @@
               <div class="field full"><label for="galleryUrl">Foto</label>
                 <div class="uploader" data-upload-for="galleryUrl">
                   <label class="upload-drop">
-                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                    <input type="file" accept="image/*" hidden>
                     <span class="drop-pointer">Seret foto ke sini atau klik untuk memilih — otomatis diperkecil lalu tersimpan sendiri</span>
                     <span class="drop-touch">Ketuk untuk memilih dari galeri atau kamera — foto diperkecil dan disimpan sendiri</span>
                   </label>
@@ -512,35 +520,74 @@
     /* ------------------------------------------------------------ unggah foto */
 
     const UPLOAD_MAX_EDGE = 1600;
-    const UPLOAD_QUALITY = 0.82;
+    const UPLOAD_MAX_BYTES = 2.5 * 1024 * 1024;
 
     /**
-     * Foto dikecilkan di browser sebelum dikirim: unggahan 200 KB berhasil di
-     * semua koneksi, sedangkan foto kamera 6 MB sering mati di tengah jalan.
+     * Foto diproses menjadi JPEG kecil agar permintaan JSON tetap berada di
+     * bawah batas unggah server, termasuk untuk foto kamera beresolusi tinggi.
      */
     async function prepareImage(file) {
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-        throw new Error('Pilih berkas JPEG, PNG, atau WebP.');
+      if (!file || (!/^image\//i.test(file.type) && !/\.(?:avif|bmp|gif|heic|heif|jfif|jpe?g|png|svg|tif{1,2}|webp|ico)$/i.test(file.name))) {
+        throw new Error('Pilih berkas gambar yang didukung perangkat Anda.');
       }
-      if (!('createImageBitmap' in window)) {
-        throw new Error('Browser ini tidak mendukung pemrosesan foto; pakai link gambar HTTPS.');
+      if (file.size > 25 * 1024 * 1024) {
+        throw new Error('Ukuran foto asli maksimal 25 MB.');
       }
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(bitmap.width * scale);
-      canvas.height = Math.round(bitmap.height * scale);
-      const context = canvas.getContext('2d');
-      context.fillStyle = '#fff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      if (bitmap.close) bitmap.close();
-      const dataUrl = canvas.toDataURL('image/jpeg', UPLOAD_QUALITY);
-      return {
-        name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg',
-        data: dataUrl.split(',')[1],
-        bytes: Math.round(dataUrl.length * 0.75)
-      };
+      let image;
+      let bitmap;
+      let objectUrl = '';
+      try {
+        if ('createImageBitmap' in window) {
+          try { bitmap = await createImageBitmap(file); } catch (error) { /* Coba decoder gambar browser di bawah. */ }
+        }
+        if (!bitmap) {
+          objectUrl = URL.createObjectURL(file);
+          image = new Image();
+          image.src = objectUrl;
+          try {
+            await image.decode();
+          } catch (error) {
+            throw new Error('Browser tidak dapat membaca format foto ini. Coba simpan ulang sebagai JPEG atau PNG.');
+          }
+        }
+        const source = bitmap || image;
+        const width = Number(source.width || source.naturalWidth);
+        const height = Number(source.height || source.naturalHeight);
+        if (!width || !height) throw new Error('Foto tidak dapat dibaca. Coba simpan ulang sebagai JPEG atau PNG.');
+
+        let scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(width, height));
+        let data = '';
+        let bytes = 0;
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(width * scale));
+          canvas.height = Math.max(1, Math.round(height * scale));
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('Foto tidak dapat diproses di browser ini.');
+          context.fillStyle = '#fff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(source, 0, 0, canvas.width, canvas.height);
+          const quality = Math.max(0.42, 0.82 - attempt * 0.08);
+          data = canvas.toDataURL('image/jpeg', quality).split(',')[1] || '';
+          bytes = Math.ceil(data.length * 0.75);
+          if (bytes <= UPLOAD_MAX_BYTES) break;
+          scale *= 0.8;
+        }
+        if (!data || bytes > UPLOAD_MAX_BYTES) {
+          throw new Error('Foto masih terlalu besar setelah diperkecil. Pilih foto lain atau gunakan tautan gambar HTTPS.');
+        }
+        return {
+          name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg',
+          data,
+          bytes
+        };
+      } catch (error) {
+        if (error instanceof Error && error.message) throw error;
+        throw new Error('Foto gagal dibaca. Coba simpan ulang sebagai JPEG atau PNG.');
+      } finally {
+        if (bitmap && bitmap.close) bitmap.close();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }
     }
 
     /** Tampilkan kembali gambar yang tersimpan di kolom saat form diisi. */
