@@ -84,7 +84,7 @@ yang sudah jalan:
    kode lama sehingga fitur lembaga (daftar PW/PD/PK) menjawab "Sesi berakhir".
 4. Bukti bahwa versi baru benar-benar melayani: buka URL `/exec` di browser, atau
    kirim `POST` `{action:"health"}`. Balasan memuat `version` (stamp di `Code.gs`,
-   sekarang `2026-11-02.3`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
+   sekarang `2026-11-02.4`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
    `masalah`. Versi yang lebih lama dari stamp berarti langkah 3 belum selesai.
    Endpoint ini sengaja tidak mengembalikan kata sandi, token, maupun isi data.
 5. Teks kop website: jalankan **PB PII > Ganti teks dengan salinan resmi** pada
@@ -309,7 +309,13 @@ Butuh backend dengan aksi `uploadImage`. Berkas gambar yang didukung browser
 diperkecil dan dikonversi ke JPEG sebelum dikirim; ukuran berkas asli maksimal
 25 MB dan hasil konversi maksimal 2,5 MB. Backend memeriksa tanda tangan byte
 JPEG/PNG/WebP, bukan nama berkas. Setelah perubahan backend, Apps Script harus
-di-deploy ulang sebagai versi baru `2026-11-02.3`.
+di-deploy ulang sebagai versi baru `2026-11-02.4`.
+
+Berkas lama yang isinya daftar angka byte bisa dipulihkan sampai ke sumbernya:
+setelah kode terbaru ditempel di editor Apps Script, jalankan fungsi
+`perbaikiFotoDrive` satu kali (tombol Run). Isi berkas ditulis ulang menjadi
+gambar asli tanpa mengganti ID-nya, jadi URL yang sudah tersimpan di sheet tetap
+dipakai. Fungsi ini melewati berkas yang sudah berupa gambar atau PDF.
 
 Lampiran surat memakai folder Drive **PB PII Surat** yang tidak dibagikan lewat
 tautan publik. Akses melalui `orgReadLetterAttachment` memeriksa bahwa sesi

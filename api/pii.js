@@ -132,7 +132,9 @@ async function serveDriveImage(req, res) {
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Length', String(bytes.length));
     res.setHeader('Content-Disposition', 'inline');
-    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600');
+    // Isi berkas Drive bisa diperbaiki tanpa mengganti ID, jadi cache tepi sengaja
+    // tidak seharian agar foto lama tampil begitu berkasnya dibetulkan.
+    res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=21600, stale-while-revalidate=3600');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     return res.end(bytes);
   } catch (error) {

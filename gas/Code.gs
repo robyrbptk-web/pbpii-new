@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-02.3';
+const BACKEND_VERSION = '2026-11-02.4';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',

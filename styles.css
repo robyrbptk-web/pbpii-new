@@ -1608,7 +1608,8 @@ footer {
   }
 
   .greeting-photo img {
-    width: min(180px, 52vw);
+    width: min(240px, 62vw);
+    border: 1px solid #d8e6f2;
   }
 
   .greeting-copy {

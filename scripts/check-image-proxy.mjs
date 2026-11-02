@@ -47,7 +47,7 @@ try {
   assert.equal(valid.statusCode, 200);
   assert.equal(valid.headers['content-type'], 'image/jpeg');
   assert.deepEqual(valid.body, jpeg);
-  assert.match(valid.headers['cache-control'], /s-maxage=86400/);
+  assert.match(valid.headers['cache-control'], /s-maxage=21600/);
   console.log('OK  same-origin proxy returns validated JPEG bytes with cache headers');
 
   const legacyBytes = Buffer.from(Array.from(jpeg, (byte) => byte > 127 ? byte - 256 : byte).join(','));

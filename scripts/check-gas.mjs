@@ -135,7 +135,8 @@ const Utilities = {
   newBlob: (bytes, mime, name) => ({
     getBytes: () => Array.from(bytes),
     getContentType: () => String(mime),
-    getName: () => String(name)
+    getName: () => String(name),
+    getDataAsString: () => Buffer.from(Array.from(bytes, (b) => (b + 256) % 256)).toString('utf8')
   }),
   DigestAlgorithm: { SHA_256: 'SHA_256' },
   base64Decode: (raw) => Array.from(Buffer.from(String(raw), 'base64'), (byte) => byte > 127 ? byte - 256 : byte),
@@ -244,11 +245,12 @@ function fileHandle(record) {
     },
     getBlob: () => ({
       getBytes: () => {
+        const isi = (record.bytes || []).slice();
         if (corruptNextDriveRead) {
           corruptNextDriveRead = false;
-          return record.bytes.slice(1);
+          return isi.slice(1);
         }
-        return record.bytes.slice();
+        return isi;
       }
     })
   };
@@ -311,6 +313,7 @@ const exported = [
   'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_',
   'ensureDefaultSettings_', 'sanitizeArticleHtml_', 'sanitizeLetterHtml_', 'saveArticle_', 'uploadImage_', 'driveImageUrl_',
   'orgUploadPdf_', 'orgUploadLetterImage_', 'orgSendLetter_', 'orgReadLetterAttachment_', 'orgReadLetterImage_',
+  'perbaikiFotoDrive', 'bytesDariTeksAngka_',
   'pustakaDaftar_'
 ].join(', ');
 const load = new Function(
@@ -1067,6 +1070,33 @@ check('penanda gambar surat tidak ikut diganti',
 check('gambar di isi artikel dinormalkan saat disimpan',
   /src="https:\/\/drive\.usercontent\.google\.com\/download\?id=ABC123abc-_456&amp;export=view&amp;authuser=0"/
     .test(gas.sanitizeArticleHtml_('<p>Isi</p><img src="https://lh3.googleusercontent.com/d/ABC123abc-_456=w1600" alt="Foto">')), true);
+
+// Berkas lama yang isinya teks angka byte harus bisa dipulihkan tanpa ganti ID.
+check('teks angka byte dikenali sebagai JPEG', gas.bytesDariTeksAngka_('-1,-40,-1,-32,0,16').mime, 'image/jpeg');
+check('teks angka byte dipulihkan menjadi bytes aslinya',
+  gas.bytesDariTeksAngka_('-1,-40,-1,-32,0,16').bytes.slice(0, 4).join(','), '255,216,255,224');
+check('teks bukan gambar tidak pernah ditimpa', gas.bytesDariTeksAngka_('{"versi":1,"docs":[]}'), null);
+check('angka di luar rentang byte ditolak', gas.bytesDariTeksAngka_('1,-40,999,0,1,2'), null);
+
+driveFiles.push({
+  id: 'fixture-foto-rusak',
+  name: 'sambutan-ketum.jpg',
+  bytes: Array.from(Buffer.from('-1,-40,-1,-32,0,16', 'utf8')),
+  mime: 'image/jpeg',
+  description: '',
+  sharing: null
+});
+const logAsli = console.log;
+console.log = () => {};
+const hasilPerbaikan = gas.perbaikiFotoDrive();
+console.log = logAsli;
+const berkasRusak = driveFiles.find((file) => file.id === 'fixture-foto-rusak');
+check('foto lama ditulis ulang sebagai gambar asli',
+  berkasRusak.bytes.slice(0, 4).join(','), '255,216,255,224');
+check('perbaikan melaporkan berkas yang dipulihkan',
+  hasilPerbaikan.berkas.some((item) => item.id === 'fixture-foto-rusak'), true);
+check('berkas yang sudah gambar tidak dihitung sebagai perbaikan',
+  hasilPerbaikan.diperbaiki, 1);
 
 // ------------------------------------------------------------------ laporan
 
