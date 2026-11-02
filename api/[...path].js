@@ -20,6 +20,10 @@ import cctvMedia from '../proxies/cctv/media/[id].js';
 import cctvSources from '../proxies/cctv/sources.js';
 import celestrak from '../proxies/celestrak.js';
 import celestrakGroup from '../proxies/celestrak/[group].js';
+import ibadahHadith from '../proxies/ibadah/hadith.js';
+import ibadahHijriah from '../proxies/ibadah/hijriah.js';
+import ibadahMasjid from '../proxies/ibadah/masjid.js';
+import ibadahZakat from '../proxies/ibadah/zakat.js';
 import firms from '../proxies/firms.js';
 import gbfs from '../proxies/gbfs/[slug].js';
 import geocodeJson from '../proxies/geocode/json.js';
@@ -65,6 +69,10 @@ const ROUTES = [
   ['firms', firms],
   ['gbfs/:slug', gbfs],
   ['geocode/json', geocodeJson],
+  ['ibadah/hadith', ibadahHadith],
+  ['ibadah/hijriah', ibadahHijriah],
+  ['ibadah/masjid', ibadahMasjid],
+  ['ibadah/zakat', ibadahZakat],
   ['indonesia/hospitals', indonesiaHospitals],
   ['indonesia/transjakarta', indonesiaTransjakarta],
   ['launches', launches],

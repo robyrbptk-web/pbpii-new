@@ -281,7 +281,7 @@ Yang benar adalah repository di dalam `pbpii-web` (`.git` milik sendiri);
 - Galeri: tambah, edit, hapus, urutan, caption, tampil/sembunyikan, dengan unggah foto langsung.
 - Login admin dan lembaga dengan token sesi persisten di sheet `Sessions` (bukan lagi `CacheService`, yang diam-diam memotong umur token menjadi 10 menit).
 - **Peta Global (PII Global View)** di `/peta.html`: globe interaktif berisi satelit, gunung berapi, sekolah, rumah sakit, halte Transjakarta, penerbangan, dan kamera CCTV Dishub Jakarta, Bandung, Tasikmalaya, serta Kabupaten Bandung, ditambah ringkasan angka langsung di beranda.
-- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, **adzan otomatis** (berbunyi sendiri saat waktunya tiba tanpa menekan apa pun; ada sakelar untuk mematikannya di halaman itu dan pilihannya tersimpan di perangkat), arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Beranda menampilkan ringkasan jadwal hari ini dan ikut memutar adzan selama halaman terbuka. **Semuanya tampil sejak halaman baru dibuka**: jadwal terakhir hari itu dibaca dari penyimpanan perangkat, daftar surat dan daftar kota ikut terbundel di aplikasi, dan jaringan hanya dipakai memperbarui di latar belakang (lihat bagian E).
+- **Ruang Ibadah** di `/ibadah.html`: jadwal sholat Kemenag untuk 517 kabupaten/kota (bisa dicari dan disimpan di perangkat), deteksi lokasi otomatis untuk pengunjung dari daerah mana pun, hitung mundur waktu sholat berikutnya, **adzan otomatis** (berbunyi sendiri saat waktunya tiba tanpa menekan apa pun; ada sakelar untuk mematikannya di halaman itu dan pilihannya tersimpan di perangkat), arah kiblat, tanggal Hijriah, serta pembaca Al-Qur'an 114 surat dengan terjemahan, tafsir ringkas, dan murattal. Ada pula **hadis kutub sittah** (Arab + terjemahan, dinavigasi per nomor), **kalkulator zakat mal** dengan nisab yang mengikuti harga emas dan perak hari ini, **masjid dan musala terdekat** dari peta terbuka, serta **kalender Hijriah sebulan penuh** dengan penanda hari ini. Beranda menampilkan ringkasan jadwal hari ini dan ikut memutar adzan selama halaman terbuka. **Semuanya tampil sejak halaman baru dibuka**: jadwal terakhir hari itu dibaca dari penyimpanan perangkat, daftar surat dan daftar kota ikut terbundel di aplikasi, dan jaringan hanya dipakai memperbarui di latar belakang (lihat bagian E).
 - Dashboard admin: ringkasan angka, pencarian dan saringan artikel, penerbitan/penarikan artikel sekali klik, notifikasi ringkas, serta panel bantuan yang menjelaskan lokasi database dan cara memulihkan akun admin.
 
 ### Unggah foto dari dashboard (tanpa link)
@@ -383,6 +383,10 @@ Proxy yang tersedia:
 | `/api/muslim/quran?nomor=&page=&limit=` | API Muslim (114 surat) | tidak perlu |
 | `/api/muslim/qibla?lat=&lon=` | API Muslim | tidak perlu |
 | `/api/muslim/kalender` | API Muslim (Hijriah) | tidak perlu |
+| `/api/ibadah/hadith?b=&n=` | fawazahmed0/hadith-api di jsDelivr (kutub sittah, Arab + terjemahan Indonesia) | tidak perlu |
+| `/api/ibadah/hijriah?t=&b=` | Aladhan API, metode 20 (Kemenag RI); tanpa parameter = bulan berjalan | tidak perlu |
+| `/api/ibadah/zakat` | harga emas/perak dunia (gold-api.com) + kurs USD/IDR (open.er-api.com) | tidak perlu |
+| `/api/ibadah/masjid?lat=&lon=&radius=` | mirror Overpass API (OSM), giliran otomatis | tidak perlu |
 | `/api/cctv/sources` | Dishub DKI Jakarta + ATCS Bandung/Tasikmalaya/Kab. Bandung | tidak perlu |
 | `/api/cctv/health` | hasil pencocokan registry di `/api/cctv/sources` | tidak perlu |
 | `/api/cctv/frame/:id` | citra statis kamera yang memilikinya | tidak perlu |
@@ -522,6 +526,37 @@ berbunyi sendiri tanpa tombol yang perlu ditekan.
   selama tab terbuka.
 - Arah kiblat bawaannya dihitung dari Sekretariat PB PII; tombol **Gunakan
   lokasi saya** memakai geolocation (perlu HTTPS atau `localhost`).
+
+**Empat sumber tambahan di belakang `/api/ibadah/*`.** Semuanya tanpa kunci dan
+baru dipanggil saat ubinnya dibuka untuk pertama kali (`whenShown` memantau atribut
+`hidden` pada panel), jadi membuka halaman untuk melihat jadwal sholat tidak
+membebani sumber mana pun.
+
+- **Hadis** (`proxies/ibadah/hadith.js` → `lib/hadithApi.js`): kutub sittah dari
+  `fawazahmed0/hadith-api` yang disajikan jsDelivr. Sumbernya satu berkas per hadis
+  (`ind-bukhari/12.json`, bukan rentang), jadi proksi mengambil teks Arab dan
+  terjemahan Indonesia untuk nomor yang diminta lalu menggabungkannya. Batas tiap
+  buku ikut dikirim ke browser supaya tombol sebelum/sesudah/acak bisa mengunci
+  rentangnya sendiri. Isinya tidak pernah berubah, jadi cache server 30 hari dan
+  cache perangkat per hadis.
+- **Kalender Hijriah** (`lib/aladhan.js`): Aladhan `/v1/hijriCalendar/{tahun}/{bulan}`
+  dengan `method=20` (Kemenag RI). Tanpa parameter, proksi mengonversi tanggal hari
+  ini lewat `/v1/gToH` dan mengirim bulan berjalan (cache 1 jam); bulan lain di-cache
+  30 hari. Yang diteruskan hanya isi sel grid: hari Hijriah, tanggal Masehi, nama hari.
+- **Zakat** (`lib/zakatMarket.js`): harga emas dan perak dunia per troy ons dari
+  gold-api.com, dikurskan ke rupiah lewat open.er-api.com, dibagi 31,1034768 g/oz
+  untuk mendapat harga per gram, lalu dijadikan nisab 85 g emas / 595 g perak
+  (BAZNAS dan Permenag 31/2019). Kadar 2,5% dihitung di browser; cache 30 menit.
+- **Masjid terdekat** (`lib/masjidOverpass.js`): kueri Overpass disusun di server dari
+  angka hasil validasi — browser tidak pernah mengirim teks kueri — dengan mirror yang
+  dirotasi sampai ada yang menjawab dan radius dibatasi 500 m–20 km. Daftar dipangkas
+  ke 25 baris terdekat, di-cache 24 jam di server dan di perangkat, sehingga ketika
+  mirror sedang penuh (`502 at capacity`) pengunjung tetap melihat daftar terakhir dan
+  pesannya tetap wajar dalam bahasa Indonesia.
+
+Satu catatan untuk semua proksi baru: `vercel.json` menurunkan rute bertingkat menjadi
+`/api/_gw?r=<path>`, jadi parameter kueri yang benar-benar bernama `r` akan menimpa rute
+itu. Masjid memakai nama `radius`.
 
 
 ## F. Lokasi database dan pemulihan akun admin

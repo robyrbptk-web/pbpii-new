@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Ruang ibadah PB PII: jadwal sholat Kemenag untuk 517 kabupaten/kota, penanda adzan, kompas kiblat hidup, tasbih, dan pembaca Al-Qur'an dengan tafsir ringkas.">
+  <meta name="description" content="Ruang ibadah PB PII: jadwal sholat Kemenag untuk 517 kabupaten/kota, penanda adzan, kompas kiblat hidup, tasbih, pembaca Al-Qur'an, kutub sittah dengan terjemahan, kalkulator zakat, masjid terdekat, dan kalender Hijriah.">
   <meta name="theme-color" content="#06301f">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -76,6 +76,26 @@
         <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span>
         <b>Al-Qur'an</b>
         <small>114 surat</small>
+      </a>
+      <a class="ib-tile" id="ibTabHadith" href="#hadis" role="tab" aria-controls="hadis" aria-selected="false" tabindex="-1">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 4.5h8a2 2 0 0 1 2 2v13h-10a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z"/><path d="M8.5 9h6M8.5 12.5h6M8.5 16h3"/></svg></span>
+        <b>Hadis</b>
+        <small>Sabda Nabi</small>
+      </a>
+      <a class="ib-tile" id="ibTabZakat" href="#zakat" role="tab" aria-controls="zakat" aria-selected="false" tabindex="-1">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6.5" ry="2.6"/><path d="M5.5 7v5c0 1.5 2.9 2.6 6.5 2.6s6.5-1.1 6.5-2.6V7"/><path d="M5.5 12v4.5c0 1.5 2.9 2.6 6.5 2.6s6.5-1.1 6.5-2.6V12"/></svg></span>
+        <b>Zakat</b>
+        <small>Hitung nisab</small>
+      </a>
+      <a class="ib-tile" id="ibTabMasjid" href="#masjid" role="tab" aria-controls="masjid" aria-selected="false" tabindex="-1">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4.5c2.3 1.9 3.5 3.4 3.5 5.1 0 1.5-1.6 2.6-3.5 2.6S8.5 11.1 8.5 9.6c0-1.7 1.2-3.2 3.5-5.1Z"/><path d="M6 20v-4.6a6 6 0 0 1 12 0V20"/><path d="M4 20h16"/></svg></span>
+        <b>Masjid</b>
+        <small>Terdekat</small>
+      </a>
+      <a class="ib-tile" id="ibTabHijriah" href="#hijriah" role="tab" aria-controls="hijriah" aria-selected="false" tabindex="-1">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/><path d="M14.4 16.4a3.1 3.1 0 1 1-2.9-4.4 2.6 2.6 0 0 0 2.9 4.4Z"/></svg></span>
+        <b>Hijriah</b>
+        <small>Kalender bulan</small>
       </a>
     </div>
     <div class="ib-app-panels">
@@ -228,6 +248,116 @@
         </article>
       </div>
     </section>
+
+    <section id="hadis" class="section hadis-section" role="tabpanel" aria-labelledby="ibTabHadith" hidden>
+      <div class="ib-feature-head">
+        <p class="eyebrow">HADIS</p>
+        <h2>Sabda Nabi beserta terjemahannya.</h2>
+        <p>Teks Arab dan terjemahan Indonesia dari kutub sittah. Ketuk nomor untuk membaca hadis berikutnya.</p>
+      </div>
+
+      <div class="hd-books" id="hadithBooks" role="group" aria-label="Pilih buku hadis"></div>
+
+      <div class="hd-nav">
+        <button class="hd-step" id="hadithPrev" type="button" aria-label="Hadis sebelumnya">◀</button>
+        <p class="hd-ref" id="hadithRef" role="status" aria-live="polite">Memuat hadis…</p>
+        <button class="hd-step" id="hadithNext" type="button" aria-label="Hadis berikutnya">▶</button>
+        <button class="hd-random" id="hadithRandom" type="button">Acak</button>
+      </div>
+
+      <article class="hd-card">
+        <p class="hd-arabic" id="hadithArabic" dir="rtl" lang="ar"></p>
+        <p class="hd-text" id="hadithText"></p>
+        <p class="hd-note" id="hadithNote" role="status" aria-live="polite">Terjemahan dari kumpulan hadis terbuka; sanad lengkapnya ada di kitab aslinya.</p>
+      </article>
+    </section>
+
+    <section id="zakat" class="section zakat-section" role="tabpanel" aria-labelledby="ibTabZakat" hidden>
+      <div class="ib-feature-head">
+        <p class="eyebrow">ZAKAT MAL</p>
+        <h2>Hitung zakat harta dengan harga hari ini.</h2>
+        <p>Nisab dihitung dari harga emas dan perak dunia yang dikonversi ke rupiah, mengikuti ketentuan 85 gram emas atau 595 gram perak.</p>
+      </div>
+
+      <div class="zk-prices" id="zakatPrices">
+        <p><span>Emas per gram</span><b id="priceGold">—</b></p>
+        <p><span>Perak per gram</span><b id="priceSilver">—</b></p>
+        <p><span>Nisab emas</span><b id="nisabGold">—</b></p>
+        <p><span>Nisab perak</span><b id="nisabSilver">—</b></p>
+      </div>
+      <p class="zk-status" id="zakatStatus" role="status" aria-live="polite">Mengambil harga emas, perak, dan kurs hari ini…</p>
+
+      <div class="zk-form">
+        <label class="zk-field" for="zakatType">
+          <span>Jenis harta</span>
+          <select id="zakatType">
+            <option value="emas">Emas (gram)</option>
+            <option value="perak">Perak (gram)</option>
+            <option value="uang">Uang &amp; harta dagangan (rupiah)</option>
+          </select>
+        </label>
+        <label class="zk-field" for="zakatAmount">
+          <span id="zakatAmountLabel">Jumlah emas yang dimiliki (gram)</span>
+          <input id="zakatAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0">
+        </label>
+        <label class="zk-field" for="zakatDebt">
+          <span>Hutang yang jatuh tempo (rupiah)</span>
+          <input id="zakatDebt" type="number" min="0" step="1000" inputmode="numeric" placeholder="0">
+        </label>
+        <label class="switch zk-haul">
+          <input type="checkbox" id="zakatHaul" checked>
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span>Harta sudah disimpan satu tahun (haul)</span>
+        </label>
+      </div>
+
+      <div class="zk-result" id="zakatResult" role="status" aria-live="polite">
+        <p class="eyebrow">HASIL PERHITUNGAN</p>
+        <b id="zakatAmountResult">—</b>
+        <small id="zakatExplanation">Isi jumlah harta untuk melihat kewajibannya.</small>
+      </div>
+      <p class="zk-note">Perhitungan ini perkiraan memakai harga logam dunia hari ini. Untuk penyalurannya, titipkan melalui lembaga amil zakat resmi atau konsultasikan dengan ulama.</p>
+    </section>
+
+    <section id="masjid" class="section masjid-section" role="tabpanel" aria-labelledby="ibTabMasjid" hidden>
+      <div class="ib-feature-head">
+        <p class="eyebrow">MASJID &amp; MUSALA</p>
+        <h2>Cari tempat ibadah terdekat.</h2>
+        <p>Bersumber dari peta terbuka yang dirawat relawan, jadi nama dan alamatnya bisa berbeda dengan papan di lapangan.</p>
+      </div>
+
+      <div class="ms-tools">
+        <div class="ms-radius" id="masjidRadius" role="group" aria-label="Jarak pencarian">
+          <button type="button" data-radius="1000">1 km</button>
+          <button type="button" data-radius="3000" class="is-active">3 km</button>
+          <button type="button" data-radius="5000">5 km</button>
+          <button type="button" data-radius="10000">10 km</button>
+        </div>
+        <button class="ms-locate" id="masjidLocate" type="button">Pakai GPS saya</button>
+      </div>
+
+      <p class="ms-status" id="masjidStatus" role="status" aria-live="polite">Mencari masjid terdekat…</p>
+      <ul class="ms-list" id="masjidList"></ul>
+    </section>
+
+    <section id="hijriah" class="section hijriah-section" role="tabpanel" aria-labelledby="ibTabHijriah" hidden>
+      <div class="ib-feature-head">
+        <p class="eyebrow">KALENDER HIJRIAH</p>
+        <h2>Pasang tanggal Hijriah dan Masehi sebulan penuh.</h2>
+        <p>Perhitungan mengikuti metode Kementerian Agama RI; tanggal bisa bergeser sehari akibat rukyat.</p>
+      </div>
+
+      <div class="hj-nav">
+        <button class="hj-step" id="hijriPrev" type="button" aria-label="Bulan sebelumnya">◀</button>
+        <b id="hijriMonthLabel">Memuat kalender…</b>
+        <button class="hj-step" id="hijriNext" type="button" aria-label="Bulan berikutnya">▶</button>
+        <button class="hj-today" id="hijriToday" type="button">Bulan ini</button>
+      </div>
+
+      <div class="hj-week" id="hijriWeek" aria-hidden="true"></div>
+      <div class="hj-grid" id="hijriGrid"></div>
+      <p class="hj-status" id="hijriStatus" role="status" aria-live="polite">Memuat tanggal Hijriah…</p>
+    </section>
     </div>
   </main>
 
@@ -261,7 +391,7 @@
     </a>
     <p>Pengurus Besar Pelajar Islam Indonesia</p>
     <a href="login.html" class="admin-link" data-requires="pengurus">Admin</a>
-    <small>© <span id="year"></span> Pengurus Besar Pelajar Islam Indonesia · Data ibadah: API Muslim (Kemenag RI)</small>
+    <small>© <span id="year"></span> Pengurus Besar Pelajar Islam Indonesia · Data ibadah: API Muslim (Kemenag RI), peta terbuka, dan harga logam dunia</small>
     <small class="footer-credit">Dibuat oleh Badan Khusus Inovasi Digital PB PII</small>
   </footer>
 

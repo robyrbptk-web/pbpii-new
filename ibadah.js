@@ -24,6 +24,7 @@
     fontScale: 'pbpii:ibadah-quran-font-scale',
     position: 'pbpii:ibadah-position',
     tasbih: 'pbpii:ibadah-tasbih',
+    hadith: 'pbpii:ibadah-hadith',
   };
 
   const DEFAULT_CITY = Object.freeze({ id: '58a2fc6ed39fd083f55d4182bf88826d', name: 'Kota Jakarta', prov: 'DKI Jakarta' });
@@ -1935,6 +1936,407 @@
     })();
   }
 
+  /* --------------------------------------------- hadis, zakat, masjid, hijriah
+     Keempat fitur ini memakai sumber berbeda di belakang /api/ibadah. Muatannya
+     baru diambil saat ubinnya dibuka untuk pertama kali, jadi membuka halaman
+     untuk melihat jadwal sholat tidak membebani sumber mana pun. */
+
+  const IBADAH_API = '/api/ibadah';
+
+  /** Jalankan sekali, tepat saat panelnya mulai terlihat. */
+  function whenShown(id, run) {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+    if (!panel.hidden) {
+      run();
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      if (panel.hidden) return;
+      observer.disconnect();
+      run();
+    });
+    observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+  }
+
+  function rupiah(value) {
+    if (!Number.isFinite(value)) return '—';
+    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Math.round(value));
+  }
+
+  function distanceText(km) {
+    if (!Number.isFinite(km)) return '—';
+    if (km < 1) return `${rupiah(Math.round(km * 1000))} m`;
+    return `${km.toFixed(1).replace('.', ',')} km`;
+  }
+
+  // --------------------------------------------------------------------- hadis
+
+  function initHadith() {
+    const booksEl = document.querySelector('#hadithBooks');
+    const arabicEl = document.querySelector('#hadithArabic');
+    const textEl = document.querySelector('#hadithText');
+    const refEl = document.querySelector('#hadithRef');
+    const noteEl = document.querySelector('#hadithNote');
+    if (!booksEl || !textEl) return;
+
+    let saved = {};
+    try {
+      saved = JSON.parse(storageGet(STORE.hadith, '{}')) || {};
+    } catch {
+      saved = {};
+    }
+    let book = saved.book || 'bukhari';
+    let number = Math.max(1, Number(saved.number) || 1);
+    /** Nama dan batas tiap buku dikirim proksi; disimpan agar ubin langsung terisi. */
+    let books = saved.books && Object.keys(saved.books).length ? saved.books : {};
+
+    const paintBooks = () => {
+      booksEl.innerHTML = Object.entries(books).map(([key, meta]) => `
+        <button type="button" data-book="${escapeHTML(key)}"${key === book ? ' class="is-active" aria-current="true"' : ''}>
+          <b>${escapeHTML(meta.name || key)}</b><small>${meta.max ? `${rupiah(meta.max)} hadis` : ''}</small>
+        </button>`).join('');
+    };
+
+    async function show(next) {
+      const max = books[book]?.max;
+      number = Math.min(Math.max(1, next), max || Number.MAX_SAFE_INTEGER);
+      storageSet(STORE.hadith, JSON.stringify({ book, number, books }));
+      const cached = cacheRead(`hadis:${book}:${number}`);
+      if (cached?.text && Object.keys(books).length) {
+        render(cached);
+        return;
+      }
+      if (refEl) refEl.textContent = `${books[book]?.name || ''} · hadis No. ${number}${max ? ` dari ${rupiah(max)}` : ''}`;
+
+      try {
+        const body = await getJson(`${IBADAH_API}/hadith?b=${encodeURIComponent(book)}&n=${number}`);
+        const data = body.data || {};
+        books = data.books || books;
+        paintBooks();
+        render(data);
+        storageSet(STORE.hadith, JSON.stringify({ book, number, books }));
+        cacheWrite(`hadis:${book}:${number}`, data);
+      } catch (error) {
+        if (!cached?.text && noteEl) noteEl.textContent = error.message;
+      }
+    }
+
+    function render(data) {
+      if (arabicEl) {
+        arabicEl.textContent = data.arabic || '';
+        // Beberapa nomor tidak punya berkas Arab di sumbernya; jangan tinggalkan ruang kosong.
+        arabicEl.hidden = !data.arabic;
+      }
+      textEl.textContent = data.text || '';
+      if (refEl) {
+        refEl.textContent = `${data.bookName || books[book]?.name || ''} · hadis No. ${data.number}${data.max ? ` dari ${rupiah(data.max)}` : ''}`;
+      }
+      if (noteEl) noteEl.textContent = '';
+      booksEl.querySelectorAll('button').forEach((button) => {
+        const active = button.dataset.book === book;
+        button.classList.toggle('is-active', active);
+        if (active) button.setAttribute('aria-current', 'true');
+        else button.removeAttribute('aria-current');
+      });
+    }
+
+    booksEl.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-book]');
+      if (!button || button.dataset.book === book) return;
+      book = button.dataset.book;
+      show(1);
+    });
+    document.querySelector('#hadithPrev')?.addEventListener('click', () => show(number - 1));
+    document.querySelector('#hadithNext')?.addEventListener('click', () => show(number + 1));
+    document.querySelector('#hadithRandom')?.addEventListener('click', () => {
+      const max = books[book]?.max || 7563;
+      show(1 + Math.floor(Math.random() * max));
+    });
+
+    paintBooks();
+    show(number);
+  }
+
+  // --------------------------------------------------------------------- zakat
+
+  const ZAKAT_RATE = 0.025;
+
+  function initZakat() {
+    const statusEl = document.querySelector('#zakatStatus');
+    const typeEl = document.querySelector('#zakatType');
+    const amountEl = document.querySelector('#zakatAmount');
+    const amountLabel = document.querySelector('#zakatAmountLabel');
+    const debtEl = document.querySelector('#zakatDebt');
+    const haulEl = document.querySelector('#zakatHaul');
+    const resultEl = document.querySelector('#zakatAmountResult');
+    const explainEl = document.querySelector('#zakatExplanation');
+    if (!typeEl || !amountEl || !resultEl) return;
+
+    let prices = null;
+
+    async function loadPrices() {
+      try {
+        const body = await getJson(`${IBADAH_API}/zakat`);
+        prices = body.data || null;
+        if (!(prices?.goldPerGramIdr > 0) || !(prices?.nisabGoldIdr > 0)) {
+          throw new Error('Harga acuan sedang tidak lengkap.');
+        }
+        setText('#priceGold', `Rp ${rupiah(prices.goldPerGramIdr)}`);
+        setText('#priceSilver', `Rp ${rupiah(prices.silverPerGramIdr)}`);
+        setText('#nisabGold', `Rp ${rupiah(prices.nisabGoldIdr)}`);
+        setText('#nisabSilver', `Rp ${rupiah(prices.nisabSilverIdr)}`);
+        if (statusEl) {
+          statusEl.textContent = `Harga emas ${rupiah(prices.goldPerGramIdr)} per gram dan kurs ${rupiah(prices.usdToIdr)} rupiah per dolar AS hari ini.`;
+        }
+        compute();
+      } catch (error) {
+        if (statusEl) statusEl.textContent = error.message;
+      }
+    }
+
+    function compute() {
+      const amount = Number(amountEl.value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        resultEl.textContent = '—';
+        explainEl.textContent = 'Isi jumlah harta untuk melihat kewajibannya.';
+        return;
+      }
+      if (!prices) {
+        resultEl.textContent = '—';
+        explainEl.textContent = 'Menunggu harga emas dan perak hari ini.';
+        return;
+      }
+
+      const type = typeEl.value;
+      const nisab = type === 'perak' ? prices.nisabSilverIdr : prices.nisabGoldIdr;
+      const nisabLabel = type === 'perak'
+        ? `${prices.nisabSilverGrams} gram perak`
+        : `${prices.nisabGoldGrams} gram emas`;
+      const perGram = type === 'perak' ? prices.silverPerGramIdr : prices.goldPerGramIdr;
+      const gross = type === 'uang' ? amount : amount * perGram;
+      const debt = Math.max(0, Number(debtEl.value) || 0);
+      const net = gross - debt;
+      const asset = `Rp ${rupiah(gross)}`;
+
+      if (haulEl && !haulEl.checked) {
+        resultEl.textContent = 'Belum wajib zakat';
+        explainEl.textContent = `Harta ${asset} belum disimpan genap satu tahun. Zakat mal mulai wajib setelah mencapai haul, yaitu satu tahun Hijriah sejak harta memenuhi nisab.`;
+        return;
+      }
+      if (net < nisab) {
+        resultEl.textContent = 'Belum wajib zakat';
+        explainEl.textContent = `Harta Anda Rp ${rupiah(net)}${debt ? ' setelah dikurangi hutang' : ''} — masih di bawah nisab ${nisabLabel} (Rp ${rupiah(nisab)}). Sisanya tetap baik ditabung atau disedekahkan.`;
+        return;
+      }
+      const zakat = net * ZAKAT_RATE;
+      resultEl.textContent = `Rp ${rupiah(zakat)}`;
+      explainEl.textContent = `2,5% dari Rp ${rupiah(net)} (harta ${asset}${debt ? ` dikurangi hutang Rp ${rupiah(debt)}` : ''}). Nisabnya ${nisabLabel} = Rp ${rupiah(nisab)}.`;
+    }
+
+    typeEl.addEventListener('change', () => {
+      const unit = typeEl.value === 'uang' ? 'rupiah' : typeEl.value === 'perak' ? 'gram perak' : 'gram emas';
+      if (amountLabel) amountLabel.textContent = `Jumlah harta yang disimpan (${unit})`;
+      compute();
+    });
+    amountEl.addEventListener('input', compute);
+    debtEl?.addEventListener('input', compute);
+    haulEl?.addEventListener('change', compute);
+    loadPrices();
+  }
+
+  // -------------------------------------------------------------------- masjid
+
+  function initMasjid() {
+    const listEl = document.querySelector('#masjidList');
+    const statusEl = document.querySelector('#masjidStatus');
+    const radiusEl = document.querySelector('#masjidRadius');
+    const locateEl = document.querySelector('#masjidLocate');
+    if (!listEl || !statusEl) return;
+
+    let radius = 3000;
+    let forced = null;
+
+    async function origin() {
+      if (forced) return { ...forced, label: 'titik GPS Anda' };
+      const gps = knownPosition();
+      if (gps) return { lat: gps.lat, lon: gps.lon, label: 'titik GPS terakhir' };
+      const network = await networkPlaceOnce();
+      if (network?.lat != null) return { lat: network.lat, lon: network.lon, label: 'perkiraan lokasi Anda' };
+      return { lat: SECRETARIAT.lat, lon: SECRETARIAT.lon, label: SECRETARIAT.label };
+    }
+
+    function paint(rows, where) {
+      if (!rows.length) {
+        listEl.innerHTML = '<li class="ms-empty">Belum ada tempat ibadah Muslim yang tercatat di peta dalam jarak ini. Perluas jaraknya.</li>';
+        return;
+      }
+      listEl.innerHTML = rows.map((row) => `
+        <li class="ms-row">
+          <span class="ms-mark" aria-hidden="true">🕌</span>
+          <div class="ms-body">
+            <b>${escapeHTML(row.name)}</b>
+            ${row.address ? `<small>${escapeHTML(row.address)}</small>` : ''}
+          </div>
+          <span class="ms-distance">${distanceText(row.distanceKm)}<small>dari ${escapeHTML(where)}</small></span>
+        </li>`).join('');
+    }
+
+    const cacheKey = (lat, lon) => `masjid:${lat.toFixed(4)},${lon.toFixed(4)}:${radius}`;
+
+    async function load() {
+      const at = await origin();
+      const key = cacheKey(at.lat, at.lon);
+      const cached = cacheRead(key);
+      if (cached?.mosques?.length) {
+        paint(cached.mosques, at.label);
+        statusEl.textContent = cached.savedAt
+          ? `${cached.mosques.length} tempat ibadah terdekat, terakhir diperbarui ${cached.savedAt}.`
+          : `${cached.mosques.length} tempat ibadah terdekat dari ${at.label}.`;
+      } else {
+        statusEl.textContent = `Mencari masjid dan musala dalam ${radius / 1000} km dari ${at.label}…`;
+      }
+
+      radiusEl?.querySelectorAll('button').forEach((button) => {
+        button.classList.toggle('is-active', Number(button.dataset.radius) === radius);
+      });
+
+      try {
+        const body = await getJson(`${IBADAH_API}/masjid?lat=${at.lat.toFixed(5)}&lon=${at.lon.toFixed(5)}&radius=${radius}`);
+        const data = body.data || { mosques: [] };
+        data.savedAt = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
+        paint(data.mosques, at.label);
+        cacheWrite(key, data);
+        statusEl.textContent = data.mosques.length
+          ? `${data.mosques.length} tempat ibadah dalam ${radius / 1000} km dari ${at.label}.`
+          : statusEl.textContent;
+      } catch (error) {
+        if (!cached?.mosques?.length) {
+          listEl.innerHTML = '';
+          statusEl.textContent = `${error.message}`;
+        }
+      }
+    }
+
+    radiusEl?.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-radius]');
+      if (!button) return;
+      radius = Number(button.dataset.radius);
+      load();
+    });
+
+    locateEl?.addEventListener('click', async () => {
+      locateEl.disabled = true;
+      statusEl.textContent = 'Meminta izin lokasi ke perangkat…';
+      const gps = await devicePosition();
+      locateEl.disabled = false;
+      if (!gps) {
+        statusEl.textContent = 'Perangkat tidak mengizinkan lokasi akurat, jadi dipakai perkiraan terdekat yang ada.';
+        load();
+        return;
+      }
+      forced = gps;
+      load();
+    });
+
+    load();
+  }
+
+  // ------------------------------------------------------------------- hijriah
+
+  const HIJRI_MONTHS = [
+    'Muharram', 'Safar', 'Rabiul Awal', 'Rabiul Akhir', 'Jumadil Awal', 'Jumadil Akhir',
+    'Rajab', "Sya'ban", 'Ramadhan', 'Syawal', "Dzulqa'dah", 'Dzulhijjah',
+  ];
+  const HIJRI_MONTHS_AR = [
+    'المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
+    'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة',
+  ];
+  const GREG_MONTHS = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+  const GREG_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  function initHijriah() {
+    const gridEl = document.querySelector('#hijriGrid');
+    const weekEl = document.querySelector('#hijriWeek');
+    const labelEl = document.querySelector('#hijriMonthLabel');
+    const statusEl = document.querySelector('#hijriStatus');
+    if (!gridEl) return;
+
+    if (weekEl) {
+      weekEl.innerHTML = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+        .map((day) => `<span>${day}</span>`)
+        .join('');
+    }
+
+    let cursor = null;
+    let loadedCurrent = null;
+
+    function todayKey() {
+      const now = new Date();
+      return `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    }
+
+    function paint(data) {
+      const first = data.days[0];
+      const lead = first?.gregWeekday ? Math.max(0, GREG_WEEKDAYS.indexOf(first.gregWeekday)) : 0;
+      const today = todayKey();
+      gridEl.innerHTML = `
+        ${'<i class="hj-blank" aria-hidden="true"></i>'.repeat(lead)}
+        ${data.days.map((day) => {
+          const iso = `${String(day.gregDay).padStart(2, '0')}-${String(day.gregMonth).padStart(2, '0')}-${day.gregYear}`;
+          const isToday = iso === today;
+          return `<div class="hj-cell${isToday ? ' is-today' : ''}"${isToday ? ' aria-current="date"' : ''}>
+            <b>${day.gregDay}</b><i>${day.hijriDay}</i><small>${GREG_MONTHS[(day.gregMonth || 1) - 1].slice(0, 3)}</small>
+          </div>`;
+        }).join('')}`;
+      if (labelEl) {
+        labelEl.textContent = `${data.month} ${HIJRI_MONTHS[data.month - 1] || ''} ${data.year} H`;
+      }
+      if (statusEl) {
+        const ar = HIJRI_MONTHS_AR[data.month - 1];
+        const span = first && data.days.length
+          ? `${first.gregDay} ${GREG_MONTHS[(first.gregMonth || 1) - 1]} – ${data.days[data.days.length - 1].gregDay} ${GREG_MONTHS[(data.days[data.days.length - 1].gregMonth || 1) - 1]} ${data.days[data.days.length - 1].gregYear}`
+          : '';
+        statusEl.textContent = `${ar ? `${ar} · ` : ''}${span} · ${data.days.length} hari`;
+      }
+    }
+
+    async function load(year, month) {
+      try {
+        const query = year && month ? `?t=${year}&b=${month}` : '';
+        const body = await getJson(`${IBADAH_API}/hijriah${query}`);
+        const data = body.data || {};
+        cursor = { year: data.year, month: data.month };
+        if (!loadedCurrent) loadedCurrent = { ...cursor };
+        paint(data);
+        if (statusEl && query) statusEl.textContent = '';
+      } catch (error) {
+        if (statusEl) statusEl.textContent = error.message;
+        if (labelEl) labelEl.textContent = 'Kalender belum tampil';
+      }
+    }
+
+    function step(offset) {
+      if (!cursor) return;
+      let month = cursor.month + offset;
+      let year = cursor.year;
+      if (month < 1) { month = 12; year -= 1; }
+      if (month > 12) { month = 1; year += 1; }
+      load(year, month);
+    }
+
+    document.querySelector('#hijriPrev')?.addEventListener('click', () => step(-1));
+    document.querySelector('#hijriNext')?.addEventListener('click', () => step(1));
+    document.querySelector('#hijriToday')?.addEventListener('click', () => {
+      if (loadedCurrent) load(loadedCurrent.year, loadedCurrent.month);
+    });
+
+    load();
+  }
+
   // ----------------------------------------------------------------------- app
 
   function initIbadahTabs() {
@@ -2026,6 +2428,10 @@
     if (document.querySelector('#qiblaDegrees')) initQibla();
     if (document.querySelector('#tasbihCount')) initTasbih();
     if (document.querySelector('#prayerGrid')) loadHijri();
+    if (document.querySelector('#hadithBooks')) whenShown('hadis', initHadith);
+    if (document.querySelector('#zakatType')) whenShown('zakat', initZakat);
+    if (document.querySelector('#masjidList')) whenShown('masjid', initMasjid);
+    if (document.querySelector('#hijriGrid')) whenShown('hijriah', initHijriah);
   }
 
   document.addEventListener('DOMContentLoaded', init);

@@ -52,6 +52,22 @@
       "destination": "/api/_gw?r=geocode/json"
     },
     {
+      "source": "/api/ibadah/hadith",
+      "destination": "/api/_gw?r=ibadah/hadith"
+    },
+    {
+      "source": "/api/ibadah/hijriah",
+      "destination": "/api/_gw?r=ibadah/hijriah"
+    },
+    {
+      "source": "/api/ibadah/masjid",
+      "destination": "/api/_gw?r=ibadah/masjid"
+    },
+    {
+      "source": "/api/ibadah/zakat",
+      "destination": "/api/_gw?r=ibadah/zakat"
+    },
+    {
       "source": "/api/indonesia/hospitals",
       "destination": "/api/_gw?r=indonesia/hospitals"
     },

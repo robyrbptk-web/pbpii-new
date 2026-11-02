@@ -2441,3 +2441,570 @@
     white-space: nowrap;
   }
 }
+
+/* ------------------------------------------- hadis, zakat, masjid, hijriah */
+
+.ib-app-tabs {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.ib-feature-head {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
+.ib-feature-head h2 {
+  margin-bottom: 4px;
+  font-size: clamp(1.2rem, 2.1vw, 1.6rem);
+}
+
+.ib-feature-head p:not(.eyebrow) {
+  margin-bottom: 0;
+  font-size: .82rem;
+  color: #5a6c63;
+}
+
+.hadis-section,
+.zakat-section,
+.masjid-section,
+.hijriah-section {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 26px;
+  padding: clamp(14px, 2vw, 24px);
+  background: #fff;
+}
+
+/* --------------------------------------------------------------------- hadis */
+
+.hd-books {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.hd-books button {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 1px;
+  border: 1px solid #e4ece7;
+  border-radius: 13px;
+  padding: 7px 13px;
+  background: #f7faf8;
+  color: var(--navy);
+  cursor: pointer;
+  text-align: left;
+}
+
+.hd-books button b {
+  font-size: .78rem;
+  white-space: nowrap;
+}
+
+.hd-books button small {
+  font-size: .64rem;
+  color: #7c8a83;
+}
+
+.hd-books button.is-active {
+  border-color: #0c6b3b;
+  background: linear-gradient(135deg, #0c6b3b, #084426);
+  color: #fff;
+}
+
+.hd-books button.is-active small {
+  color: rgb(255 255 255 / 76%);
+}
+
+.hd-nav {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 10px;
+}
+
+.hd-ref {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: .78rem;
+  font-weight: 600;
+  color: #084426;
+  text-align: center;
+}
+
+.hd-step,
+.hd-random {
+  border: 1px solid #e4ece7;
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #f7faf8;
+  color: var(--navy);
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.hd-random {
+  border-color: var(--ib-gold);
+  background: #fffaf0;
+  font-weight: 700;
+}
+
+.hd-card {
+  flex: 1 1 auto;
+  border: 1px solid #e4ece7;
+  border-radius: 20px;
+  padding: clamp(14px, 2.4vw, 22px);
+  background: #fbfcfb;
+}
+
+.hd-arabic {
+  margin: 0 0 12px;
+  font-family: "Amiri", "Scheherazade New", "Noto Naskh Arabic", serif;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  line-height: 2.1;
+  color: #084426;
+  text-align: right;
+}
+
+.hd-text {
+  margin: 0;
+  font-size: .95rem;
+  line-height: 1.8;
+}
+
+.hd-note {
+  margin: 12px 0 0;
+  font-size: .74rem;
+  color: #7c8a83;
+}
+
+/* --------------------------------------------------------------------- zakat */
+
+.zk-prices {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.zk-prices p {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  border: 1px solid #e4ece7;
+  border-radius: 14px;
+  padding: 9px 12px;
+  background: #f7faf8;
+}
+
+.zk-prices span {
+  font-size: .66rem;
+  text-transform: uppercase;
+  color: #7c8a83;
+}
+
+.zk-prices b {
+  font-size: .92rem;
+  color: #084426;
+}
+
+.zk-status {
+  flex: 0 0 auto;
+  margin: 0 0 12px;
+  font-size: .74rem;
+  color: #5a6c63;
+}
+
+.zk-form {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.zk-field {
+  display: grid;
+  gap: 5px;
+}
+
+.zk-field span {
+  font-size: .72rem;
+  font-weight: 600;
+  color: #37503f;
+}
+
+.zk-field select,
+.zk-field input {
+  width: 100%;
+  border: 1px solid #d5e2da;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--navy);
+  font-size: .92rem;
+}
+
+.zk-field select:focus-visible,
+.zk-field input:focus-visible {
+  outline: 3px solid #79bfff;
+  outline-offset: 2px;
+}
+
+.zk-haul {
+  align-self: center;
+  font-size: .78rem;
+}
+
+.zk-result {
+  flex: 0 0 auto;
+  margin-top: 14px;
+  border-radius: 20px;
+  padding: clamp(14px, 2.2vw, 20px);
+  background: linear-gradient(135deg, #0c6b3b, #084426);
+  color: #fff;
+}
+
+.zk-result .eyebrow {
+  color: var(--ib-gold);
+}
+
+.zk-result b {
+  display: block;
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+  line-height: 1.2;
+}
+
+.zk-result small {
+  display: block;
+  margin-top: 6px;
+  font-size: .78rem;
+  line-height: 1.6;
+  color: rgb(255 255 255 / 84%);
+}
+
+.zk-note {
+  flex: 0 0 auto;
+  margin: 10px 0 0;
+  font-size: .72rem;
+  color: #7c8a83;
+}
+
+/* -------------------------------------------------------------------- masjid */
+
+.ms-tools {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ms-radius {
+  display: flex;
+  gap: 6px;
+}
+
+.ms-radius button,
+.ms-locate {
+  border: 1px solid #e4ece7;
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #f7faf8;
+  color: var(--navy);
+  font-size: .76rem;
+  cursor: pointer;
+}
+
+.ms-radius button.is-active {
+  border-color: #0c6b3b;
+  background: #0c6b3b;
+  color: #fff;
+}
+
+.ms-locate {
+  border-color: var(--ib-gold);
+  background: #fffaf0;
+  font-weight: 700;
+}
+
+.ms-locate:disabled {
+  opacity: .6;
+  cursor: progress;
+}
+
+.ms-status {
+  flex: 0 0 auto;
+  margin: 10px 0 8px;
+  font-size: .76rem;
+  color: #5a6c63;
+}
+
+.ms-list {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ms-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e9efeb;
+  border-radius: 15px;
+  padding: 10px 12px;
+  background: #fbfcfb;
+}
+
+.ms-mark {
+  font-size: 1.1rem;
+}
+
+.ms-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ms-body b {
+  font-size: .85rem;
+  color: var(--navy);
+}
+
+.ms-body small {
+  font-size: .7rem;
+  color: #7c8a83;
+}
+
+.ms-distance {
+  display: grid;
+  gap: 1px;
+  justify-items: end;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #084426;
+  white-space: nowrap;
+}
+
+.ms-distance small {
+  font-size: .62rem;
+  font-weight: 500;
+  color: #7c8a83;
+}
+
+.ms-empty {
+  border: 1px dashed #d5e2da;
+  border-radius: 15px;
+  padding: 16px;
+  font-size: .8rem;
+  color: #5a6c63;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------- hijriah */
+
+.hj-nav {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.hj-nav b {
+  flex: 1 1 auto;
+  font-size: .92rem;
+  color: #084426;
+  text-align: center;
+}
+
+.hj-step,
+.hj-today {
+  border: 1px solid #e4ece7;
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #f7faf8;
+  color: var(--navy);
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.hj-today {
+  border-color: var(--ib-gold);
+  background: #fffaf0;
+  font-weight: 700;
+}
+
+.hj-week,
+.hj-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.hj-week {
+  flex: 0 0 auto;
+  margin-bottom: 6px;
+}
+
+.hj-week span {
+  font-size: .64rem;
+  font-weight: 700;
+  color: #7c8a83;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.hj-grid {
+  flex: 0 0 auto;
+}
+
+.hj-blank {
+  min-height: 58px;
+}
+
+.hj-cell {
+  display: grid;
+  gap: 1px;
+  place-content: center;
+  min-height: 58px;
+  border: 1px solid #e9efeb;
+  border-radius: 13px;
+  background: #fbfcfb;
+  text-align: center;
+}
+
+.hj-cell b {
+  font-size: .95rem;
+  color: var(--navy);
+}
+
+.hj-cell i {
+  font-size: .72rem;
+  font-style: normal;
+  font-weight: 700;
+  color: #0c6b3b;
+}
+
+.hj-cell small {
+  font-size: .58rem;
+  color: #93a09a;
+  text-transform: uppercase;
+}
+
+.hj-cell.is-today {
+  border-color: #0c6b3b;
+  background: linear-gradient(135deg, #0c6b3b, #084426);
+}
+
+.hj-cell.is-today b,
+.hj-cell.is-today i,
+.hj-cell.is-today small {
+  color: #fff;
+}
+
+.hj-cell.is-today i {
+  color: var(--ib-gold);
+}
+
+.hj-status {
+  flex: 0 0 auto;
+  margin: 10px 0 0;
+  font-size: .74rem;
+  color: #5a6c63;
+}
+
+@media (max-width: 1024px) {
+  .ib-app-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .ib-app-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ib-app-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ib-app-tabs .ib-tile {
+    flex: 0 0 auto;
+    width: 92px;
+    min-height: 52px;
+  }
+
+  .hadis-section,
+  .zakat-section,
+  .masjid-section,
+  .hijriah-section {
+    border-radius: 22px;
+    padding: 13px;
+  }
+
+  .hd-nav {
+    flex-wrap: wrap;
+  }
+
+  .hd-ref {
+    order: -1;
+    flex: 1 1 100%;
+  }
+
+  .hd-step,
+  .hd-random {
+    flex: 1 1 0;
+  }
+
+  .hj-cell {
+    min-height: 46px;
+    border-radius: 11px;
+  }
+
+  .hj-cell b {
+    font-size: .84rem;
+  }
+
+  .hj-cell i {
+    font-size: .66rem;
+  }
+
+  .hj-cell small {
+    display: none;
+  }
+
+  .hj-blank {
+    min-height: 46px;
+  }
+
+  .ms-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ms-distance {
+    grid-column: 2;
+    justify-items: start;
+  }
+}
