@@ -1301,6 +1301,7 @@ nav a:hover {
 
 .greeting-section {
   background: #eef3f6;
+  align-items: start;
 }
 
 .greeting-copy {
@@ -1326,7 +1327,7 @@ footer {
   background: #102b49;
 }
 
-@media (min-width: 681px) and (max-width: 1024px) {
+@media (min-width: 681px) and (max-width: 1280px) {
   .site-header {
     padding-right: 28px;
     padding-left: 28px;
@@ -4563,6 +4564,17 @@ a:focus-visible {
   box-shadow: 0 5px 22px rgb(16 43 73 / 4%);
 }
 
+.site-header .brand span {
+  min-width: 0;
+}
+
+.site-header .brand b,
+.site-header .brand small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .site-header nav a {
   border-radius: 999px;
   padding: 9px 12px;
@@ -4742,7 +4754,7 @@ footer {
   }
 }
 
-@media (min-width: 681px) and (max-width: 1024px) {
+@media (min-width: 681px) and (max-width: 1280px) {
   .site-header {
     gap: 12px;
     padding-right: 20px;
