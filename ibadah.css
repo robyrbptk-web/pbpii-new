@@ -2000,7 +2000,22 @@
   }
 
   .surah-item {
-    min-width: 190px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    min-width: 220px;
+    min-height: 58px;
+  }
+
+  .surah-name b {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .surah-ayah {
+    grid-column: 2;
   }
 }
 
@@ -2209,8 +2224,7 @@
   }
 
   .surah-item {
-    min-width: 174px;
-    min-height: 52px;
+    min-height: 64px;
   }
 
   .quran-reader {
