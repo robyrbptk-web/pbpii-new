@@ -171,7 +171,7 @@ function articleContentHtml(content) {
   if (!/<\s*[a-z/][^>]*>/i.test(raw)) return articleParagraphs(raw);
 
   const parsed = new DOMParser().parseFromString(raw, 'text/html');
-  const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','ul','ol','li','blockquote','a','img','span','font']);
+  const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','sub','sup','ul','ol','li','blockquote','a','img','span','font']);
   const blocked = new Set(['script','style','iframe','object','svg','math','template']);
   const voids = new Set(['br','hr','img']);
   const safeHref = (value) => {
@@ -218,6 +218,12 @@ function articleContentHtml(content) {
         : node.getAttribute('data-font');
       if (['small','normal','large'].includes(size)) element.dataset.size = size;
       if (['serif','sans'].includes(font)) element.dataset.font = font;
+    }
+    if (['p','div','h2','h3','h4','blockquote'].includes(tag)) {
+      const alignment = String(node.style.textAlign || '').toLowerCase();
+      if (['left','center','right','justify'].includes(alignment)) {
+        element.style.textAlign = alignment;
+      }
     }
     if (!voids.has(tag)) node.childNodes.forEach((child) => element.append(copy(child)));
     return element;

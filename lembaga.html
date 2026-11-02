@@ -265,6 +265,76 @@
       .item{border-radius:14px}
       .stats .stat{border-radius:13px}
     }
+    body{background:#f1f5f9}
+    .topbar{height:72px;padding-inline:clamp(16px,2.4vw,36px);border-color:#e1e8ef;box-shadow:0 6px 24px rgb(16 43 73 / 6%)}
+    .layout{grid-template-columns:246px minmax(0,1fr);min-height:calc(100dvh - 72px)}
+    .layout>aside{position:sticky;top:72px;align-self:start;height:calc(100dvh - 72px);overflow-y:auto;padding:26px 15px;background:linear-gradient(180deg,#fff,#f8fafc);border-color:#e1e8ef}
+    .side-label{margin-bottom:13px;color:#78879a}
+    .tab{min-height:45px;padding:10px 12px;border-radius:12px;transition:background .16s ease,color .16s ease}
+    .tab.active{box-shadow:inset 3px 0 #176da8}
+    main{width:100%;max-width:1580px;margin:0 auto;padding:clamp(24px,3vw,44px)}
+    .page-head{align-items:center;margin-bottom:25px}
+    .page-head h1{font-size:clamp(26px,3vw,35px);letter-spacing:-1px}
+    .page-head p{font-size:13.5px}
+    .stats{gap:14px;margin-bottom:20px}
+    .stat{position:relative;overflow:hidden;min-height:112px;border-radius:16px;padding:19px;border-color:#e1e8ef;box-shadow:0 9px 26px rgb(16 43 73 / 4%);transition:transform .18s ease,box-shadow .18s ease}
+    .stat::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:#176da8}
+    .stat:nth-child(2)::before{background:#0e7a3d}
+    .stat:nth-child(3)::before{background:#d6a53c}
+    .stat:nth-child(4)::before{background:#7655a5}
+    .stat:hover{transform:translateY(-2px);box-shadow:0 15px 32px rgb(16 43 73 / 8%)}
+    .stat span{font-size:11.5px}
+    .stat strong{font-size:29px;letter-spacing:-1px}
+    .panel{border-color:#e1e8ef;border-radius:17px;padding:22px;box-shadow:0 9px 28px rgb(16 43 73 / 4%)}
+    .panel h2{font-size:17px;letter-spacing:-.2px}
+    .list-head{margin-bottom:14px}
+    .item{border-color:#e5ebf1;border-radius:13px;padding:15px;transition:border-color .16s ease,background .16s ease,transform .16s ease}
+    .item:hover{border-color:#bfd2e3;background:#fcfdff;transform:translateY(-1px)}
+    .kpi{grid-template-columns:auto minmax(0,1fr);gap:24px}
+    .kpi-score{width:116px;height:116px;box-shadow:0 8px 22px rgb(23 109 168 / 13%)}
+    .kpi-score::after{inset:10px}
+    .bars{max-width:620px}
+    #page-ringkasan>.panel{background:linear-gradient(145deg,#fff,#fbfdff)}
+    #page-ringkasan>.grid2 .panel{height:100%}
+    .article-editor-toolbar{position:sticky;top:72px;z-index:5;gap:6px;border-color:#dbe4ed;background:rgb(247 250 253 / 96%);box-shadow:0 5px 16px rgb(16 43 73 / 5%);backdrop-filter:blur(12px)}
+    .article-editor-toolbar button,.article-editor-toolbar select{border-radius:8px;transition:background .15s ease,border-color .15s ease,color .15s ease}
+    .article-editor-toolbar button:hover,.article-editor-toolbar select:hover{border-color:#a9c5dc;background:#edf5fb;color:var(--navy)}
+    .editor-separator{width:1px;height:24px;margin-inline:3px;background:#d7e1eb}
+    .article-rich-editor{min-height:400px;padding:clamp(18px,3.8vw,42px);border-color:#dbe4ed;border-radius:0 0 12px 12px;background:#fff;box-shadow:inset 0 1px 3px rgb(16 43 73 / 3%);font-family:Georgia,"Times New Roman",serif;font-size:17px;line-height:1.9}
+    .article-rich-editor p{margin:0 0 1.15em}
+    .article-rich-editor h2{margin:1.6em 0 .6em;font-size:1.55em}
+    .article-rich-editor h3{margin:1.35em 0 .55em;font-size:1.28em}
+    .article-rich-editor a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+    .article-rich-editor ul,.article-rich-editor ol{padding-left:1.5em}
+    .editor-status{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--line);border-top:0;border-radius:0 0 11px 11px;padding:8px 12px;background:#f8fafc;color:#718094;font-size:11px}
+    #orgArticleTitle{min-height:52px;font-size:21px;font-weight:750;letter-spacing:-.4px}
+    @media(max-width:980px){
+      .layout{grid-template-columns:minmax(0,1fr)}
+      .layout>aside{height:auto}
+      main{padding:21px 17px calc(108px + env(safe-area-inset-bottom))}
+      .topbar{height:68px}
+      .article-editor-toolbar{top:68px}
+    }
+    @media(max-width:620px){
+      main{padding:17px 13px calc(102px + env(safe-area-inset-bottom))}
+      .page-head{align-items:stretch;margin-bottom:18px}
+      .page-head h1{font-size:24px}
+      .stats{gap:8px;margin-bottom:15px}
+      .stat{min-height:88px;padding:12px 9px}
+      .stat strong{font-size:20px}
+      .stat span{font-size:10px;line-height:1.35}
+      .panel{padding:15px 13px;border-radius:15px}
+      #orgArticleEditor{padding:15px 12px}
+      #orgArticleTitle{min-height:48px;font-size:19px}
+      .article-editor-toolbar{top:68px;max-height:150px;overflow:auto;-webkit-overflow-scrolling:touch}
+      .article-editor-toolbar button,.article-editor-toolbar select{min-height:43px;padding:7px 9px}
+      .article-rich-editor{min-height:320px;padding:18px 15px;font-size:16px;line-height:1.8}
+      .editor-status{font-size:10px}
+      .kpi{gap:14px}
+      .kpi-score{width:90px;height:90px}
+      .kpi-score::after{inset:8px}
+      #page-ringkasan>.grid2{gap:0}
+    }
   </style>
 </head>
 <body>
@@ -465,13 +535,21 @@
                     <button type="button" data-org-article-command="italic" aria-label="Miring"><i>I</i></button>
                     <button type="button" data-org-article-command="underline" aria-label="Garis bawah"><u>U</u></button>
                     <button type="button" data-org-article-command="strikeThrough" aria-label="Coret"><s>S</s></button>
+                    <button type="button" data-org-article-command="subscript" aria-label="Subskrip">x₂</button>
+                    <button type="button" data-org-article-command="superscript" aria-label="Superskrip">x²</button>
+                    <span class="editor-separator" aria-hidden="true"></span>
                     <button type="button" data-org-article-command="insertUnorderedList">• Daftar</button>
                     <button type="button" data-org-article-command="insertOrderedList">1. Daftar</button>
                     <button type="button" data-org-article-command="formatBlock" data-org-article-value="blockquote">Kutipan</button>
+                    <button type="button" data-org-article-command="justifyLeft" aria-label="Rata kiri">☰←</button>
+                    <button type="button" data-org-article-command="justifyCenter" aria-label="Rata tengah">☰↔</button>
+                    <button type="button" data-org-article-command="justifyRight" aria-label="Rata kanan">→☰</button>
+                    <span class="editor-separator" aria-hidden="true"></span>
                     <button type="button" data-org-article-command="undo">↶</button>
                     <button type="button" data-org-article-command="redo">↷</button>
                     <button type="button" data-org-article-command="removeFormat">Hapus format</button>
                     <button type="button" id="orgArticleAddLink">Tautkan</button>
+                    <button type="button" data-org-article-command="unlink" aria-label="Hapus tautan">Lepas tautan</button>
                     <select id="orgArticleFont" aria-label="Jenis huruf"><option value="">Jenis huruf</option><option value="Arial">Sans-serif</option><option value="Georgia">Serif</option></select>
                     <select id="orgArticleFontSize" aria-label="Ukuran huruf"><option value="">Ukuran huruf</option><option value="2">Kecil</option><option value="3">Normal</option><option value="5">Besar</option></select>
                     <button type="button" id="orgArticleAddImage">Sisipkan gambar</button>
@@ -479,6 +557,7 @@
                     <input id="orgArticleInlineImage" type="file" accept="image/*" hidden>
                   </div>
                   <div id="orgArticleContentEditor" class="article-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Isi artikel lembaga" data-placeholder="Tulis artikel dengan paragraf, judul, daftar, tautan, dan gambar."></div>
+                  <div class="editor-status"><span>Ctrl/⌘ + S untuk menyimpan</span><span id="orgArticleWordCount" aria-live="polite">0 kata · 0 menit baca</span></div>
                   <p class="hint">Format dan gambar akan disaring aman saat disimpan. Tekan tombol simpan setelah unggahan selesai.</p>
                 </div>
                 <div class="field"><label class="lbl" for="orgArticleSeoTitle">Judul SEO</label><input id="orgArticleSeoTitle" maxlength="70"></div>
@@ -1046,6 +1125,11 @@
       restoreOrgArticleRange();
       document.execCommand('insertHTML', false, html);
       saveOrgArticleRange();
+      updateOrgArticleWordCount();
+    };
+    const updateOrgArticleWordCount = () => {
+      const words = orgArticleEditor.textContent.trim().split(/\s+/).filter(Boolean).length;
+      $('orgArticleWordCount').textContent = words + ' kata · ' + (words ? Math.max(1, Math.ceil(words / 200)) : 0) + ' menit baca';
     };
     const safeOrgArticleHref = (value) => {
       const href = String(value || '').trim();
@@ -1061,7 +1145,7 @@
           : '').filter(Boolean).join('');
       }
       const source = new DOMParser().parseFromString(raw, 'text/html');
-      const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','ul','ol','li','blockquote','a','img','span','font']);
+      const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','sub','sup','ul','ol','li','blockquote','a','img','span','font']);
       const blocked = new Set(['script','style','iframe','object','svg','math','template']);
       const voids = new Set(['br','hr','img']);
       const copy = (node) => {
@@ -1099,6 +1183,12 @@
           if (['small','normal','large'].includes(size)) element.dataset.size = size;
           if (['serif','sans'].includes(font)) element.dataset.font = font;
         }
+        if (['p','div','h2','h3','h4','blockquote'].includes(tag)) {
+          const alignment = String(node.style.textAlign || '').toLowerCase();
+          if (['left','center','right','justify'].includes(alignment)) {
+            element.style.textAlign = alignment;
+          }
+        }
         if (!voids.has(tag)) node.childNodes.forEach((child) => element.append(copy(child)));
         return element;
       };
@@ -1127,6 +1217,7 @@
       $('orgArticleFormTitle').textContent = 'Artikel baru';
       orgArticleEditor.innerHTML = '';
       savedOrgArticleRange = null;
+      updateOrgArticleWordCount();
       refreshUploader('orgArticleCover');
     }
 
@@ -1188,6 +1279,7 @@
       $('orgArticleSeoTitle').value = article.seoTitle || '';
       $('orgArticleSeoDescription').value = article.seoDescription || '';
       $('orgArticleSeoKeywords').value = article.seoKeywords || '';
+      updateOrgArticleWordCount();
       refreshUploader('orgArticleCover');
       $('orgArticleEditor').classList.remove('hidden');
       $('orgArticleEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1246,7 +1338,16 @@
     });
     orgArticleEditor.addEventListener('keyup', saveOrgArticleRange);
     orgArticleEditor.addEventListener('mouseup', saveOrgArticleRange);
-    orgArticleEditor.addEventListener('input', saveOrgArticleRange);
+    orgArticleEditor.addEventListener('input', () => {
+      saveOrgArticleRange();
+      updateOrgArticleWordCount();
+    });
+    orgArticleEditor.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        $('orgArticleForm').requestSubmit();
+      }
+    });
     orgArticleEditor.addEventListener('paste', (event) => {
       event.preventDefault();
       const html = event.clipboardData.getData('text/html');

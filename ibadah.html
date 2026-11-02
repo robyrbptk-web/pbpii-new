@@ -55,11 +55,34 @@
     </div>
   </div>
 
-  <main>
+  <main class="ibadah-app">
+    <div class="ib-app-tabs" role="tablist" aria-label="Fitur ruang ibadah">
+      <a class="ib-tile is-active" id="ibTabPrayer" href="#sholat" role="tab" aria-controls="sholat" aria-selected="true" tabindex="0">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3.2 2.2"/></svg></span>
+        <b>Jadwal</b>
+        <small>Waktu sholat</small>
+      </a>
+      <a class="ib-tile" id="ibTabQibla" href="#qiblat" role="tab" aria-controls="qiblat" aria-selected="false" tabindex="-1">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m15.4 8.6-4.2 6.8L8.6 15l4.2-6.8z"/></svg></span>
+        <b>Kiblat</b>
+        <small>Kompas arah</small>
+      </a>
+      <a class="ib-tile" id="ibTabTasbih" href="#tasbih" role="tab" aria-controls="tasbih" aria-selected="false" tabindex="-1">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="1.9"/><circle cx="18.1" cy="8.1" r="1.9"/><circle cx="18.1" cy="15.9" r="1.9"/><circle cx="12" cy="19.4" r="1.9"/><circle cx="5.9" cy="15.9" r="1.9"/><circle cx="5.9" cy="8.1" r="1.9"/></svg></span>
+        <b>Tasbih</b>
+        <small>Hitung dzikir</small>
+      </a>
+      <a class="ib-tile" id="ibTabQuran" href="#quran" role="tab" aria-controls="quran" aria-selected="false" tabindex="-1">
+        <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span>
+        <b>Al-Qur'an</b>
+        <small>114 surat</small>
+      </a>
+    </div>
+    <div class="ib-app-panels">
     <!-- Panel "Hari ini": satu kartu hijau tempat tanggal, hitung mundur, dan
          seluruh waktu sholat berkumpul, jadi tidak perlu menggulir untuk tahu
          sholat berikutnya tinggal berapa lama. -->
-    <section id="sholat" class="ib-panel">
+    <section id="sholat" class="ib-panel" role="tabpanel" aria-labelledby="ibTabPrayer">
       <div class="ib-panel-head">
         <div class="ib-dates">
           <h1 id="jadwalDate">Hari ini</h1>
@@ -105,35 +128,13 @@
         <p class="ib-adzan-note" id="adzanNote" role="status" aria-live="polite">Adzan berbunyi otomatis saat Subuh, Dzuhur, Ashar, Maghrib, dan Isya selama halaman ini terbuka.</p>
       </div>
 
-      <nav class="ib-tiles" aria-label="Aksi cepat ibadah">
-        <a class="ib-tile" href="#qiblat">
-          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m15.4 8.6-4.2 6.8L8.6 15l4.2-6.8z"/></svg></span>
-          <b>Kiblat</b>
-          <small>Kompas hidup</small>
-        </a>
-        <a class="ib-tile" href="#quran">
-          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span>
-          <b>Al-Qur'an</b>
-          <small>114 surat</small>
-        </a>
-        <a class="ib-tile" href="#tasbih">
-          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="1.9"/><circle cx="18.1" cy="8.1" r="1.9"/><circle cx="18.1" cy="15.9" r="1.9"/><circle cx="12" cy="19.4" r="1.9"/><circle cx="5.9" cy="15.9" r="1.9"/><circle cx="5.9" cy="8.1" r="1.9"/></svg></span>
-          <b>Tasbih</b>
-          <small>Hitung dzikir</small>
-        </a>
-        <a class="ib-tile" href="#sholat">
-          <span class="ib-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3.2 2.2"/></svg></span>
-          <b>Jadwal</b>
-          <small>8 waktu harian</small>
-        </a>
-      </nav>
     </section>
 
-    <section id="qiblat" class="section qibla-section">
+    <section id="qiblat" class="section qibla-section" role="tabpanel" aria-labelledby="ibTabQibla" hidden>
       <div class="qibla-copy">
         <p class="eyebrow">ARAH KIBLAT</p>
-        <h2>Putar badan sampai Ka'bah berada di atas.</h2>
-        <p>Arah kiblat dihitung dari daerah yang otomatis terdeteksi di perangkat Anda, lalu jarumnya mengikuti sensor arah ponsel begitu halaman terbuka — tanpa tombol, tanpa pengaturan awal. Jauhkan dari logam dan casing bermagnet, pegang ponsel sejajar lantai, lalu berputar pelan sampai penanda Ka'bah berhenti di ujung atas lingkaran.</p>
+        <h2>Temukan arah kiblat</h2>
+        <p>Arah dihitung dari lokasi Anda. Pegang ponsel mendatar, jauhkan dari benda logam, lalu putar perlahan sampai penanda Ka'bah berada di atas.</p>
         <div class="qibla-actions">
           <button class="button button-solid" id="qiblaLocate" type="button">Perhalus dengan GPS</button>
         </div>
@@ -188,7 +189,7 @@
       </div>
     </section>
 
-    <section id="tasbih" class="section tasbih-section">
+    <section id="tasbih" class="section tasbih-section" role="tabpanel" aria-labelledby="ibTabTasbih" hidden>
       <div class="tasbih-card">
         <div class="tasbih-head">
           <p class="eyebrow">TASBIH</p>
@@ -210,7 +211,7 @@
       </div>
     </section>
 
-    <section id="quran" class="section quran-section">
+    <section id="quran" class="section quran-section" role="tabpanel" aria-labelledby="ibTabQuran" hidden>
       <div class="quran-bar">
         <p class="eyebrow">AL-QUR'AN</p>
         <h2>114 surat, teks, terjemahan, dan tafsir ringkas.</h2>
@@ -227,6 +228,7 @@
         </article>
       </div>
     </section>
+    </div>
   </main>
 
   <!-- Di ponsel pembaca surat menutupi seluruh halaman, seperti aplikasi Al-Qur'an.

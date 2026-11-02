@@ -1244,7 +1244,7 @@ function sanitizeArticleHtml_(value, allowPrivateImages) {
 
   const allowed = new Set([
     'p', 'div', 'br', 'hr', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i',
-    'u', 's', 'del', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'font'
+    'u', 's', 'del', 'sub', 'sup', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'font'
   ]);
   const voidTags = new Set(['br', 'hr', 'img']);
   const blockedTags = new Set(['script', 'style', 'iframe', 'object', 'svg', 'math', 'template']);
@@ -1321,6 +1321,9 @@ function sanitizeArticleHtml_(value, allowPrivateImages) {
         : '';
       html += '<span' + (size ? ' data-size="' + size + '"' : '') +
         (font ? ' data-font="' + font + '"' : '') + '>';
+    } else if (['p', 'div', 'h2', 'h3', 'h4', 'blockquote'].indexOf(tag) >= 0) {
+      const alignment = String(attrs.style || '').match(/(?:^|;)\s*text-align\s*:\s*(left|center|right|justify)\s*(?:;|$)/i);
+      html += '<' + tag + (alignment ? ' style="text-align: ' + alignment[1].toLowerCase() + ';"' : '') + '>';
     } else {
       html += '<' + tag + '>';
     }

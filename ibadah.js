@@ -1937,7 +1937,65 @@
 
   // ----------------------------------------------------------------------- app
 
+  function initIbadahTabs() {
+    const tabs = Array.from(document.querySelectorAll('.ib-app-tabs [role="tab"]'));
+    if (!tabs.length) return;
+
+    const panels = new Map(tabs.map((tab) => [
+      tab.getAttribute('aria-controls'),
+      document.getElementById(tab.getAttribute('aria-controls'))
+    ]));
+
+    const activate = (id, focus = false) => {
+      if (!panels.has(id)) return;
+      tabs.forEach((tab) => {
+        const selected = tab.getAttribute('aria-controls') === id;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        tab.classList.toggle('is-active', selected);
+        const panel = panels.get(tab.getAttribute('aria-controls'));
+        if (panel) panel.hidden = !selected;
+      });
+      if (focus) tabs.find((tab) => tab.getAttribute('aria-controls') === id)?.focus();
+    };
+
+    const currentPanel = () => {
+      const id = window.location.hash.slice(1);
+      return panels.has(id) ? id : 'sholat';
+    };
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', (event) => {
+        event.preventDefault();
+        const id = tab.getAttribute('aria-controls');
+        if (window.location.hash !== '#' + id) {
+          window.history.pushState(null, '', '#' + id);
+        }
+        activate(id);
+      });
+
+      tab.addEventListener('keydown', (event) => {
+        let next = index;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + tabs.length) % tabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        const id = tabs[next].getAttribute('aria-controls');
+        if (window.location.hash !== '#' + id) window.history.pushState(null, '', '#' + id);
+        activate(id, true);
+      });
+    });
+
+    window.addEventListener('hashchange', () => activate(currentPanel()));
+    window.addEventListener('popstate', () => activate(currentPanel()));
+    activate(currentPanel());
+  }
+
   function init() {
+    initIbadahTabs();
+
     const year = document.querySelector('#year');
     if (year) year.textContent = new Date().getFullYear();
 
