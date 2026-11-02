@@ -17,17 +17,66 @@ function formatLines(value = '') {
   return escapeHTML(value).replace(/\n/g, '<br>');
 }
 
+/**
+ * Bentuk URL Drive yang dicoba berurutan. lh3.googleusercontent.com/d/<id> dan
+ * drive.google.com/thumbnail sekarang 404 untuk berkas "siapa pun dengan tautan",
+ * dan sebagian jaringan operator memblokir salah satu CDN, jadi kalau satu bentuk
+ * gagal, bentuk berikutnya masih punya peluang menampilkan fotonya.
+ */
+const DRIVE_URL_FORMS = [
+  (id) => 'https://drive.usercontent.google.com/download?id=' + id + '&export=view&authuser=0',
+  (id) => 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600',
+  (id) => 'https://lh3.googleusercontent.com/d/' + id + '=w1600'
+];
+
+function driveIdFromUrl(value) {
+  const url = String(value || '').trim();
+  if (!/^https:\/\//i.test(url)) return '';
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'lh3.googleusercontent.com') {
+      return parsed.pathname.match(/^\/d\/([A-Za-z0-9_-]+)/i)?.[1] || '';
+    }
+    if (['drive.google.com', 'drive.usercontent.google.com'].includes(parsed.hostname)) {
+      return parsed.searchParams.get('id') ||
+        parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/i)?.[1] || '';
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
 function safeImageUrl(value) {
   const url = String(value || '').trim();
   if (!/^https:\/\//i.test(url)) return LOGO_URL;
-  /* URL gambar Drive lama (lh3.googleusercontent.com/d/<id>) kini 404 walau
-     berkasnya dibagikan publik; alihkan ke CDN unduh Drive yang bebas
-     pengalihan consent. */
-  const lama = url.match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/i);
-  if (lama) {
-    return 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(lama[1]) + '&export=view&authuser=0';
+  const id = driveIdFromUrl(url);
+  if (id) return '/api/pii?imageId=' + encodeURIComponent(id);
+  try {
+    return escapeHTML(new URL(url).href);
+  } catch {
+    return LOGO_URL;
   }
-  return escapeHTML(url);
+}
+
+/** Atribut yang dibutuhkan <img> supaya bisa berpindah bentuk URL saat gagal. */
+function photoAttributes(value) {
+  const id = driveIdFromUrl(value);
+  return id ? ` data-drive="${id}" data-coba="0"` : '';
+}
+
+function photoFailed(img) {
+  const id = img.dataset.drive;
+  const sudah = Number(img.dataset.coba || 0);
+  // Sumber awal adalah proksi /api/pii, jadi rantai percobaan mulai dari bentuk
+  // Drive langsung: proksi bisa gagal bila fungsi serverless tidak tersedia.
+  if (id && sudah < DRIVE_URL_FORMS.length) {
+    img.dataset.coba = String(sudah + 1);
+    img.src = DRIVE_URL_FORMS[sudah](id);
+    return;
+  }
+  img.onerror = null;
+  img.src = LOGO_URL;
 }
 
 function renderFooterLinks(settings) {
@@ -75,7 +124,7 @@ async function callApi(action) {
 function renderArticle(article, index) {
   const title = escapeHTML(article.title);
   const cover = article.coverImage
-    ? `<img class="article-cover" src="${safeImageUrl(article.coverImage)}" alt="${title}" loading="lazy" onerror="this.onerror=null;this.src='${LOGO_URL}'">`
+    ? `<img class="article-cover" src="${safeImageUrl(article.coverImage)}" alt="${title}" loading="lazy"${photoAttributes(article.coverImage)} onerror="photoFailed(this)">`
     : `<div class="article-cover placeholder-cover"><img src="${LOGO_URL}" alt=""></div>`;
   const date = article.createdAt
     ? new Date(article.createdAt).toLocaleDateString('id-ID', {
@@ -153,9 +202,12 @@ function articleContentHtml(content) {
     } else if (tag === 'img') {
       const src = String(node.getAttribute('src') || '').trim();
       if (!/^https:\/\/[^\s]+$/i.test(src)) return document.createDocumentFragment();
-      element.setAttribute('src', src);
+      element.setAttribute('src', safeImageUrl(src));
       element.setAttribute('alt', String(node.getAttribute('alt') || '').slice(0, 300));
       element.setAttribute('loading', 'lazy');
+      element.dataset.drive = driveIdFromUrl(src);
+      element.dataset.coba = '0';
+      element.addEventListener('error', () => photoFailed(element));
       return element;
     } else if (tag === 'span') {
       const size = sourceTag === 'font'
@@ -332,7 +384,7 @@ function openReader(index, directLink = false) {
   const scroll = dialog.querySelector('.reader-scroll');
   scroll.innerHTML = `
     ${article.coverImage
-      ? `<img class="reader-cover" src="${safeImageUrl(article.coverImage)}" alt="${escapeHTML(article.title)}">`
+      ? `<img class="reader-cover" src="${safeImageUrl(article.coverImage)}" alt="${escapeHTML(article.title)}"${photoAttributes(article.coverImage)} onerror="photoFailed(this)">`
       : ''}
     <div class="reader-article">
       <div class="article-meta">
@@ -344,6 +396,12 @@ function openReader(index, directLink = false) {
       ${articleContentHtml(article.content || article.excerpt || '')}
       <p class="reader-byline">${escapeHTML(article.author || 'Redaksi PB PII')}</p>
     </div>`;
+  scroll.querySelectorAll('img').forEach((image) => {
+    image.addEventListener('error', () => {
+      image.onerror = null;
+      image.src = LOGO_URL;
+    }, { once: true });
+  });
   if (dialog.open) dialog.close();
   dialog.showModal();
   document.body.classList.add('is-locked');
@@ -443,7 +501,7 @@ function renderEventTeaser(events) {
     return `
       <article class="acara-card">
         <div class="acara-cover">
-          <img src="${safeImageUrl(event.coverImage)}" alt="${escapeHTML(event.title)}" loading="lazy" onerror="this.onerror=null;this.src='${LOGO_URL}'">
+          <img src="${safeImageUrl(event.coverImage)}" alt="${escapeHTML(event.title)}" loading="lazy"${photoAttributes(event.coverImage)} onerror="photoFailed(this)">
           <span class="acara-date"><b>${escapeHTML(day)}</b><small>${escapeHTML(month)}</small></span>
         </div>
         <div class="acara-body">
@@ -504,13 +562,10 @@ async function init() {
     }
 
     const chairPhoto = $('#chairPhoto');
-    chairPhoto.onerror = () => {
-      chairPhoto.onerror = null;
-      chairPhoto.src = LOGO_URL;
-    };
-    chairPhoto.src = settings.chairmanPhoto
-      ? safeImageUrl(settings.chairmanPhoto)
-      : LOGO_URL;
+    chairPhoto.onerror = () => photoFailed(chairPhoto);
+    chairPhoto.dataset.drive = driveIdFromUrl(settings.chairmanPhoto);
+    chairPhoto.dataset.coba = '0';
+    chairPhoto.src = settings.chairmanPhoto ? safeImageUrl(settings.chairmanPhoto) : LOGO_URL;
 
     const articles = Array.isArray(data.articles) ? data.articles : [];
     publishedArticles = articles;
@@ -528,7 +583,7 @@ async function init() {
     $('#gallery').innerHTML = gallery.length
       ? gallery.map((item) => `
         <figure class="gallery-item">
-          <img src="${safeImageUrl(item.imageUrl)}" alt="${escapeHTML(item.title)}" loading="lazy">
+        <img src="${safeImageUrl(item.imageUrl)}" alt="${escapeHTML(item.title)}" loading="lazy"${photoAttributes(item.imageUrl)} onerror="photoFailed(this)">
           <figcaption>
             <b>${escapeHTML(item.title)}</b>
             ${item.caption ? `<span>${escapeHTML(item.caption)}</span>` : ''}

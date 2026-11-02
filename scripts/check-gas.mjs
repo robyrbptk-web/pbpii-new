@@ -132,6 +132,11 @@ const Utilities = {
   },
   getUuid: () => `fixture-${(++uuidSeq).toString(16).padStart(4, '0')}`,
   computeDigest: (_algo, value) => Array.from(createHash('sha256').update(String(value)).digest()),
+  newBlob: (bytes, mime, name) => ({
+    getBytes: () => Array.from(bytes),
+    getContentType: () => String(mime),
+    getName: () => String(name)
+  }),
   DigestAlgorithm: { SHA_256: 'SHA_256' },
   base64Decode: (raw) => Array.from(Buffer.from(String(raw), 'base64'), (byte) => byte > 127 ? byte - 256 : byte),
   base64Encode: (bytes) => Buffer.from(bytes).toString('base64')
@@ -188,6 +193,7 @@ const ContentService = {
 
 /** DriveApp palsu: folder media PB PII cukup satu, tiap unggah tercatat. */
 const driveFiles = [];
+let corruptNextDriveRead = false;
 let includePustakaCorpus = true;
 
 /**
@@ -222,10 +228,41 @@ const pustakaFile = {
   getBlob: () => ({ getDataAsString: () => JSON.stringify(pustakaFixture) })
 };
 
+/** Pegangan berkas Drive palsu; isinya bisa dibaca ulang dan ditimpa seperti API asli. */
+function fileHandle(record) {
+  return {
+    getId: () => record.id,
+    getName: () => record.name,
+    getMimeType: () => record.mime,
+    getDescription: () => record.description,
+    setDescription: (value) => { record.description = String(value); },
+    setSharing: (access, permission) => { record.sharing = { access, permission }; },
+    setContent: (blob) => {
+      record.bytes = Array.from(blob.getBytes());
+      record.mime = String(blob.getContentType());
+      record.name = String(blob.getName());
+    },
+    getBlob: () => ({
+      getBytes: () => {
+        if (corruptNextDriveRead) {
+          corruptNextDriveRead = false;
+          return record.bytes.slice(1);
+        }
+        return record.bytes.slice();
+      }
+    })
+  };
+}
+
 const fakeFolder = {
   getId: () => 'fixture-folder-media',
   getName: () => 'PB PII Media',
   setSharing() {},
+  getFiles() {
+    const daftar = driveFiles.map(fileHandle);
+    let index = 0;
+    return { hasNext: () => index < daftar.length, next: () => daftar[index++] };
+  },
   getFilesByName(nama) {
     const berkas = [];
     if (String(nama) === 'pustaka.json' && includePustakaCorpus) berkas.push(pustakaFile);
@@ -237,25 +274,17 @@ const fakeFolder = {
     let index = 0;
     return { hasNext: () => index < berkas.length, next: () => berkas[index++] };
   },
-  createFile(name, bytes, mime) {
+  createFile(blob) {
     const record = {
       id: `fixture-file-${driveFiles.length + 1}`,
-      name: String(name),
-      bytes: Array.from(bytes),
-      mime: String(mime),
+      name: String(blob.getName()),
+      bytes: Array.from(blob.getBytes()),
+      mime: String(blob.getContentType()),
       description: '',
       sharing: null
     };
     driveFiles.push(record);
-    return {
-      getId: () => record.id,
-      getName: () => record.name,
-      getMimeType: () => record.mime,
-      getDescription: () => record.description,
-      setDescription: (value) => { record.description = String(value); },
-      setSharing: (access, permission) => { record.sharing = { access, permission }; },
-      getBlob: () => ({ getBytes: () => record.bytes.slice() })
-    };
+    return fileHandle(record);
   }
 };
 const DriveApp = {
@@ -265,12 +294,7 @@ const DriveApp = {
   getFileById(id) {
     const record = driveFiles.find((file) => file.id === String(id));
     if (!record) throw new Error('Berkas Drive tidak ditemukan.');
-    return {
-      getName: () => record.name,
-      getMimeType: () => record.mime,
-      getDescription: () => record.description,
-      getBlob: () => ({ getBytes: () => record.bytes.slice() })
-    };
+    return fileHandle(record);
   },
   getFoldersByName: () => ({ hasNext: () => true, next: () => fakeFolder }),
   createFolder: () => fakeFolder
@@ -285,7 +309,7 @@ const exported = [
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
   'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_',
   'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_',
-  'ensureDefaultSettings_', 'sanitizeArticleHtml_', 'sanitizeLetterHtml_', 'saveArticle_', 'uploadImage_',
+  'ensureDefaultSettings_', 'sanitizeArticleHtml_', 'sanitizeLetterHtml_', 'saveArticle_', 'uploadImage_', 'driveImageUrl_',
   'orgUploadPdf_', 'orgUploadLetterImage_', 'orgSendLetter_', 'orgReadLetterAttachment_', 'orgReadLetterImage_',
   'pustakaDaftar_'
 ].join(', ');
@@ -468,11 +492,20 @@ check('uploaded photos receive a working link-view permission', driveFiles.find(
   permission: 'VIEW'
 });
 check('JPEG signature is detected from signed Apps Script bytes', photo.mime, 'image/jpeg');
+check('uploaded JPEG bytes remain binary in Drive', driveFiles.find((file) => file.id === photo.fileId)?.bytes, [-1, -40, -1, 0]);
+check('uploaded JPEG byte count matches the verified Drive file', photo.bytes, 4);
 const pngPhoto = gas.uploadImage_({
   name: 'cover.png',
   data: Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x00]).toString('base64')
 });
 check('PNG signature is detected from signed Apps Script bytes', pngPhoto.mime, 'image/png');
+corruptNextDriveRead = true;
+check('upload rejects bytes that fail post-save verification',
+  captureError(() => gas.uploadImage_({
+    name: 'cover-corrupt.jpg',
+    data: Buffer.from([0xFF, 0xD8, 0xFF, 0x00]).toString('base64')
+  })),
+  'Foto gagal diverifikasi setelah disimpan. Silakan coba unggah ulang.');
 
 const senderOrg = rowsOf('Orgs').find((row) => row.id === 'pk-untan');
 const receiverOrg = rowsOf('Orgs').find((row) => row.id === 'pd-pontianak');
@@ -926,8 +959,9 @@ const artikelLewatApi = request({
 check('orgSaveArticle is routed through an authenticated organization session',
   [artikelLewatApi.ok, rowsOf('Articles').find((row) => row.id === artikelLewatApi.data.id)?.orgId],
   [true, 'pd-pontianak']);
-check('hasil unggah berupa URL publik Google', unggah.data.url.startsWith('https://drive.usercontent.google.com/download?id='), true);
+check('hasil unggah berupa URL gambar publik Google', unggah.data.url.startsWith('https://drive.usercontent.google.com/download?id='), true);
 check('jenis berkas dibaca dari tanda tangan byte', unggah.data.mime, 'image/jpeg');
+check('bytes sampul tersimpan sebagai JPEG biner', driveFiles.find((file) => file.id === unggah.data.fileId)?.bytes.slice(0, 3), [-1, -40, -1]);
 check('berkas masuk ke folder media PB PII', driveFiles.length, fileSebelumUpload + 1);
 check('nama berkas mengikuti judul dan ekstensi', /\.jpg$/.test(driveFiles[driveFiles.length - 1].name), true);
 check('token kader tidak bisa mengunggah atas nama lembaga',
@@ -1020,6 +1054,19 @@ check('gerbang AI minta potongan penuh ke Apps Script', /Waktu turba tidak dibat
 check('potongan rujukan dibatasi panjangnya', konteksAI.data.hasil.every((item) => String(item.isi).length <= 1400), true);
 check('konteks tanpa kecocokan substansial tetap kosong',
   request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'apa itu', ip: '198.51.100.88' }).data.hasil.length, 0);
+
+// Foto: URL Drive bentuk lama 404, jadi semua jalur penyimpanan menormalkannya.
+check('URL foto lama dinormalkan ke CDN unduhan',
+  gas.driveImageUrl_('https://lh3.googleusercontent.com/d/1rdQWZM8ZqDR0dmBJumxTJj8cSvucrp9t=w1600'),
+  'https://drive.usercontent.google.com/download?id=1rdQWZM8ZqDR0dmBJumxTJj8cSvucrp9t&export=view&authuser=0');
+check('URL foto yang sudah benar tidak diubah',
+  gas.driveImageUrl_('https://drive.usercontent.google.com/download?id=1rdQWZM8ZqDR0dmBJumxTJj8cSvucrp9t&export=view&authuser=0'),
+  'https://drive.usercontent.google.com/download?id=1rdQWZM8ZqDR0dmBJumxTJj8cSvucrp9t&export=view&authuser=0');
+check('penanda gambar surat tidak ikut diganti',
+  gas.driveImageUrl_('pbpii-letter-image:abcDEF-123'), 'pbpii-letter-image:abcDEF-123');
+check('gambar di isi artikel dinormalkan saat disimpan',
+  /src="https:\/\/drive\.usercontent\.google\.com\/download\?id=ABC123abc-_456&amp;export=view&amp;authuser=0"/
+    .test(gas.sanitizeArticleHtml_('<p>Isi</p><img src="https://lh3.googleusercontent.com/d/ABC123abc-_456=w1600" alt="Foto">')), true);
 
 // ------------------------------------------------------------------ laporan
 

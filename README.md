@@ -84,7 +84,7 @@ yang sudah jalan:
    kode lama sehingga fitur lembaga (daftar PW/PD/PK) menjawab "Sesi berakhir".
 4. Bukti bahwa versi baru benar-benar melayani: buka URL `/exec` di browser, atau
    kirim `POST` `{action:"health"}`. Balasan memuat `version` (stamp di `Code.gs`,
-   sekarang `2026-11-01.5`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
+   sekarang `2026-11-02.3`), `spreadsheetId`, jumlah baris tiap sheet, dan daftar
    `masalah`. Versi yang lebih lama dari stamp berarti langkah 3 belum selesai.
    Endpoint ini sengaja tidak mengembalikan kata sandi, token, maupun isi data.
 5. Teks kop website: jalankan **PB PII > Ganti teks dengan salinan resmi** pada
@@ -250,6 +250,9 @@ Setelah folder yang benar terbuka, tidak perlu mengetik apa pun:
 | `F5` | menjalankan task itu lebih dulu, lalu membuka Chrome/Edge dengan dev server; debugger melekat ke `app.js`, `ibadah.js`, `tanya.js` |
 | `Ctrl`+`Shift`+`P` ▸ Run Task ▸ **Cek backend Apps Script** | `npm run check:backend` |
 
+`npm run check:images` menguji proxy foto (URL Drive, signature gambar, dan
+batas ukuran) tanpa memerlukan akses ke Drive sungguhan.
+
 Tombol **Open with Live Server** tetap ada dan tidak merusak apa pun, tapi hanya
 cocok untuk melihat tampilan statis: ia tidak menjalankan `api/*.js`, jadi berita,
 pengaturan, login, dan Tanya PII tidak akan pernah terisi.
@@ -292,15 +295,21 @@ Sampul artikel, foto Ketua Umum, dan foto galeri bisa langsung diunggah dari
 2. Berkas dikirim dengan aksi `uploadImage` ke Apps Script melalui `/api/pii`.
 3. Apps Script menyimpannya di folder Drive **PB PII Media** (dibuat otomatis saat
    `setup()`, ID-nya tersimpan di Script Properties sebagai `MEDIA_FOLDER_ID`),
-   membagikannya *anyone with link*, dan mengembalikan
-   `https://lh3.googleusercontent.com/d/<id>=w1600`.
+   memeriksa ulang byte berkas yang tersimpan, membagikannya *anyone with link*,
+   lalu mengembalikan URL Drive.
 4. URL itu masuk ke kolom `coverImage` / `imageUrl` yang sudah ada — jadi **tidak
    ada perubahan struktur sheet** dan artikel lama tetap jalan.
+5. Pratinjau dan foto publik dimuat melalui `/api/pii?imageId=<id>` di domain
+   website sendiri. Proxy memeriksa tanda tangan JPEG/PNG/WebP dan batas ukuran
+   sebelum mengirim gambar ke browser. Foto lama yang tersimpan sebagai daftar
+   angka byte juga dipulihkan saat dibaca; jika pratinjau gagal, dashboard tidak
+   menampilkan status berhasil.
 
 Butuh backend dengan aksi `uploadImage`. Berkas gambar yang didukung browser
 diperkecil dan dikonversi ke JPEG sebelum dikirim; ukuran berkas asli maksimal
 25 MB dan hasil konversi maksimal 2,5 MB. Backend memeriksa tanda tangan byte
-JPEG/PNG/WebP, bukan nama berkas.
+JPEG/PNG/WebP, bukan nama berkas. Setelah perubahan backend, Apps Script harus
+di-deploy ulang sebagai versi baru `2026-11-02.3`.
 
 Lampiran surat memakai folder Drive **PB PII Surat** yang tidak dibagikan lewat
 tautan publik. Akses melalui `orgReadLetterAttachment` memeriksa bahwa sesi

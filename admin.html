@@ -178,6 +178,35 @@
       .seo-checks{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
       .seo-checks span{padding:4px 8px;border-radius:999px;background:#f0f3f0;color:#5a665b;font-size:11px;font-weight:700}
       .seo-checks span.good{background:#e8f6eb;color:#167334}
+      .topbar{box-shadow:0 5px 22px rgb(16 43 73 / 5%)}
+      .panel,.stat{border-color:#e1e9e3;box-shadow:0 10px 30px rgb(16 43 73 / 5%)}
+      .panel{border-radius:18px}
+      .btn{min-height:42px;border-radius:11px;transition:transform .16s ease,box-shadow .16s ease,background-color .16s ease}
+      .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgb(16 43 73 / 10%)}
+      .tab{min-height:44px;border-radius:12px}
+      input,textarea,select{border-radius:11px}
+      .item{border-radius:14px}
+      .upload-preview{width:min(100%,520px);max-height:300px;object-fit:cover}
+      button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #087a3640;outline-offset:3px}
+      @media(max-width:560px){
+        body{background:#f4f7f5}
+        main{padding-right:14px;padding-left:14px}
+        .topbar{gap:8px;box-shadow:0 4px 16px rgb(16 43 73 / 6%)}
+        .top-actions{gap:6px}
+        .top-actions .btn{min-height:42px;border-radius:11px;padding:8px 9px;font-size:11px}
+        .page-head{margin-bottom:18px}
+        .page-head h1{font-size:25px}
+        .stats{gap:7px}
+        .stat{min-width:0;border-radius:13px;padding:11px 9px}
+        .stat strong{font-size:20px;letter-spacing:-.7px}
+        .stat span{font-size:10.5px;line-height:1.35}
+        .panel{padding:15px 13px;border-radius:15px}
+        .list-head{align-items:flex-start}
+        .list-head .btn{min-height:42px;padding:8px 10px}
+        .upload-drop{border-radius:15px;background:linear-gradient(145deg,#f7fafc,#eef6fb)}
+        .upload-preview{max-height:min(42vh,280px);object-fit:contain}
+        .btn-row .btn{flex:1 1 100%;min-height:46px}
+      }
       @media(max-width:560px){
         .rich-toolbar{gap:5px;padding:7px}
         .rich-toolbar button,.rich-toolbar select{min-height:44px;padding:7px}
@@ -487,9 +516,60 @@
 
     function safeUrl(value) {
       try {
-        const u = new URL(String(value || ''));
-        return u.protocol === 'https:' ? u.href : '';
+        const raw = String(value || '');
+        const proxyId = raw.match(/^\/api\/pii\?imageId=([A-Za-z0-9_-]{10,128})$/)?.[1];
+        if (proxyId) {
+          return 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(proxyId) + '&export=view&authuser=0';
+        }
+        const u = new URL(raw);
+        if (u.protocol !== 'https:') return '';
+        const id = u.hostname === 'lh3.googleusercontent.com'
+          ? u.pathname.match(/^\/d\/([A-Za-z0-9_-]+)/i)?.[1]
+          : ['drive.google.com', 'drive.usercontent.google.com'].includes(u.hostname)
+            ? u.searchParams.get('id') || u.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/i)?.[1]
+            : '';
+        return id
+          ? 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(id) + '&export=view&authuser=0'
+          : u.href;
       } catch (e) { return ''; }
+    }
+
+    function imageSrc(value) {
+      const url = safeUrl(value);
+      if (!url) return '';
+      try {
+        const parsed = new URL(url);
+        const id = parsed.hostname === 'drive.usercontent.google.com' ? parsed.searchParams.get('id') : '';
+        return id ? '/api/pii?imageId=' + encodeURIComponent(id) : url;
+      } catch (e) { return ''; }
+    }
+
+    async function verifyImagePreview(url) {
+      if (!url) throw new Error('URL foto tidak valid.');
+      let lastError;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await new Promise((resolve, reject) => {
+            const image = new Image();
+            const timeout = setTimeout(() => reject(new Error('Waktu tunggu pemuatan foto habis.')), 10_000);
+            image.onload = () => {
+              clearTimeout(timeout);
+              image.naturalWidth ? resolve() : reject(new Error('Foto belum dapat dibaca.'));
+            };
+            image.onerror = () => {
+              clearTimeout(timeout);
+              reject(new Error('Foto belum dapat dimuat dari penyimpanan.'));
+            };
+            const separator = url.includes('?') ? '&' : '?';
+            image.src = url + separator + 'attempt=' + attempt;
+          });
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+        }
+      }
+      throw new Error('Foto sudah dikirim, tetapi belum dapat ditampilkan. Periksa akses Drive lalu coba unggah ulang. ' + (lastError?.message || ''));
     }
 
     function notify(text, type='ok') {
@@ -607,13 +687,8 @@
       preview.onload = () => {
         preview.hidden = false;
       };
-      // src kosong tetap bernilai URL halaman kalau tidak dilepas, jadi ikonnya
-      // muncul sebagai gambar rusak. URL gambar Drive lama dinormalkan dulu.
-      const norm = /^https:\/\/lh3\.googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/i.exec(url);
-      const src = norm
-        ? 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(norm[1]) + '&export=view&authuser=0'
-        : url;
-      if (/^https:\/\//i.test(src)) {
+      const src = imageSrc(url);
+      if (src) {
         preview.src = src;
         preview.hidden = false;
       } else {
@@ -636,8 +711,11 @@
           try {
             const prepared = await prepareImage(file);
             const saved = await api('uploadImage', { name: prepared.name, data: prepared.data });
-            target.value = saved.url;
-            preview.src = saved.url;
+            const storedUrl = safeUrl(saved.url);
+            const previewUrl = imageSrc(storedUrl);
+            await verifyImagePreview(previewUrl);
+            target.value = storedUrl;
+            preview.src = previewUrl;
             preview.hidden = false;
             const formName = target.id === 'chairmanPhoto' ? 'pengaturan' : target.id === 'articleCover' ? 'artikel' : 'galeri';
             status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan Simpan ' + formName + ' untuk menampilkannya.';
@@ -678,7 +756,7 @@
       return '';
     }
 
-    function sanitizeArticleMarkup(value) {
+    function sanitizeArticleMarkup(value, forStorage = false) {
       const raw = String(value || '');
       if (!/<\s*[a-z/][^>]*>/i.test(raw)) {
         return raw.split(/\n\s*\n/).map((paragraph) => paragraph.trim()
@@ -709,7 +787,7 @@
             element.setAttribute('rel', 'noopener noreferrer');
           }
         } else if (tag === 'img') {
-          const src = safeUrl(node.getAttribute('src'));
+          const src = forStorage ? safeUrl(node.getAttribute('src')) : imageSrc(node.getAttribute('src'));
           if (!src) return document.createDocumentFragment();
           element.setAttribute('src', src);
           element.setAttribute('alt', String(node.getAttribute('alt') || '').slice(0, 300));
@@ -796,7 +874,9 @@
       try {
         const prepared = await prepareImage(file);
         const saved = await api('uploadImage', { name: prepared.name, data: prepared.data });
-        insertArticleHtml('<img src="' + escapeHTML(saved.url) + '" alt="">');
+        const previewUrl = imageSrc(saved.url);
+        await verifyImagePreview(previewUrl);
+        insertArticleHtml('<img src="' + escapeHTML(previewUrl) + '" alt="">');
         notify('Gambar artikel berhasil diunggah.');
       } catch (error) {
         notify('Gambar gagal ditambahkan: ' + error.message, 'err');
@@ -891,7 +971,7 @@
       $('articleList').innerHTML = rows.map(a => {
         const status = a.status === 'published' ? 'published' : 'draft';
         const date = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('id-ID') : '';
-        const cover = safeUrl(a.coverImage);
+        const cover = imageSrc(a.coverImage);
         const thumb = cover
           ? '<img src="' + escapeHTML(cover) + '" alt="" loading="lazy" style="width:64px;height:52px;object-fit:cover;border-radius:8px;flex:0 0 auto">'
           : '';
@@ -919,7 +999,7 @@
 
     function renderGalleryItems() {
       $('galleryList').innerHTML = state.gallery.map(g => {
-        const image = safeUrl(g.imageUrl);
+        const image = imageSrc(g.imageUrl);
         const preview = image
           ? '<img src="' + escapeHTML(image) + '" alt="" style="width:70px;height:60px;object-fit:cover;border-radius:7px">'
           : '';
@@ -993,7 +1073,7 @@
     $('articleForm').addEventListener('submit', async event => {
       event.preventDefault();
       const button = $('saveArticleButton');
-      const content = sanitizeArticleMarkup(articleEditor.innerHTML);
+      const content = sanitizeArticleMarkup(articleEditor.innerHTML, true);
       if (!articleEditor.textContent.trim()) {
         notify('Tambahkan teks isi artikel sebelum menyimpan.', 'err');
         articleEditor.focus();

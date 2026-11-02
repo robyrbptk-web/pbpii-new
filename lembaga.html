@@ -103,6 +103,7 @@
     .item-list{display:grid;gap:9px}
     .item{border:1px solid var(--line);border-radius:11px;padding:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
     .item-main{min-width:0;flex:1}
+    .item-thumb{width:76px;height:58px;object-fit:cover;border-radius:9px;flex:0 0 auto;background:#eef3f7}
     .item h3{font-size:13.5px;margin:0 0 4px;color:var(--ink);overflow-wrap:anywhere}
     .item p{margin:0;color:var(--muted);font-size:11.5px}
     .item-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
@@ -251,6 +252,18 @@
     @media(max-width:560px){
       .upload-drop{display:flex;align-items:center;justify-content:center;min-height:88px;padding:18px 13px;font-size:13px}
       .upload-link summary{display:flex;align-items:center;min-height:44px}
+      .upload-preview{width:100%;max-height:min(42vh,280px);object-fit:contain}
+      .btn-row .btn{flex:1 1 100%;min-height:46px}
+      .article-editor-toolbar{position:sticky;top:56px;z-index:3;max-height:120px;overflow:auto;-webkit-overflow-scrolling:touch}
+      .article-rich-editor{font-size:16px}
+      body{background:#f2f6fa}
+      main{padding-top:18px}
+      .panel{border-color:#e0e8f0;border-radius:17px;box-shadow:0 8px 24px rgb(16 43 73 / 5%)}
+      .topbar{box-shadow:0 5px 18px rgb(16 43 73 / 5%)}
+      .btn{min-height:44px;border-radius:11px}
+      .tab{border-radius:12px}
+      .item{border-radius:14px}
+      .stats .stat{border-radius:13px}
     }
   </style>
 </head>
@@ -941,7 +954,7 @@
             date: $('aDate').value,
             location: $('aLocation').value.trim(),
             participants: Number($('aParticipants').value) || 0,
-            coverImage: $('aCover').value.trim(),
+            coverImage: imageUrl($('aCover').value.trim()) || $('aCover').value.trim(),
             description: $('aDescription').value,
             status: $('aStatus').value
           }
@@ -999,7 +1012,10 @@
             ? '<div class="bind-row"><span class="badge">BELUM ADA FORMULIR</span>' +
               '<button class="btn ghost" type="button" data-form-for="' + esc(item.id) + '">+ Tautkan formulir</button></div>'
             : '';
-        return '<div class="item"><div class="item-main"><h3>' + esc(item.title) + ' ' +
+        const thumb = item.coverImage
+          ? '<img class="item-thumb" src="' + esc(imageUrl(item.coverImage)) + '" alt="" loading="lazy" onerror="this.hidden = true">'
+          : '';
+        return '<div class="item">' + thumb + '<div class="item-main"><h3>' + esc(item.title) + ' ' +
           '<span class="badge ' + (item.status === 'published' ? 'verified' : 'pending') + '">' +
           (item.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3>' +
           '<p>' + fmtDate(item.date) + ' · ' + esc(item.category) + ' · ' + (Number(item.participants) || 0) +
@@ -1069,7 +1085,7 @@
         } else if (tag === 'img') {
           const src = String(node.getAttribute('src') || '').trim();
           if (!/^https:\/\/[^\s]+$/i.test(src)) return document.createDocumentFragment();
-          element.setAttribute('src', src);
+          element.setAttribute('src', imageUrl(src) || src);
           element.setAttribute('alt', String(node.getAttribute('alt') || '').slice(0, 300));
           element.setAttribute('loading', 'lazy');
           return element;
@@ -1092,13 +1108,16 @@
     }
 
     function renderOrgArticles() {
-      $('orgArticleList').innerHTML = (state.articles || []).map((article) => (
-        '<div class="item"><div class="item-main"><h3>' + esc(article.title) + ' ' +
-        '<span class="badge ' + (article.status === 'published' ? 'verified' : 'pending') + '">' +
-        (article.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3><p>' +
-        esc(article.category || 'Berita') + ' · diperbarui ' + fmtDate(article.updatedAt) + '</p></div>' +
-        '<div class="item-actions"><button class="btn secondary" type="button" data-edit-org-article="' + esc(article.id) + '">Edit</button></div></div>'
-      )).join('') || '<div class="empty">Belum ada artikel. Mulai tulis berita lembaga Anda.</div>';
+      $('orgArticleList').innerHTML = (state.articles || []).map((article) => {
+        const thumb = article.coverImage
+          ? '<img class="item-thumb" src="' + esc(imageUrl(article.coverImage)) + '" alt="" loading="lazy" onerror="this.hidden = true">'
+          : '';
+        return '<div class="item">' + thumb + '<div class="item-main"><h3>' + esc(article.title) + ' ' +
+          '<span class="badge ' + (article.status === 'published' ? 'verified' : 'pending') + '">' +
+          (article.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3><p>' +
+          esc(article.category || 'Berita') + ' · diperbarui ' + fmtDate(article.updatedAt) + '</p></div>' +
+          '<div class="item-actions"><button class="btn secondary" type="button" data-edit-org-article="' + esc(article.id) + '">Edit</button></div></div>';
+      }).join('') || '<div class="empty">Belum ada artikel. Mulai tulis berita lembaga Anda.</div>';
     }
 
     function resetOrgArticleForm() {
@@ -1135,7 +1154,7 @@
           title: $('orgArticleTitle').value.trim(),
           category: $('orgArticleCategory').value,
           excerpt: $('orgArticleExcerpt').value.trim(),
-          coverImage: $('orgArticleCover').value.trim(),
+          coverImage: imageUrl($('orgArticleCover').value.trim()) || $('orgArticleCover').value.trim(),
           content,
           status: $('orgArticleStatus').value,
           seoTitle: $('orgArticleSeoTitle').value.trim(),
@@ -1216,7 +1235,7 @@
       try {
         const prepared = await prepareImage(file);
         const saved = await api('orgUploadImage', { name: prepared.name, data: prepared.data });
-        insertOrgArticleHtml('<img src="' + esc(saved.url) + '" alt="">');
+        insertOrgArticleHtml('<img src="' + esc(imageUrl(saved.url)) + '" alt="">');
         toast('Gambar artikel berhasil diunggah.');
       } catch (error) {
         toast('Gambar gagal ditambahkan: ' + error.message);
@@ -2040,13 +2059,75 @@
       if (!box || !target) return;
       const preview = box.querySelector('.upload-preview');
       const url = String(target.value || '');
-      if (/^https:\/\//i.test(url)) {
-        preview.src = url;
+      const src = imageSrc(url);
+      if (src) {
+        preview.onerror = () => {
+          preview.hidden = true;
+          const status = box.querySelector('.upload-status');
+          if (status) status.textContent = 'Tautan foto tidak dapat dimuat. Periksa akses penyimpanan atau unggah ulang.';
+        };
+        preview.src = src;
         preview.hidden = false;
       } else {
         preview.removeAttribute('src');
         preview.hidden = true;
       }
+    }
+
+    function imageUrl(value) {
+      try {
+        const url = new URL(String(value || ''));
+        if (url.protocol !== 'https:') return '';
+        const id = url.hostname === 'lh3.googleusercontent.com'
+          ? url.pathname.match(/^\/d\/([A-Za-z0-9_-]+)/i)?.[1]
+          : ['drive.google.com', 'drive.usercontent.google.com'].includes(url.hostname)
+            ? url.searchParams.get('id') || url.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/i)?.[1]
+            : '';
+        return id
+          ? 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(id) + '&export=view&authuser=0'
+          : url.href;
+      } catch {
+        return '';
+      }
+    }
+
+    function imageSrc(value) {
+      const url = imageUrl(value);
+      if (!url) return '';
+      try {
+        const parsed = new URL(url);
+        const id = parsed.hostname === 'drive.usercontent.google.com' ? parsed.searchParams.get('id') : '';
+        return id ? '/api/pii?imageId=' + encodeURIComponent(id) : url;
+      } catch {
+        return '';
+      }
+    }
+
+    async function verifyImagePreview(url) {
+      if (!url) throw new Error('URL foto tidak valid.');
+      let lastError;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await new Promise((resolve, reject) => {
+            const image = new Image();
+            const timeout = setTimeout(() => reject(new Error('Waktu tunggu pemuatan foto habis.')), 10_000);
+            image.onload = () => {
+              clearTimeout(timeout);
+              image.naturalWidth ? resolve() : reject(new Error('Foto belum dapat dibaca.'));
+            };
+            image.onerror = () => {
+              clearTimeout(timeout);
+              reject(new Error('Foto belum dapat dimuat dari penyimpanan.'));
+            };
+            image.src = url + (url.includes('?') ? '&' : '?') + 'attempt=' + attempt;
+          });
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+        }
+      }
+      throw new Error('Foto sudah dikirim, tetapi belum dapat ditampilkan. Periksa akses Drive lalu coba unggah ulang. ' + (lastError?.message || ''));
     }
 
     function bindUploaders() {
@@ -2068,8 +2149,11 @@
           try {
             const prepared = await prepareImage(file);
             const saved = await api('orgUploadImage', { name: prepared.name, data: prepared.data });
-            target.value = saved.url;
-            preview.src = saved.url;
+            const storedUrl = imageUrl(saved.url);
+            const previewUrl = imageSrc(storedUrl);
+            await verifyImagePreview(previewUrl);
+            target.value = storedUrl;
+            preview.src = previewUrl;
             preview.hidden = false;
             const formName = target.id === 'orgArticleCover' ? 'artikel' : 'kegiatan';
             status.textContent = 'Foto tersimpan (' + Math.round(prepared.bytes / 1024) + ' KB). Tekan simpan ' + formName + ' untuk menampilkannya.';

@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-01.5';
+const BACKEND_VERSION = '2026-11-02.3';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -1296,7 +1296,7 @@ function sanitizeArticleHtml_(value, allowPrivateImages) {
         ? '<a href="' + articleAttribute_(href) + '" rel="noopener noreferrer">'
         : '<a>';
     } else if (tag === 'img') {
-      const src = String(attrs.src || '').trim();
+      const src = driveImageUrl_(String(attrs.src || '').trim());
       const safeImage = allowPrivateImages
         ? /^pbpii-letter-image:[a-zA-Z0-9_-]+$/.test(src)
         : /^https:\/\/[^\s]+$/i.test(src);
@@ -1675,17 +1675,94 @@ function uploadImage_(body) {
 
   const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : 'webp';
   const name = slugify_(body.name || 'foto') + '-' + Utilities.getUuid().slice(0, 8) + '.' + extension;
-  const file = mediaFolder_().createFile(name, bytes, mime);
+  const file = mediaFolder_().createFile(Utilities.newBlob(bytes, mime, name));
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const savedBytes = file.getBlob().getBytes();
+  if (savedBytes.length !== bytes.length
+    || imageKind_(savedBytes) !== mime
+    || !bytes.every(function (byte, index) {
+      return (byte & 0xFF) === (savedBytes[index] & 0xFF);
+    })) {
+    throw new Error('Foto gagal diverifikasi setelah disimpan. Silakan coba unggah ulang.');
+  }
 
   return {
-    // lh3.googleusercontent.com/d/<id> kini 404 untuk berkas Drive biasa;
-    // CDN unduh Drive ini tetap hidup selama berkas dibagikan siapa pun.
+    // URL unduhan Drive ini tetap menyajikan bytes gambar pada elemen <img>.
     url: 'https://drive.usercontent.google.com/download?id=' + file.getId() + '&export=view&authuser=0',
     fileId: file.getId(),
     bytes: bytes.length,
     mime: mime
   };
+}
+
+/**
+ * Unggahan lama ditulis lewat folder.createFile(nama, bytes, mime). Angka byte
+ * dikirim apa adanya, jadi Apps Script mengubahnya menjadi teks "-1,-40,-1,..."
+ * dan berkas di Drive berisi angka-angka itu, bukan gambar. Fotonya tidak akan
+ * pernah tampil di <img> maupun sebelum diperbaiki di sini.
+ *
+ * Isi berkas ditulis ulang sebagai gambar asli. ID-nya tetap, jadi URL yang
+ * sudah tersimpan di sheet langsung berfungsi tanpa diubah satu per satu.
+ * Jalankan dari editor Apps Script: pilih "perbaikiFotoDrive" lalu Run.
+ */
+function perbaikiFotoDrive() {
+  const hasil = [
+    perbaikiBerkasFolder_(mediaFolder_(), true),
+    perbaikiBerkasFolder_(letterFolder_(), false)
+  ];
+  const ringkas = {
+    diperiksa: hasil.reduce((jumlah, item) => jumlah + item.diperiksa, 0),
+    diperbaiki: hasil.reduce((jumlah, item) => jumlah + item.berkas.length, 0),
+    berkas: hasil[0].berkas.concat(hasil[1].berkas)
+  };
+  console.log(JSON.stringify(ringkas));
+  return ringkas;
+}
+
+function perbaikiBerkasFolder_(folder, publik) {
+  const berkas = [];
+  let diperiksa = 0;
+  const daftar = folder.getFiles();
+  while (daftar.hasNext()) {
+    const file = daftar.next();
+    diperiksa += 1;
+    const isi = file.getBlob().getBytes();
+    if (imageKind_(isi) || pdfKind_(isi)) continue;
+    const asli = bytesDariTeksAngka_(Utilities.newBlob(isi, 'text/plain').getDataAsString());
+    if (!asli) continue;
+    file.setContent(Utilities.newBlob(asli.bytes, asli.mime, file.getName()));
+    file.setSharing(
+      publik ? DriveApp.Access.ANYONE_WITH_LINK : DriveApp.Access.PRIVATE,
+      DriveApp.Permission.VIEW
+    );
+    berkas.push({ id: file.getId(), nama: file.getName(), mime: asli.mime, byte: asli.bytes.length });
+  }
+  return { diperiksa: diperiksa, berkas: berkas };
+}
+
+/**
+ * Mengubah teks angka byte hasil unggah lama menjadi bytes gambar yang benar.
+ * Berkas yang bukan gambar (misalnya pustaka.json) dikembalikan null sehingga
+ * isinya tidak pernah ditimpa.
+ */
+function bytesDariTeksAngka_(teks) {
+  const bersih = String(teks || '').trim();
+  if (!/^-?\d{1,3}(,-?\d{1,3}){3,}$/.test(bersih)) return null;
+  const angka = bersih.split(',');
+  const bytes = [];
+  for (let index = 0; index < angka.length; index += 1) {
+    const nilai = Number(angka[index]);
+    if (nilai % 1 !== 0 || nilai < -128 || nilai > 255) return null;
+    bytes.push((nilai + 256) % 256);
+  }
+  const mime = imageKind_(bytes) || pdfKind_(bytes);
+  return mime ? { bytes: bytes, mime: mime } : null;
+}
+
+function pdfKind_(bytes) {
+  if (bytes.length < 5) return '';
+  const tanda = String.fromCharCode.apply(null, bytes.slice(0, 5).map((value) => value & 0xFF));
+  return tanda === '%PDF-' ? 'application/pdf' : '';
 }
 
 function orgUploadPdf_(org, body) {
@@ -1715,7 +1792,7 @@ function orgUploadPdf_(org, body) {
     .replace(/[^a-zA-Z0-9._ -]/g, '_')
     .trim().slice(0, 80) || 'lampiran';
   const name = org.id + '-surat-' + Utilities.getUuid().slice(0, 8) + '-' + baseName + '.pdf';
-  const file = letterFolder_().createFile(name, bytes, 'application/pdf');
+  const file = letterFolder_().createFile(Utilities.newBlob(bytes, 'application/pdf', name));
   file.setDescription('pbpii-letter-upload:' + org.id);
   file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
   return { fileId: file.getId(), name: originalName.slice(0, 180), bytes: bytes.length };
@@ -1740,10 +1817,25 @@ function orgUploadLetterImage_(org, body) {
   const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : 'webp';
   const baseName = slugify_(String(body.name || 'gambar').replace(/\.[^.]+$/, ''));
   const name = org.id + '-surat-image-' + Utilities.getUuid().slice(0, 8) + '-' + baseName + '.' + extension;
-  const file = letterFolder_().createFile(name, bytes, mime);
+  const file = letterFolder_().createFile(Utilities.newBlob(bytes, mime, name));
   file.setDescription('pbpii-letter-image-upload:' + org.id);
   file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
   return { fileId: file.getId(), name: String(body.name || 'gambar').slice(0, 180), mime, bytes: bytes.length };
+}
+
+/**
+ * Foto yang disimpan di Drive disajikan lewat CDN unduhan. Bentuk
+ * lh3.googleusercontent.com/d/<id> dan drive.google.com/thumbnail kini mengembalikan
+ * 404 untuk berkas "siapa pun dengan tautan", sehingga setiap kolom gambar
+ * dinormalkan ke URL yang benar-benar menampilkan berkasnya.
+ */
+function driveImageUrl_(value) {
+  const url = String(value || '').trim();
+  const cocok = url.match(
+    /^https:\/\/(?:lh3\.googleusercontent\.com\/d\/|drive\.google\.com\/(?:file\/d\/|thumbnail\?id=|uc\?id=|open\?id=))([A-Za-z0-9_-]{10,})(?:\/view)?(?:[?=&][^\s"'<>]*)?$/i
+  );
+  if (!cocok) return url;
+  return 'https://drive.usercontent.google.com/download?id=' + cocok[1] + '&export=view&authuser=0';
 }
 
 function safeUrl_(value) {
@@ -1751,7 +1843,7 @@ function safeUrl_(value) {
   if (url && !/^https:\/\//i.test(url)) {
     throw new Error('URL gambar harus menggunakan https://');
   }
-  return url;
+  return driveImageUrl_(url);
 }
 
 /* ---------------------------------------------------------------------------
@@ -2094,7 +2186,7 @@ function orgSaveActivity_(org, activity) {
 
   const participants = Number(activity.participants);
   const status = String(activity.status || 'published').toLowerCase();
-  const cover = String(activity.coverImage || '').trim();
+  const cover = driveImageUrl_(String(activity.coverImage || '').trim());
   if (['draft', 'published'].indexOf(status) < 0) throw new Error('Status kegiatan tidak valid.');
   if (cover && !/^https:\/\//i.test(cover)) throw new Error('URL gambar harus diawali https://');
 

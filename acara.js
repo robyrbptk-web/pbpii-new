@@ -48,14 +48,57 @@
     return isNaN(date.getTime()) ? '' : date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const LOGO = 'assets/logo-pii.png';
+  const driveForms = [
+    (id) => 'https://drive.usercontent.google.com/download?id=' + id + '&export=view&authuser=0',
+    (id) => 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600',
+    (id) => 'https://lh3.googleusercontent.com/d/' + id + '=w1600'
+  ];
+  const driveId = (value) => {
+    const url = String(value || '').trim();
+    if (!/^https:\/\//i.test(url)) return '';
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname === 'lh3.googleusercontent.com') {
+        return parsed.pathname.match(/^\/d\/([A-Za-z0-9_-]+)/i)?.[1] || '';
+      }
+      if (['drive.google.com', 'drive.usercontent.google.com'].includes(parsed.hostname)) {
+        return parsed.searchParams.get('id') ||
+          parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/i)?.[1] || '';
+      }
+      return '';
+    } catch {
+      return '';
+    }
+  };
   const safeImage = (value) => {
     const url = String(value || '').trim();
-    if (!/^https:\/\//i.test(url)) return 'assets/logo-pii.png';
-    /* URL gambar Drive lama (lh3.googleusercontent.com/d/<id>) kini 404 walau
-       berkasnya dibagikan publik; alihkan ke CDN unduh Drive yang bebas
-       pengalihan consent. */
-    const lama = url.match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/i);
-    return lama ? 'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(lama[1]) + '&export=view&authuser=0' : escapeHTML(url);
+    if (!/^https:\/\//i.test(url)) return LOGO;
+    const id = driveId(url);
+    if (id) return '/api/pii?imageId=' + encodeURIComponent(id);
+    try {
+      return escapeHTML(new URL(url).href);
+    } catch {
+      return LOGO;
+    }
+  };
+  const imageAttrs = (value) => {
+    const id = driveId(value);
+    return id ? ` data-drive="${id}" data-coba="0"` : '';
+  };
+  // Foto Drive diuji lewat beberapa bentuk URL; sebagian jaringan memblokir satu
+  // CDN saja, jadi gagal di satu bentuk belum berarti fotonya hilang.
+  window.acaraPhotoFailed = (img) => {
+    const id = img.dataset.drive;
+    const sudah = Number(img.dataset.coba || 0);
+    // Sumber awal proksi /api/pii, jadi coba bentuk Drive langsung lebih dulu.
+    if (id && sudah < driveForms.length) {
+      img.dataset.coba = String(sudah + 1);
+      img.src = driveForms[sudah](id);
+      return;
+    }
+    img.onerror = null;
+    img.src = LOGO;
   };
   const calendarText = (value) => String(value || '')
     .replace(/\\/g, '\\\\')
@@ -184,7 +227,7 @@
     return `
       <article class="acara-card${canReveal ? ' reveal' : ''}${event.upcoming ? '' : ' is-past'}" data-event="${id}">
         <div class="acara-cover">
-          <img src="${safeImage(event.coverImage)}" alt="${escapeHTML(event.title)}" loading="lazy" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+          <img src="${safeImage(event.coverImage)}" alt="${escapeHTML(event.title)}" loading="lazy"${imageAttrs(event.coverImage)} onerror="acaraPhotoFailed(this)">
           <span class="acara-date"><b>${escapeHTML(dayLabel(event.date))}</b><small>${escapeHTML(monthShort(event.date))}</small></span>
           ${event.upcoming ? '' : '<span class="acara-tag-lampau">Sudah berlangsung</span>'}
         </div>
