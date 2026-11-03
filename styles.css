@@ -2421,6 +2421,11 @@ nav a[aria-current='page']::after {
   .tanya-intro,
   .tanya-row,
   .tanya-intro img,
+  .tanya-chip,
+  .tanya-orbit,
+  .tanya-skeleton i,
+  .tanya-dots i,
+  .tanya-row.is-pending .tanya-avatar,
   .reveal {
     animation: none;
   }
@@ -3793,6 +3798,44 @@ body.has-kader-dialog {
   line-height: 1.6;
 }
 
+.tanya-saran {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tanya-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #fff;
+  color: var(--blue);
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgb(16 43 73 / 5%);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  animation: chip-in .4s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.tanya-chip:nth-child(2) { animation-delay: .07s; }
+.tanya-chip:nth-child(3) { animation-delay: .14s; }
+.tanya-chip:nth-child(4) { animation-delay: .21s; }
+
+.tanya-chip:hover,
+.tanya-chip:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgb(23 109 168 / 45%);
+  box-shadow: 0 10px 20px rgb(23 109 168 / 16%);
+}
+
+@keyframes chip-in {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+
 .tanya-thread {
   display: flex;
   flex-direction: column;
@@ -3914,6 +3957,75 @@ body.has-kader-dialog {
   30% { transform: translateY(-5px); opacity: 1; }
 }
 
+/*
+ * Saat jawaban disusun: cincin biru berputar mengelilingi logo PII, logonya
+ * berdenyat pelan, dan tiga garis berkilau di bawah label sebagai isyarat
+ * tulisan yang akan datang.
+ */
+.tanya-row.is-pending .tanya-msg {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.tanya-row.is-pending .tanya-dots { grid-column: 1; }
+.tanya-row.is-pending .tanya-pending-text { grid-column: 2; }
+.tanya-row.is-pending .tanya-skeleton { grid-column: 1 / -1; }
+
+.tanya-row.is-pending .tanya-avatar {
+  position: relative;
+  animation: avatar-breathe 1.9s ease-in-out infinite;
+}
+
+.tanya-orbit {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid rgb(23 109 168 / 14%);
+  border-top-color: var(--blue);
+  border-right-color: rgb(23 109 168 / 55%);
+  border-radius: 50%;
+  animation: orbit-spin 1s linear infinite;
+}
+
+.tanya-pending-text {
+  color: var(--blue);
+  font-size: .84rem;
+  font-weight: 700;
+}
+
+.tanya-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tanya-skeleton i {
+  height: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e6eef7 0%, #f7fbff 40%, #e6eef7 80%);
+  background-size: 260% 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
+
+.tanya-skeleton i:nth-child(1) { width: 92%; }
+.tanya-skeleton i:nth-child(2) { width: 70%; animation-delay: .12s; }
+.tanya-skeleton i:nth-child(3) { width: 44%; animation-delay: .24s; }
+
+@keyframes orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes avatar-breathe {
+  0%, 100% { box-shadow: 0 4px 14px rgb(16 43 73 / 10%); transform: scale(1); }
+  50% { box-shadow: 0 8px 24px rgb(23 109 168 / 32%); transform: scale(1.06); }
+}
+
+@keyframes skeleton-wave {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
 @keyframes bubble-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
@@ -4027,6 +4139,28 @@ body.has-kader-dialog {
 .tanya-sumber-link {
   color: var(--blue);
   font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Rujukan hasil penelusuran: boleh diklik supaya pembaca bisa memeriksa aslinya. */
+.tanya-sumber-web li {
+  border-color: #d7e6dd;
+  background: #f3faf5;
+}
+
+.tanya-sumber-web li a {
+  min-width: 0;
+  overflow: hidden;
+  color: #12603a;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.tanya-sumber-web li a:hover,
+.tanya-sumber-web li a:focus-visible {
   text-decoration: underline;
   text-underline-offset: 2px;
 }

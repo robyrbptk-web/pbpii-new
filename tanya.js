@@ -20,7 +20,8 @@
   const THREAD_VERSION_KEY = 'pbpii_tanya_thread_version';
   const DEVICE_KEY = 'pbpii_tanya_device';
   const MAX_TURNS = 12;
-  const THREAD_VERSION = '2';
+  /** Versi 3: jawaban boleh tanpa rujukan berkas dan menyimpan tautan web. */
+  const THREAD_VERSION = '3';
 
   const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -115,31 +116,44 @@
     /**
      * Nama berkas + halaman yang tadi dikutip model. Isinya tidak ikut dikirim ke
      * browser, hanya judul, kategori, dan nomor halaman sebagai rujukan pembaca.
+     * Rujukan web ditampilkan sebagai tautan supaya sumbernya bisa diperiksa.
      */
-    function sumberBlok(rujukan, status) {
-      const daftar = (Array.isArray(rujukan) ? rujukan : []).filter((item) => item && item.judul);
-      if (!daftar.length) {
-        const keterangan = status === 'access_required'
-          ? 'Perlu masuk untuk membuka sumber Pustaka.'
-          : status === 'no_source' ? 'Belum ditemukan kutipan Pustaka yang relevan.' : '';
+    function sumberBlok(rujukan, rujukanWeb, status) {
+      const berkas = (Array.isArray(rujukan) ? rujukan : []).filter((item) => item && item.judul);
+      const daring = (Array.isArray(rujukanWeb) ? rujukanWeb : []).filter((item) => item && item.judul && /^https:\/\//.test(item.url || ''));
+
+      if (!berkas.length && !daring.length) {
+        const keterangan = status === 'no_source'
+          ? 'Berkas Pustaka dan penelusuran belum menghasilkan rujukan untuk pertanyaan ini.'
+          : '';
         return keterangan
           ? `<div class="tanya-sumber is-empty"><p class="tanya-sumber-title">${escapeHTML(keterangan)}</p></div>`
           : '';
       }
-      const baris = daftar.slice(0, 3).map((sumber) => {
+
+      const tautanPustaka = sessionToken()
+        ? ' · <a class="tanya-sumber-link" href="pustaka.html">buka Pustaka</a>'
+        : '';
+      const barisBerkas = berkas.slice(0, 3).map((sumber) => {
         const halaman = Array.isArray(sumber.halaman) && sumber.halaman.length
           ? (sumber.halaman[0] === sumber.halaman[1] ? ` hal. ${sumber.halaman[0]}` : ` hal. ${sumber.halaman[0]}-${sumber.halaman[1]}`)
           : '';
         const kategori = sumber.kategori ? `${sumber.kategori} ·` : '';
         return `<li><span>${escapeHTML(sumber.judul)}</span><em>${escapeHTML(`${kategori}${halaman}`)}</em></li>`;
       }).join('');
-      const tautan = sessionToken()
-        ? ' · <a class="tanya-sumber-link" href="pustaka.html">buka Pustaka</a>'
-        : '';
-      return `<div class="tanya-sumber"><p class="tanya-sumber-title">Dijawab dari berkas organisasi${tautan}:</p><ul>${baris}</ul></div>`;
+      const barisWeb = daring.slice(0, 3).map((sumber) => `
+        <li>
+          <a href="${escapeHTML(sumber.url)}" target="_blank" rel="nofollow noopener noreferrer">${escapeHTML(sumber.judul)}</a>
+          <em>${escapeHTML(new URL(sumber.url).hostname.replace(/^www\./, ''))}</em>
+        </li>`).join('');
+
+      const bagian = [];
+      if (barisBerkas) bagian.push(`<p class="tanya-sumber-title">Dijawab dari berkas organisasi${tautanPustaka}:</p><ul>${barisBerkas}</ul>`);
+      if (barisWeb) bagian.push(`<p class="tanya-sumber-title">Ditelusuri dari web:</p><ul class="tanya-sumber-web">${barisWeb}</ul>`);
+      return `<div class="tanya-sumber">${bagian.join('')}</div>`;
     }
 
-    function bubble(role, content, rujukan, status) {
+    function bubble(role, content, rujukan, status, rujukanWeb) {
       const row = document.createElement('div');
       row.className = `tanya-row is-${role}`;
       row.innerHTML = `
@@ -148,18 +162,45 @@
             ? '<img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src=\'assets/logo-pii.png\'">'
             : 'A'
         }</span>
-        <div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, status) : ''}</div>`;
+        <div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, rujukanWeb, status) : ''}</div>`;
       thread.append(row);
       return row;
     }
 
-    function pending(label) {
+    /*
+     * Baris "sedang memproses": logo PII dikelilingi cincin yang berputar dan
+     * teksnya berganti tahap supaya layar tidak tampak diam selama model bekerja.
+     */
+    const PERTANYAAN_ORGANISASI = /\b(pii|pelajar islam indonesia|kader|pengurus|kongres|munas|konferda|konfercab|ad\/art|pustaka|ketum|ketua umum)\b/i;
+
+    function pending(question) {
+      const tahap = PERTANYAAN_ORGANISASI.test(question)
+        ? ['Memeriksa berkas Pustaka…', 'Menelusuri sumber terkait…', 'Menulis rangkuman…']
+        : ['Menimbang jawaban…', 'Menulis rangkuman…'];
       const row = document.createElement('div');
       row.className = 'tanya-row is-assistant is-pending';
       row.innerHTML = `
-        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
-        <div class="tanya-msg"><span class="tanya-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="tanya-pending-text">${escapeHTML(label)}</span></div>`;
+        <span class="tanya-avatar" aria-hidden="true">
+          <span class="tanya-orbit"></span>
+          <img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+        </span>
+        <div class="tanya-msg">
+          <span class="tanya-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="tanya-pending-text">${escapeHTML(tahap[0])}</span>
+          <span class="tanya-skeleton" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>`;
       thread.append(row);
+
+      const label = row.querySelector('.tanya-pending-text');
+      let langkah = 0;
+      const pindah = setInterval(() => {
+        langkah = Math.min(langkah + 1, tahap.length - 1);
+        label.textContent = tahap[langkah];
+      }, 2200);
+      // send() memanggil row.remove(); bersihkan intervalnya di sana supaya
+      // label tidak terus berganti setelah jawaban datang.
+      const lepas = row.remove.bind(row);
+      row.remove = () => { clearInterval(pindah); lepas(); };
       return row;
     }
 
@@ -212,7 +253,7 @@
 
     function paint(paksa) {
       thread.replaceChildren();
-      turns.forEach((turn) => bubble(turn.role, turn.content, turn.rujukan, turn.status));
+      turns.forEach((turn) => bubble(turn.role, turn.content, turn.rujukan, turn.status, turn.rujukanWeb));
       intro.hidden = turns.length > 0;
       stick(paksa);
     }
@@ -242,7 +283,7 @@
       grow();
       setBusy(true);
 
-      const row = pending('Sedang menuliskan jawaban…');
+      const row = pending(text);
       stick(true);
       const start = Date.now();
 
@@ -262,14 +303,18 @@
             kategori: String(sumber.kategori || '').slice(0, 40),
             halaman: Array.isArray(sumber.halaman) ? sumber.halaman.slice(0, 2) : [],
           }));
-        const status = ['access_required', 'no_source'].includes(data?.status) ? data.status : '';
-        if (!status && !rujukan.length) {
-          throw new Error('Jawaban tidak dilengkapi rujukan berkas PII, jadi tidak ditampilkan.');
-        }
+        const rujukanWeb = (Array.isArray(data?.rujukanWeb) ? data.rujukanWeb : [])
+          .filter((sumber) => sumber?.judul && /^https:\/\/[^\s]+$/.test(String(sumber.url || '')))
+          .map((sumber) => ({
+            judul: String(sumber.judul).slice(0, 140),
+            url: String(sumber.url),
+          }));
+        const status = data?.status === 'no_source' ? 'no_source' : '';
         turns.push({
           role: 'assistant',
           content: reply,
           rujukan,
+          rujukanWeb,
           status,
         });
         save();
@@ -301,10 +346,6 @@
     }
 
     async function loadQuota() {
-      if (!sessionToken()) {
-        quota.textContent = 'Masuk dengan akun kader atau pengurus yang memiliki akses Pustaka untuk bertanya.';
-        return;
-      }
       try {
         const status = await askServer({ action: 'chatStatus', token: sessionToken(), device: deviceId() });
         paintMeter({
@@ -361,6 +402,11 @@
       intro.hidden = false;
       loadQuota();
       input.focus();
+    });
+
+    // Chip contoh pertanyaan memakai pertanyaan lengkapnya, bukan label singkat.
+    document.querySelectorAll('#tanyaIntro [data-tanya]').forEach((chip) => {
+      chip.addEventListener('click', () => send(chip.dataset.tanya));
     });
 
     // Ganti akun (misal baru daftar) langsung memperbarui jatah yang tampil.

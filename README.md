@@ -742,11 +742,15 @@ Tombol **Tanya PII** mengambang di pojok kanan bawah `/index.html`,
 `calc(100dvh - var(--tanya-keyboard))` supaya komposer tidak tertutup papan
 ketik di HP.
 
-**Akses sumber memerlukan akun.** Tanya PII hanya menjawab jika sesi pengguna
-memiliki akses ke Pustaka organisasi dan pencarian menemukan kutipan yang cukup
-relevan. Tanpa sesi, korpus, atau kecocokan, model AI tidak dipanggil; pengguna
-mendapat penjelasan bahwa jawaban belum tersedia. Batas akses Pustaka tetap
-mengikuti `Settings.pustakaMinRole`.
+**Dua mode jawaban.** Proxy `/api/chat` mengenali pertanyaan yang menyangkut
+organisasi dari daftar istilah di `ORGANIZATION_TERMS` (PII, kader, kongres,
+AD/ART, Pustaka, dan sebagainya). Pertanyaan semacam itu hanya dijawab dari
+kutipan berkas Pustaka dan hasil penelusuran web yang dikirim ke model; kalau
+keduanya kosong, layanan AI tidak dipanggil sama sekali dan pengguna menerima
+penjelasan jujur (`status: 'no_source'`) tanpa memakannya kuota. Pertanyaan di
+luar urusan organisasi dijawab bebas dari pengetahuan umum model, jadi tamu pun
+bisa memakai Tanya PII — batas akses isi berkas tetap mengikuti
+`Settings.pustakaMinRole` dan hanya diberikan kepada sesi yang berhak.
 
 Kader yang masuk mendapat `APP.CHAT_DAILY_LIMIT` (bawaan **20**) pertanyaan per
 hari. Pembatasnya ada di server (proxy `/api/chat` + Apps Script), jadi
@@ -782,12 +786,20 @@ Contoh penyedia gratis lain:
 - Groq — `AI_CHAT_URL` `https://api.groq.com/openai/v1/chat/completions`, `AI_MODEL` `llama-3.1-8b-instant`.
 - Google Gemini — `AI_CHAT_URL` `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, `AI_MODEL` `gemini-flash-latest`.
 
-Setiap pemanggilan model wajib menyertakan kutipan Pustaka yang relevan sebagai
-satu-satunya sumber fakta. Fakta dari Settings, riwayat percakapan, dan ingatan
-model tidak dipakai sebagai sumber; tanpa kutipan, request berhenti sebelum
-layanan AI dipanggil. Jawaban menyebut nama berkas dan halaman, maksimal 160
-kata, serta tidak boleh menebak saat kutipan tidak cukup. Frontend juga menolak
-menampilkan jawaban AI tanpa rujukan.
+Untuk pertanyaan bermode organisasi, bahan jawabannya dikumpulkan dua arah.
+Pertama, aksi `pustakaKonteks` di Apps Script mengembalikan potongan berkas
+resmi (hanya untuk sesi yang berhak). Kedua, `cariWeb` menelusuri sumber daring:
+Google Programmable Search bila `GOOGLE_SEARCH_KEY` + `GOOGLE_CSE_ID` dipasang,
+kalau tidak (atau tidak ada hasil) jatuh ke API MediaWiki Wikipedia Indonesia
+lagi Inggris tanpa kunci apa pun. Hasil penelusuran disaring dengan irama kata
+kunci pertanyaan terhadap judul dan isi laman, dan lamannya harus benar-benar
+menyebut organisasi bila pertanyaan menamai PII — supaya "Sejarah Indonesia"
+tidak menyamar sebagai rujukan PII. Yang dikirim ke model hanyalah bahan yang
+lolos saring, dengan label nama berkas atau nama laman (bukan kode), dan
+pengguna hanya melihat judul + alamatnya di bawah jawaban; isi berkas tidak
+pernah ikut terkirim ke browser. Jawaban mode organisasi tidak boleh menambah
+fakta dari ingatan model: kalau bahannya kurang, Tanya PII mengaku tidak tahu
+dan mengarahkan konfirmasi ke pengurus.
 
 **Dua sheet baru** dibuat otomatis oleh `setup()`: `Sessions`
 (`token, kind, subject, createdAt, expiresAt`) dan `Chat`
