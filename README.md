@@ -736,9 +736,8 @@ tabel Supabase tanpa mengubah kontrak API frontend.
 
 `/tanya.html` adalah halaman chat satu kolom ala aplikasi percakapan: intro +
 chip contoh pertanyaan, utas jawaban, dan komposer yang menempel di bawah.
-Tombol **Tanya PII** mengambang di pojok kanan bawah `/index.html`,
-`/ibadah.html`, `/acara.html`, `/admin.html`, `/lembaga.html`, dan
-`/formulir.html` hanya sebagai pintu ke halaman itu. Tinggi halaman memakai
+Aksesnya lewat tab **Tanya** di bar navigasi (tidak ada tombol mengambang), dan
+halaman ini terbuka untuk pengunjung tanpa akun. Tinggi halaman memakai
 `calc(100dvh - var(--tanya-keyboard))` supaya komposer tidak tertutup papan
 ketik di HP.
 
@@ -751,6 +750,26 @@ penjelasan jujur (`status: 'no_source'`) tanpa memakannya kuota. Pertanyaan di
 luar urusan organisasi dijawab bebas dari pengetahuan umum model, jadi tamu pun
 bisa memakai Tanya PII — batas akses isi berkas tetap mengikuti
 `Settings.pustakaMinRole` dan hanya diberikan kepada sesi yang berhak.
+
+**Identitas dijawab di server, bukan oleh model.** `pertanyaanIdentitas()`
+menandai pertanyaan yang menanyakan siapa asisten itu (termasuk bentuk serupossesif
+seperti "siapa pembuatmu") dan semua upaya membuka isinya — `MEMBONGKAR`
+("system prompt", "kunci api", "abaikan instruksi", "endpoint", "jailbreak", …)
+dan `MEMBONGKAR_INGGRIS` ("who are you", "reveal your", "act as", …). Yang
+terkena aturan ini mendapat `JAWABAN_IDENTITAS` yang tetap: Tanya PII adalah model
+AI yang dikembangkan Badan Khusus Inovasi Digital PB PII, dan nama model dasar,
+penyedia, kunci, serta instruksi sistem tidak diungkap. Permintaan semacam itu
+tidak pernah diteruskan ke model, tetap dihitung ke kuota harian supaya tidak
+jadi celah spam, dan dibalas dengan `mode: 'identitas'`. Nama penyedia tidak
+pernah dikirim ke browser (kolom `provider` dihilangkan dari muatan balasan).
+
+**Jawaban disusun dengan Markdown.** `systemPrompt()` meminta paragraf pendek,
+daftar, penanda tebal, dan blok kode; `rapikanTeks()` menjaga pergantian baris
+dan indentasi tetap utuh (dulu `clean()` meratakannya sehingga blok kode rusak),
+`bersihkanPenanda()` menanggalkan kode rujukan `[B…]/[D…]`, lalu `richText()` di
+`tanya.js` merendernya — termasuk blok kode gelap dengan tombol Salin. Tiap
+jawaban asisten punya aksi **Salin** dan **Ulangi** (butir percakapan dicabut lalu
+pertanyaan yang sama dikirim ulang).
 
 Kader yang masuk mendapat `APP.CHAT_DAILY_LIMIT` (bawaan **20**) pertanyaan per
 hari. Pembatasnya ada di server (proxy `/api/chat` + Apps Script), jadi

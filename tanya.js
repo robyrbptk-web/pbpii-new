@@ -47,18 +47,74 @@
     return stored;
   }
 
-  /** Teks AI ditampilkan apa adanya: hanya bold, list, dan baris baru yang dikenali. */
+  /**
+   * Jawaban AI ditampilkan seperti aplikasi chat pada umumya: judul, daftar,
+   * blok kode, kutipan, dan tautan dikenali. Seluruh teks di-escape lebih dulu,
+   * jadi hanya tanda baca markdown yang bisa mengubah tampilan — tidak ada
+   * HTML dari model yang pernah dijalankan.
+   */
+  function inlineMark(teks) {
+    const tautan = [];
+    const simpan = (href, label) => {
+      tautan.push(`<a href="${href}" target="_blank" rel="nofollow noopener noreferrer">${label}</a>`);
+      return `⁣${tautan.length - 1}⁣`;
+    };
+    return escapeHTML(teks)
+      .replace(/`([^`\n]{1,160})`/g, (m, isi) => `<code>${isi}</code>`)
+      .replace(/\[([^\]]{1,140})\]\((https?:\/\/[^)\s]{1,300})\)/g, (m, label, url) => simpan(url, label))
+      .replace(/(^|[\s(])(https?:\/\/[^\s<>"]{4,300}|www\.[^\s<>"]{4,300})/g,
+        (m, awalan, url) => `${awalan}${simpan(/^https:\/\//.test(url) ? url : `https://${url}`, url.replace(/^https?:\/\//, ''))}`)
+      .replace(/\*\*([^*\n]{1,200})\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*\w])\*([^*\n]{1,200})\*/g, '$1<em>$2</em>')
+      .replace(/⁣(\d+)⁣/g, (m, nomor) => tautan[Number(nomor)] || '');
+  }
+
+  function blokKode(isi) {
+    return `<pre class="tanya-kode"><button type="button" class="tanya-kode-salin" data-act="kode" aria-label="Salin blok kode">Salin</button><code>${escapeHTML(isi.join('\n'))}</code></pre>`;
+  }
+
   function richText(text) {
-    return escapeHTML(text)
-      .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
-      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-      .split('\n')
-      .map((line) => {
-        const bullet = line.trim().match(/^[-*•]\s+(.*)$/);
-        return bullet ? `<li>${bullet[1]}</li>` : `<p>${line || '&nbsp;'}</p>`;
-      })
-      .join('')
-      .replace(/(?:<li>.*?<\/li>\s*)+/g, (block) => `<ul>${block}</ul>`);
+    const baris = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+    const keluaran = [];
+    let kode = null;
+    let daftar = null;
+    const tutupDaftar = () => { if (daftar) { keluaran.push(`</${daftar}>`); daftar = null; } };
+
+    for (const mentah of baris) {
+      const line = mentah.trim();
+
+      if (/^```/.test(line)) {
+        if (kode === null) { tutupDaftar(); kode = []; }
+        else { keluaran.push(blokKode(kode)); kode = null; }
+        continue;
+      }
+      if (kode !== null) { kode.push(mentah); continue; }
+
+      const judul = line.match(/^#{1,4}\s+(.+)$/);
+      if (judul) { tutupDaftar(); keluaran.push(`<h4 class="tanya-judul">${inlineMark(judul[1])}</h4>`); continue; }
+
+      const nomor = line.match(/^\d{1,2}[.)]\s+(.+)$/);
+      const butir = line.match(/^[-*•]\s+(.+)$/);
+      if (nomor || butir) {
+        const jenis = nomor ? 'ol' : 'ul';
+        if (daftar !== jenis) { tutupDaftar(); keluaran.push(`<${jenis}>`); daftar = jenis; }
+        keluaran.push(`<li>${inlineMark((nomor || butir)[1])}</li>`);
+        continue;
+      }
+
+      const kutipan = line.match(/^>\s?(.+)$/);
+      if (kutipan) { tutupDaftar(); keluaran.push(`<blockquote>${inlineMark(kutipan[1])}</blockquote>`); continue; }
+
+      if (!line) { tutupDaftar(); continue; }
+      if (/^([-*_])\1{2,}$/.test(line)) { tutupDaftar(); keluaran.push('<hr>'); continue; }
+
+      tutupDaftar();
+      keluaran.push(`<p>${inlineMark(line)}</p>`);
+    }
+
+    if (kode !== null) keluaran.push(blokKode(kode));
+    tutupDaftar();
+    return keluaran.join('');
   }
 
   async function askServer(payload) {
@@ -153,16 +209,25 @@
       return `<div class="tanya-sumber">${bagian.join('')}</div>`;
     }
 
-    function bubble(role, content, rujukan, status, rujukanWeb) {
+    const IKON = {
+      salin: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.4"/><path d="M15 6.5H6.5A2.5 2.5 0 0 0 4 9v8"/></svg>',
+      ulang: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4.5V9h-4.5"/></svg>',
+    };
+
+    function bubble(role, content, rujukan, status, rujukanWeb, urut) {
       const row = document.createElement('div');
       row.className = `tanya-row is-${role}`;
-      row.innerHTML = `
-        <span class="tanya-avatar" aria-hidden="true">${
-          role === 'assistant'
-            ? '<img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src=\'assets/logo-pii.png\'">'
-            : 'A'
-        }</span>
-        <div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, rujukanWeb, status) : ''}</div>`;
+      if (typeof urut === 'number') row.dataset.urut = String(urut);
+      const pesan = `<div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, rujukanWeb, status) : ''}</div>`;
+      row.innerHTML = role === 'assistant'
+        ? `<span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'"></span>
+           <div class="tanya-body">${pesan}
+             <div class="tanya-actions">
+               <button type="button" class="tanya-act" data-act="salin">${IKON.salin}<span>Salin</span></button>
+               <button type="button" class="tanya-act" data-act="ulang">${IKON.ulang}<span>Ulangi</span></button>
+             </div>
+           </div>`
+        : `<div class="tanya-body">${pesan}</div>`;
       thread.append(row);
       return row;
     }
@@ -184,11 +249,11 @@
           <span class="tanya-orbit"></span>
           <img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
         </span>
-        <div class="tanya-msg">
+        <div class="tanya-body"><div class="tanya-msg">
           <span class="tanya-dots" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="tanya-pending-text">${escapeHTML(tahap[0])}</span>
           <span class="tanya-skeleton" aria-hidden="true"><i></i><i></i><i></i></span>
-        </div>`;
+        </div></div>`;
       thread.append(row);
 
       const label = row.querySelector('.tanya-pending-text');
@@ -209,10 +274,10 @@
       row.className = 'tanya-row is-assistant is-error';
       row.innerHTML = `
         <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
-        <div class="tanya-msg">
+        <div class="tanya-body"><div class="tanya-msg">
           <p>${escapeHTML(message)}</p>
           <button type="button" class="tanya-retry">Coba lagi</button>
-        </div>`;
+        </div></div>`;
       const button = row.querySelector('.tanya-retry');
       button.addEventListener('click', () => { clearTimeout(retryTimer); row.remove(); onRetry(); });
       thread.append(row);
@@ -241,9 +306,9 @@
       row.className = 'tanya-row is-assistant is-quota';
       row.innerHTML = `
         <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
-        <div class="tanya-msg">
+        <div class="tanya-body"><div class="tanya-msg">
           <p>${escapeHTML(message)}</p>${ajakan}
-        </div>`;
+        </div></div>`;
       row.querySelectorAll('.tanya-upgrade').forEach((button) => {
         button.addEventListener('click', () => window.PBPIIAkun?.openPanel('', button.dataset.tab));
       });
@@ -253,9 +318,70 @@
 
     function paint(paksa) {
       thread.replaceChildren();
-      turns.forEach((turn) => bubble(turn.role, turn.content, turn.rujukan, turn.status, turn.rujukanWeb));
+      turns.forEach((turn, urut) => bubble(turn.role, turn.content, turn.rujukan, turn.status, turn.rujukanWeb, urut));
       intro.hidden = turns.length > 0;
       stick(paksa);
+    }
+
+    /*
+     * Salin & jawab ulang, seperti aplikasi chat pada umumnya. Satu pendengar di
+     * wadah percakapan cukup karena gelembung dibuat ulang setiap kali.
+     */
+    thread.addEventListener('click', (event) => {
+      const tombol = event.target.closest('[data-act]');
+      if (!tombol) return;
+      if (tombol.dataset.act === 'kode') {
+        salinTeks(tombol.parentElement.querySelector('code')?.textContent || '', tombol);
+        return;
+      }
+      const urut = Number(tombol.closest('.tanya-row')?.dataset.urut);
+      const turn = turns[urut];
+      if (!turn) return;
+      if (tombol.dataset.act === 'salin') salinTeks(turn.content, tombol);
+      else if (tombol.dataset.act === 'ulang') jawabUlang(urut);
+    });
+
+    function salinTeks(teks, tombol) {
+      const label = tombol.querySelector('span') || tombol;
+      const selesai = () => {
+        const asal = label.textContent;
+        label.textContent = 'Tersalin';
+        setTimeout(() => { label.textContent = asal; }, 1600);
+      };
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(teks).then(selesai).catch(() => salinCadangan(teks, selesai));
+      } else {
+        salinCadangan(teks, selesai);
+      }
+    }
+
+    function salinCadangan(teks, selesai) {
+      const area = document.createElement('textarea');
+      area.value = teks;
+      area.style.cssText = 'position:fixed;top:-60px;opacity:0';
+      document.body.append(area);
+      area.select();
+      try {
+        if (document.execCommand('copy')) selesai();
+      } catch {
+        /* Clipboard ditolak browser: tidak ada yang perlu dirusak. */
+      }
+      area.remove();
+    }
+
+    /** Pertanyaan dan jawabannya dicabut, lalu pertanyaan yang sama dikirim ulang. */
+    function jawabUlang(urut) {
+      if (busy) return;
+      let idxUser = -1;
+      for (let i = urut - 1; i >= 0; i -= 1) {
+        if (turns[i].role === 'user') { idxUser = i; break; }
+      }
+      if (idxUser < 0) return;
+      const soal = turns[idxUser].content;
+      turns.splice(idxUser, urut - idxUser + 1);
+      save();
+      paint(true);
+      send(soal);
     }
 
     const save = () => {

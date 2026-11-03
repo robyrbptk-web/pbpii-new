@@ -1094,6 +1094,12 @@ footer > small {
     scroll-behavior: auto !important;
     transition-duration: .01ms !important;
   }
+
+  .tanya-intro::before,
+  .tanya-badge i,
+  .tanya-composer.is-busy .tanya-submit {
+    animation: none;
+  }
 }
 
 /* An editorial, app-like shell without changing the existing CMS content. */
@@ -3770,18 +3776,67 @@ body.has-kader-dialog {
 }
 
 .tanya-intro {
+  position: relative;
   padding: clamp(18px, 6vh, 56px) 0 10px;
   animation: shell-enter .4s ease both;
 }
 
+/* Cahaya lembut di belakang logo supaya layar pertama terasa seperti aplikasi AI. */
+.tanya-intro::before {
+  position: absolute;
+  top: 2px;
+  left: -26px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(23 109 168 / 15%), transparent 66%);
+  pointer-events: none;
+  animation: hero-glow 6s ease-in-out infinite;
+}
+
 .tanya-intro img {
-  width: 62px;
-  height: 62px;
-  border-radius: 16px;
-  padding: 8px;
+  position: relative;
+  width: 66px;
+  height: 66px;
+  border-radius: 20px;
+  padding: 9px;
   background: #fff;
-  box-shadow: 0 10px 26px rgb(16 43 73 / 14%);
+  box-shadow: 0 12px 30px rgb(16 43 73 / 16%);
   animation: logo-float 7s ease-in-out infinite;
+}
+
+.tanya-intro > .tanya-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 10px;
+  border: 1px solid #dbe8f4;
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: #f2f8fd;
+  color: #4a6b8c;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+.tanya-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2fa871;
+  box-shadow: 0 0 0 3px rgb(47 168 113 / 18%);
+  animation: badge-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes hero-glow {
+  0%, 100% { opacity: .65; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.07); }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
 }
 
 .tanya-intro h1 {
@@ -3839,34 +3894,47 @@ body.has-kader-dialog {
 .tanya-thread {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 12px;
+  gap: 18px;
+  padding-bottom: 14px;
 }
 
 .tanya-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  animation: bubble-in .26s cubic-bezier(.22, 1, .36, 1) both;
+  gap: 12px;
+  animation: bubble-in .28s cubic-bezier(.22, 1, .36, 1) both;
 }
 
 .tanya-row.is-user {
   flex-direction: row-reverse;
 }
 
+.tanya-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tanya-row.is-user .tanya-body {
+  align-items: flex-end;
+  flex: 1 1 auto;
+}
+
 .tanya-avatar {
   flex: 0 0 auto;
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   place-items: center;
-  border-radius: 11px;
+  border: 1px solid #e3ecf6;
+  border-radius: 50%;
   background: #fff;
-  box-shadow: 0 4px 14px rgb(16 43 73 / 10%);
+  box-shadow: 0 4px 14px rgb(16 43 73 / 9%);
   color: #5d6f83;
   font-size: .72rem;
   font-weight: 800;
-  letter-spacing: .02em;
   overflow: hidden;
 }
 
@@ -3874,66 +3942,199 @@ body.has-kader-dialog {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 4px;
+  padding: 3px;
 }
 
+/*
+ * Like the AI apps people already know: the assistant writes straight onto the
+ * page and only the reader's own question wears a bubble.
+ */
 .tanya-msg {
   min-width: 0;
-  max-width: min(640px, 84%);
-  border-radius: 16px;
-  padding: 12px 15px;
-  background: #fff;
-  border: 1px solid var(--line);
+  max-width: 100%;
   color: var(--ink);
-  font-size: .95rem;
-  line-height: 1.62;
-  box-shadow: 0 6px 18px rgb(16 43 73 / 6%);
+  font-size: .965rem;
+  line-height: 1.72;
+}
+
+.tanya-row.is-assistant .tanya-msg {
+  padding-top: 3px;
+}
+
+.tanya-row.is-user .tanya-msg {
+  width: fit-content;
+  max-width: min(560px, 100%);
+  border: 0;
+  border-radius: 18px;
+  border-bottom-right-radius: 7px;
+  padding: 10px 15px;
+  background: linear-gradient(135deg, var(--blue), #0f4f7d);
+  color: #fff;
+  box-shadow: 0 8px 22px rgb(23 109 168 / 22%);
+  font-size: .94rem;
+  line-height: 1.6;
 }
 
 .tanya-msg p {
-  margin: 0 0 8px;
+  margin: 0 0 9px;
 }
 
 .tanya-msg p:last-child {
   margin-bottom: 0;
 }
 
-.tanya-msg ul {
-  margin: 0 0 8px;
-  padding-left: 20px;
+.tanya-msg ul,
+.tanya-msg ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+
+.tanya-msg li {
+  margin: 3px 0;
+}
+
+.tanya-msg li::marker {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.tanya-msg a {
+  color: var(--blue);
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tanya-msg blockquote {
+  margin: 0 0 10px;
+  border-left: 3px solid #cfe0f2;
+  padding: 2px 0 2px 12px;
+  color: var(--muted);
+}
+
+.tanya-msg hr {
+  margin: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.tanya-judul {
+  margin: 14px 0 6px;
+  color: var(--navy);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -.015em;
+}
+
+.tanya-judul:first-child {
+  margin-top: 0;
 }
 
 .tanya-msg code {
   border-radius: 6px;
-  padding: 1px 5px;
-  background: #f0f4f8;
+  padding: 1px 6px;
+  background: #eef3f9;
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: .87em;
+  font-size: .85em;
 }
 
-.tanya-row.is-user .tanya-msg {
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--blue), #0f4f7d);
-  border-bottom-right-radius: 6px;
-  color: #fff;
-  box-shadow: 0 8px 22px rgb(23 109 168 / 22%);
+.tanya-kode {
+  position: relative;
+  overflow-x: auto;
+  margin: 11px 0;
+  border-radius: 13px;
+  padding: 32px 14px 13px;
+  background: #0e2237;
+  color: #e9f2fa;
+  font-size: .82rem;
+  line-height: 1.62;
 }
 
-.tanya-row.is-assistant .tanya-msg {
-  border-bottom-left-radius: 6px;
+.tanya-kode code {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  white-space: pre;
+}
+
+.tanya-kode-salin {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 8px;
+  padding: 3px 9px;
+  background: rgb(255 255 255 / 10%);
+  color: #dce9f5;
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tanya-kode-salin:hover {
+  background: rgb(255 255 255 / 20%);
+}
+
+/* Aksi per jawaban: muncul saat disentuh atau didekati, seperti ChatGPT/Qwen. */
+.tanya-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: -7px;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+.tanya-row.is-assistant:hover .tanya-actions,
+.tanya-row.is-assistant:focus-within .tanya-actions {
+  opacity: 1;
+}
+
+.tanya-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: none;
+  color: #7d8b9c;
+  font: inherit;
+  font-size: .73rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+
+.tanya-act svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tanya-act:hover {
+  background: #eef4fa;
+  color: var(--blue);
+}
+
+@media (hover: none) {
+  .tanya-actions {
+    opacity: .85;
+  }
 }
 
 .tanya-row.is-error .tanya-msg {
-  border-color: #f0c9c4;
+  border: 1px solid #f0c9c4;
+  border-radius: 14px;
+  padding: 11px 14px;
   background: #fdf0ee;
   color: #8a2a20;
-}
-
-.tanya-row.is-pending .tanya-msg {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted);
+  font-size: .9rem;
 }
 
 .tanya-dots {
@@ -4046,9 +4247,12 @@ body.has-kader-dialog {
 
 /* Baris ketika jatah harian habis: tawarkan masuk, bukan tombol ulang. */
 .tanya-row.is-quota .tanya-msg {
-  border-color: #cfe0cf;
+  border: 1px solid #cfe0cf;
+  border-radius: 14px;
+  padding: 11px 14px;
   background: #f2faf4;
   color: #123f2c;
+  font-size: .9rem;
 }
 
 .tanya-upgrade {
@@ -4182,9 +4386,10 @@ body.has-kader-dialog {
 
 .tanya-composer {
   flex: 0 0 auto;
-  border-top: 1px solid var(--line);
+  border-top: 0;
   padding: 12px 20px 14px;
-  background: rgb(255 255 255 / 92%);
+  background: linear-gradient(180deg, rgb(251 253 254 / 0%), #fff 36%);
+  box-shadow: 0 -12px 28px rgb(16 43 73 / 5%);
   backdrop-filter: blur(16px);
 }
 
@@ -4239,7 +4444,13 @@ body.has-kader-dialog {
   background: linear-gradient(135deg, var(--navy), var(--blue));
   color: #fff;
   cursor: pointer;
-  transition: transform .16s ease, opacity .16s ease;
+  box-shadow: 0 8px 18px rgb(23 109 168 / 24%);
+  transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+}
+
+.tanya-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px rgb(23 109 168 / 30%);
 }
 
 .tanya-submit svg {
@@ -4259,6 +4470,16 @@ body.has-kader-dialog {
 .tanya-submit:disabled {
   opacity: .5;
   cursor: progress;
+}
+
+/* Saat jawaban disusun, tombol kirim berdenyat supaya statusnya terasa hidup. */
+.tanya-composer.is-busy .tanya-submit {
+  animation: submit-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes submit-pulse {
+  0%, 100% { box-shadow: 0 8px 18px rgb(23 109 168 / 20%); }
+  50% { box-shadow: 0 8px 26px rgb(23 109 168 / 45%); }
 }
 
 .tanya-meter {
