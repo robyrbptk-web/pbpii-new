@@ -48,7 +48,7 @@
     return isNaN(date.getTime()) ? '' : date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const LOGO = 'assets/logo-pii.png';
+  const LOGO = 'assets/logo-pii.webp';
   const driveForms = [
     (id) => 'https://drive.usercontent.google.com/download?id=' + id + '&export=view&authuser=0',
     (id) => 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600',

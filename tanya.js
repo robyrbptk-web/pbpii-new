@@ -234,7 +234,7 @@
       const turn = typeof urut === 'number' ? turns[urut] : null;
       const pesan = `<div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, rujukanWeb, status) : ''}</div>`;
       row.innerHTML = role === 'assistant'
-        ? `<span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'"></span>
+        ? `<span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'"></span>
            <div class="tanya-body">${pesan}${alatBlok(urut, turn)}</div>`
         : `<div class="tanya-body">${pesan}</div>`;
       thread.append(row);
@@ -256,7 +256,7 @@
       row.innerHTML = `
         <span class="tanya-avatar" aria-hidden="true">
           <span class="tanya-orbit"></span>
-          <img src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+          <img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
         </span>
         <div class="tanya-body"><div class="tanya-msg">
           <span class="tanya-dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -282,7 +282,7 @@
       const row = document.createElement('div');
       row.className = 'tanya-row is-assistant is-error';
       row.innerHTML = `
-        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
+        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'"></span>
         <div class="tanya-body"><div class="tanya-msg">
           <p>${escapeHTML(message)}</p>
           <button type="button" class="tanya-retry">Coba lagi</button>
@@ -314,7 +314,7 @@
       const row = document.createElement('div');
       row.className = 'tanya-row is-assistant is-quota';
       row.innerHTML = `
-        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.png" alt=""></span>
+        <span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'"></span>
         <div class="tanya-body"><div class="tanya-msg">
           <p>${escapeHTML(message)}</p>${ajakan}
         </div></div>`;
@@ -448,7 +448,7 @@
       const kader = window.PBPIIAkun?.account?.().name;
       lembar.innerHTML = `
         <header class="tanya-cetak-kop">
-          <img src="/assets/logo-pii.png" alt="">
+          <img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
           <span><b>Tanya PII</b><small>Asisten Pelajar Islam Indonesia</small></span>
           <em>Model AI karya Badan Khusus Inovasi Digital PB PII</em>
         </header>

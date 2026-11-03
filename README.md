@@ -131,10 +131,47 @@ langsung dan `/api/_gw?r=...` — dijamin memberi hasil yang sama.
 
 ### Instal sebagai aplikasi
 - `manifest.json` memakai mode `standalone`, ikon 192/512 biasa dan 512 `maskable`, plus pintasan ke Ruang Ibadah, Peta, dan Dashboard. Semua halaman memuat `site.js` yang mendaftarkan service worker dan menampilkan tombol **Instal aplikasi** ketika browser mendukung.
-- `sw.js` menyimpan app-shell (halaman, `styles.css`, `app.js`, `ibadah.js`, `site.js`, ikon, plus `assets/quran-surah.json` dan `assets/ibadah-kota.json`). Navigasi dan berkas JS/CSS selalu diambil dari jaringan lebih dulu agar pembaruan deploy langsung terpakai; gambar memakai cache lebih dulu. `/api/` dan `/peta/` tidak pernah di-cache. Jika jaringan putus, navigasi jatuh ke halaman `offline.html`.
+- `sw.js` menyimpan app-shell (halaman, `styles.css`, `app.js`, `ibadah.js`, `site.js`, ikon, plus `assets/quran-surah.json`, `assets/ibadah-kota.json`, dan `assets/logo-pii.webp`). Navigasi tetap network-first supaya halaman baru langsung terpakai; JS/CSS memakai *stale-while-revalidate* — salinan tersimpan tampil seketika, versi baru diunduh di latar untuk kunjungan berikutnya; gambar memakai cache lebih dulu. `/api/`, `/peta/`, dan `/sw.js` sendiri tidak pernah dilayani dari cache. Jika jaringan putus, navigasi jatuh ke halaman `offline.html`.
 - Buka website lewat HTTPS. Di Android/Chrome gunakan tombol **Instal aplikasi** saat tersedia atau menu browser **Install app / Add to Home screen**. Di iPhone/iPad, gunakan **Share > Add to Home Screen**.
 - Konten API dan perubahan dashboard tidak disimpan offline; cache hanya untuk kerangka halaman/aset statis.
 - Ikon dibuat dari `assets/logo-pii.png` dengan `node scripts/make-icons.mjs` (tanpa dependensi biner). Jalankan ulang setelah logo diganti, lalu naikkan `CACHE_NAME` di `sw.js` supaya pengunjung menerima versi baru.
+- Setiap deploy yang mengubah JS/CSS **wajib** menaikkan `CACHE_NAME`. Strategi *stale-while-revalidate* bersandar pada kenaikan itu: tanpa bump, pengunjung satu kunjungan berikutnya masih memakai berkas lama.
+
+### Performa di HP kelas bawah
+
+Yang diukur dan yang dijaga, bukan sekadar diyakini:
+
+- **Logo dipakai sebagai WebP.** `assets/logo-pii.png` berukuran 1145×1374 dan
+  951 KB, padahal tampil pada 38–240 px. Versi `assets/logo-pii.webp` (640×768,
+  62 KB) jadi `src` di semua halaman dan komponen JS, dengan PNG tetap sebagai
+  fallback lewat `onerror`. Beban aset beranda turun dari ~1.217 KB menjadi
+  ~328 KB dan bitmap hasil dekode dari 6,3 MB menjadi 2,0 MB. Ganti logo:
+  buat WebP-nya, perbarui kedua berkas, lalu naikkan `CACHE_NAME`.
+- **Aset statis punya header cache** di `vercel.json`: `/assets/*` satu jam dan
+  JS/CSS lima menit, keduanya dengan `stale-while-revalidate`. `sw.js` tetap
+  `no-cache` dan tidak pernah dilayani dari service worker.
+- **Strip data beranda ditunda.** `jalankanSaatTerlihat()` (IntersectionObserver)
+  menahan empat permintaan `/api/sekolah`, `/api/volcanoes`,
+  `/api/indonesia/hospitals`, dan `/api/indonesia/transjakarta` sampai pembaca
+  benar-benar mendekati bagian itu; selnya menampilkan `—` lebih dulu, bukan angka
+  palsu.
+- **Komposer Tanya PII tidak lagi memburamkan percakapan di HP.**
+  `backdrop-filter: blur(16px)` hanya berlaku pada `(hover: hover) and (min-width: 721px)`;
+  di layar sentuh latarnya putih solid. Area yang diburamkan di halaman chat adalah
+  daftar pesan yang terus bergulir, jadi setiap bingkai harus digambar ulang.
+- **Perender Markdown sudah diukur, tidak perlu diutak-atik.** Jawaban 7,9 KB
+  (tabel 40 baris + blok kode 120 baris → 1.040 node) butuh 8 ms parsing dan 7 ms
+  penyisipan. Virtualisasi daftar atau pemecahan parsing hanya menambah kompleksitas
+  tanpa penghematan nyata.
+- Yang tetap dibiarkan karena sudah benar: semua `<script>` memakai `defer`,
+  gambar hasil render JS sudah `loading="lazy"`, header sudah solid (bukan
+  translusen), dan animasi `infinite` hanya hidup di empty state Tanya PII serta
+  indikator "sedang menulis" — keduanya berhenti ketika elemennya `display: none`.
+  `prefers-reduced-motion` dihormati di lima tempat.
+- Belum disentuh dan perlu diketahui: bundel globe di `/peta/` (mis.
+  `regions-*.js` 1,9 MB dan `index-*.js` 1,4 MB) berasal dari repo PII Global View
+  dan baru dimuat saat halaman Peta dibuka, jadi tidak membebani halaman lain.
+  Mengoptimasinya berarti membangun ulang repo itu, bukan repo ini.
 
 ### Mat tampilan mobile
 

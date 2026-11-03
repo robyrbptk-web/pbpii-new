@@ -237,7 +237,7 @@
     dialog.innerHTML = `
       <div class="kader-card">
         <button class="kader-close" type="button" aria-label="Tutup">×</button>
-        <img class="kader-mark" src="/assets/logo-pii.png" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+        <img class="kader-mark" src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
         <h2>Masuk sebagai kader</h2>
         <p class="kader-lead">Pakai akun kader untuk menyukai dan mengomentari acara serta memperbesar jatah Tanya PII. Dasbor pengurus tetap tertutup.</p>
         <div class="kader-tabs" role="tablist" aria-label="Pilih cara masuk">

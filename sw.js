@@ -3,7 +3,7 @@
  * under /peta/ always goes to the network; this worker only keeps the shell so
  * the installed app opens instantly and survives a lost connection.
  */
-const CACHE_NAME = 'pbpii-shell-v24';
+const CACHE_NAME = 'pbpii-shell-v25';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -33,7 +33,7 @@ const APP_SHELL = [
   '/manifest.json',
   '/assets/quran-surah.json',
   '/assets/ibadah-kota.json',
-  '/assets/logo-pii.png',
+  '/assets/logo-pii.webp',
   '/assets/icon-192.png',
   '/assets/icon-512.png',
   '/assets/icon-maskable-512.png',
@@ -77,10 +77,34 @@ async function freshThenCache(request) {
   }
 }
 
+/**
+ * Stale-while-revalidate for scripts and styles: the saved copy paints at once
+ * instead of blocking the page on a phone connection, and the fresh copy is
+ * written for the next visit. Safe because every deploy that touches these
+ * files bumps CACHE_NAME, so `activate` clears the cache first and nobody is
+ * left reading a stale bundle behind new markup.
+ */
+async function cacheThenRefresh(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const saved = await cache.match(request, { ignoreSearch: true });
+  const refresh = fetch(request)
+    .then((response) => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => null);
+  if (saved) return saved;
+  const online = await refresh;
+  if (online) return online;
+  throw new Error('offline');
+}
+
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
   if (event.request.method !== 'GET' || requestUrl.origin !== self.location.origin) return;
   if (requestUrl.pathname.startsWith('/api/')) return;
+  // Serving the worker from cache would pin this file to its own old version.
+  if (requestUrl.pathname === '/sw.js') return;
   // The globe ships its own hashed build; caching would pin an old bundle.
   if (requestUrl.pathname.startsWith('/peta/')) return;
 
@@ -94,9 +118,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Scripts and styles change with every deploy, so they are network-first.
+  // Scripts and styles change with every deploy, but a phone should not wait on
+  // them; the background refresh plus the CACHE_NAME bump keeps them current.
   if (/\.(?:js|css)$/.test(requestUrl.pathname)) {
-    event.respondWith(freshThenCache(event.request).catch(() => new Response('', { status: 504 })));
+    event.respondWith(cacheThenRefresh(event.request).catch(() => new Response('', { status: 504 })));
     return;
   }
 

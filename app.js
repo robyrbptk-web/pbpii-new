@@ -1,6 +1,6 @@
 const API = window.PBPII_CONFIG?.apiEndpoint || '/api/pii';
 // Relative so the same value works over http(s) and when the page is opened with file:
-const LOGO_URL = 'assets/logo-pii.png';
+const LOGO_URL = 'assets/logo-pii.webp';
 const $ = (selector) => document.querySelector(selector);
 
 function escapeHTML(value = '') {
@@ -437,9 +437,27 @@ function showLoadError(title, description) {
     </div>`;
 }
 
+/**
+ * Runs a job the first time an element nears the viewport. The data strip only
+ * shows four counts, so fetching four public datasets before the reader has
+ * scrolled that far just competes with the content above it on a phone.
+ */
+function jalankanSaatTerlihat(el, jalankan) {
+  if (!el || !('IntersectionObserver' in window)) {
+    jalankan();
+    return;
+  }
+  const pemantau = new IntersectionObserver((entries, observer) => {
+    if (entries.some((entry) => entry.isIntersecting)) {
+      observer.disconnect();
+      jalankan();
+    }
+  }, { rootMargin: '200px' });
+  pemantau.observe(el);
+}
+
 async function loadDataStrip() {
-  const note = $('#dataStripNote');
-  const sources = [
+  const note = $('#dataStripNote');  const sources = [
     ['schools', '/api/sekolah', (body) => body?.data],
     ['volcanoes', '/api/volcanoes', (body) => (Array.isArray(body) ? body : body?.data)],
     ['hospitals', '/api/indonesia/hospitals', (body) => body?.data],
@@ -534,7 +552,7 @@ async function init() {
     return;
   }
 
-  loadDataStrip();
+  jalankanSaatTerlihat(document.querySelector('#dataStrip'), loadDataStrip);
 
   try {
     const data = await callApi('public');

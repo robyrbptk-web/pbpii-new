@@ -4871,7 +4871,15 @@ body.has-kader-dialog {
   padding: 12px 20px 14px;
   background: linear-gradient(180deg, rgb(251 253 254 / 0%), #fff 36%);
   box-shadow: 0 -12px 28px rgb(16 43 73 / 5%);
-  backdrop-filter: blur(16px);
+}
+
+/* Blur hanya di layar dengan penunjuk dan ruang GPU lebih. Di HP, area yang
+   diburamkan adalah percakapan yang terus bergulir, jadi setiap bingkai harus
+   menggambar ulang isi di belakangnya — latarnya sudah putih solid. */
+@media (hover: hover) and (min-width: 721px) {
+  .tanya-composer {
+    backdrop-filter: blur(16px);
+  }
 }
 
 .tanya-composer-row {
