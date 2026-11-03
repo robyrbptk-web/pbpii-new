@@ -98,7 +98,7 @@ function pertanyaanIdentitas(text) {
   if (MEMBONGKAR.some((kata) => lowered.includes(kata))) return true;
   if (MEMBONGKAR_INGGRIS.some((frasa) => lowered.includes(frasa))) return true;
   /*
-   * Sapaan bisa terselubung kata serupossesif: "siapa pembuatmu" tidak memuat
+   * Sapaan bisa terselubung akhiran kepemilikan: "siapa pembuatmu" tidak memuat
    * "kamu", padahal pertanyaan itu jelas mengarah ke diri asisten.
    */
   const disapa = SAPAAN.some((kata) => lowered.includes(kata))

@@ -752,8 +752,8 @@ bisa memakai Tanya PII — batas akses isi berkas tetap mengikuti
 `Settings.pustakaMinRole` dan hanya diberikan kepada sesi yang berhak.
 
 **Identitas dijawab di server, bukan oleh model.** `pertanyaanIdentitas()`
-menandai pertanyaan yang menanyakan siapa asisten itu (termasuk bentuk serupossesif
-seperti "siapa pembuatmu") dan semua upaya membuka isinya — `MEMBONGKAR`
+menandai pertanyaan yang menanyakan siapa asisten itu (termasuk bentuk dengan
+akhiran "-mu" seperti "siapa pembuatmu") dan semua upaya membuka isinya — `MEMBONGKAR`
 ("system prompt", "kunci api", "abaikan instruksi", "endpoint", "jailbreak", …)
 dan `MEMBONGKAR_INGGRIS` ("who are you", "reveal your", "act as", …). Yang
 terkena aturan ini mendapat `JAWABAN_IDENTITAS` yang tetap: Tanya PII adalah model
