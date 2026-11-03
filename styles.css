@@ -3966,96 +3966,602 @@ body.has-kader-dialog {
   text-underline-offset: 2px;
 }
 
-.tanya-msg blockquote {
-  margin: 0 0 10px;
-  border-left: 3px solid #cfe0f2;
-  padding: 2px 0 2px 12px;
-  color: var(--muted);
+.tanya-msg blockquote,
+.tanya-kutipan {
+  margin: 0 0 11px;
+  border-left: 3px solid #bcd8ef;
+  border-radius: 0 11px 11px 0;
+  padding: 7px 12px 7px 13px;
+  background: #f4f9fd;
+  color: #3c566f;
 }
 
-.tanya-msg hr {
-  margin: 12px 0;
+.tanya-kutipan > :last-child {
+  margin-bottom: 0;
+}
+
+.tanya-msg hr,
+.tanya-garis {
+  margin: 15px 0;
   border: 0;
   border-top: 1px solid var(--line);
 }
 
-.tanya-judul {
-  margin: 14px 0 6px;
-  color: var(--navy);
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: -.015em;
+/*
+ * ------------------------------------------------------------- isi jawaban
+ * Kelas di bawah ini datang dari markdown.js dan dipakai ulang oleh lembar
+ * cetak PDF, jadi aturannya tidak boleh bergantung pada gelembung chat.
+ */
+.tanya-tulis {
+  min-width: 0;
 }
 
-.tanya-judul:first-child {
+.tanya-para {
+  margin: 0 0 10px;
+}
+
+.tanya-tulis > .tanya-para:last-child,
+.tanya-tulis > :last-child {
+  margin-bottom: 0;
+}
+
+/* Judul # … ###### dipetakan ke h2 … h6 agar tidak menyaingi judul halaman. */
+.tanya-h {
+  margin: 19px 0 8px;
+  color: var(--navy);
+  font-weight: 800;
+  letter-spacing: -.018em;
+  line-height: 1.36;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.tanya-h:first-child {
   margin-top: 0;
 }
 
-.tanya-msg code {
+.tanya-h2 {
+  padding-bottom: 5px;
+  border-bottom: 1px solid #e0eaf5;
+  font-size: 1.17rem;
+}
+
+.tanya-h3 { font-size: 1.06rem; }
+.tanya-h4 { font-size: .99rem; }
+.tanya-h5,
+.tanya-h6 { color: #2a4a68; font-size: .95rem; }
+
+.tanya-msg code,
+.tanya-inline-kode {
   border-radius: 6px;
   padding: 1px 6px;
   background: #eef3f9;
+  color: #12324f;
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   font-size: .85em;
+  overflow-wrap: anywhere;
+}
+
+.tanya-daf {
+  margin: 0 0 11px;
+  padding-left: 23px;
+}
+
+.tanya-daf.is-cek {
+  padding-left: 3px;
+  list-style: none;
+}
+
+.tanya-butir {
+  margin: 5px 0;
+}
+
+.tanya-butir > .tanya-para {
+  margin-bottom: 4px;
+}
+
+/* Butir kotak centang: kotak di kiri, teksnya tidak boleh menempel. */
+.tanya-butir.is-cek {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tanya-butir.is-cek .tanya-butir-teks {
+  min-width: 0;
+}
+
+.tanya-butir .tanya-daf {
+  margin: 4px 0 2px;
+}
+
+.tanya-kotak {
+  flex: 0 0 auto;
+  display: inline-grid;
+  width: 17px;
+  height: 17px;
+  margin-top: 3px;
+  place-items: center;
+  border: 1.5px solid #b6c8da;
+  border-radius: 5px;
+  background: #fff;
+  color: #fff;
+  font-size: .66rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.tanya-kotak.is-isi {
+  border-color: var(--blue);
+  background: var(--blue);
+}
+
+.tanya-kotak.is-isi::after {
+  content: '\2713';
+}
+
+/* Tabel GFM: kepala jelas, angka rata kanan, sempit pun tetap terbaca. */
+.tanya-tabel-lapit {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  margin: 13px 0;
+  border: 1px solid #d8e4f0;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgb(16 43 73 / 5%);
+}
+
+.tanya-tabel-lapit:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.tanya-tabel {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  line-height: 1.55;
+}
+
+.tanya-tabel th,
+.tanya-tabel td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e7eff7;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tanya-tabel th {
+  position: sticky;
+  top: 0;
+  background: #f0f6fc;
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.tanya-tabel tbody tr:nth-child(even) {
+  background: #fafcfe;
+}
+
+.tanya-tabel tr:last-child td {
+  border-bottom: 0;
+}
+
+.tanya-tabel .is-right {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tanya-tabel .is-center { text-align: center; }
+.tanya-tabel .is-left { text-align: left; }
+
+.tanya-tabel caption {
+  caption-side: bottom;
+  padding: 6px 12px;
+  color: var(--muted);
+  font-size: .74rem;
+  text-align: left;
+}
+
+/* Blok kode: kepala bahasa + tombol, isi bernomor, boleh dilipat. */
+.tanya-sorot,
+.tanya-terminal {
+  overflow: hidden;
+  margin: 13px 0;
+  border: 1px solid #17334f;
+  border-radius: 14px;
+  background: #0e2237;
+  color: #e9f2fa;
+  box-shadow: 0 10px 24px rgb(14 34 55 / 14%);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.tanya-sorot-kepala,
+.tanya-terminal-kepala {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid #1d3a58;
+  background: #132c46;
+  color: #bcd6ee;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.tanya-sorot_bahasa {
+  color: #f2f8fd;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+.tanya-sorot_meta {
+  color: #7f9ab3;
+  font-weight: 600;
+}
+
+.tanya-terminal_judul {
+  color: #f2f8fd;
+  font-weight: 800;
+}
+
+.tanya-sorot_tombol,
+.tanya-terminal_tombol {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.tanya-ktombol {
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 8px;
+  padding: 4px 9px;
+  background: rgb(255 255 255 / 8%);
+  color: #dce9f5;
+  font: inherit;
+  font-size: .69rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .16s ease, color .16s ease;
+}
+
+.tanya-ktombol:hover {
+  background: rgb(255 255 255 / 20%);
+  color: #fff;
+}
+
+.tanya-ktombol:active {
+  transform: scale(.96);
+}
+
+.tanya-sorot-badan {
+  position: relative;
 }
 
 .tanya-kode {
-  position: relative;
-  overflow-x: auto;
-  margin: 11px 0;
-  border-radius: 13px;
-  padding: 32px 14px 13px;
-  background: #0e2237;
+  overflow: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 11px 13px 13px;
+  background: none;
   color: #e9f2fa;
-  font-size: .82rem;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: .8rem;
   line-height: 1.62;
+  tab-size: 2;
 }
 
-.tanya-kode code {
+.tanya-kode code,
+.tanya-terminal code {
   padding: 0;
   background: none;
   color: inherit;
   font: inherit;
+  overflow-wrap: normal;
+}
+
+.tanya-kode-isi {
+  display: block;
   white-space: pre;
 }
 
-.tanya-kode-salin {
+.tanya-baris-kode {
+  display: block;
+  min-height: 1.62em;
+}
+
+/* Nomor baris dari CSS counter: tidak ikut tersalin saat blok kode disalin. */
+.tanya-kode.is-nomor {
+  counter-reset: baris;
+}
+
+.tanya-kode.is-nomor .tanya-baris-kode {
+  position: relative;
+  padding-left: 46px;
+  counter-increment: baris;
+}
+
+.tanya-kode.is-nomor .tanya-baris-kode::before {
   position: absolute;
-  top: 7px;
-  right: 8px;
-  border: 1px solid rgb(255 255 255 / 22%);
-  border-radius: 8px;
-  padding: 3px 9px;
-  background: rgb(255 255 255 / 10%);
-  color: #dce9f5;
+  top: 0;
+  left: 0;
+  width: 34px;
+  color: #58789c;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  content: counter(baris);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tanya-kode .c-komentar { color: #7f9ab3; font-style: italic; }
+.tanya-kode .c-kata { color: #8ecbff; font-weight: 600; }
+.tanya-kode .c-pustaka { color: #6fd6b0; }
+.tanya-kode .c-fungsi { color: #ffd479; }
+.tanya-kode .c-string { color: #c8e6a1; }
+.tanya-kode .c-nomor { color: #f8b26a; }
+.tanya-kode .c-penanda { color: #d4a5ff; }
+.tanya-kode .c-aksi { color: #9db8d2; }
+
+.tanya-sorot.is-lipat:not(.is-terbuka) .tanya-sorot-badan {
+  max-height: 340px;
+  overflow: hidden;
+}
+
+.tanya-sorot.is-lipat:not(.is-terbuka) .tanya-sorot-badan::after {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 56px;
+  background: linear-gradient(180deg, rgb(14 34 55 / 0%), #0e2237 80%);
+  content: '';
+  pointer-events: none;
+}
+
+.tanya-sorot-bentang {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #1d3a58;
+  padding: 8px;
+  background: #102a44;
+  color: #cfe4f7;
   font: inherit;
-  font-size: .7rem;
-  font-weight: 700;
+  font-size: .74rem;
+  font-weight: 800;
   cursor: pointer;
 }
 
-.tanya-kode-salin:hover {
-  background: rgb(255 255 255 / 20%);
+.tanya-sorot-bentang:hover {
+  background: #163452;
+  color: #fff;
 }
 
-/* Aksi per jawaban: muncul saat disentuh atau didekati, seperti ChatGPT/Qwen. */
+/* Terminal: lampu jendela, baris perintah terpisah dari keluarannya. */
+.tanya-terminal {
+  background: #0c1c2b;
+}
+
+.tanya-terminal-kepala {
+  background: #16293c;
+}
+
+.tanya-terminal_lampu {
+  display: inline-flex;
+  gap: 5px;
+  margin-right: 2px;
+}
+
+.tanya-terminal_lampu i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4a6276;
+}
+
+.tanya-terminal_lampu i:nth-child(1) { background: #f0625f; }
+.tanya-terminal_lampu i:nth-child(2) { background: #f2c260; }
+.tanya-terminal_lampu i:nth-child(3) { background: #4ecb81; }
+
+.tanya-terminal-badan {
+  overflow: auto;
+  max-height: 430px;
+  padding: 10px 12px 12px;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: .8rem;
+  line-height: 1.6;
+}
+
+.tanya-term-baris {
+  display: flex;
+  gap: 8px;
+}
+
+.tanya-term-ps {
+  flex: 0 0 auto;
+  min-width: 12px;
+  color: #5fd0a2;
+  font-weight: 800;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tanya-term-baris.is-perintah .tanya-term-kode {
+  color: #f2f8fd;
+  font-weight: 600;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tanya-term-baris.is-keluaran {
+  color: #a9c2d8;
+}
+
+.tanya-term-baris.is-keluaran > span {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tanya-term-baris.is-gagal { color: #ff9d94; }
+.tanya-term-baris.is-waspad { color: #f4d08a; }
+.tanya-term-baris.is-beres { color: #7de2ac; }
+
+/* Gambar, matematika, dan catatan akhir. */
+.tanya-gambar {
+  margin: 13px 0;
+}
+
+.tanya-gambar img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.tanya-gambar figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .78rem;
+  text-align: center;
+}
+
+.tanya-matematika {
+  font-family: 'Cambria Math', 'STIX Two Math', Georgia, serif;
+  font-size: 1.02em;
+}
+
+.tanya-matematika-blok {
+  overflow-x: auto;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #e2ecf6;
+  border-radius: 12px;
+  background: #f8fbfe;
+  font-family: 'Cambria Math', 'STIX Two Math', Georgia, serif;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.tanya-pecahan {
+  display: inline-grid;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.tanya-pecahan-atas {
+  padding: 0 5px 1px;
+  border-bottom: 1px solid currentColor;
+}
+
+.tanya-pecahan-bawah {
+  padding: 1px 5px 0;
+}
+
+.tanya-pecahan.is-binom .tanya-pecahan-atas,
+.tanya-pecahan.is-binom .tanya-pecahan-bawah {
+  border-bottom: 0;
+}
+
+.tanya-akar {
+  display: inline-block;
+  padding: 0 3px;
+  border-top: 1px solid currentColor;
+}
+
+.tanya-akar-tingkat {
+  font-size: .62em;
+}
+
+.tanya-bar {
+  display: inline-block;
+  border-top: 1px solid currentColor;
+  padding-top: 1px;
+}
+
+.tanya-cat a {
+  color: var(--blue);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.tanya-rujukan {
+  margin-left: 2px;
+  border-radius: 6px;
+  padding: 1px 5px;
+  background: #eef4fb;
+  color: #41647f;
+  font-size: .68em;
+  font-weight: 800;
+}
+
+.tanya-catat {
+  margin-top: 14px;
+  border-top: 1px dashed #cfdeec;
+  padding-top: 9px;
+}
+
+.tanya-catat_judul {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 800;
+}
+
+.tanya-catat-daf {
+  margin: 0;
+  padding-left: 20px;
+  color: #45596d;
+  font-size: .82rem;
+}
+
+.tanya-catat-daf li {
+  margin: 3px 0;
+}
+
+/*
+ * Aksi per jawaban: alat salin/unduh/PDF di kiri, penanda bantuan dan jawab
+ * ulang di kanan. Tersembunyi sampai disentuh atau didekati seperti ChatGPT,
+ * tetapi selalu tampil di layar tanpa kursor dan tetap bisa ditabulasi.
+ */
 .tanya-actions {
   display: flex;
-  gap: 2px;
-  margin-left: -7px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  margin: 2px 0 0 -7px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity .18s ease;
 }
 
+.tanya-actions_kiri,
+.tanya-actions_kanan {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.tanya-actions_kanan {
+  margin-left: auto;
+}
+
 .tanya-row.is-assistant:hover .tanya-actions,
-.tanya-row.is-assistant:focus-within .tanya-actions {
+.tanya-actions:focus-within {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .tanya-act {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-height: 30px;
   border: 0;
   border-radius: 8px;
   padding: 5px 8px;
@@ -4083,9 +4589,23 @@ body.has-kader-dialog {
   color: var(--blue);
 }
 
+.tanya-act.is-rasa {
+  padding: 5px 7px;
+}
+
+.tanya-act.is-rasa.is-aktif {
+  background: #e8f3ec;
+  color: #1a6b43;
+}
+
+.tanya-act.is-rasa.is-aktif svg {
+  fill: currentColor;
+}
+
 @media (hover: none) {
   .tanya-actions {
-    opacity: .85;
+    opacity: .9;
+    pointer-events: auto;
   }
 }
 
@@ -4443,6 +4963,113 @@ body.has-kader-dialog {
   50% { box-shadow: 0 8px 26px rgb(23 109 168 / 45%); }
 }
 
+/* Saat jawaban disusun, kirim berganti menjadi "Hentikan" (tombol kirim disembunyikan). */
+.tanya-submit.is-tertutup {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(.7);
+}
+
+.tanya-stop {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 46px;
+  border: 1px solid #d6e3f0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #fff;
+  color: #245079;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgb(16 43 73 / 8%);
+  animation: bubble-in .22s ease both;
+}
+
+.tanya-stop::before {
+  width: 9px;
+  height: 9px;
+  border-radius: 2.5px;
+  background: #245079;
+  content: '';
+}
+
+.tanya-stop:hover {
+  border-color: #b9d3ea;
+  background: #f4f9fd;
+}
+
+.tanya-stop[hidden] {
+  display: none;
+}
+
+/* Pintasan kembali ke jawaban terbaru; hanya muncul saat pembaca menggulir ke atas. */
+.tanya-bawah {
+  position: absolute;
+  bottom: calc(var(--tanya-composer-tinggi, 132px) + 14px);
+  left: 50%;
+  z-index: 4;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #dbe6f1;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--blue);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgb(16 43 73 / 14%);
+  transform: translateX(-50%);
+  animation: bubble-in .22s ease both;
+}
+
+.tanya-bawah[hidden] {
+  display: none;
+}
+
+.tanya-bawah svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tanya-stage {
+  position: relative;
+}
+
+/* Umpan balik kecil untuk salin/unduh, persis seperti aplikasi AI yang dikenal. */
+.tanya-toast {
+  position: fixed;
+  bottom: calc(var(--tanya-composer-tinggi, 132px) + 18px);
+  left: 50%;
+  z-index: 40;
+  max-width: min(88vw, 420px);
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: #14304d;
+  color: #f3f8fd;
+  font-size: .82rem;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 14px 30px rgb(9 27 44 / 32%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 10px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.tanya-toast.is-tampil {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .tanya-meter {
   display: flex;
   align-items: center;
@@ -4505,6 +5132,47 @@ body.has-kader-dialog {
     font-size: .95rem;
   }
 
+  /* Jawaban butuh kolom penuh: tabel dan blok kode tidak muat bila 88%. */
+  .tanya-row.is-assistant .tanya-msg {
+    max-width: 100%;
+  }
+
+  .tanya-sorot-kepala,
+  .tanya-terminal-kepala {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 7px 9px;
+  }
+
+  .tanya-sorot_tombol,
+  .tanya-terminal_tombol {
+    margin-left: 0;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+
+  .tanya-kode,
+  .tanya-terminal-badan {
+    font-size: .78rem;
+  }
+
+  .tanya-kode.is-nomor .tanya-baris-kode {
+    padding-left: 38px;
+  }
+
+  .tanya-kode.is-nomor .tanya-baris-kode::before {
+    width: 28px;
+  }
+
+  .tanya-tabel {
+    font-size: .84rem;
+  }
+
+  .tanya-tabel th,
+  .tanya-tabel td {
+    padding: 7px 9px;
+  }
+
   .tanya-composer {
     /* bar navigasi bawah menutupi ~66px, komposer dinaikkan agar tidak tertimbun */
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
@@ -4556,6 +5224,377 @@ body.has-kader-dialog {
 
   .tanya-disclaimer {
     font-size: .72rem;
+  }
+}
+
+/* Layar sempit: toolbar jawaban memakai ikon saja, label tetap ada di a11y tree. */
+@media (max-width: 430px) {
+  .tanya-act span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .tanya-act {
+    padding: 6px 7px;
+  }
+
+  .tanya-toast {
+    font-size: .78rem;
+  }
+}
+
+/* ---------- lembar cetak PDF ------------------------------------------------
+ * Ekspor PDF memakai dokumen yang disusun ulang di #tanyaPrint, lalu gaya di
+ * bawah ini yang mengubahnya menjadi A4 rapi: kop, judul, tanggal, nomor
+ * halaman, dan pemutusan bagian yang tidak memotong tabel atau blok kode.
+ */
+#tanyaPrint {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 17mm 15mm 19mm;
+
+  /* Nomor halaman di margin — Chromium dan Safari; Firefox memakai .tanya-cetak-kaki. */
+  @bottom-center {
+    margin-top: 4mm;
+    border-top: 0.4pt solid #c9d8e6;
+    padding-top: 2mm;
+    color: #5d6f83;
+    content: 'Tanya PII — Asisten Pelajar Islam Indonesia   ·   Halaman ' counter(page) ' dari ' counter(pages);
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 8.5pt;
+  }
+}
+
+@media print {
+  /* Selain lembar cetak, seluruh isi halaman disembunyikan: header, komposer,
+     panel akun, toast — apa pun anak langsung <body> kecuali #tanyaPrint. */
+  body.tanya-mencetak > :not(#tanyaPrint) {
+    display: none !important;
+  }
+
+  body.tanya-mencetak,
+  body.tanya-mencetak * {
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  body.tanya-mencetak {
+    display: block;
+    height: auto;
+    margin: 0;
+    background: #fff;
+    color: #12212f;
+    font-size: 10.6pt;
+    line-height: 1.62;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #tanyaPrint {
+    display: block;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .tanya-cetak-kop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 7mm;
+    border-bottom: 1.6pt solid #0c2948;
+    font-size: 9pt;
+  }
+
+  .tanya-cetak-kop img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+  }
+
+  .tanya-cetak-kop span {
+    display: flex;
+    flex-direction: column;
+    color: #0c2948;
+  }
+
+  .tanya-cetak-kop b {
+    font-size: 13pt;
+    letter-spacing: -.01em;
+  }
+
+  .tanya-cetak-kop small {
+    color: #4a6b8c;
+    font-size: 8.6pt;
+  }
+
+  .tanya-cetak-kop em {
+    margin-left: auto;
+    color: #5d6f83;
+    font-size: 8.2pt;
+    font-style: normal;
+    text-align: right;
+  }
+
+  .tanya-cetak-judul {
+    margin: 7mm 0 2mm;
+    color: #0c2948;
+    font-size: 16pt;
+    font-weight: 800;
+    line-height: 1.3;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .tanya-cetak-info {
+    margin: 0 0 8mm;
+    color: #5d6f83;
+    font-size: 8.8pt;
+  }
+
+  .tanya-cetak-bab {
+    margin-bottom: 9mm;
+    break-inside: auto;
+  }
+
+  .tanya-cetak-label {
+    margin: 0 0 1.6mm;
+    color: #4a6b8c;
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+
+  .tanya-cetak-soal {
+    margin: 0 0 5mm;
+    padding: 3.4mm 4mm;
+    border-left: 2.4pt solid #1d6da8;
+    background: #f2f7fc;
+    color: #0c2948;
+    font-size: 11.6pt;
+    font-weight: 700;
+    line-height: 1.45;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .tanya-cetak-sumber {
+    margin-top: 6mm;
+    border-top: 0.6pt dashed #b9cbdc;
+    padding-top: 4mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .tanya-cetak-sumber ul {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 9pt;
+  }
+
+  .tanya-cetak-kaki {
+    margin-top: 8mm;
+    border-top: 0.6pt solid #c9d8e6;
+    padding-top: 3mm;
+    color: #5d6f83;
+    font-size: 8.2pt;
+    line-height: 1.5;
+  }
+
+  /* Isi jawaban: hierarki judul tegas, tidak ada kepala yatim. */
+  #tanyaPrint .tanya-para {
+    margin: 0 0 3.2mm;
+    text-align: left;
+    orphans: 3;
+    widows: 3;
+  }
+
+  #tanyaPrint .tanya-h {
+    color: #0c2948;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  #tanyaPrint .tanya-h2 { font-size: 13.4pt; margin: 7mm 0 2.6mm; }
+  #tanyaPrint .tanya-h3 { font-size: 11.8pt; margin: 6mm 0 2.2mm; }
+  #tanyaPrint .tanya-h4 { font-size: 10.8pt; margin: 5mm 0 2mm; }
+  #tanyaPrint .tanya-h5,
+  #tanyaPrint .tanya-h6 { font-size: 10.2pt; margin: 4.4mm 0 1.8mm; }
+
+  #tanyaPrint .tanya-daf {
+    margin: 0 0 3.4mm;
+    padding-left: 6mm;
+  }
+
+  #tanyaPrint .tanya-butir {
+    margin: 1.2mm 0;
+  }
+
+  #tanyaPrint .tanya-kotak.is-isi {
+    border-color: #1d6da8;
+    background: #1d6da8;
+    color: #fff;
+  }
+
+  #tanyaPrint .tanya-inline-kode {
+    border: 0.4pt solid #dce6f0;
+    background: #f4f8fc;
+    color: #12293f;
+    font-family: 'DejaVu Sans Mono', Consolas, monospace;
+    font-size: 9.2pt;
+  }
+
+  /* Tabel: garis tipis, kepala berulang di tiap halaman, tidak pernah terpotong. */
+  #tanyaPrint .tanya-tabel-lapit {
+    max-width: 100%;
+    border: 0.7pt solid #9fb3c6;
+    border-radius: 0;
+  }
+
+  #tanyaPrint .tanya-tabel {
+    font-size: 9.4pt;
+  }
+
+  #tanyaPrint .tanya-tabel th {
+    position: static;
+    background: #eef4fa;
+    border-bottom: 0.9pt solid #9fb3c6;
+  }
+
+  #tanyaPrint .tanya-tabel td {
+    border-bottom: 0.4pt solid #d7e2ec;
+  }
+
+  #tanyaPrint .tanya-tabel tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  #tanyaPrint .tanya-tabel thead {
+    display: table-header-group;
+  }
+
+  /* Kode dan terminal: latar tetap terlihat saat dicetak, isi tidak dipotong. */
+  #tanyaPrint .tanya-sorot,
+  #tanyaPrint .tanya-terminal {
+    border: 0.7pt solid #1d3a58;
+    border-radius: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  #tanyaPrint .tanya-sorot-kepala,
+  #tanyaPrint .tanya-terminal-kepala {
+    background: #e8f0f8;
+    border-bottom: 0.6pt solid #c2d4e4;
+    color: #1d3a58;
+    font-size: 8.2pt;
+  }
+
+  #tanyaPrint .tanya-sorot_bahasa,
+  #tanyaPrint .tanya-terminal_judul {
+    color: #0c2948;
+  }
+
+  #tanyaPrint .tanya-sorot_meta {
+    color: #5d7a95;
+  }
+
+  #tanyaPrint .tanya-sorot_tombol,
+  #tanyaPrint .tanya-terminal_tombol,
+  #tanyaPrint .tanya-sorot-bentang,
+  #tanyaPrint .tanya-terminal_lampu {
+    display: none !important;
+  }
+
+  #tanyaPrint .tanya-kode,
+  #tanyaPrint .tanya-terminal-badan {
+    max-height: none !important;
+    padding: 3mm 3.4mm;
+    background: #f7fafd;
+    color: #12293f;
+    font-family: 'DejaVu Sans Mono', Consolas, monospace;
+    font-size: 8.8pt;
+    line-height: 1.5;
+  }
+
+  #tanyaPrint .tanya-sorot.is-lipat .tanya-sorot-badan {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #tanyaPrint .tanya-baris-kode {
+    color: #12293f;
+  }
+
+  #tanyaPrint .c-komentar { color: #5d6f83; }
+  #tanyaPrint .c-kata,
+  #tanyaPrint .c-pustaka,
+  #tanyaPrint .c-penanda { color: #0d5b8a; }
+  #tanyaPrint .c-fungsi { color: #7a4a1f; }
+  #tanyaPrint .c-string { color: #1c6b46; }
+  #tanyaPrint .c-nomor { color: #8a2a20; }
+  #tanyaPrint .c-aksi { color: #4a5b6c; }
+
+  #tanyaPrint .tanya-kode.is-nomor .tanya-baris-kode::before {
+    color: #9fb3c6;
+  }
+
+  #tanyaPrint .tanya-term-baris.is-perintah .tanya-term-kode {
+    color: #0c2948;
+  }
+
+  #tanyaPrint .tanya-term-ps { color: #1c6b46; }
+  #tanyaPrint .tanya-term-baris.is-keluaran { color: #40566c; }
+  #tanyaPrint .tanya-term-baris.is-gagal { color: #96322a; }
+  #tanyaPrint .tanya-term-baris.is-waspad { color: #7a5b12; }
+  #tanyaPrint .tanya-term-baris.is-beres { color: #1c6b46; }
+
+  #tanyaPrint .tanya-kutipan {
+    border-left: 2.2pt solid #b9cbdc;
+    background: #f6f9fc;
+    color: #29425a;
+  }
+
+  #tanyaPrint .tanya-matematika-blok {
+    border: 0.6pt solid #c9d8e6;
+    border-radius: 0;
+    break-inside: avoid;
+  }
+
+  #tanyaPrint .tanya-gambar img {
+    max-height: 78mm;
+    width: auto;
+  }
+
+  /* Tautan: warna aman + URL aslinya ikut tertulis agar dokumen tetap jejak. */
+  #tanyaPrint a {
+    border: 0;
+    background: none;
+    color: #14496f;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  #tanyaPrint a[href^='https://']::after,
+  #tanyaPrint a[href^='http://']::after {
+    color: #5d6f83;
+    font-size: 8pt;
+    font-weight: 400;
+    content: ' (' attr(href) ')';
+  }
+
+  #tanyaPrint .tanya-cat a::after,
+  #tanyaPrint .tanya-rujukan::after {
+    content: '';
   }
 }
 

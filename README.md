@@ -767,13 +767,53 @@ ke kuota harian supaya tidak jadi celah spam, dan dibalas dengan
 searah untuk lapisan kedua: jangan pernah menyebut atau menebak bahan teknis,
 tapi jangan pula mengatakan bahannya dirahasiakan.
 
-**Jawaban disusun dengan Markdown.** `systemPrompt()` meminta paragraf pendek,
-daftar, penanda tebal, dan blok kode; `rapikanTeks()` menjaga pergantian baris
-dan indentasi tetap utuh (dulu `clean()` meratakannya sehingga blok kode rusak),
-`bersihkanPenanda()` menanggalkan kode rujukan `[B…]/[D…]`, lalu `richText()` di
-`tanya.js` merendernya — termasuk blok kode gelap dengan tombol Salin. Tiap
-jawaban asisten punya aksi **Salin** dan **Ulangi** (butir percakapan dicabut lalu
-pertanyaan yang sama dikirim ulang).
+**Jawaban dirender penuh, bukan teks mentah.** `markdown.js` memuat renderer
+GitHub Flavored Markdown yang dipakai `richText()` di `tanya.js`: heading,
+paragraf, daftar berbendera dan bernomor, checklist, kutipan, garis pemisah,
+tautan, `kode inline`, dan tabel sungguhan. Kolom angka diratakan kanan, tiap
+tabel dibungkus `.tanya-tabel-lapit` agar bisa digeser horizontal di HP, dan
+kepala tabel tetap terlihat saat dicetak. Renderer ini bekerja dengan
+escape-then-whitelist: seluruh karakter khusus di-escape lebih dulu lalu hanya pola
+Markdown yang dikenali yang diubah menjadi elemen, jadi HTML atau JavaScript dari
+jawaban AI tidak pernah menjadi node yang bisa dieksekusi; tautan eksternal
+dipasang `target="_blank" rel="noopener noreferrer"`.
+
+**Blok kode dan terminal punya tampilan sendiri.** Fence biasa menjadi kartu gelap
+dengan kepala berisi bahasa, jumlah baris, penyorotan sintaks, nomor baris memakai
+CSS counter (tidak ikut tersalin karena nomor bukan teks), tombol **Salin Kode** dan
+**Unduh Kode**, serta otomatis dilipat bila lebih dari 20 baris. Fence
+`powershell`/`pwsh`/`bash`/`sh`/`shell`/`console` dan baris yang diawali prompt
+menjadi kartu terminal: lampu lalu-lintas, pemisah perintah dan keluaran, tombol
+**Salin Command** dan **Salin Keluaran**, baris gagal berwarna merah. Tidak ada
+command yang pernah dijalankan oleh halaman.
+
+**Tiap jawaban punya toolbar.** Salin jawaban (isi Markdown murni, tanpa label
+UI), Unduh Markdown, Unduh TXT, Ekspor PDF, Suka, Tidak, dan Ulangi. Operasi
+salin memunculkan notifikasi kecil "Berhasil disalin". Di layar sentuh toolbar
+selalu tampil; di bawah 430px labelnya diganti ikon saja.
+
+**Ekspor PDF memakai stylesheet cetak, bukan screenshot.** `cetakJawaban()` dan
+`cetakPercakapan()` menyalin jawaban ke `#tanyaPrint` lalu membuka dialog cetak
+peramban dengan `@page` A4, kop berisi logo dan identitas, judul dokumen, tanggal,
+nomor halaman "Halaman 1 dari N" dari `@page @bottom-center`, tabel yang utuh,
+blok kode berlatar terang, dan tautan yang alamatnya ikut tercetak. Elemen situs
+(navigasi, komposer, tombol) disingkirkan dengan
+`body.tanya-mencetak > :not(#tanyaPrint)`. `html2canvas` tidak dipakai supaya
+teks tetap tajam dan tidak terpotong.
+
+**Tombol hentikan membatalkan permintaan.** Backend masih menjawab sekali jalan
+(bukan streaming), jadi **Hentikan** memutuskan `AbortController` dan membuang
+jawaban yang belum tiba; pemotongan token secara langsung belum ada.
+
+**Cara menjawab diatur system prompt penuh.** `PROMPT_INTI` di `api/chat.js`
+memuat aturan gaya, struktur, standar Markdown (dengan contoh tabel RAB yang
+benar), kode program dan command, perhitungan anggaran, sumber dan akurasi,
+hingga identitas Tanya PII. Batas "maksimal 180 kata" sudah dihapus dan
+`max_tokens` dinaikkan (2400 untuk penyedia berkunci, 1800 untuk Pollinations)
+dengan potongan balasan 8000 karakter agar tabel dan kode panjang muat utuh.
+Kunci identitas, aturan rujukan mode organisasi, larangan fatwa dan politik,
+serta "lebih baik mengaku tidak tahu daripada mengarang" tetap menempel setelah
+`PROMPT_INTI`.
 
 Kader yang masuk mendapat `APP.CHAT_DAILY_LIMIT` (bawaan **20**) pertanyaan per
 hari. Pembatasnya ada di server (proxy `/api/chat` + Apps Script), jadi
