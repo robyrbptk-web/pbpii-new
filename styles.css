@@ -1097,8 +1097,8 @@ footer > small {
 
   .tanya-intro::before,
   .tanya-badge i,
-  .tanya-composer.is-busy .tanya-submit {
-    animation: none;
+  .tanya-composer.is-busy .tanya-stop {
+    animation: none !important;
   }
 }
 
@@ -3737,6 +3737,10 @@ body.has-kader-dialog {
 .tanya-page {
   display: flex;
   height: calc(100dvh - var(--tanya-keyboard, 0px));
+  /* min-height: 100dvh yang berlaku untuk <body> di seluruh situs akan
+     mengalahkan tinggi ini bila tidak dinetralkan — papan ketik lalu menutupi
+     kolom tulis karena halaman tidak pernah menyusut. */
+  min-height: 0;
   flex-direction: column;
   overflow: hidden;
 }
@@ -4890,13 +4894,23 @@ body.has-kader-dialog {
   margin: 0 auto;
 }
 
+/* Kirim dan Hentikan menempati lubang yang sama. Kalau keduanya berdiri di
+   baris flex, tombol Hentikan menarik 56px tambahan dan kolom tulis menyempit
+   tepat saat pengguna paling sibuk membaca jawaban. */
+.tanya-kontrol {
+  position: relative;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+}
+
 .tanya-field {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 20px;
-  padding: 10px 14px;
+  padding: 14px;
   background: #fff;
   box-shadow: 0 6px 18px rgb(16 43 73 / 6%);
   transition: border-color .18s ease, box-shadow .18s ease;
@@ -4907,23 +4921,28 @@ body.has-kader-dialog {
   box-shadow: 0 0 0 4px rgb(23 109 168 / 14%);
 }
 
+/* Satu baris (24px) + 28px bantalan = 52px saat kosong; tumbuh sampai 148px
+   lalu menggulir di dalam, jadi komposer tidak pernah memakan percakapan. */
 .tanya-field textarea {
   flex: 1;
   min-width: 0;
-  min-height: 42px;
-  max-height: 168px;
+  min-height: 24px;
+  max-height: 118px;
   border: 0;
   background: none;
   color: var(--ink);
   font: inherit;
   font-size: .95rem;
   line-height: 1.45;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   resize: none;
   outline: none;
 }
 
 .tanya-submit {
-  flex: 0 0 auto;
+  position: absolute;
+  inset: 0;
   display: grid;
   width: 46px;
   height: 46px;
@@ -4961,48 +4980,58 @@ body.has-kader-dialog {
   cursor: progress;
 }
 
-/* Saat jawaban disusun, tombol kirim berdenyat supaya statusnya terasa hidup. */
-.tanya-composer.is-busy .tanya-submit {
-  animation: submit-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes submit-pulse {
-  0%, 100% { box-shadow: 0 8px 18px rgb(23 109 168 / 20%); }
-  50% { box-shadow: 0 8px 26px rgb(23 109 168 / 45%); }
-}
-
-/* Saat jawaban disusun, kirim berganti menjadi "Hentikan" (tombol kirim disembunyikan). */
+/* Hentikan menempati slot yang sama, jadi kirim harus benar-benar tersisih. */
 .tanya-submit.is-tertutup {
   opacity: 0;
   pointer-events: none;
   transform: scale(.7);
 }
 
+/* Saat jawaban disusun, Hentikan berdenyat supaya statusnya terasa hidup. */
+.tanya-composer.is-busy .tanya-stop {
+  animation: stop-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes stop-pulse {
+  0%, 100% { box-shadow: 0 6px 16px rgb(16 43 73 / 8%); }
+  50% { box-shadow: 0 6px 24px rgb(36 80 121 / 30%); }
+}
+
+/* Saat jawaban disusun, tombol kirim berganti menjadi Hentikan di lubang yang
+   sama: bulat 46px, ikon kotak, label tetap terbaca oleh pembaca layar. */
 .tanya-stop {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 46px;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
   border: 1px solid #d6e3f0;
-  border-radius: 999px;
-  padding: 10px 16px;
+  border-radius: 50%;
+  padding: 0;
   background: #fff;
   color: #245079;
   font: inherit;
-  font-size: .82rem;
-  font-weight: 800;
   cursor: pointer;
   box-shadow: 0 6px 16px rgb(16 43 73 / 8%);
   animation: bubble-in .22s ease both;
 }
 
 .tanya-stop::before {
-  width: 9px;
-  height: 9px;
-  border-radius: 2.5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3.5px;
   background: #245079;
   content: '';
+}
+
+.tanya-stop > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .tanya-stop:hover {
@@ -5078,15 +5107,31 @@ body.has-kader-dialog {
   transform: translate(-50%, 0);
 }
 
+/* Kuota dan tombol aksi berbagi satu baris hanya bila keduanya benar-benar
+   muat. Tanpa flex-wrap, satu-satunya anak yang boleh menyusut adalah teks
+   kuota — ia hancur menjadi satu kata per baris (9px lebarnya di layar 320px). */
 .tanya-meter {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 2px 8px;
   width: min(760px, 100%);
   margin: 8px auto 0;
   color: var(--muted);
   font-size: .74rem;
+  line-height: 1.4;
+}
+
+.tanya-meter_info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tanya-meter_aksi {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin-left: auto;
 }
 
 .tanya-reset {
@@ -5193,6 +5238,12 @@ body.has-kader-dialog {
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
   }
 
+  /* Cadangan 76px untuk bar bawah juga ada di <body>; ikut dilepas supaya
+     komposer benar-benar menempel di atas papan ketik, tidak menggantung. */
+  body.tanya-keyboard-up {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
   /* iOS berhenti memperbesar halaman saat kolom diisi bila teksnya 16px. */
   .tanya-field textarea {
     font-size: 16px;
@@ -5200,6 +5251,11 @@ body.has-kader-dialog {
 
   .tanya-meter {
     font-size: .78rem;
+  }
+
+  /* Toolbar jawaban ikut target sentuh 44px, sama seperti kontrol lainnya. */
+  .tanya-act {
+    min-height: 44px;
   }
 
   .tanya-reset,
@@ -5218,20 +5274,25 @@ body.has-kader-dialog {
     padding-left: max(12px, env(safe-area-inset-left));
   }
 
+  /* Dua baris tetap: baris 1 sisa kuota, baris 2 tombol aksi. */
   .tanya-meter {
     align-items: flex-start;
   }
 
-  .tanya-meter > span {
-    min-width: 0;
+  .tanya-meter_info {
+    flex: 1 1 100%;
   }
 
-  .tanya-reset {
-    flex: 0 0 auto;
+  .tanya-meter_aksi {
+    flex-wrap: wrap;
+    gap: 0 2px;
+    margin-left: 0;
   }
 
   .tanya-disclaimer {
+    margin-top: 8px;
     font-size: .72rem;
+    line-height: 1.5;
   }
 }
 

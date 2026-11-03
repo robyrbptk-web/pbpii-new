@@ -662,10 +662,10 @@
       }
     }
 
-    // Tinggi textarea mengikuti isi, maksimal enam baris.
+    // Tinggi textarea mengikuti isi; sisanya menggulir di dalam kolom (lihat max-height CSS).
     const grow = () => {
       input.style.height = 'auto';
-      input.style.height = `${Math.min(input.scrollHeight, 168)}px`;
+      input.style.height = `${Math.min(input.scrollHeight, 118)}px`;
     };
 
     input.addEventListener('input', grow);
@@ -715,7 +715,9 @@
     const ukurKomposer = () => document.documentElement.style
       .setProperty('--tanya-composer-tinggi', `${form.offsetHeight}px`);
     ukurKomposer();
-    window.addEventListener('resize', ukurKomposer);
+    // Komposer tumbuh saat menulis, bukan hanya saat jendela berubah ukuran.
+    if (typeof ResizeObserver === 'function') new ResizeObserver(ukurKomposer).observe(form);
+    else window.addEventListener('resize', ukurKomposer);
     if (viewport) {
       const ukur = () => {
         const naik = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));

@@ -73,15 +73,21 @@
         <label class="tanya-field">
           <textarea id="tanyaInput" name="q" rows="1" maxlength="900" placeholder="Tulis pertanyaan apa pun…" autocomplete="off" enterkeyhint="send"></textarea>
         </label>
-        <button class="tanya-stop" id="tanyaStop" type="button" hidden>Hentikan</button>
-        <button class="tanya-submit" id="tanyaSubmit" type="submit" aria-label="Kirim pertanyaan">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
-        </button>
+        <div class="tanya-kontrol">
+          <button class="tanya-stop" id="tanyaStop" type="button" hidden>
+            <span>Hentikan</span>
+          </button>
+          <button class="tanya-submit" id="tanyaSubmit" type="submit" aria-label="Kirim pertanyaan">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+          </button>
+        </div>
       </div>
       <p class="tanya-meter">
-        <span id="tanyaQuota">Menyiapkan kuota…</span>
-        <button type="button" class="tanya-reset" id="tanyaExport">Unduh PDF percakapan</button>
-        <button type="button" class="tanya-reset" id="tanyaReset">Percakapan baru</button>
+        <span class="tanya-meter_info" id="tanyaQuota">Menyiapkan kuota…</span>
+        <span class="tanya-meter_aksi">
+          <button type="button" class="tanya-reset" id="tanyaExport">Unduh PDF percakapan</button>
+          <button type="button" class="tanya-reset" id="tanyaReset">Percakapan baru</button>
+        </span>
       </p>
       <p class="tanya-disclaimer">Pertanyaan seputar PII dijawab dari kutipan berkas PII atau sumber penelusuran yang tercantum. Untuk keputusan resmi, konfirmasi ke pengurus PB PII.</p>
     </form>

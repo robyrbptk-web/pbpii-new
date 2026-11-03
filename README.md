@@ -216,10 +216,15 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
   (`index/acara/ibadah/tanya/peta.html`) memuat tab **Tanya** permanen di bar
   navigasi — di ponsel menjadi salah satu tab bawah, di layar lebar menjadi
   bagian menu atas — sehingga tidak ada lagi elemen tetap yang menutupi menu.
-  Di `/tanya.html` komposer menempel di bawah dengan kolom input 16 px/48 px
-  dan tombol kirim ≥44 px, serta naik setinggi papan ketik lewat
-  `--tanya-keyboard`. Semua elemen `position:fixed` diuji: nol yang menutupi
-  bar navigasi.
+  Di `/tanya.html` komposer menempel di bawah: kolom tulis 16 px dengan tinggi
+  52–57 px saat kosong dan tumbuh sampai 147 px (lalu menggulir di dalamnya),
+  tombol kirim 46 px, dan baris kuota yang di ponsel selalu dua tingkat —
+  sisa kuota satu baris penuh, lalu **Unduh PDF percakapan** + **Percakapan
+  baru** pada baris berikutnya. Komposer utuh 274 px pada 390×844, jadi
+  percakapan tetap mendapat 428 px. Saat papan ketik muncul, `--tanya-keyboard`
+  dan `body.tanya-keyboard-up` melepas cadangan bar navigasi (di `body`
+  maupun di komposer) sehingga kolom tulis menempel di atas papan ketik.
+  Semua elemen `position:fixed` diuji: nol yang menutupi bar navigasi.
 - 114 ringkasan "Tafsir" per ayat di `/ibadah.html`, tombol halaman di pembaca,
   dan tombol ikon di atas globe dinaikkan ke ≥44 px.
 - Lantai huruf: tidak ada teks yang lebih kecil dari 11 px di ponsel, dan nyaris
@@ -777,6 +782,21 @@ Aksesnya lewat tab **Tanya** di bar navigasi (tidak ada tombol mengambang), dan
 halaman ini terbuka untuk pengunjung tanpa akun. Tinggi halaman memakai
 `calc(100dvh - var(--tanya-keyboard))` supaya komposer tidak tertutup papan
 ketik di HP.
+
+**Tiga hal yang pernah merusak komposer di HP dan dijaga tetap begini.**
+(1) `.tanya-meter` harus `flex-wrap: wrap`: selama baris itu nowrap, satu-satunya
+anak yang boleh menyusut adalah teks kuota, dan ia hancur ke lebar min-content
+(terukur 9 × 206 px — sepuluh baris satu kata — di layar 320 px, komposer
+membengkak jadi 417 px). Tombol aksi sekarang dibungkus `.tanya-meter_aksi`
+dan teks kuota `.tanya-meter_info` yang di ponsel mendapat `flex-basis: 100%`.
+(2) `.tanya-page` wajib `min-height: 0`; aturan global `body { min-height: 100dvh }`
+menang bukan karena spesifisitas melainkan karena `min-height` selalu melampaui
+`height`, sehingga tanpa itu halaman tidak pernah menyusut dan papan ketik menutupi
+kolom tulis. (3) Kirim dan Hentikan berbagi satu
+lubang 46 px (`.tanya-kontrol`, keduanya `position:absolute`) — sebagai dua tombol
+sejajar, pil "Hentikan" menarik 56 px dan kolom tulis menyempit justru saat jawaban
+sedang disusun. Tinggi komposer dilaporkan ke CSS lewat `ResizeObserver`
+(`--tanya-composer-tinggi`) agar tombol "ke bawah" tidak pernah menimpanya.
 
 **Dua mode jawaban.** Proxy `/api/chat` mengenali pertanyaan yang menyangkut
 organisasi dari daftar istilah di `ORGANIZATION_TERMS` (PII, kader, kongres,
