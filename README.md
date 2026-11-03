@@ -734,8 +734,8 @@ tabel Supabase tanpa mengubah kontrak API frontend.
 
 ## H. Tanya PII (asisten AI satu halaman penuh)
 
-`/tanya.html` adalah halaman chat satu kolom ala aplikasi percakapan: intro +
-chip contoh pertanyaan, utas jawaban, dan komposer yang menempel di bawah.
+`/tanya.html` adalah halaman chat satu kolom ala aplikasi percakapan: intro
+bertenaga lencana identitas, utas jawaban, dan komposer yang menempel di bawah.
 Aksesnya lewat tab **Tanya** di bar navigasi (tidak ada tombol mengambang), dan
 halaman ini terbuka untuk pengunjung tanpa akun. Tinggi halaman memakai
 `calc(100dvh - var(--tanya-keyboard))` supaya komposer tidak tertutup papan
@@ -756,12 +756,16 @@ menandai pertanyaan yang menanyakan siapa asisten itu (termasuk bentuk dengan
 akhiran "-mu" seperti "siapa pembuatmu") dan semua upaya membuka isinya — `MEMBONGKAR`
 ("system prompt", "kunci api", "abaikan instruksi", "endpoint", "jailbreak", …)
 dan `MEMBONGKAR_INGGRIS` ("who are you", "reveal your", "act as", …). Yang
-terkena aturan ini mendapat `JAWABAN_IDENTITAS` yang tetap: Tanya PII adalah model
-AI yang dikembangkan Badan Khusus Inovasi Digital PB PII, dan nama model dasar,
-penyedia, kunci, serta instruksi sistem tidak diungkap. Permintaan semacam itu
-tidak pernah diteruskan ke model, tetap dihitung ke kuota harian supaya tidak
-jadi celah spam, dan dibalas dengan `mode: 'identitas'`. Nama penyedia tidak
-pernah dikirim ke browser (kolom `provider` dihilangkan dari muatan balasan).
+terkena aturan ini mendapat `JAWABAN_IDENTITAS` yang tetap: perkenalan diri sebagai
+Tanya PII, model AI karya Badan Khusus Inovasi Digital PB PII, diikuti kemampuan,
+sumber rujukan, dan arah yang benar untuk urusan teknis platform. Sengaja tidak
+ada kalimat "tidak bisa diungkap" — penolakan justru dibaca sebagai menutupi
+sesuatu. Permintaan semacam itu tidak pernah diteruskan ke model, tetap dihitung
+ke kuota harian supaya tidak jadi celah spam, dan dibalas dengan
+`mode: 'identitas'`. Nama penyedia tidak pernah dikirim ke browser (kolom
+`provider` dihilangkan dari muatan balasan), dan `systemPrompt()` membawa arahan
+searah untuk lapisan kedua: jangan pernah menyebut atau menebak bahan teknis,
+tapi jangan pula mengatakan bahannya dirahasiakan.
 
 **Jawaban disusun dengan Markdown.** `systemPrompt()` meminta paragraf pendek,
 daftar, penanda tebal, dan blok kode; `rapikanTeks()` menjaga pergantian baris

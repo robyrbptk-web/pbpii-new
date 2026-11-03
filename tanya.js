@@ -530,11 +530,6 @@
       input.focus();
     });
 
-    // Chip contoh pertanyaan memakai pertanyaan lengkapnya, bukan label singkat.
-    document.querySelectorAll('#tanyaIntro [data-tanya]').forEach((chip) => {
-      chip.addEventListener('click', () => send(chip.dataset.tanya));
-    });
-
     // Ganti akun (misal baru daftar) langsung memperbarui jatah yang tampil.
     let tokenTerakhir = sessionToken();
     window.PBPIIAkun?.onChange?.(() => {
