@@ -222,7 +222,7 @@
     }
   }
 
-  /** Jawaban verifikasi sekali pakai: minta soal baru setiap kali server menolak. */
+  /** Token lama tidak berlaku lagi: widget diambil ulang setiap kali server menolak. */
   async function ulangiVerifikasi(pane) {
     const state = verifikasi[pane];
     if (!state) return;
@@ -347,7 +347,7 @@
     setNotice('');
     try {
       applySession(await jalankan());
-      // Jawaban verifikasi sekali pakai dan kredenter tidak boleh tertinggal
+      // Jawaban verifikasi dan kredenter tidak boleh tertinggal
       // di perangkat, jadi formulir dibersihkan untuk pemakaian berikutnya.
       form.reset();
       if (pane) {

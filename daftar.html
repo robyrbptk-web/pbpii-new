@@ -99,7 +99,7 @@
           <div class="field"><label class="lbl" for="phone">Nomor WhatsApp</label><input id="phone" inputmode="tel" placeholder="08xx"></div>
           <div class="field"><label class="lbl" for="skUrl">Tautan SK / surat tugas</label><input id="skUrl" type="url" placeholder="https://drive.google.com/..."><div class="hint">Opsional, memudahkan verifikasi.</div></div>
           <div class="field full"><label class="lbl" for="note">Catatan untuk verifikator</label><textarea id="note" maxlength="500" placeholder="Contoh: SK periode 2025–2029, kontak sekretaris."></textarea></div>
-          <div class="field full"><label class="lbl">Verifikasi singkat</label><div id="captchaBox"></div><div class="hint">Dipakai untuk menahan pendaftaran ganda dari bot.</div></div>
+          <div class="field full"><label class="lbl">Verifikasi keamanan</label><div id="captchaBox"></div><div class="hint">Dipakai untuk menahan pendaftaran ganda dari bot.</div></div>
         </div>
 
         <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
@@ -424,7 +424,7 @@
       if (level === 'PK' && !subdistrict) return showMessage('Pilih atau tulis nama kecamatan.', 'err');
       if (password.length < 8) return showMessage('Kata sandi minimal 8 karakter.', 'err');
       if (password !== $('password2').value) return showMessage('Kata sandi dan ulangannya tidak sama.', 'err');
-      if (verifikasi && !verifikasi.valid()) return showMessage('Isi dulu jawaban verifikasi singkat, lalu kirim.', 'err');
+      if (verifikasi && !verifikasi.valid()) return showMessage('Centang kotak verifikasi keamanan dulu, lalu kirim.', 'err');
 
       const payload = {
         action: 'orgRegister',
@@ -468,7 +468,7 @@
         message.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } catch (error) {
         showMessage(error.message, 'err');
-        // Satu soal hanya berlaku sekali, jadi jawaban yang ditolak diganti soal baru.
+        // Token lama sudah dipakai, jadi widget dimuat ulang setiap kali ditolak.
         if (error.code === 'captcha') await verifikasi?.reload();
       } finally {
         button.disabled = false;

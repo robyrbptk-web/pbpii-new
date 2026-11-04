@@ -72,7 +72,7 @@
           <div class="field"><label class="lbl" for="rPhone">Nomor WhatsApp</label><input id="rPhone" inputmode="tel" maxlength="40"></div>
           <div class="field"><label class="lbl" for="rEmail">Email</label><input id="rEmail" type="email" maxlength="160"></div>
           <div class="field"><label class="lbl" for="rNote">Catatan</label><textarea id="rNote" maxlength="1000" placeholder="Kebutuhan khusus, asal daerah, atau pertanyaan."></textarea></div>
-          <div class="field"><span class="lbl">Verifikasi singkat</span><div id="captchaBox"></div></div>
+          <div class="field"><span class="lbl">Verifikasi keamanan</span><div id="captchaBox"></div></div>
           <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
         </form>
       </div>
@@ -152,7 +152,7 @@
       }
       if (verifikasi && !verifikasi.valid()) {
         $('formMessage').className = 'msg show err';
-        $('formMessage').textContent = 'Isi dulu jawaban verifikasi singkat di atas, lalu kirim.';
+        $('formMessage').textContent = 'Centang kotak verifikasi keamanan di atas dulu, lalu kirim.';
         return;
       }
 
@@ -186,7 +186,7 @@
       } catch (error) {
         $('formMessage').className = 'msg show err';
         $('formMessage').textContent = error.message;
-        // Jawaban verifikasi sekali pakai, jadi ambil soal baru setiap kali ditolak.
+        // Token lama sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
         if (error.code === 'captcha' && verifikasi) await verifikasi.reload();
       } finally {
         button.disabled = false;

@@ -171,13 +171,19 @@ function articleContentHtml(content) {
   if (!/<\s*[a-z/][^>]*>/i.test(raw)) return articleParagraphs(raw);
 
   const parsed = new DOMParser().parseFromString(raw, 'text/html');
-  const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','sub','sup','ul','ol','li','blockquote','a','img','span','font']);
-  const blocked = new Set(['script','style','iframe','object','svg','math','template']);
+  const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','sub','sup','ul','ol','li','blockquote','a','img','span','font','table','thead','tbody','tr','td','th']);
+  const blocked = new Set(['script','style','iframe','object','svg','math','template','form','link','meta','button']);
   const voids = new Set(['br','hr','img']);
   const safeHref = (value) => {
     const href = String(value || '').trim();
     if (/^https:\/\/[^\s]+$/i.test(href) || /^mailto:[^\s@]+@[^\s@]+$/i.test(href)) return href;
     return /^(?:\/(?!\/)|#|\.\/|\.\.\/)[^\s]*$/.test(href) && !/[\\\u0000-\u001f]/.test(href) ? href : '';
+  };
+  /* Lebar kolom tabel ditahan sebagai bilangan bulat kecil; atribut lain,
+     termasuk yang bisa membawa gaya, tidak ikut tersalin. */
+  const spanSel = (nama, nilai) => {
+    const angka = parseInt(String(nilai || '').trim(), 10);
+    return Number.isFinite(angka) && angka >= 1 && angka <= 20 ? String(angka) : '';
   };
   const copy = (node) => {
     if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
@@ -218,8 +224,13 @@ function articleContentHtml(content) {
         : node.getAttribute('data-font');
       if (['small','normal','large'].includes(size)) element.dataset.size = size;
       if (['serif','sans'].includes(font)) element.dataset.font = font;
+    } else if (tag === 'td' || tag === 'th') {
+      ['colspan', 'rowspan'].forEach((nama) => {
+        const nilai = spanSel(nama, node.getAttribute(nama));
+        if (nilai) element.setAttribute(nama, nilai);
+      });
     }
-    if (['p','div','h2','h3','h4','blockquote'].includes(tag)) {
+    if (['p','div','h2','h3','h4','blockquote','li','td','th'].includes(tag)) {
       const alignment = String(node.style.textAlign || '').toLowerCase();
       if (['left','center','right','justify'].includes(alignment)) {
         element.style.textAlign = alignment;

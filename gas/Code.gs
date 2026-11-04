@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-02.4';
+const BACKEND_VERSION = '2026-11-04.1';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -1192,7 +1192,7 @@ function orgSaveArticle_(org, article) {
 
 function articleText_(value) {
   return String(value || '')
-    .replace(/&(?!(?:amp|lt|gt|quot|apos|#39|#\d+|#x[\da-f]+);)/gi, '&amp;')
+    .replace(/&(?!(?:amp|lt|gt|quot|apos|nbsp|#39|#\d+|#x[\da-f]+);)/gi, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
@@ -1244,7 +1244,8 @@ function sanitizeArticleHtml_(value, allowPrivateImages) {
 
   const allowed = new Set([
     'p', 'div', 'br', 'hr', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i',
-    'u', 's', 'del', 'sub', 'sup', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'font'
+    'u', 's', 'del', 'sub', 'sup', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'font',
+    'table', 'thead', 'tbody', 'tr', 'td', 'th'
   ]);
   const voidTags = new Set(['br', 'hr', 'img']);
   const blockedTags = new Set(['script', 'style', 'iframe', 'object', 'svg', 'math', 'template']);
@@ -1321,9 +1322,16 @@ function sanitizeArticleHtml_(value, allowPrivateImages) {
         : '';
       html += '<span' + (size ? ' data-size="' + size + '"' : '') +
         (font ? ' data-font="' + font + '"' : '') + '>';
-    } else if (['p', 'div', 'h2', 'h3', 'h4', 'blockquote'].indexOf(tag) >= 0) {
+    } else if (['p', 'div', 'h2', 'h3', 'h4', 'blockquote', 'li', 'td', 'th'].indexOf(tag) >= 0) {
       const alignment = String(attrs.style || '').match(/(?:^|;)\s*text-align\s*:\s*(left|center|right|justify)\s*(?:;|$)/i);
-      html += '<' + tag + (alignment ? ' style="text-align: ' + alignment[1].toLowerCase() + ';"' : '') + '>';
+      const rentang = (tag === 'td' || tag === 'th')
+        ? ['colspan', 'rowspan'].map(function (nama) {
+            const angka = parseInt(String(attrs[nama] || ''), 10);
+            return Number.isFinite(angka) && angka >= 1 && angka <= 20 ? ' ' + nama + '="' + angka + '"' : '';
+          }).join('')
+        : '';
+      html += '<' + tag + rentang +
+        (alignment ? ' style="text-align: ' + alignment[1].toLowerCase() + ';"' : '') + '>';
     } else {
       html += '<' + tag + '>';
     }
@@ -3596,7 +3604,6 @@ const RATE_RULES = {
 
 /** Cache script Apps Script dipaksa tenggelam setelah 600 detik. */
 const CACHE_MAX_SECONDS = 600;
-const CAPTCHA_TTL_SECONDS = 600;
 
 function clientIp_(body) {
   const forwarded = String((body && body.ip) || '').split(',')[0].trim();
@@ -3648,69 +3655,29 @@ function publicSettings_(settings) {
   return copy;
 }
 
-function captchaKey_(id) {
-  return 'cap:' + String(id || '').slice(0, 60);
-}
-
-/**
- * Soal verifikasi. Cloudflare Turnstile dipakai bila kuncinya diisi admin;
- * kalau tidak, server membuat soal hitung sederhana sendiri sehingga bots
- * tetap harus membaca dan menjawab, tanpa biaya dan tanpa daftar ke mana pun.
- */
-function captchaIssue_(body) {
-  throttle_('captcha-issue', clientIp_(body));
-
+/** Kunci Cloudflare Turnstile; kedua kolom harus terisi sebelum widget dipakai. */
+function turnstileKeys_() {
   const settings = settingsMap_();
   const siteKey = String(settings.turnstileSiteKey || '').trim();
   const secret = String(settings.turnstileSecret || '').trim();
-  if (siteKey && secret) {
-    return { kind: 'turnstile', siteKey: siteKey };
-  }
-
-  const left = 3 + Math.floor(Math.random() * 8);
-  const right = 2 + Math.floor(Math.random() * 9);
-  const id = Utilities.getUuid();
-  CacheService.getScriptCache().put(captchaKey_(id), String(left * right), CAPTCHA_TTL_SECONDS);
-
-  return {
-    kind: 'local',
-    id: id,
-    question: 'Berapa hasil ' + left + ' × ' + right + ' ?',
-    ttlSeconds: CAPTCHA_TTL_SECONDS
-  };
+  return siteKey && secret ? { siteKey: siteKey, secret: secret } : null;
 }
 
-/** Dipanggil tiap aksi tulis publik; sekali pakai supaya tidak bisa diulang. */
+/**
+ * Verifikasi manusia memakai kotak centang Cloudflare Turnstile: gratis dan
+ * tidak meminta siapa pun menghitung soal. Selama kuncinya belum dipasang,
+ * server mengembalikan 'none' sehingga formulir hanya memakai pembatas laju IP.
+ */
+function captchaIssue_(body) {
+  throttle_('captcha-issue', clientIp_(body));
+  const keys = turnstileKeys_();
+  return keys ? { kind: 'turnstile', siteKey: keys.siteKey } : { kind: 'none' };
+}
+
+/** Dipanggil tiap aksi tulis publik; token hanya dituntut saat widget dipasang. */
 function assertCaptcha_(body) {
-  const settings = settingsMap_();
-  const secret = String(settings.turnstileSecret || '').trim();
-  if (secret) {
-    verifyTurnstile_(secret, body.captchaToken, clientIp_(body));
-    return;
-  }
-
-  const id = String(body.captchaId || '').trim();
-  const answer = String(body.captchaAnswer || '').replace(/\s+/g, '');
-  if (!id || !answer) {
-    const error = new Error('Isi soal verifikasi singkat dulu sebelum mengirim.');
-    error.code = 'captcha';
-    throw error;
-  }
-
-  const cache = CacheService.getScriptCache();
-  const expected = cache.get(captchaKey_(id));
-  if (!expected) {
-    const error = new Error('Waktu verifikasi habis. Ambil soal baru lalu coba lagi.');
-    error.code = 'captcha';
-    throw error;
-  }
-  if (answer !== String(expected)) {
-    cache.remove(captchaKey_(id));
-    const error = new Error('Jawaban verifikasi salah. Periksa kembali soalnya.');
-    error.code = 'captcha';
-    throw error;
-  }
-  cache.remove(captchaKey_(id));
+  const keys = turnstileKeys_();
+  if (keys) verifyTurnstile_(keys.secret, body.captchaToken, clientIp_(body));
 }
 
 function verifyTurnstile_(secret, token, ip) {

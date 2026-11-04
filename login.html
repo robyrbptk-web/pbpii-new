@@ -88,8 +88,8 @@
     const message = document.getElementById('message');
     const submitButton = document.getElementById('submitButton');
 
-    // Verifikasi anti-spam: soal hitung dari server (atau Turnstile bila kunci
-    // Cloudflare sudah diisi di Pengaturan admin).
+    // Verifikasi manusia memakai kotak centang Cloudflare Turnstile. Wadah ini
+    // disembunyikan sendiri bila kunci belum dipasang di Pengaturan admin.
     let verifikasi = null;
     if (window.PBPIICaptcha && document.getElementById('loginCaptcha')) {
       verifikasi = window.PBPIICaptcha.attach(document.getElementById('loginCaptcha'));
@@ -144,7 +144,7 @@
         window.location.href = '/admin.html';
       } catch (error) {
         showMessage(error.message || 'Tidak dapat terhubung ke server.', 'error');
-        // Jawaban verifikasi sekali pakai: minta soal baru setiap kali ditolak.
+        // Token lama sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
         if (verifikasi && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
           verifikasi.reset();
           verifikasi.reload?.().catch(() => {});

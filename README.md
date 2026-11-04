@@ -763,13 +763,41 @@ Dua lapisan, keduanya aktif bersamaan:
    suka 20/60s, komentar 4/180s per akun, komentar 20/600s
    per IP, unggah foto 10/600s, chat 6/60s.
 
-Captcha memakai soal hitung yang dibuat server (`captcha.js` + `captchaIssue_`),
-jadi tanpa kunci dan tanpa biaya; ia hanya dipakai di **formulir pendaftaran publik,
-pendaftaran lembaga, dan pendaftaran akun kader**. Kolom komentar acara tidak memakai captcha karena
-penulisnya sudah terikat akun (Google atau email), dan dibatasi oleh kuota harian + kedua
-lapis pembatas laju di atas. Bila `turnstileSiteKey` dan `turnstileSecret` diisi,
-`captchaIssue_` otomatis mengembalikan mode Turnstile dan frontend beralih tanpa
-perubahan kode.
+Verifikasi manusia memakai **Cloudflare Turnstile** — kotak centang "Verify you
+are human" yang gratis dan tidak lagi menyuruh siapa pun menghitung soal
+(`captcha.js` + `captchaIssue_`). Widgetnya dipasang di semua jalur masuk dan
+daftar: login admin, login lembaga, login/daftar kader (Google maupun email),
+pendaftaran lembaga, dan formulir pendaftaran peserta kegiatan. Kolom komentar
+acara tidak memakai captcha karena penulisnya sudah terikat akun (Google atau
+email), dan dibatasi oleh kuota harian + kedua lapis pembatas laju di atas.
+
+Cara memasangnya (satu kali, tanpa mengubah kode):
+
+1. Daftar Cloudflare (gratis) → dashboard **Turnstile** → *Add a widget* (atau
+   *Widgets* → *Add widget*).
+2. Isi **Site name** dengan domain situs (mis. `pbpii-new.vercel.app`; boleh
+   beberapa domain, termasuk `localhost` untuk uji di mesin sendiri) dan pilih
+   **Widget Mode = Interactive** supaya kotak centangnya selalu terlihat. Mode
+   *Managed* sering tampil tanpa kotak, *Non-interactive* tidak menampilkan apa
+   pun.
+3. Salin **Site Key** dan **Secret Key** ke **Dasbor admin → Pengaturan →
+   "Cloudflare Turnstile Site Key" dan "Secret Key"**, lalu simpan. Secret tidak
+   pernah ditampilkan kembali dan tidak pernah dikirim ke browser
+   (`SECRET_SETTINGS`).
+4. Terbitkan versi Apps Script baru — pengaturan dibaca dari sheet `Settings`,
+   jadi tidak perlu mengubah kode.
+
+Selama **kedua** kolom itu belum terisi, `captchaIssue_` mengembalikan
+`{ kind: 'none' }`: wadah verifikasi disembunyikan dan `assertCaptcha_` tidak
+menuntut token, sehingga tidak ada satu pun formulir yang terkunci oleh kunci
+yang belum dipasang. Kalau widget gagal dimuat (mis. jaringan memblokir
+`challenges.cloudflare.com`), halaman menampilkan pesan singkat dan pengiriman
+akan ditolak server dengan pesan captcha — muat ulang halaman untuk memanggil
+widget sekali lagi.
+
+Uji manual: buka `/login.html` atau `/akun.html`; bila kotak centang tidak
+muncul, artinya salah satu kolom kunci masih kosong. Token palsu ditolak
+`siteverify` dengan `code: 'captcha'`.
 
 ### Catatan migrasi
 Backend ini sengaja masih memakai Google Sheets + Apps Script sebagai langkah

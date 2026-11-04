@@ -627,6 +627,37 @@ body.is-locked {
 .reader-article [data-size="large"] { font-size: 1.2em; }
 .reader-article [data-font="serif"] { font-family: Georgia, "Times New Roman", serif; }
 
+/* Tabel yang dibuat di dasbor harus tetap terbaca di halaman publik. */
+.reader-article table {
+  width: 100%;
+  margin: 0 0 1.2em;
+  border-collapse: collapse;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: .92em;
+  line-height: 1.6;
+}
+
+.reader-article th,
+.reader-article td {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.reader-article th {
+  background: #f6f8f7;
+  font-weight: 800;
+}
+
+@media (max-width: 680px) {
+  /* Tabel lebar digeser di dalam tabelnya, bukan seluruh layar pembaca. */
+  .reader-article { overflow-wrap: anywhere; }
+  .reader-article table { display: block; overflow-x: auto; white-space: nowrap; }
+  .reader-article td,
+  .reader-article th { white-space: normal; min-width: 110px; }
+}
+
 .reader-lead {
   color: var(--navy);
   font-size: 1.12rem !important;

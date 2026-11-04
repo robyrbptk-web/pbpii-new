@@ -731,17 +731,21 @@ function request(body) {
   return JSON.parse(response.getContentText());
 }
 
-/** Soal verifikasi diisi angka, jadi jawabannya bisa dihitung dari teksnya. */
-function answerOf(question) {
-  const numbers = String(question).match(/\d+/g) || [];
-  return String(Number(numbers[0]) * Number(numbers[1]));
+/**
+ * Cloudflare Turnstile satu-satunya verifikasi, jadi kunci pengujinya dipasang
+ * lebih dulu; blok di bawah mengembalikan lagi keadaan belum ber kunci.
+ */
+function aturSetting(key, value) {
+  const row = rowsOf('Settings').find((item) => item.key === key);
+  if (row) row.value = value;
+  else seed('Settings', [{ key, value }]);
 }
+aturSetting('turnstileSiteKey', 'site-key-abc');
+aturSetting('turnstileSecret', 'secret-xyz');
+http.turnstile = { success: true };
 
-/** Semua jalur masuk kini didahului verifikasi: ambil soal, jawab benar. */
-function verifikasiMasuk(ip) {
-  const soal = request({ action: 'captcha', ip });
-  return { captchaId: soal.data.id, captchaAnswer: answerOf(soal.data.question) };
-}
+/** Browser mengirim token dari widget, bukan jawaban hitungan. */
+const TOKEN_MANUSIA = { captchaToken: 'tok-manusia' };
 
 const percobaanLogin = [];
 for (let i = 0; i < 9; i += 1) {
@@ -751,8 +755,8 @@ check('delapan percobaan login pertama dilayani normal', percobaanLogin.slice(0,
 check('percobaan login kesembilan dibatasi laju', percobaanLogin[8].code, 'rate_limited');
 check('jawaban pembatas menyertakan hitung tunggu', typeof percobaanLogin[8].retryAfter, 'number');
 check('pembatas laju memakai kunci IP dari proxy', gas.clientIp_({ ip: '203.0.113.7, 10.0.0.1' }), '203.0.113.7');
-check('masuk admin tanpa verifikasi ditolak', request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.8' }).code, 'captcha');
-check('masuk lembaga tanpa verifikasi ditolak', request({ action: 'orgLogin', email: 'pk-baru@example.com', password: 'tebakan', ip: '198.51.100.45' }).code, 'captcha');
+check('masuk admin tanpa centang Turnstile ditolak', request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.8' }).code, 'captcha');
+check('masuk lembaga tanpa centang Turnstile ditolak', request({ action: 'orgLogin', email: 'pk-baru@example.com', password: 'tebakan', ip: '198.51.100.45' }).code, 'captcha');
 
 let lewatBeruntun = 0;
 for (let i = 0; i < gas.RATE_RULES.chat.limit + 1; i += 1) {
@@ -765,45 +769,40 @@ for (let i = 0; i < gas.RATE_RULES.chat.limit + 1; i += 1) {
 }
 check('pertanyaan Tanya PII dibatasi per menit', lewatBeruntun, gas.RATE_RULES.chat.limit);
 
+const widget = request({ action: 'captcha', ip: '203.0.113.7' });
+check('browser ditawari widget Turnstile, bukan soal hitung', widget.data, { kind: 'turnstile', siteKey: 'site-key-abc' });
+const payloadPublic = request({ action: 'public', ip: '203.0.113.7' });
+check('kunci rahasia tidak pernah keluar ke browser', 'turnstileSecret' in payloadPublic.data.settings, false);
+check('kunci situs Turnstile boleh dilihat browser', payloadPublic.data.settings.turnstileSiteKey, 'site-key-abc');
+
 const tanpaVerifikasi = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7' });
-check('pendaftaran tanpa verifikasi ditolak', tanpaVerifikasi.code, 'captcha');
+check('pendaftaran tanpa centang Turnstile ditolak', tanpaVerifikasi.code, 'captcha');
 const pesertaAwal = rowsOf('Participants').length;
-const soal = request({ action: 'captcha', ip: '203.0.113.7' });
-check('verifikasi singkat dibuat tanpa kunci eksternal', soal.data.kind, 'local');
-check('soal verifikasi memuat perkalian', /\d+ × \d+/.test(soal.data.question), true);
-const salah = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Spam Bot', ip: '203.0.113.7', captchaId: soal.data.id, captchaAnswer: '999999' });
-check('jawaban verifikasi salah ditolak', salah.ok, false);
-check('jawaban salah langsung hangus soalnya', request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Spam Bot', phone: '081100011', ip: '203.0.113.7', captchaId: soal.data.id, captchaAnswer: answerOf(soal.data.question) }).code, 'captcha');
+http.turnstile = { success: false, 'error-codes': ['bad-request'] };
+const ditolak = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Spam Bot', phone: '081100011', ip: '203.0.113.7', ...TOKEN_MANUSIA });
+check('token yang ditolak Cloudflare gagal masuk', ditolak.code, 'captcha');
+http.turnstile = { success: true };
 check('peserta baru tidak tercatat ketika ditolak', rowsOf('Participants').length, pesertaAwal);
-const soalBenar = request({ action: 'captcha', ip: '203.0.113.7' });
-const benar = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7', captchaId: soalBenar.data.id, captchaAnswer: answerOf(soalBenar.data.question) });
-check('pendaftaran lolos dengan jawaban benar', benar.ok, true);
+const benar = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7', ...TOKEN_MANUSIA });
+check('pendaftaran lolos dengan centang Turnstile', benar.ok, true);
 check('peserta tercatat satu baris', rowsOf('Participants').length, pesertaAwal + 1);
-const dipakaiUlang = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Orang Kedua', phone: '081234567891', ip: '203.0.113.7', captchaId: soalBenar.data.id, captchaAnswer: answerOf(soalBenar.data.question) });
-check('satu jawaban verifikasi hanya sekali pakai', dipakaiUlang.code, 'captcha');
 const daftarLembaga = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40' });
-check('pendaftaran lembaga juga butuh verifikasi', daftarLembaga.code, 'captcha');
-const soalLembaga = request({ action: 'captcha', ip: '198.51.100.40' });
-const daftarLolos = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40', captchaId: soalLembaga.data.id, captchaAnswer: answerOf(soalLembaga.data.question) });
+check('pendaftaran lembaga juga butuh centang Turnstile', daftarLembaga.code, 'captcha');
+const daftarLolos = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40', ...TOKEN_MANUSIA });
 check('lembaga baru terdaftar setelah verifikasi', daftarLolos.data.status, 'pending');
 
-const batasSettings = rowsOf('Settings').length;
-seed('Settings', [
-  { key: 'turnstileSiteKey', value: 'site-key-abc' },
-  { key: 'turnstileSecret', value: 'secret-xyz' }
-]);
-const soalTurnstile = request({ action: 'captcha', ip: '203.0.113.9' });
-check('Turnstile otomatis dipakai bila kuncinya diisi', soalTurnstile.data, { kind: 'turnstile', siteKey: 'site-key-abc' });
-const payloadTurnstile = request({ action: 'public', ip: '203.0.113.9' });
-check('kunci rahasia tidak pernah keluar ke browser', 'turnstileSecret' in payloadTurnstile.data.settings, false);
-check('kunci situs Turnstile boleh dilihat browser', payloadTurnstile.data.settings.turnstileSiteKey, 'site-key-abc');
-http.turnstile = { success: true };
-const lewatTurnstile = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Via Turnstile', phone: '081299990001', ip: '203.0.113.9', captchaToken: 'tok-123' });
-check('pendaftaran lolos lewat Turnstile', lewatTurnstile.ok, true);
-http.turnstile = { success: false, 'error-codes': ['bad-request'] };
-const ditolakTurnstile = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Bot', phone: '081299990002', ip: '203.0.113.9', captchaToken: 'tok-palsu' });
-check('token Turnstile yang ditolak gagal masuk', ditolakTurnstile.code, 'captcha');
-rowsOf('Settings').length = batasSettings;
+/* Baru satu kunci terisi tidak boleh mengunci siapa pun dari formulir. */
+aturSetting('turnstileSecret', '');
+check('kunci situs saja tidak menawarkan widget', request({ action: 'captcha', ip: '203.0.113.8' }).data, { kind: 'none' });
+check('setengah kunci dipasang, pendaftaran tetap lolos',
+  request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Separuh Kunci', phone: '081299990003', ip: '203.0.113.8' }).ok, true);
+aturSetting('turnstileSiteKey', '');
+check('kedua kunci kosong, login tidak menuntut captcha',
+  request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.7' }).code === 'captcha', false);
+aturSetting('turnstileSiteKey', 'site-key-abc');
+aturSetting('turnstileSecret', 'secret-xyz');
+check('kembali menuntut centang setelah kunci dipasang',
+  request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.6' }).code, 'captcha');
 
 const klaimGoogle = {
   iss: 'https://accounts.google.com',
@@ -816,10 +815,11 @@ const klaimGoogle = {
   exp: Math.floor(Date.now() / 1000) + 3600
 };
 http.google = klaimGoogle;
-const soalSalahKader = request({ action: 'captcha', ip: '198.51.100.4' });
-check('jawaban verifikasi salah menggagalkan masuk kader',
-  request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', captchaId: soalSalahKader.data.id, captchaAnswer: '999999' }).code, 'captcha');
-const masukKader = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', ...verifikasiMasuk('198.51.100.4') });
+http.turnstile = { success: false, 'error-codes': ['bad-request'] };
+check('centang yang ditolak Cloudflare menggagalkan masuk kader',
+  request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', ...TOKEN_MANUSIA }).code, 'captcha');
+http.turnstile = { success: true };
+const masukKader = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', ...TOKEN_MANUSIA });
 check('kader berhasil masuk dengan Google', masukKader.ok, true);
 check('peran kader dibedakan dari pengurus', masukKader.data.role, 'kader');
 check('nama kader diambil dari klaim Google', masukKader.data.kader.name, 'Bilal Rehnomi');
@@ -831,47 +831,43 @@ check('kader tidak punya jenjang pengurus', 'jenjang' in siapa.data, false);
 check('tamu tanpa token dikenali sebagai tamu', request({ action: 'whoami' }).data.role, 'tamu');
 check('sesi kader kedaluwarsa tidak dianggap kader', request({ action: 'whoami', token: 'ses-kedaluwarsa' }).data.role, 'tamu');
 check('kader lolos sebagai identitas Tanya PII', gas.chatIdentity_({ token: 'ses-rozak' }).kind, 'kader');
-check('token rusak ditolak sebelum diverifikasi', request({ action: 'kaderLogin', idToken: 'abc', ip: '198.51.100.5', ...verifikasiMasuk('198.51.100.5') }).ok, false);
+check('token rusak ditolak sebelum diverifikasi', request({ action: 'kaderLogin', idToken: 'abc', ip: '198.51.100.5', ...TOKEN_MANUSIA }).ok, false);
 http.google = { ...klaimGoogle, aud: 'klien-punya-orang-lain' };
-check('token Google dari situs lain ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.5', ...verifikasiMasuk('198.51.100.5') }).error, 'Token login tidak dibuat untuk website ini.');
+check('token Google dari situs lain ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.5', ...TOKEN_MANUSIA }).error, 'Token login tidak dibuat untuk website ini.');
 http.google = { ...klaimGoogle, exp: Math.floor(Date.now() / 1000) - 60 };
-check('token Google kedaluwarsa ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.6', ...verifikasiMasuk('198.51.100.6') }).error, 'Token login sudah kedaluwarsa. Silakan masuk ulang.');
+check('token Google kedaluwarsa ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.6', ...TOKEN_MANUSIA }).error, 'Token login sudah kedaluwarsa. Silakan masuk ulang.');
 http.google = { ...klaimGoogle, email_verified: false };
-check('email Google belum terverifikasi ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.7', ...verifikasiMasuk('198.51.100.7') }).ok, false);
+check('email Google belum terverifikasi ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.7', ...TOKEN_MANUSIA }).ok, false);
 http.google = { ...klaimGoogle, name: 'Bilal Baru' };
-const masukKedua = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.8', ...verifikasiMasuk('198.51.100.8') });
+const masukKedua = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.8', ...TOKEN_MANUSIA });
 check('login ulang memakai baris kader yang sama', rowsOf('Kaders').filter((row) => row.googleSub === 'sub-baru').length, 1);
 check('nama kader diperbarui dari klaim terbaru', masukKedua.data.kader.name, 'Bilal Baru');
 
 // -------------------------------------------------- masuk kader tanpa Google
 
 const daftarTanpaVerifikasi = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20' });
-check('daftar kader dengan email butuh verifikasi', daftarTanpaVerifikasi.code, 'captcha');
-const soalPendek = request({ action: 'captcha', ip: '198.51.100.20' });
-check('kata sandi pendek ditolak', request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'singkat', ip: '198.51.100.20', captchaId: soalPendek.data.id, captchaAnswer: answerOf(soalPendek.data.question) }).error, 'Kata sandi minimal 8 karakter.');
-const soalEmail = request({ action: 'captcha', ip: '198.51.100.20' });
-check('email tidak valid ditolak', request({ action: 'kaderRegister', email: 'bukan-email', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', captchaId: soalEmail.data.id, captchaAnswer: answerOf(soalEmail.data.question) }).error, 'Alamat email tidak valid.');
-const soalDaftar = request({ action: 'captcha', ip: '198.51.100.20' });
-const daftar = request({ action: 'kaderRegister', email: 'Siti@Example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', captchaId: soalDaftar.data.id, captchaAnswer: answerOf(soalDaftar.data.question) });
+check('daftar kader dengan email butuh centang Turnstile', daftarTanpaVerifikasi.code, 'captcha');
+check('kata sandi pendek ditolak', request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'singkat', ip: '198.51.100.20', ...TOKEN_MANUSIA }).error, 'Kata sandi minimal 8 karakter.');
+check('email tidak valid ditolak', request({ action: 'kaderRegister', email: 'bukan-email', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', ...TOKEN_MANUSIA }).error, 'Alamat email tidak valid.');
+const daftar = request({ action: 'kaderRegister', email: 'Siti@Example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', ...TOKEN_MANUSIA });
 check('kader bisa daftar tanpa Google', daftar.data.role, 'kader');
 check('email pendaftaran dinormalkan', daftar.data.kader.email, 'siti@example.com');
 check('satu baris kader baru dibuat', rowsOf('Kaders').filter((row) => row.email === 'siti@example.com').length, 1);
 check('kata sandi disimpan sebagai hash, bukan teks', rowsOf('Kaders').some((row) => row.passwordHash === 'sandiku123'), false);
-const soalGanda = request({ action: 'captcha', ip: '198.51.100.25' });
-const daftarGanda = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Baru', password: 'sandiku456', ip: '198.51.100.25', captchaId: soalGanda.data.id, captchaAnswer: answerOf(soalGanda.data.question) });
+const daftarGanda = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Baru', password: 'sandiku456', ip: '198.51.100.25', ...TOKEN_MANUSIA });
 check('email yang sudah punya akun tidak bisa daftar lagi', daftarGanda.error, 'Email ini sudah punya akun kader. Silakan masuk.');
 http.google = { ...klaimGoogle, sub: 'sub-siti', email: 'siti@example.com', name: 'Siti Aminah' };
-const gabungGoogle = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.26', ...verifikasiMasuk('198.51.100.26') });
+const gabungGoogle = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.26', ...TOKEN_MANUSIA });
 check('akun email yang masuk lewat Google tidak dobel', rowsOf('Kaders').filter((row) => row.email === 'siti@example.com').length, 1);
 check('identitas Google tertaut ke akun email', rowsOf('Kaders').find((row) => row.email === 'siti@example.com').googleSub, 'sub-siti');
 check('masuk Google tetap memberi sesi kader', request({ action: 'whoami', token: gabungGoogle.data.token }).data.role, 'kader');
 http.google = klaimGoogle;
-check('masuk email kader tanpa verifikasi ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.27' }).code, 'captcha');
-const masukEmail = request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.21', ...verifikasiMasuk('198.51.100.21') });
+check('masuk email kader tanpa centang Turnstile ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.27' }).code, 'captcha');
+const masukEmail = request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.21', ...TOKEN_MANUSIA });
 check('masuk dengan email dan kata sandi', masukEmail.data.role, 'kader');
 check('sesi email dikenal sebagai kader', request({ action: 'whoami', token: masukEmail.data.token }).data.role, 'kader');
-check('kata sandi salah ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.22', ...verifikasiMasuk('198.51.100.22') }).error, 'Email atau kata sandi salah.');
-check('email yang belum terdaftar gagal diam-diam', request({ action: 'kaderEmailLogin', email: 'tiada@example.com', password: 'apa12345', ip: '198.51.100.23', ...verifikasiMasuk('198.51.100.23') }).error, 'Email atau kata sandi salah.');
+check('kata sandi salah ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.22', ...TOKEN_MANUSIA }).error, 'Email atau kata sandi salah.');
+check('email yang belum terdaftar gagal diam-diam', request({ action: 'kaderEmailLogin', email: 'tiada@example.com', password: 'apa12345', ip: '198.51.100.23', ...TOKEN_MANUSIA }).error, 'Email atau kata sandi salah.');
 const tembokEmail = [];
 for (let i = 0; i < gas.RATE_RULES['kader-login'].limit + 2; i += 1) {
   tembokEmail.push(request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'tebakan', ip: '198.51.100.24' }));
@@ -1070,6 +1066,20 @@ check('penanda gambar surat tidak ikut diganti',
 check('gambar di isi artikel dinormalkan saat disimpan',
   /src="https:\/\/drive\.usercontent\.google\.com\/download\?id=ABC123abc-_456&amp;export=view&amp;authuser=0"/
     .test(gas.sanitizeArticleHtml_('<p>Isi</p><img src="https://lh3.googleusercontent.com/d/ABC123abc-_456=w1600" alt="Foto">')), true);
+check('tabel dari editor bertahan saat disimpan',
+  gas.sanitizeArticleHtml_('<table><thead><tr><th colspan="2">Keterangan</th></tr></thead><tbody>'
+    + '<tr><td rowspan="2">A</td><td>B</td></tr></tbody></table>'),
+  '<table><thead><tr><th colspan="2">Keterangan</th></tr></thead><tbody>'
+    + '<tr><td rowspan="2">A</td><td>B</td></tr></tbody></table>');
+check('rentang tabel yang tidak masuk akal dibuang',
+  gas.sanitizeArticleHtml_('<table><tr><td colspan="99" onclick="alert(1)">A</td></tr></table>'),
+  '<table><tr><td>A</td></tr></table>');
+check('skrip di dalam sel tabel dibuang',
+  gas.sanitizeArticleHtml_('<table><tr><td><script>alert(1)<\/script>Isi</td></tr></table>'),
+  '<table><tr><td>Isi</td></tr></table>');
+check('sel kosong tidak menjadi teks entities',
+  gas.sanitizeArticleHtml_('<table><tr><td>&nbsp;</td></tr></table>'),
+  '<table><tr><td>&nbsp;</td></tr></table>');
 
 // Berkas lama yang isinya teks angka byte harus bisa dipulihkan tanpa ganti ID.
 check('teks angka byte dikenali sebagai JPEG', gas.bytesDariTeksAngka_('-1,-40,-1,-32,0,16').mime, 'image/jpeg');

@@ -3,7 +3,7 @@
  * under /peta/ always goes to the network; this worker only keeps the shell so
  * the installed app opens instantly and survives a lost connection.
  */
-const CACHE_NAME = 'pbpii-shell-v28';
+const CACHE_NAME = 'pbpii-shell-v30';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -30,6 +30,8 @@ const APP_SHELL = [
   '/acara.js',
   '/akun.js',
   '/captcha.js',
+  '/editor.css',
+  '/editor.js',
   '/manifest.json',
   '/assets/quran-surah.json',
   '/assets/ibadah-kota.json',

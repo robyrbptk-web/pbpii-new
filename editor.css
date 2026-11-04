@@ -1,0 +1,78 @@
+/* ---------------------------------------------------------------------------
+   Editor Visual/Kode untuk artikel dan surat.
+   Dipakai dashboard admin (aksen hijau) dan dashboard lembaga (aksen biru);
+   warnanya diambil dari variabel yang sudah ada di halaman induk, jadi satu
+   berkas CSS ini menyesuaikan diri tanpa duplikasi aturan.
+   --------------------------------------------------------------------------- */
+
+.wp-editor{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+.wp-editor[data-mode="code"] .wp-kaya{display:none}
+.wp-editor:not([data-mode="code"]) .wp-kode{display:none}
+
+.wp-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid var(--line);background:var(--soft,#f6f8f7)}
+.wp-media{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:6px 11px;background:#fff;color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.wp-media:hover:not(:disabled){border-color:var(--blue, var(--green));color:var(--blue, var(--green))}
+.wp-media:disabled{opacity:.55;cursor:wait}
+.wp-media svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.wp-tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+.wp-tabs button{border:0;border-right:1px solid var(--line);padding:6px 15px;background:#fff;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.wp-tabs button:last-child{border-right:0}
+.wp-tabs button.is-active{background:var(--blue, var(--green));color:#fff}
+
+.wp-hitung{margin-left:auto;color:var(--muted);font-size:11.5px;font-weight:700;white-space:nowrap}
+
+.wp-tools{display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding:6px 9px;border-bottom:1px solid var(--line);background:#fff}
+.wp-tools[aria-disabled]{opacity:.45;pointer-events:none}
+.wp-blok{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:#fff;color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.wp-btn{display:grid;width:32px;height:32px;place-items:center;border:1px solid transparent;border-radius:7px;background:none;color:#3c4a56;cursor:pointer}
+.wp-btn:hover{border-color:var(--line);background:var(--soft,#f6f8f7);color:var(--blue, var(--green))}
+.wp-btn b,.wp-btn i,.wp-btn u,.wp-btn s{font-size:13px;line-height:1}
+.wp-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.wp-pemisah{width:1px;height:20px;margin:0 4px;background:var(--line)}
+
+.wp-lapangan{position:relative}
+.wp-kaya{min-height:300px;max-height:min(70vh,640px);overflow-y:auto;padding:clamp(16px,3vw,34px) clamp(14px,4vw,48px);border:0;outline:none;color:var(--ink);font-family:Georgia,"Times New Roman",serif;font-size:17px;line-height:1.9;overflow-wrap:anywhere}
+.wp-kaya:focus{box-shadow:inset 0 0 0 2px rgb(23 109 168 / 7%)}
+.wp-kaya:empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
+.wp-kode{display:block;width:100%;min-height:300px;max-height:min(70vh,640px);border:0;outline:none;padding:14px 16px;background:#0f1b2a;color:#dceaf7;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;line-height:1.7;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Isi yang sedang disunting mendapat bentuk yang sama dengan hasil akhirnya. */
+.wp-kaya p{margin:0 0 1.15em}
+.wp-kaya h2{margin:1.6em 0 .6em;font-size:1.55em;line-height:1.3}
+.wp-kaya h3{margin:1.35em 0 .55em;font-size:1.28em;line-height:1.35}
+.wp-kaya h4{margin:1.2em 0 .5em;font-size:1.1em}
+.wp-kaya a{color:#176da8;text-decoration:underline;text-underline-offset:3px}
+.wp-kaya ul,.wp-kaya ol{padding-left:1.5em;margin:0 0 1.15em}
+.wp-kaya li{margin:.3em 0}
+.wp-kaya blockquote{margin:1em 0;border-left:3px solid #78a985;padding:9px 14px;background:#f6faf6}
+.wp-kaya hr{margin:1.6em 0;border:0;border-top:1px solid var(--line)}
+.wp-kaya img{display:block;max-width:100%;height:auto;margin:14px auto;border-radius:9px}
+.wp-kaya [data-size="small"]{font-size:.875em}
+.wp-kaya [data-size="large"]{font-size:1.2em}
+.wp-kaya [data-font="serif"]{font-family:Georgia,"Times New Roman",serif}
+.wp-kaya [data-font="sans"]{font-family:Inter,system-ui,sans-serif}
+
+/* Tabel karya editor dan tabel surat yang diterima memakai bentuk yang sama. */
+.wp-kaya table,.thread-message table{width:100%;margin:0 0 1.2em;border-collapse:collapse;font-family:Inter,system-ui,sans-serif;font-size:.92em;line-height:1.6}
+.wp-kaya th,.wp-kaya td,.thread-message th,.thread-message td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.wp-kaya th,.thread-message th{background:var(--soft,#f6f8f7);font-weight:800}
+.wp-kaya td:empty,.wp-kaya th:empty{min-width:44px}
+.wp-kaya td:has(br),.wp-kaya th:has(br){height:1.6em}
+
+@media (max-width:680px){
+  .wp-bar{gap:8px;padding:8px 9px}
+  .wp-hitung{display:none}
+  .wp-tabs{flex:1}
+  .wp-tabs button{flex:1;padding:9px 8px;text-align:center}
+  .wp-media{min-height:44px}
+  .wp-tools{gap:2px;padding:6px 6px;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .wp-btn{width:44px;height:44px;flex:0 0 auto}
+  .wp-blok{flex:0 0 auto;min-height:44px}
+  .wp-pemisah{flex:0 0 auto;margin:0 3px}
+  .wp-kaya{min-height:260px;padding:16px 14px;font-size:16px;line-height:1.8}
+  .wp-kode{min-height:260px;font-size:13px}
+  /* Tabel lebar digeser di dalam selnya sendiri, bukan seluruh halaman. */
+  .wp-kaya table{display:block;overflow-x:auto;white-space:nowrap}
+  .wp-kaya td,.wp-kaya th{white-space:normal;min-width:110px}
+}

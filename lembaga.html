@@ -12,6 +12,7 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/captcha.css">
+  <link rel="stylesheet" href="/editor.css">
   <style>
     :root{--navy:#102b49;--navy-deep:#0c2948;--blue:#176da8;--ink:#182638;--muted:#637184;--line:#e0e7ef;--soft:#f4f7fa;--green:#0e7a3d;--amber:#8a5a00;--red:#c52c35}
     *{box-sizing:border-box}
@@ -142,24 +143,12 @@
     .recipient-option span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .recipient-empty{grid-column:1/-1;margin:0;padding:8px;color:var(--muted);font-size:12px}
     .recipient-field:disabled .recipient-list{opacity:.68}
-    .letter-editor-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#f8fafc}
-    .article-editor-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#f8fafc}
-    .letter-editor-toolbar button,.letter-editor-toolbar select,.article-editor-toolbar button,.article-editor-toolbar select{width:auto;min-height:40px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font-weight:700}
-    .letter-editor-toolbar input[type="file"][hidden],.article-editor-toolbar input[type="file"][hidden]{display:none}
-    .letter-rich-editor,.article-rich-editor{min-height:210px;padding:13px;border:1px solid var(--line);border-radius:0 0 10px 10px;overflow-wrap:anywhere;line-height:1.7;outline:none}
-    .letter-rich-editor:focus,.article-rich-editor:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
-    .letter-rich-editor:empty::before,.article-rich-editor:empty::before{content:attr(data-placeholder);color:var(--muted)}
-    .letter-rich-editor img,.article-rich-editor img,.thread-message .body img{display:block;max-width:100%;height:auto;margin:12px auto;border-radius:9px}
-    .letter-rich-editor img[data-letter-image-id]{width:min(360px,100%);min-height:120px;object-fit:contain;background:#eef3f7}
-    .letter-rich-editor blockquote,.thread-message .body blockquote{margin:12px 0;padding:8px 12px;border-left:3px solid #86a9c5;background:#f2f7fb}
-    .letter-rich-editor [data-size="small"],.thread-message [data-size="small"]{font-size:.88em}
-    .letter-rich-editor [data-size="large"],.thread-message [data-size="large"]{font-size:1.2em}
-    .letter-rich-editor [data-font="serif"],.thread-message [data-font="serif"]{font-family:Georgia,"Times New Roman",serif}
-    .article-rich-editor h2,.article-rich-editor h3,.article-rich-editor h4{line-height:1.35}
-    .article-rich-editor blockquote{margin:12px 0;padding:8px 12px;border-left:3px solid #86a9c5;background:#f2f7fb}
-    .article-rich-editor [data-size="small"]{font-size:.88em}
-    .article-rich-editor [data-size="large"]{font-size:1.2em}
-    .article-rich-editor [data-font="serif"]{font-family:Georgia,"Times New Roman",serif}
+    .thread-message .body img,.wp-kaya img{display:block;max-width:100%;height:auto;margin:12px auto;border-radius:9px}
+    .thread-message img[data-letter-image-id],.wp-kaya img[data-letter-image-id]{width:min(360px,100%);min-height:120px;object-fit:contain;background:#eef3f7}
+    .thread-message .body blockquote{margin:12px 0;padding:8px 12px;border-left:3px solid #86a9c5;background:#f2f7fb}
+    .thread-message [data-size="small"]{font-size:.88em}
+    .thread-message [data-size="large"]{font-size:1.2em}
+    .thread-message [data-font="serif"]{font-family:Georgia,"Times New Roman",serif}
     .thread-message .body p{margin:0 0 10px}
     .thread-message .body p:last-child{margin-bottom:0}
     .thread-message .body ul,.thread-message .body ol{padding-left:1.35em}
@@ -207,8 +196,6 @@
       .item{flex-direction:column}
       .item-actions{justify-content:flex-start}
       .page-head{flex-wrap:wrap}
-      .captcha-box{flex-wrap:wrap}
-      .captcha-question{flex:1 1 100%}
       .auth-card{padding:24px 18px;border-radius:16px}
       .btn{padding:11px 14px;min-height:44px}
       .auth-brand small,.topbar .brand small,.who,.hint,.stat span,.chip,.bar,
@@ -217,8 +204,6 @@
       th{font-size:11px}
       .pdf-viewer{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0}
       .thread-message{padding:10px}
-      .letter-editor-toolbar button,.letter-editor-toolbar select,.article-editor-toolbar button,.article-editor-toolbar select{min-height:44px}
-      .letter-rich-editor,.article-rich-editor{min-height:180px}
     }
     .akt-bar{height:9px;border-radius:99px;background:#e8eef4;overflow:hidden;margin:2px 0 10px}
     .akt-bar>i{display:block;height:100%;width:0;border-radius:99px;background:var(--blue);transition:width .45s ease}
@@ -254,8 +239,6 @@
       .upload-link summary{display:flex;align-items:center;min-height:44px}
       .upload-preview{width:100%;max-height:min(42vh,280px);object-fit:contain}
       .btn-row .btn{flex:1 1 100%;min-height:46px}
-      .article-editor-toolbar{position:sticky;top:56px;z-index:3;max-height:120px;overflow:auto;-webkit-overflow-scrolling:touch}
-      .article-rich-editor{font-size:16px}
       body{background:#f2f6fa}
       main{padding-top:18px}
       .panel{border-color:#e0e8f0;border-radius:17px;box-shadow:0 8px 24px rgb(16 43 73 / 5%)}
@@ -296,24 +279,12 @@
     .bars{max-width:620px}
     #page-ringkasan>.panel{background:linear-gradient(145deg,#fff,#fbfdff)}
     #page-ringkasan>.grid2 .panel{height:100%}
-    .article-editor-toolbar{position:sticky;top:72px;z-index:5;gap:6px;border-color:#dbe4ed;background:rgb(247 250 253 / 96%);box-shadow:0 5px 16px rgb(16 43 73 / 5%);backdrop-filter:blur(12px)}
-    .article-editor-toolbar button,.article-editor-toolbar select{border-radius:8px;transition:background .15s ease,border-color .15s ease,color .15s ease}
-    .article-editor-toolbar button:hover,.article-editor-toolbar select:hover{border-color:#a9c5dc;background:#edf5fb;color:var(--navy)}
-    .editor-separator{width:1px;height:24px;margin-inline:3px;background:#d7e1eb}
-    .article-rich-editor{min-height:400px;padding:clamp(18px,3.8vw,42px);border-color:#dbe4ed;border-radius:0 0 12px 12px;background:#fff;box-shadow:inset 0 1px 3px rgb(16 43 73 / 3%);font-family:Georgia,"Times New Roman",serif;font-size:17px;line-height:1.9}
-    .article-rich-editor p{margin:0 0 1.15em}
-    .article-rich-editor h2{margin:1.6em 0 .6em;font-size:1.55em}
-    .article-rich-editor h3{margin:1.35em 0 .55em;font-size:1.28em}
-    .article-rich-editor a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
-    .article-rich-editor ul,.article-rich-editor ol{padding-left:1.5em}
-    .editor-status{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--line);border-top:0;border-radius:0 0 11px 11px;padding:8px 12px;background:#f8fafc;color:#718094;font-size:11px}
     #orgArticleTitle{min-height:52px;font-size:21px;font-weight:750;letter-spacing:-.4px}
     @media(max-width:980px){
       .layout{grid-template-columns:minmax(0,1fr)}
       .layout>aside{height:auto}
       main{padding:21px 17px calc(108px + env(safe-area-inset-bottom))}
       .topbar{height:68px}
-      .article-editor-toolbar{top:68px}
     }
     @media(max-width:620px){
       main{padding:17px 13px calc(102px + env(safe-area-inset-bottom))}
@@ -326,10 +297,6 @@
       .panel{padding:15px 13px;border-radius:15px}
       #orgArticleEditor{padding:15px 12px}
       #orgArticleTitle{min-height:48px;font-size:19px}
-      .article-editor-toolbar{top:68px;max-height:150px;overflow:auto;-webkit-overflow-scrolling:touch}
-      .article-editor-toolbar button,.article-editor-toolbar select{min-height:43px;padding:7px 9px}
-      .article-rich-editor{min-height:320px;padding:18px 15px;font-size:16px;line-height:1.8}
-      .editor-status{font-size:10px}
       .kpi{gap:14px}
       .kpi-score{width:90px;height:90px}
       .kpi-score::after{inset:8px}
@@ -527,38 +494,8 @@
                 </div>
                 <div class="field full">
                   <label class="lbl" for="orgArticleContentEditor">Isi artikel *</label>
-                  <div class="article-editor-toolbar" role="toolbar" aria-label="Pemformatan artikel lembaga">
-                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="p">Paragraf</button>
-                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="h2">Judul 2</button>
-                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="h3">Judul 3</button>
-                    <button type="button" data-org-article-command="bold" aria-label="Tebal"><b>B</b></button>
-                    <button type="button" data-org-article-command="italic" aria-label="Miring"><i>I</i></button>
-                    <button type="button" data-org-article-command="underline" aria-label="Garis bawah"><u>U</u></button>
-                    <button type="button" data-org-article-command="strikeThrough" aria-label="Coret"><s>S</s></button>
-                    <button type="button" data-org-article-command="subscript" aria-label="Subskrip">x₂</button>
-                    <button type="button" data-org-article-command="superscript" aria-label="Superskrip">x²</button>
-                    <span class="editor-separator" aria-hidden="true"></span>
-                    <button type="button" data-org-article-command="insertUnorderedList">• Daftar</button>
-                    <button type="button" data-org-article-command="insertOrderedList">1. Daftar</button>
-                    <button type="button" data-org-article-command="formatBlock" data-org-article-value="blockquote">Kutipan</button>
-                    <button type="button" data-org-article-command="justifyLeft" aria-label="Rata kiri">☰←</button>
-                    <button type="button" data-org-article-command="justifyCenter" aria-label="Rata tengah">☰↔</button>
-                    <button type="button" data-org-article-command="justifyRight" aria-label="Rata kanan">→☰</button>
-                    <span class="editor-separator" aria-hidden="true"></span>
-                    <button type="button" data-org-article-command="undo">↶</button>
-                    <button type="button" data-org-article-command="redo">↷</button>
-                    <button type="button" data-org-article-command="removeFormat">Hapus format</button>
-                    <button type="button" id="orgArticleAddLink">Tautkan</button>
-                    <button type="button" data-org-article-command="unlink" aria-label="Hapus tautan">Lepas tautan</button>
-                    <select id="orgArticleFont" aria-label="Jenis huruf"><option value="">Jenis huruf</option><option value="Arial">Sans-serif</option><option value="Georgia">Serif</option></select>
-                    <select id="orgArticleFontSize" aria-label="Ukuran huruf"><option value="">Ukuran huruf</option><option value="2">Kecil</option><option value="3">Normal</option><option value="5">Besar</option></select>
-                    <button type="button" id="orgArticleAddImage">Sisipkan gambar</button>
-                    <button type="button" data-org-article-command="insertHorizontalRule">Garis pemisah</button>
-                    <input id="orgArticleInlineImage" type="file" accept="image/*" hidden>
-                  </div>
-                  <div id="orgArticleContentEditor" class="article-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Isi artikel lembaga" data-placeholder="Tulis artikel dengan paragraf, judul, daftar, tautan, dan gambar."></div>
-                  <div class="editor-status"><span>Ctrl/⌘ + S untuk menyimpan</span><span id="orgArticleWordCount" aria-live="polite">0 kata · 0 menit baca</span></div>
-                  <p class="hint">Format dan gambar akan disaring aman saat disimpan. Tekan tombol simpan setelah unggahan selesai.</p>
+                  <div id="orgArticleEditorHost"></div>
+                  <p class="hint">Format, tabel, dan gambar disaring aman saat disimpan. Tekan tombol simpan setelah unggahan selesai.</p>
                 </div>
                 <div class="field"><label class="lbl" for="orgArticleSeoTitle">Judul SEO</label><input id="orgArticleSeoTitle" maxlength="70"></div>
                 <div class="field"><label class="lbl" for="orgArticleSeoKeywords">Kata kunci</label><input id="orgArticleSeoKeywords" maxlength="300" placeholder="PII, pendidikan, kaderisasi"></div>
@@ -615,28 +552,7 @@
                 <div class="field full"><label class="lbl" for="lSubject">Subjek *</label><input id="lSubject" maxlength="180" required></div>
                 <div class="field full">
                   <label class="lbl" for="lBodyEditor">Isi surat *</label>
-                  <div class="letter-editor-toolbar" role="toolbar" aria-label="Pemformatan surat">
-                    <button type="button" data-letter-command="formatBlock" data-letter-value="p">Paragraf</button>
-                    <button type="button" data-letter-command="formatBlock" data-letter-value="h2">Judul 2</button>
-                    <button type="button" data-letter-command="formatBlock" data-letter-value="h3">Judul 3</button>
-                    <button type="button" data-letter-command="bold" aria-label="Tebal"><b>B</b></button>
-                    <button type="button" data-letter-command="italic" aria-label="Miring"><i>I</i></button>
-                    <button type="button" data-letter-command="underline" aria-label="Garis bawah"><u>U</u></button>
-                    <button type="button" data-letter-command="strikeThrough" aria-label="Coret"><s>S</s></button>
-                    <button type="button" data-letter-command="undo" aria-label="Urungkan">↶</button>
-                    <button type="button" data-letter-command="redo" aria-label="Ulangi">↷</button>
-                    <button type="button" data-letter-command="insertUnorderedList">• Daftar</button>
-                    <button type="button" data-letter-command="insertOrderedList">1. Daftar</button>
-                    <button type="button" data-letter-command="formatBlock" data-letter-value="blockquote">Kutipan</button>
-                    <button type="button" data-letter-command="removeFormat" aria-label="Hapus pemformatan">Hapus format</button>
-                    <button type="button" id="letterAddLink">Tautkan</button>
-                    <select id="letterFont" aria-label="Jenis huruf surat"><option value="">Font</option><option value="Arial">Sans-serif</option><option value="Georgia">Serif</option></select>
-                    <select id="letterFontSize" aria-label="Ukuran huruf surat"><option value="">Ukuran</option><option value="2">Kecil</option><option value="3">Normal</option><option value="5">Besar</option></select>
-                    <button type="button" id="letterAddImage">Sisipkan gambar</button>
-                    <input id="letterInlineImage" type="file" accept="image/*" hidden>
-                  </div>
-                  <div id="lBodyEditor" class="letter-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Isi surat" data-placeholder="Tulis isi surat, gunakan toolbar untuk format, tautan, dan gambar."></div>
-                  <textarea id="lBody" class="hidden" tabindex="-1" aria-hidden="true"></textarea>
+                  <div id="letterEditorHost"></div>
                   <p class="hint">Gambar surat disimpan privat dan hanya dapat dilihat pengirim serta penerima.</p>
                 </div>
                 <div class="field full"><label class="lbl" for="lAttachment">Lampiran PDF (opsional)</label>
@@ -723,6 +639,7 @@
   </div>
 
   <script src="captcha.js"></script>
+  <script src="/editor.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
     const TOKEN_KEY = 'pbpii_org_token';
@@ -823,8 +740,8 @@
       $('togglePass').textContent = visible ? 'Sembunyikan' : 'Lihat';
     });
 
-    // Verifikasi anti-spam: soal hitung dari server (atau Turnstile bila kunci
-    // Cloudflare sudah diisi di Pengaturan admin).
+    // Verifikasi manusia memakai kotak centang Cloudflare Turnstile. Wadah ini
+    // disembunyikan sendiri bila kunci belum dipasang di Pengaturan admin.
     let verifikasi = null;
     if (window.PBPIICaptcha && $('loginCaptcha')) {
       verifikasi = window.PBPIICaptcha.attach($('loginCaptcha'));
@@ -848,7 +765,7 @@
         await loadData();
       } catch (error) {
         showLoginMessage(error.message, 'err');
-        // Jawaban verifikasi sekali pakai: minta soal baru setiap kali ditolak.
+        // Token lama sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
         if (verifikasi && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
           verifikasi.reset();
           verifikasi.reload?.().catch(() => {});
@@ -1106,96 +1023,28 @@
 
     // --------------------------------------------------------------- artikel
 
-    const orgArticleEditor = $('orgArticleContentEditor');
-    let savedOrgArticleRange = null;
-    const saveOrgArticleRange = () => {
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount && orgArticleEditor.contains(selection.anchorNode)) {
-        savedOrgArticleRange = selection.getRangeAt(0).cloneRange();
-      }
-    };
-    const restoreOrgArticleRange = () => {
-      orgArticleEditor.focus();
-      if (!savedOrgArticleRange) return;
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(savedOrgArticleRange);
-    };
-    const insertOrgArticleHtml = (html) => {
-      restoreOrgArticleRange();
-      document.execCommand('insertHTML', false, html);
-      saveOrgArticleRange();
-      updateOrgArticleWordCount();
-    };
-    const updateOrgArticleWordCount = () => {
-      const words = orgArticleEditor.textContent.trim().split(/\s+/).filter(Boolean).length;
-      $('orgArticleWordCount').textContent = words + ' kata · ' + (words ? Math.max(1, Math.ceil(words / 200)) : 0) + ' menit baca';
-    };
-    const safeOrgArticleHref = (value) => {
-      const href = String(value || '').trim();
-      if (/^https:\/\/[^\s]+$/i.test(href) || /^mailto:[^\s@]+@[^\s@]+$/i.test(href)) return href;
-      if (/^(?:\/(?!\/)|#|\.\/|\.\.\/)[^\s]*$/.test(href) && !/[\\\u0000-\u001f]/.test(href)) return href;
-      return '';
-    };
-    function sanitizeOrgArticleMarkup(value) {
-      const raw = String(value || '');
-      if (!/<\s*[a-z/][^>]*>/i.test(raw)) {
-        return raw.split(/\n\s*\n/).map((paragraph) => paragraph.trim()
-          ? '<p>' + esc(paragraph).replace(/\n/g, '<br>') + '</p>'
-          : '').filter(Boolean).join('');
-      }
-      const source = new DOMParser().parseFromString(raw, 'text/html');
-      const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','sub','sup','ul','ol','li','blockquote','a','img','span','font']);
-      const blocked = new Set(['script','style','iframe','object','svg','math','template']);
-      const voids = new Set(['br','hr','img']);
-      const copy = (node) => {
-        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
-        if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
-        const sourceTag = node.tagName.toLowerCase();
-        if (blocked.has(sourceTag)) return document.createDocumentFragment();
-        const tag = sourceTag === 'font' ? 'span' : sourceTag;
-        if (!allowed.has(sourceTag)) {
-          const fragment = document.createDocumentFragment();
-          node.childNodes.forEach((child) => fragment.append(copy(child)));
-          return fragment;
-        }
-        const element = document.createElement(tag);
-        if (tag === 'a') {
-          const href = safeOrgArticleHref(node.getAttribute('href'));
-          if (href) {
-            element.setAttribute('href', href);
-            element.setAttribute('rel', 'noopener noreferrer');
-          }
-        } else if (tag === 'img') {
-          const src = String(node.getAttribute('src') || '').trim();
-          if (!/^https:\/\/[^\s]+$/i.test(src)) return document.createDocumentFragment();
-          element.setAttribute('src', imageUrl(src) || src);
-          element.setAttribute('alt', String(node.getAttribute('alt') || '').slice(0, 300));
-          element.setAttribute('loading', 'lazy');
-          return element;
-        } else if (tag === 'span') {
-          const size = sourceTag === 'font'
-            ? (['1','2'].includes(node.getAttribute('size')) ? 'small' : ['4','5','6','7'].includes(node.getAttribute('size')) ? 'large' : '')
-            : node.getAttribute('data-size');
-          const font = sourceTag === 'font'
-            ? (/georgia|times|serif/i.test(node.getAttribute('face') || '') ? 'serif' : /arial|sans/i.test(node.getAttribute('face') || '') ? 'sans' : '')
-            : node.getAttribute('data-font');
-          if (['small','normal','large'].includes(size)) element.dataset.size = size;
-          if (['serif','sans'].includes(font)) element.dataset.font = font;
-        }
-        if (['p','div','h2','h3','h4','blockquote'].includes(tag)) {
-          const alignment = String(node.style.textAlign || '').toLowerCase();
-          if (['left','center','right','justify'].includes(alignment)) {
-            element.style.textAlign = alignment;
-          }
-        }
-        if (!voids.has(tag)) node.childNodes.forEach((child) => element.append(copy(child)));
-        return element;
-      };
-      const output = document.createElement('div');
-      source.body.childNodes.forEach((node) => output.append(copy(node)));
-      return output.innerHTML;
-    }
+    /* Daftar putih pemformatan, tab Kode, tabel, dan unggah gambar ditangani
+       PBPIIEditor (editor.js) supaya artikel dan surat memakai aturan sama. */
+    const orgArtikelEditor = window.PBPIIEditor.mount({
+      host: $('orgArticleEditorHost'),
+      id: 'orgArticleContentEditor',
+      placeholder: 'Tulis artikel dengan paragraf, judul, daftar, tautan, gambar, dan tabel.',
+      gambar: (node) => {
+        const src = imageUrl(String(node.getAttribute('src') || '').trim());
+        return src ? { src, alt: String(node.getAttribute('alt') || '').slice(0, 300) } : null;
+      },
+      ambilGambar: async (file) => {
+        const prepared = await prepareImage(file);
+        const saved = await api('orgUploadImage', { name: prepared.name, data: prepared.data });
+        const src = imageUrl(saved.url);
+        if (!src) throw new Error('Foto belum dapat dipakai sebagai sumber gambar.');
+        await verifyImagePreview(src);
+        toast('Gambar artikel berhasil diunggah.');
+        return src;
+      },
+      gagal: (error) => toast('Gambar gagal ditambahkan: ' + error.message),
+      ketik: () => $('orgArticleForm').requestSubmit(),
+    });
 
     function renderOrgArticles() {
       $('orgArticleList').innerHTML = (state.articles || []).map((article) => {
@@ -1215,9 +1064,7 @@
       $('orgArticleId').value = '';
       $('orgArticleStatus').value = 'draft';
       $('orgArticleFormTitle').textContent = 'Artikel baru';
-      orgArticleEditor.innerHTML = '';
-      savedOrgArticleRange = null;
-      updateOrgArticleWordCount();
+      orgArtikelEditor.setValue('');
       refreshUploader('orgArticleCover');
     }
 
@@ -1231,10 +1078,10 @@
     $('orgArticleForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!canWrite()) return toast('Akun belum terverifikasi, jadi artikel belum dapat diterbitkan.');
-      const content = sanitizeOrgArticleMarkup(orgArticleEditor.innerHTML);
-      if (!orgArticleEditor.textContent.trim()) {
+      const content = orgArtikelEditor.value();
+      if (!orgArtikelEditor.text().trim()) {
         toast('Tambahkan teks isi artikel sebelum menyimpan.');
-        orgArticleEditor.focus();
+        orgArtikelEditor.fokus();
         return;
       }
       const button = $('saveOrgArticleBtn');
@@ -1273,90 +1120,14 @@
       $('orgArticleCategory').value = article.category || 'Berita';
       $('orgArticleExcerpt').value = article.excerpt || '';
       $('orgArticleCover').value = article.coverImage || '';
-      orgArticleEditor.innerHTML = sanitizeOrgArticleMarkup(article.content || '');
-      savedOrgArticleRange = null;
+      orgArtikelEditor.setValue(article.content || '');
       $('orgArticleStatus').value = article.status || 'draft';
       $('orgArticleSeoTitle').value = article.seoTitle || '';
       $('orgArticleSeoDescription').value = article.seoDescription || '';
       $('orgArticleSeoKeywords').value = article.seoKeywords || '';
-      updateOrgArticleWordCount();
       refreshUploader('orgArticleCover');
       $('orgArticleEditor').classList.remove('hidden');
       $('orgArticleEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-
-    const orgArticleToolbar = document.querySelector('.article-editor-toolbar');
-    orgArticleToolbar.addEventListener('mousedown', (event) => {
-      if (event.target.closest('button,select')) saveOrgArticleRange();
-    });
-    orgArticleToolbar.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-org-article-command]');
-      if (!button) return;
-      restoreOrgArticleRange();
-      document.execCommand(button.dataset.orgArticleCommand, false, button.dataset.orgArticleValue || null);
-      saveOrgArticleRange();
-    });
-    $('orgArticleFont').addEventListener('change', (event) => {
-      if (!event.target.value) return;
-      restoreOrgArticleRange();
-      document.execCommand('fontName', false, event.target.value);
-      event.target.value = '';
-    });
-    $('orgArticleFontSize').addEventListener('change', (event) => {
-      if (!event.target.value) return;
-      restoreOrgArticleRange();
-      document.execCommand('fontSize', false, event.target.value);
-      event.target.value = '';
-    });
-    $('orgArticleAddLink').addEventListener('click', () => {
-      const href = safeOrgArticleHref(prompt('Masukkan URL HTTPS, alamat email, atau tautan bagian halaman:'));
-      if (!href) return;
-      restoreOrgArticleRange();
-      document.execCommand('createLink', false, href);
-      saveOrgArticleRange();
-    });
-    $('orgArticleAddImage').addEventListener('click', () => {
-      saveOrgArticleRange();
-      $('orgArticleInlineImage').click();
-    });
-    $('orgArticleInlineImage').addEventListener('change', async (event) => {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const button = $('orgArticleAddImage');
-      button.disabled = true;
-      try {
-        const prepared = await prepareImage(file);
-        const saved = await api('orgUploadImage', { name: prepared.name, data: prepared.data });
-        insertOrgArticleHtml('<img src="' + esc(imageUrl(saved.url)) + '" alt="">');
-        toast('Gambar artikel berhasil diunggah.');
-      } catch (error) {
-        toast('Gambar gagal ditambahkan: ' + error.message);
-      } finally {
-        event.target.value = '';
-        button.disabled = false;
-      }
-    });
-    orgArticleEditor.addEventListener('keyup', saveOrgArticleRange);
-    orgArticleEditor.addEventListener('mouseup', saveOrgArticleRange);
-    orgArticleEditor.addEventListener('input', () => {
-      saveOrgArticleRange();
-      updateOrgArticleWordCount();
-    });
-    orgArticleEditor.addEventListener('keydown', (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-        event.preventDefault();
-        $('orgArticleForm').requestSubmit();
-      }
-    });
-    orgArticleEditor.addEventListener('paste', (event) => {
-      event.preventDefault();
-      const html = event.clipboardData.getData('text/html');
-      if (html) insertOrgArticleHtml(sanitizeOrgArticleMarkup(html));
-      else insertOrgArticleHtml(esc(event.clipboardData.getData('text/plain')).replace(/\n/g, '<br>'));
-    });
-    orgArticleEditor.addEventListener('drop', (event) => {
-      event.preventDefault();
-      toast('Gunakan tombol Sisipkan gambar untuk menambahkan foto.');
     });
 
     // --------------------------------------------------------------- formulir
@@ -1508,89 +1279,29 @@
 
     // ------------------------------------------------------------------ surat
 
-    function safeLetterHref(value) {
-      const href = String(value || '').trim();
-      if (/^https:\/\/[^\s]+$/i.test(href) || /^mailto:[^\s@]+@[^\s@]+$/i.test(href)) return href;
-      if (/^(?:\/(?!\/)|#|\.\/|\.\.\/)[^\s]*$/.test(href) && !/[\\\u0000-\u001f]/.test(href)) return href;
-      return '';
-    }
-
+    /* Surat memakai daftar putih editor.js. Gambar tidak pernah disimpan sebagai
+       URL, melainkan sebagai token yang hanya dapat dibuka pengirim dan penerima
+       lewat orgReadLetterImage. */
     const LETTER_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-    function sanitizeLetterMarkup(value) {
-      const raw = String(value || '');
-      if (!/<\s*[a-z/][^>]*>/i.test(raw)) {
-        return raw.split(/\n\s*\n/).map((text) => text.trim()
-          ? '<p>' + esc(text).replace(/\n/g, '<br>') + '</p>'
-          : '').filter(Boolean).join('');
-      }
-      const parsed = new DOMParser().parseFromString(raw, 'text/html');
-      const allowed = new Set(['p','div','br','hr','h2','h3','h4','strong','b','em','i','u','s','del','ul','ol','li','blockquote','a','img','span','font']);
-      const blocked = new Set(['script','style','iframe','object','svg','math','template']);
-      const voids = new Set(['br','hr','img']);
-      const copy = (node) => {
-        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || '');
-        if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
-        const sourceTag = node.tagName.toLowerCase();
-        if (blocked.has(sourceTag)) return document.createDocumentFragment();
-        const tag = sourceTag === 'font' ? 'span' : sourceTag;
-        if (!allowed.has(sourceTag)) {
-          const fragment = document.createDocumentFragment();
-          node.childNodes.forEach((child) => fragment.append(copy(child)));
-          return fragment;
-        }
-        const element = document.createElement(tag);
-        if (tag === 'a') {
-          const href = safeLetterHref(node.getAttribute('href'));
-          if (href) {
-            element.href = href;
-            element.rel = 'noopener noreferrer';
-          }
-        } else if (tag === 'img') {
-          const src = String(node.getAttribute('src') || '');
-          const match = src.match(/^pbpii-letter-image:([a-zA-Z0-9_-]+)$/)
-            || String(node.getAttribute('data-letter-image-id') || '').match(/^([a-zA-Z0-9_-]+)$/);
-          if (!match) return document.createDocumentFragment();
-          element.setAttribute('src', LETTER_IMAGE_PLACEHOLDER);
-          element.dataset.letterImageId = match[1];
-          element.setAttribute('alt', String(node.getAttribute('alt') || 'Gambar surat').slice(0, 300));
-          element.loading = 'lazy';
-          return element;
-        } else if (tag === 'span') {
-          const size = sourceTag === 'font'
-            ? (['1','2'].includes(node.getAttribute('size')) ? 'small' : ['4','5','6','7'].includes(node.getAttribute('size')) ? 'large' : '')
-            : node.getAttribute('data-size');
-          const font = sourceTag === 'font'
-            ? (/georgia|times|serif/i.test(node.getAttribute('face') || '') ? 'serif' : /arial|sans/i.test(node.getAttribute('face') || '') ? 'sans' : '')
-            : node.getAttribute('data-font');
-          if (['small','normal','large'].includes(size)) element.dataset.size = size;
-          if (['serif','sans'].includes(font)) element.dataset.font = font;
-        }
-        if (!voids.has(tag)) node.childNodes.forEach((child) => element.append(copy(child)));
-        return element;
-      };
-      const output = document.createElement('div');
-      parsed.body.childNodes.forEach((node) => output.append(copy(node)));
-      return output.innerHTML;
+    function gambarSurat(node, untukDisimpan) {
+      const id = String(node.getAttribute('src') || '').match(/^pbpii-letter-image:([a-zA-Z0-9_-]+)$/)?.[1]
+        || String(node.getAttribute('data-letter-image-id') || '').match(/^([a-zA-Z0-9_-]+)$/)?.[0]
+        || '';
+      if (!id) return null;
+      const alt = String(node.getAttribute('alt') || 'Gambar surat').slice(0, 300);
+      return untukDisimpan
+        ? { src: 'pbpii-letter-image:' + id, alt }
+        : { src: LETTER_IMAGE_PLACEHOLDER, alt, 'data-letter-image-id': id };
     }
 
     function renderLetterBody(content, letterId) {
       const raw = String(content || '');
-      const html = sanitizeLetterMarkup(raw);
+      const html = window.PBPIIEditor.saring(raw, { gambar: gambarSurat });
       if (!/<\s*[a-z/][^>]*>/i.test(raw)) return html;
       const container = document.createElement('div');
       container.innerHTML = html;
-      container.querySelectorAll('img[src]').forEach((image) => {
-        if (image.dataset.letterImageId) image.dataset.letterId = letterId;
-      });
-      return container.innerHTML;
-    }
-
-    function serializeLetterMarkup(value) {
-      const container = document.createElement('div');
-      container.innerHTML = sanitizeLetterMarkup(value);
       container.querySelectorAll('img[data-letter-image-id]').forEach((image) => {
-        image.setAttribute('src', 'pbpii-letter-image:' + image.dataset.letterImageId);
-        image.removeAttribute('data-letter-image-id');
+        image.dataset.letterId = letterId;
       });
       return container.innerHTML;
     }
@@ -1623,85 +1334,23 @@
       }));
     }
 
-    const letterEditor = $('lBodyEditor');
-    let savedLetterRange = null;
-    const saveLetterRange = () => {
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount && letterEditor.contains(selection.anchorNode)) {
-        savedLetterRange = selection.getRangeAt(0).cloneRange();
-      }
-    };
-    const restoreLetterRange = () => {
-      letterEditor.focus();
-      if (!savedLetterRange) return;
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(savedLetterRange);
-    };
-    const insertLetterHtml = (html) => {
-      restoreLetterRange();
-      document.execCommand('insertHTML', false, html);
-      saveLetterRange();
-    };
-
-    document.querySelector('.letter-editor-toolbar').addEventListener('mousedown', (event) => {
-      if (event.target.closest('button')) saveLetterRange();
-    });
-    document.querySelector('.letter-editor-toolbar').addEventListener('click', (event) => {
-      const button = event.target.closest('[data-letter-command]');
-      if (!button) return;
-      restoreLetterRange();
-      document.execCommand(button.dataset.letterCommand, false, button.dataset.letterValue || null);
-      saveLetterRange();
-    });
-    $('letterFont').addEventListener('change', (event) => {
-      if (!event.target.value) return;
-      restoreLetterRange();
-      document.execCommand('fontName', false, event.target.value);
-      event.target.value = '';
-    });
-    $('letterFontSize').addEventListener('change', (event) => {
-      if (!event.target.value) return;
-      restoreLetterRange();
-      document.execCommand('fontSize', false, event.target.value);
-      event.target.value = '';
-    });
-    $('letterAddLink').addEventListener('click', () => {
-      const href = safeLetterHref(prompt('Masukkan URL HTTPS, alamat email, atau tautan bagian halaman:'));
-      if (!href) return;
-      restoreLetterRange();
-      document.execCommand('createLink', false, href);
-    });
-    $('letterAddImage').addEventListener('click', () => $('letterInlineImage').click());
-    $('letterInlineImage').addEventListener('change', async (event) => {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const button = $('letterAddImage');
-      button.disabled = true;
-      try {
+    const suratEditor = window.PBPIIEditor.mount({
+      host: $('letterEditorHost'),
+      id: 'lBodyEditor',
+      placeholder: 'Tulis isi surat, gunakan toolbar untuk format, tautan, gambar, dan tabel.',
+      gambar: gambarSurat,
+      gambarTag: (fileId) => {
+        const id = String(fileId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        return '<img src="' + LETTER_IMAGE_PLACEHOLDER + '" data-letter-image-id="' + id + '" alt="Gambar surat">';
+      },
+      ambilGambar: async (file) => {
         const prepared = await prepareImage(file);
         const saved = await api('orgUploadLetterImage', { name: prepared.name, data: prepared.data });
-        const alt = saved.name || file.name || 'Gambar surat';
-        insertLetterHtml('<img data-letter-image-id="' + esc(saved.fileId) + '" alt="' + esc(alt) + '">');
+        if (!saved.fileId) throw new Error('Gambar belum tersimpan.');
         toast('Gambar surat tersimpan privat.');
-      } catch (error) {
-        toast('Gambar surat gagal ditambahkan: ' + error.message);
-      } finally {
-        event.target.value = '';
-        button.disabled = false;
-      }
-    });
-    letterEditor.addEventListener('keyup', saveLetterRange);
-    letterEditor.addEventListener('mouseup', saveLetterRange);
-    letterEditor.addEventListener('paste', (event) => {
-      event.preventDefault();
-      const html = event.clipboardData.getData('text/html');
-      if (html) insertLetterHtml(sanitizeLetterMarkup(html));
-      else insertLetterHtml(esc(event.clipboardData.getData('text/plain')).replace(/\n/g, '<br>'));
-    });
-    letterEditor.addEventListener('drop', (event) => {
-      event.preventDefault();
-      toast('Untuk menyisipkan gambar, gunakan tombol Sisipkan gambar.');
+        return saved.fileId;
+      },
+      gagal: (error) => toast('Gambar surat gagal ditambahkan: ' + error.message),
     });
 
     function renderLetters() {
@@ -1815,8 +1464,8 @@
     $('letterForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!canWrite()) return toast('Akun belum terverifikasi.');
-      const body = serializeLetterMarkup(letterEditor.innerHTML);
-      if (!letterEditor.textContent.trim() && !/<img\b[^>]*src="pbpii-letter-image:[a-zA-Z0-9_-]+"/i.test(body)) {
+      const body = suratEditor.value();
+      if (!suratEditor.text().trim() && !/<img\b[^>]*src="pbpii-letter-image:[a-zA-Z0-9_-]+"/i.test(body)) {
         return toast('Tambahkan isi surat sebelum mengirim.');
       }
       const toOrgIds = selectedLetterRecipients();
@@ -1845,7 +1494,7 @@
         });
         $('letterForm').reset();
         updateRecipientCount();
-        letterEditor.innerHTML = '';
+        suratEditor.setValue('');
         stagedLetterPdf = null;
         $('letterAttachmentStatus').textContent = 'PDF maksimal 2,5 MB. Lampiran hanya dapat dibuka pengirim dan penerima.';
         $('removeLetterAttachment').classList.add('hidden');
@@ -1929,13 +1578,13 @@
       $('lReplyToId').value = button.dataset.replyTo;
       const subject = button.dataset.replySubject || '';
       $('lSubject').value = /^re:/i.test(subject) ? subject : 'Re: ' + subject;
-      letterEditor.innerHTML = '';
+      suratEditor.setValue('');
       $('replyContext').textContent = 'Membalas dalam percakapan: ' + subject + ' · tujuan dan kategori mengikuti surat asal.';
       $('replyContext').classList.remove('hidden');
       $('cancelReply').classList.remove('hidden');
       $('sendLetterBtn').textContent = 'Kirim balasan';
       setPage('surat');
-      $('lBody').focus();
+      suratEditor.fokus();
     });
 
     let activePdfUrl = '';

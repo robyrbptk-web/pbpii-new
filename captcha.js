@@ -1,16 +1,15 @@
 /**
- * Verifikasi anti-spam untuk semua formulir publik (pendaftaran peserta,
- * pendaftaran lembaga, komentar acara).
+ * Verifikasi anti-bot untuk semua formulir masuk dan daftar (login admin,
+ * lembaga, kader, pendaftaran peserta kegiatan).
  *
- * Server yang menentukan jenisnya: selama PB PII belum mengisi kunci Cloudflare,
- * Apps Script membuat soal hitung sendiri sehingga tidak ada biaya, tidak ada
- * daftar ke penyedia mana pun, dan tidak ada kunci yang bocor ke browser. Begitu
- * Settings `turnstileSiteKey` + `turnstileSecret` terisi, widget yang sama
- * otomatis beralih ke Turnstile.
+ * Satu-satunya widget adalah kotak centang Cloudflare Turnstile — gratis dan
+ * tidak menyuruh siapa pun menghitung soal. Server yang menentukan jenisnya:
+ * bila kunci belum dipasang, `captcha` mengembalikan 'none' dan wadah ini
+ * disembunyikan sama sekali, jadi formulir tetap bisa dipakai.
  *
  * Pemakaian:
  *   const verifikasi = PBPIICaptcha.attach(host);
- *   await verifikasi.ready();          // soal sudah tampil
+ *   await verifikasi.ready();          // widget sudah tampil (atau disembunyikan)
  *   kirim({ ...data, ...verifikasi.fields() })
  *   verifikasi.reset();                // setelah jawaban ditolak
  */
@@ -27,7 +26,7 @@
       body: JSON.stringify({ action: 'captcha' })
     });
     const result = await response.json().catch(() => null);
-    if (!result || !result.ok) throw new Error(result?.error || 'Soal verifikasi belum dapat diambil.');
+    if (!result || !result.ok) throw new Error(result?.error || 'Verifikasi belum dapat disiapkan.');
     return result.data;
   }
 
@@ -59,6 +58,7 @@
       sitekey: siteKey,
       theme: 'light',
       size: 'flexible',
+      appearance: 'always',
       callback: (token) => { state.token = token; },
       'expired-callback': () => { state.token = ''; },
       'error-callback': () => { state.token = ''; }
@@ -71,26 +71,13 @@
     };
   }
 
-  function mountLocal(host, soal) {
-    host.innerHTML = `
-      <div class="captcha-box captcha-local">
-        <label class="captcha-question" for="captcha-${soal.id.slice(0, 8)}">${escapeHTML(soal.question)}</label>
-        <input id="captcha-${soal.id.slice(0, 8)}" class="captcha-answer" type="text"
-          inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Jawaban"
-          aria-describedby="captcha-help">
-        <button class="captcha-refresh" type="button" aria-label="Ambil soal baru">↻</button>
-      </div>
-      <p class="captcha-help" id="captcha-help">Hitung dalam kepala, isi hasilnya. Sekali pakai, jadi kirim segera setelah menjawab.</p>`;
-    const input = host.querySelector('.captcha-answer');
-    const state = { id: soal.id, question: soal.question };
-    return {
-      kind: 'local',
-      fields: () => ({ captchaId: state.id, captchaAnswer: input.value.trim() }),
-      valid: () => Boolean(state.id && input.value.trim()),
-      reset: () => { input.value = ''; },
-      focus: () => input.focus(),
-      state
-    };
+  /** Tidak ada widget: wadah hilang dari layar dan kirim tidak pernah diblokir. */
+  function mountTanpaWidget(host) {
+    host.hidden = true;
+    host.innerHTML = '';
+    const wadah = host.closest('.field');
+    if (wadah) wadah.hidden = true;
+    return { kind: 'none', fields: () => ({}), valid: () => true, reset() {} };
   }
 
   function escapeHTML(value) {
@@ -101,36 +88,35 @@
 
   /**
    * @param {HTMLElement} host wadah tempat widget ditampilkan
-   * @param {{onChange?:Function}} options dipanggil tiap soal berganti
+   * @param {{onChange?:Function}} options dipanggil tiap jenis verifikasi berganti
    */
   function attach(host, options = {}) {
     if (!host) throw new Error('Wadah verifikasi tidak ditemukan.');
     host.classList.add('captcha');
-    host.innerHTML = '<p class="captcha-loading" role="status">Mengambil soal verifikasi…</p>';
+    host.hidden = false;
+    host.innerHTML = '<p class="captcha-loading" role="status">Menyiapkan verifikasi…</p>';
 
     let current = null;
     let pending = null;
 
     async function load() {
-      const soal = await issue();
-      if (soal.kind === 'turnstile') {
+      const data = await issue();
+      if (data.kind === 'turnstile') {
         try {
-          current = await mountTurnstile(host, soal.siteKey);
+          current = await mountTurnstile(host, data.siteKey);
         } catch (error) {
           host.innerHTML = `<p class="captcha-help is-error">${escapeHTML(error.message)}</p>`;
           current = { kind: 'error', fields: () => ({}), valid: () => false, reset() {} };
         }
       } else {
-        current = mountLocal(host, soal);
-        current.reload = load;
-        host.querySelector('.captcha-refresh')?.addEventListener('click', () => load());
+        current = mountTanpaWidget(host);
       }
       options.onChange?.(current.kind);
       return current;
     }
 
     pending = load().catch((error) => {
-      host.innerHTML = `<p class="captcha-help is-error">${escapeHTML(error.message)} Tombol kirim tetap dicoba; server akan meminta verifikasi ulang.</p>`;
+      host.innerHTML = `<p class="captcha-help is-error">${escapeHTML(error.message)} Coba kirim; server akan memberi tahu bila verifikasi diperlukan.</p>`;
       current = { kind: 'error', fields: () => ({}), valid: () => false, reset() {} };
       return current;
     });
