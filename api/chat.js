@@ -666,7 +666,7 @@ export default async function handler(req, res) {
       batas,
       error: body.token
         ? `Kuota ${batas} pertanyaan hari ini sudah habis. Coba lagi besok.`
-        : `Jatah ${batas} pertanyaan gratis hari ini sudah habis. Masuk sebagai kader untuk jatah yang lebih besar, atau coba lagi besok.`,
+        : `Jatah ${batas} pertanyaan gratis hari ini sudah habis. Coba lagi besok.`,
     });
     return;
   }

@@ -3752,17 +3752,18 @@ body.has-kader-dialog {
   flex-direction: column;
 }
 
+/* Area baca nyaris putih: satu sapuan biru lembut di tepi atas, bukan dua
+   cahaya radial yang berebut perhatian dengan percakapan. */
 .tanya-stage {
-  background:
-    radial-gradient(circle at 12% 0%, #f2f8fd, transparent 42%),
-    radial-gradient(circle at 88% 8%, #eef7f1, transparent 38%),
-    #fbfdfe;
+  background: linear-gradient(180deg, #f4f9fd, #fdfefe 240px);
 }
 
 .tanya-scroll {
-  flex: 1;
+  display: flex;
   min-height: 0;
-  padding: 26px 20px 8px;
+  flex: 1;
+  flex-direction: column;
+  padding: 18px 20px 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -3780,6 +3781,9 @@ body.has-kader-dialog {
 
 .tanya-intro {
   position: relative;
+  /* margin auto menaruh hero di tengah kolom kosong; begitu ada jawaban,
+     aturan [hidden] menghapusnya sehingga tidak pernah mendorong isi keluar. */
+  margin: auto;
   padding: clamp(18px, 6vh, 56px) 0 10px;
   animation: shell-enter .4s ease both;
 }
@@ -3859,8 +3863,8 @@ body.has-kader-dialog {
 .tanya-thread {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding-bottom: 14px;
+  gap: 16px;
+  padding-bottom: 10px;
 }
 
 .tanya-row {
@@ -4532,27 +4536,24 @@ body.has-kader-dialog {
  * ulang di kanan. Tersembunyi sampai disentuh atau didekati seperti ChatGPT,
  * tetapi selalu tampil di layar tanpa kursor dan tetap bisa ditabulasi.
  */
+/* Toolbar jawaban: empat tombol utility (salin, suka, tidak suka, ulang) dan
+   satu tombol unduh yang hanya ada bila jawabannya memang sebuah dokumen. */
 .tanya-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px 4px;
+  gap: 2px;
   margin: 2px 0 0 -7px;
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s ease;
 }
 
-.tanya-actions_kiri,
 .tanya-actions_kanan {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-}
-
-.tanya-actions_kanan {
-  margin-left: auto;
 }
 
 .tanya-row.is-assistant:hover .tanya-actions,
@@ -4579,8 +4580,8 @@ body.has-kader-dialog {
 }
 
 .tanya-act svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -4604,6 +4605,22 @@ body.has-kader-dialog {
 
 .tanya-act.is-rasa.is-aktif svg {
   fill: currentColor;
+}
+
+/* Unduhan kontekstual: satu-satunya tombol yang boleh tampak menonjol, dan
+   hanya dirender bila dokumen di jawaban ini benar-benar tersusun. */
+.tanya-act.is-unduh {
+  border: 1px solid #cfe0f2;
+  border-radius: 999px;
+  padding: 5px 11px;
+  background: #f2f8fd;
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.tanya-act.is-unduh:hover {
+  border-color: var(--blue);
+  background: #e6f1fb;
 }
 
 @media (hover: none) {
@@ -4740,32 +4757,28 @@ body.has-kader-dialog {
   font-size: .9rem;
 }
 
+/* Satu-satunya pintasan masuk kader yang tersisa di halaman ini: muncul saat
+   jatah tamu benar-benar habis, itupun tanpa gaya promosi. */
 .tanya-upgrade {
   display: inline-flex;
   align-items: center;
   min-height: 40px;
   margin: 6px 6px 0 0;
-  border: 0;
+  border: 1px solid #bcd2e6;
   border-radius: 11px;
   padding: 9px 14px;
-  background: linear-gradient(135deg, var(--navy), var(--blue));
-  color: #fff;
+  background: #fff;
+  color: var(--blue);
   font: inherit;
   font-size: .82rem;
   font-weight: 800;
   cursor: pointer;
-  transition: transform .16s ease, box-shadow .16s ease;
+  transition: background .16s ease, border-color .16s ease;
 }
 
 .tanya-upgrade:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgb(16 43 73 / 22%);
-}
-
-.tanya-upgrade.is-plain {
-  background: #fff;
-  border: 1px solid #bcd2e6;
-  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--sky);
 }
 
 /* Sumber berkas yang dikutip model — terlihat oleh pembaca, isinya tidak ikut terkirim. */
@@ -4854,27 +4867,12 @@ body.has-kader-dialog {
   text-underline-offset: 2px;
 }
 
-.tanya-quota-cta {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  border: 1px solid #bcd2e6;
-  border-radius: 999px;
-  padding: 5px 12px;
-  background: #fff;
-  color: var(--blue);
-  font: inherit;
-  font-size: .74rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
 .tanya-composer {
   flex: 0 0 auto;
   border-top: 0;
-  padding: 12px 20px 14px;
-  background: linear-gradient(180deg, rgb(251 253 254 / 0%), #fff 36%);
-  box-shadow: 0 -12px 28px rgb(16 43 73 / 5%);
+  padding: 8px 20px 10px;
+  background: linear-gradient(180deg, rgb(251 253 254 / 0%), #fff 40%);
+  box-shadow: 0 -10px 24px rgb(16 43 73 / 4%);
 }
 
 /* Blur hanya di layar dengan penunjuk dan ruang GPU lebih. Di HP, area yang
@@ -4886,12 +4884,24 @@ body.has-kader-dialog {
   }
 }
 
-.tanya-composer-row {
+/* Satu kartu, satu garis tepi. Kolom tulis dan tombol kirim berbagi wadah yang
+   sama; sebelumnya keduanya berbingkai sendiri sehingga tampak bertumpuk. */
+.tanya-field {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: 8px;
   width: min(760px, 100%);
   margin: 0 auto;
+  border: 1px solid #d9e5f1;
+  border-radius: 24px;
+  padding: 5px 5px 5px 15px;
+  background: #fff;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.tanya-field:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgb(23 109 168 / 12%);
 }
 
 /* Kirim dan Hentikan menempati lubang yang sama. Kalau keduanya berdiri di
@@ -4899,41 +4909,25 @@ body.has-kader-dialog {
    tepat saat pengguna paling sibuk membaca jawaban. */
 .tanya-kontrol {
   position: relative;
-  flex: 0 0 46px;
-  width: 46px;
-  height: 46px;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
 }
 
-.tanya-field {
-  flex: 1 1 auto;
-  display: flex;
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 14px;
-  background: #fff;
-  box-shadow: 0 6px 18px rgb(16 43 73 / 6%);
-  transition: border-color .18s ease, box-shadow .18s ease;
-}
-
-.tanya-field:focus-within {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 4px rgb(23 109 168 / 14%);
-}
-
-/* Satu baris (24px) + 28px bantalan = 52px saat kosong; tumbuh sampai 148px
-   lalu menggulir di dalam, jadi komposer tidak pernah memakan percakapan. */
+/* Satu baris (24px) + bantalan = 44px saat kosong; tumbuh sampai 110px lalu
+   menggulir di dalam, jadi komposer tidak pernah memakan percakapan. */
 .tanya-field textarea {
   flex: 1;
   min-width: 0;
   min-height: 24px;
-  max-height: 118px;
+  max-height: 110px;
   border: 0;
   background: none;
   color: var(--ink);
   font: inherit;
   font-size: .95rem;
-  line-height: 1.45;
+  line-height: 1.5;
+  padding: 10px 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   resize: none;
@@ -4944,26 +4938,25 @@ body.has-kader-dialog {
   position: absolute;
   inset: 0;
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 0;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--navy), var(--blue));
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgb(23 109 168 / 24%);
+  box-shadow: 0 6px 14px rgb(23 109 168 / 22%);
   transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
 }
 
 .tanya-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 22px rgb(23 109 168 / 30%);
+  box-shadow: 0 8px 18px rgb(23 109 168 / 30%);
 }
 
 .tanya-submit svg {
-  width: 21px;
-  height: 21px;
+  width: 19px;
+  height: 19px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -4998,13 +4991,13 @@ body.has-kader-dialog {
 }
 
 /* Saat jawaban disusun, tombol kirim berganti menjadi Hentikan di lubang yang
-   sama: bulat 46px, ikon kotak, label tetap terbaca oleh pembaca layar. */
+   sama: bulat 44px, ikon kotak, label tetap terbaca oleh pembaca layar. */
 .tanya-stop {
   position: absolute;
   inset: 0;
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 1px solid #d6e3f0;
   border-radius: 50%;
@@ -5107,58 +5100,54 @@ body.has-kader-dialog {
   transform: translate(-50%, 0);
 }
 
-/* Kuota dan tombol aksi berbagi satu baris hanya bila keduanya benar-benar
-   muat. Tanpa flex-wrap, satu-satunya anak yang boleh menyusut adalah teks
-   kuota — ia hancur menjadi satu kata per baris (9px lebarnya di layar 320px). */
+/* Sisa kuota: satu baris kecil di bawah kolom tulis, tanpa tombol apa pun.
+   Tidak ada lagi promosi di area ini — dulu baris ini juga memuat tombol
+   "Unduh PDF percakapan", "Percakapan baru", dan "Masuk kader, jatah naik". */
 .tanya-meter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 8px;
   width: min(760px, 100%);
-  margin: 8px auto 0;
-  color: var(--muted);
-  font-size: .74rem;
-  line-height: 1.4;
+  margin: 7px auto 0;
+  color: #93a2b3;
+  font-size: .7rem;
+  line-height: 1.35;
+  text-align: center;
 }
 
-.tanya-meter_info {
-  flex: 1 1 auto;
-  min-width: 0;
+.tanya-meter[hidden] {
+  display: none;
 }
 
-.tanya-meter_aksi {
-  display: flex;
+/* Pintasan percakapan baru pindah ke header: ikon kecil, bukan tombol teks
+   besar yang memakan dua baris di bawah kolom tulis. */
+.tanya-baru {
+  display: grid;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
-  gap: 2px;
-  margin-left: auto;
-}
-
-.tanya-reset {
-  display: inline-flex;
-  align-items: center;
-  min-height: 40px;
-  border: 0;
-  border-radius: 9px;
-  padding: 6px 10px;
-  background: none;
+  place-items: center;
+  border: 1px solid #dde7f1;
+  border-radius: 50%;
+  background: #fff;
   color: var(--blue);
-  font: inherit;
-  font-size: .74rem;
-  font-weight: 700;
   cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
 }
 
-.tanya-reset:hover {
+.tanya-baru:hover {
+  border-color: var(--blue);
   background: var(--sky);
 }
 
-.tanya-disclaimer {
-  width: min(760px, 100%);
-  margin: 4px auto 0;
-  color: #8b97a6;
-  font-size: .72rem;
-  line-height: 1.45;
+.tanya-baru:active {
+  transform: scale(.92);
+}
+
+.tanya-baru svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 @media (max-width: 680px) {
@@ -5226,16 +5215,20 @@ body.has-kader-dialog {
     padding: 7px 9px;
   }
 
+  /* Satu cadangan bar navigasi saja. <body> sudah menyisakan 76px + safe area
+     di bawahnya; komposer yang juga menyisakan 76px untuk dirinya sendiri
+     menumpuk cadangan itu menjadi pita kosong 81px antara baris terakhir
+     komposer dan bar navigasi. */
   .tanya-composer {
-    /* bar navigasi bawah menutupi ~66px, komposer dinaikkan agar tidak tertimbun */
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
   }
 
   /* Saat papan ketik tampil, bar navigasi sudah tertekan ke bawah layar:
      komposer cukup menempel di atas papan ketik. */
   body.tanya-keyboard-up .tanya-composer {
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    padding-bottom: 8px;
   }
 
   /* Cadangan 76px untuk bar bawah juga ada di <body>; ikut dilepas supaya
@@ -5250,49 +5243,27 @@ body.has-kader-dialog {
   }
 
   .tanya-meter {
-    font-size: .78rem;
+    font-size: .72rem;
   }
 
   /* Toolbar jawaban ikut target sentuh 44px, sama seperti kontrol lainnya. */
   .tanya-act {
     min-height: 44px;
+    padding: 5px 11px;
   }
 
-  .tanya-reset,
-  .tanya-quota-cta,
   .tanya-upgrade {
     min-height: 44px;
   }
 
-  .tanya-quota-cta {
-    padding: 9px 14px;
-    font-size: .78rem;
+  .tanya-baru {
+    width: 44px;
+    height: 44px;
   }
 
-  .tanya-composer {
-    padding-right: max(12px, env(safe-area-inset-right));
-    padding-left: max(12px, env(safe-area-inset-left));
-  }
-
-  /* Dua baris tetap: baris 1 sisa kuota, baris 2 tombol aksi. */
-  .tanya-meter {
-    align-items: flex-start;
-  }
-
-  .tanya-meter_info {
-    flex: 1 1 100%;
-  }
-
-  .tanya-meter_aksi {
-    flex-wrap: wrap;
-    gap: 0 2px;
-    margin-left: 0;
-  }
-
-  .tanya-disclaimer {
-    margin-top: 8px;
-    font-size: .72rem;
-    line-height: 1.5;
+  .tanya-kontrol {
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -5307,8 +5278,16 @@ body.has-kader-dialog {
     white-space: nowrap;
   }
 
+  /* Ikon saja, tetapi tetap 44x44: labelnya pindah ke a11y tree, bukan
+     menyusutkan area sentuhan di bawah satu jari. */
   .tanya-act {
-    padding: 6px 7px;
+    min-width: 44px;
+    justify-content: center;
+    padding: 5px 8px;
+  }
+
+  .tanya-act.is-unduh {
+    padding: 5px 13px;
   }
 
   .tanya-toast {

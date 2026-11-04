@@ -216,12 +216,15 @@ dilihat sekilas), dan harus tetap begitu saat ada fitur baru:
   (`index/acara/ibadah/tanya/peta.html`) memuat tab **Tanya** permanen di bar
   navigasi — di ponsel menjadi salah satu tab bawah, di layar lebar menjadi
   bagian menu atas — sehingga tidak ada lagi elemen tetap yang menutupi menu.
-  Di `/tanya.html` komposer menempel di bawah: kolom tulis 16 px dengan tinggi
-  52–57 px saat kosong dan tumbuh sampai 147 px (lalu menggulir di dalamnya),
-  tombol kirim 46 px, dan baris kuota yang di ponsel selalu dua tingkat —
-  sisa kuota satu baris penuh, lalu **Unduh PDF percakapan** + **Percakapan
-  baru** pada baris berikutnya. Komposer utuh 274 px pada 390×844, jadi
-  percakapan tetap mendapat 428 px. Saat papan ketik muncul, `--tanya-keyboard`
+  Di `/tanya.html` komposer menempel di bawah: satu container `.tanya-field`
+  (radius 24 px, satu garis tepi, satu cincin fokus) dengan kolom tulis 16 px
+  setinggi 55 px saat kosong yang tumbuh sampai 110 px (lalu menggulir di
+  dalamnya), tombol kirim/Hentikan 44 px berbagi satu lubang di sisi kanan, dan
+  satu baris kuota kecil di bawahnya. Komposer utuh 94 px pada 390×844, jadi
+  percakapan mendapat 608 px dan dasar kolom tulis berhenti 5 px di atas bar
+  navigasi. **Unduh PDF percakapan** dan tombol **Percakapan baru** yang besar
+  sudah hilang dari baris itu — yang terakhir menjadi ikon bundar 44 px di
+  kepala halaman. Saat papan ketik muncul, `--tanya-keyboard`
   dan `body.tanya-keyboard-up` melepas cadangan bar navigasi (di `body`
   maupun di komposer) sehingga kolom tulis menempel di atas papan ketik.
   Semua elemen `position:fixed` diuji: nol yang menutupi bar navigasi.
@@ -783,20 +786,32 @@ halaman ini terbuka untuk pengunjung tanpa akun. Tinggi halaman memakai
 `calc(100dvh - var(--tanya-keyboard))` supaya komposer tidak tertutup papan
 ketik di HP.
 
-**Tiga hal yang pernah merusak komposer di HP dan dijaga tetap begini.**
-(1) `.tanya-meter` harus `flex-wrap: wrap`: selama baris itu nowrap, satu-satunya
+**Empat hal yang pernah merusak komposer di HP dan dijaga tetap begini.**
+(1) Cadangan bar navigasi hanya boleh ada satu. `body { padding-bottom:
+calc(76px + env(safe-area-inset-bottom)) }` (media 680px) dan aturan yang sama di
+`.tanya-composer` pernah hidup berdampingan; dengan `box-sizing: border-box`
+global keduanya menumpuk jadi 152 px dan meninggalkan pita mati 81 px antara
+baris terakhir komposer dan bar navigasi. Sekarang komposer hanya menambah
+`env(safe-area-inset-bottom)` dan tinggi totalnya turun dari 274 px menjadi
+94 px, sementara area chat naik dari 428 px menjadi 608 px di 390 × 844.
+(2) `.tanya-meter` harus `flex-wrap: wrap`: selama baris itu nowrap, satu-satunya
 anak yang boleh menyusut adalah teks kuota, dan ia hancur ke lebar min-content
 (terukur 9 × 206 px — sepuluh baris satu kata — di layar 320 px, komposer
-membengkak jadi 417 px). Tombol aksi sekarang dibungkus `.tanya-meter_aksi`
-dan teks kuota `.tanya-meter_info` yang di ponsel mendapat `flex-basis: 100%`.
-(2) `.tanya-page` wajib `min-height: 0`; aturan global `body { min-height: 100dvh }`
+membengkak jadi 417 px). Baris itu kini tinggal satu teks kuota polos, jadi
+`hidden` lebih dipakai daripada menyusut.
+(3) `.tanya-page` wajib `min-height: 0`; aturan global `body { min-height: 100dvh }`
 menang bukan karena spesifisitas melainkan karena `min-height` selalu melampaui
 `height`, sehingga tanpa itu halaman tidak pernah menyusut dan papan ketik menutupi
-kolom tulis. (3) Kirim dan Hentikan berbagi satu
-lubang 46 px (`.tanya-kontrol`, keduanya `position:absolute`) — sebagai dua tombol
+kolom tulis. (4) Kirim dan Hentikan berbagi satu
+lubang 44 px (`.tanya-kontrol`, keduanya `position:absolute`) — sebagai dua tombol
 sejajar, pil "Hentikan" menarik 56 px dan kolom tulis menyempit justru saat jawaban
 sedang disusun. Tinggi komposer dilaporkan ke CSS lewat `ResizeObserver`
 (`--tanya-composer-tinggi`) agar tombol "ke bawah" tidak pernah menimpanya.
+Kolom tulis sendiri satu container (`.tanya-field`, radius 24 px, satu garis tepi
+1 px, satu cincin fokus) — bukan tumpukan border. `.tanya-scroll` flex column dan
+`.tanya-intro { margin: auto }` supaya layar kosong terpusat; begitu ada jawaban
+intro di-`hidden` sehingga tidak pernah mendorong isi keluar. Semua tombol aksi,
+kontrol, dan "Percakapan baru" di kepala berukuran 44 × 44.
 
 **Dua mode jawaban.** Proxy `/api/chat` mengenali pertanyaan yang menyangkut
 organisasi dari daftar istilah di `ORGANIZATION_TERMS` (PII, kader, kongres,
@@ -844,16 +859,30 @@ menjadi kartu terminal: lampu lalu-lintas, pemisah perintah dan keluaran, tombol
 **Salin Command** dan **Salin Keluaran**, baris gagal berwarna merah. Tidak ada
 command yang pernah dijalankan oleh halaman.
 
-**Tiap jawaban punya toolbar.** Salin jawaban (isi Markdown murni, tanpa label
-UI), Unduh Markdown, Unduh TXT, Ekspor PDF, Suka, Tidak, dan Ulangi. Operasi
-salin memunculkan notifikasi kecil "Berhasil disalin". Di layar sentuh toolbar
-selalu tampil; di bawah 430px labelnya diganti ikon saja.
+**Tiap jawaban punya toolbar empat tombol.** Salin jawaban (isi Markdown murni,
+tanpa label UI), Suka, Tidak, dan Ulangi — semuanya ikon 44 × 44 dalam satu baris
+rata. Ekspor Markdown/TXT dan "Unduh PDF percakapan" sudah dicabut: jawaban biasa
+tidak menampilkan tombol unduh sama sekali. Operasi salin memunculkan notifikasi
+kecil "Berhasil disalin". Di bawah 430px label diganti ikon saja, tetapi
+`min-width: 44px` dijaga agar sasaran sentuh tidak ikut mengecil.
 
-**Ekspor PDF memakai stylesheet cetak, bukan screenshot.** `cetakJawaban()` dan
-`cetakPercakapan()` menyalin jawaban ke `#tanyaPrint` lalu membuka dialog cetak
+**Unduh PDF hanya untuk jawaban yang memang dokumen.** `adalahDokumen()` memeriksa
+dua hal sebelum tombol **Unduh PDF** muncul: pertanyaan pengguna menyebut bentuk
+dokumen (surat, proposal, laporan, RAB, notulen, panduan, makalah, …) dan jawabannya
+panjang (≥ 320 karakter) serta benar-benar tersusun (≥ 2 kepala atau ≥ 3 baris
+tabel). Tombol itu hanya melekat pada pesan yang menghasilkan dokumen, bukan pada
+seluruh percakapan.
+
+**Ekspor PDF memakai stylesheet cetak, bukan screenshot.** `cetakJawaban()`
+menyalin jawaban ke `#tanyaPrint` lalu membuka dialog cetak
 peramban dengan `@page` A4, kop berisi logo dan identitas, judul dokumen, tanggal,
 nomor halaman "Halaman 1 dari N" dari `@page @bottom-center`, tabel yang utuh,
-blok kode berlatar terang, dan tautan yang alamatnya ikut tercetak. Elemen situs
+blok kode berlatar terang, dan tautan yang alamatnya ikut tercetak. Untuk mode
+dokumen, label "Pertanyaan" dan "Jawaban Tanya PII" dilepas sehingga hasilnya
+membaca seperti surat asli dengan judul dari kepala Markdown pertama. Lembar
+disusun dan divalidasi lebih dulu — kalau isinya kosong, dialog cetak tidak dibuka
+dan pengguna menerima toast, jadi tombol tidak pernah menjanjikan berkas yang belum
+jadi. Elemen situs
 (navigasi, komposer, tombol) disingkirkan dengan
 `body.tanya-mencetak > :not(#tanyaPrint)`. `html2canvas` tidak dipakai supaya
 teks tetap tajam dan tidak terpotong.
@@ -883,7 +912,11 @@ reset sendiri setiap tengah malam. Panjang pertanyaan dipotong ke
 `APP.CHAT_MAX_CHARS` (900). Kalau deployment Apps Script belum mendukung aksi
 tersebut, proxy jatuh ke pembatas lunak di memori instance (20/hari berakun,
 maksimal 4 pertanyaan per menit) agar fitur tetap hidup. Sisa kuota akun muncul
-di meter komposer (`Sisa 17 dari 20 pertanyaan hari ini`).
+di meter komposer sebagai satu baris kecil tanpa promosi (`Sisa 17/20 pertanyaan
+hari ini`); kalau status kuota gagal dibaca, baris itu disembunyikan, bukan
+diganti pesan teknis. Ajakan "Masuk kader, jatah naik" dan tombol ekspor di bawah
+kolom tulis sudah dicabut — pintu masuk kader tinggal satu tombol kecil di baris
+upgrade dan ikon "Percakapan baru" di kepala.
 
 **Kunci AI tidak pernah sampai ke browser.** Alurnya
 `tanya.js` → `/api/chat` (proxy Vercel, `maxDuration` 60 dtk karena model gratis

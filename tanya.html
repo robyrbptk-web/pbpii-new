@@ -32,6 +32,9 @@
       <a class="nav-extra" href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka</span></a>
       <button class="nav-more" id="navMore" type="button" aria-expanded="false" aria-controls="navMoreSheet"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.1"/><circle cx="12" cy="7" r="2.1"/><circle cx="18" cy="7" r="2.1"/><circle cx="6" cy="17" r="2.1"/><circle cx="12" cy="17" r="2.1"/><circle cx="18" cy="17" r="2.1"/></svg><span>Lainnya</span></button>
     </nav>
+    <button class="tanya-baru" id="tanyaReset" type="button" aria-label="Percakapan baru" title="Percakapan baru">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
+    </button>
     <div class="account-slot" data-account aria-label="Akun kader PII"></div>
     <button class="install-app" id="installApp" type="button" hidden>Instal aplikasi</button>
   </header>
@@ -59,7 +62,7 @@
         <img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
         <h1>Tanya PII</h1>
         <p class="tanya-badge"><i aria-hidden="true"></i>Model AI karya Badan Inovasi Digital PB PII</p>
-        <p>Silakan tanya apa pun. Untuk pertanyaan seputar Pelajar Islam Indonesia, jawaban dibangun dari berkas PII di Pustaka dan sumber penelusuran yang ditampilkan sebagai rujukan; bila bahannya kurang, Tanya PII akan mengatakannya.</p>
+        <p>Silakan tanya apa pun. Untuk pertanyaan seputar Pelajar Islam Indonesia, jawaban dibangun dari berkas PII di Pustaka dan sumber penelusuran yang ditampilkan sebagai rujukan; bila bahannya kurang, Tanya PII akan mengatakannya. Untuk keputusan resmi, konfirmasi ke pengurus PB PII.</p>
       </section>
       <div class="tanya-thread" id="tanyaThread" role="log" aria-live="polite" aria-label="Percakapan dengan Tanya PII"></div>
     </div>
@@ -69,10 +72,9 @@
     </button>
 
     <form class="tanya-composer" id="tanyaComposer">
-      <div class="tanya-composer-row">
-        <label class="tanya-field">
-          <textarea id="tanyaInput" name="q" rows="1" maxlength="900" placeholder="Tulis pertanyaan apa pun…" autocomplete="off" enterkeyhint="send"></textarea>
-        </label>
+      <div class="tanya-field">
+        <label class="sr-only" for="tanyaInput">Tulis pertanyaan untuk Tanya PII</label>
+        <textarea id="tanyaInput" name="q" rows="1" maxlength="900" placeholder="Tulis pertanyaan apa pun…" autocomplete="off" enterkeyhint="send"></textarea>
         <div class="tanya-kontrol">
           <button class="tanya-stop" id="tanyaStop" type="button" hidden>
             <span>Hentikan</span>
@@ -82,14 +84,7 @@
           </button>
         </div>
       </div>
-      <p class="tanya-meter">
-        <span class="tanya-meter_info" id="tanyaQuota">Menyiapkan kuota…</span>
-        <span class="tanya-meter_aksi">
-          <button type="button" class="tanya-reset" id="tanyaExport">Unduh PDF percakapan</button>
-          <button type="button" class="tanya-reset" id="tanyaReset">Percakapan baru</button>
-        </span>
-      </p>
-      <p class="tanya-disclaimer">Pertanyaan seputar PII dijawab dari kutipan berkas PII atau sumber penelusuran yang tercantum. Untuk keputusan resmi, konfirmasi ke pengurus PB PII.</p>
+      <p class="tanya-meter" id="tanyaQuota" hidden></p>
     </form>
   </main>
 

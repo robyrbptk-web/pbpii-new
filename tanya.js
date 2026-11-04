@@ -63,13 +63,6 @@
     return String(turn?.content || '').trim();
   }
 
-  /** Nama berkas unduhan, diambil dari pertanyaan yang dijawab. */
-  function namaBerkas(soal, tambahan) {
-    const ringkas = String(soal || '').replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 38).replace(/^-+|-+$/g, '').toLowerCase();
-    return `tanya-pii-${ringkas || 'jawaban'}${tambahan || ''}`;
-  }
-
   function unduhTeks(nama, isi, tipe) {
     const berkas = new Blob([isi], { type: `${tipe || 'text/plain'};charset=utf-8` });
     const url = URL.createObjectURL(berkas);
@@ -174,11 +167,8 @@
         ? ' · <a class="tanya-sumber-link" href="pustaka.html">buka Pustaka</a>'
         : '';
       const barisBerkas = berkas.slice(0, 3).map((sumber) => {
-        const halaman = Array.isArray(sumber.halaman) && sumber.halaman.length
-          ? (sumber.halaman[0] === sumber.halaman[1] ? ` hal. ${sumber.halaman[0]}` : ` hal. ${sumber.halaman[0]}-${sumber.halaman[1]}`)
-          : '';
-        const kategori = sumber.kategori ? `${sumber.kategori} ·` : '';
-        return `<li><span>${escapeHTML(sumber.judul)}</span><em>${escapeHTML(`${kategori}${halaman}`)}</em></li>`;
+        const ket = [sumber.kategori, halamanTeks(sumber.halaman).replace(/^ /, '')].filter(Boolean).join(' · ');
+        return `<li><span>${escapeHTML(sumber.judul)}</span><em>${escapeHTML(ket)}</em></li>`;
       }).join('');
       const barisWeb = daring.slice(0, 3).map((sumber) => `
         <li>
@@ -195,36 +185,51 @@
     const IKON = {
       salin: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.4"/><path d="M15 6.5H6.5A2.5 2.5 0 0 0 4 9v8"/></svg>',
       ulang: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4.5V9h-4.5"/></svg>',
-      unduh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>',
-      pdf: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7L18 7.5V20H7z"/><path d="M14 3.5V7.5H18"/><path d="M9.5 16.5v-4h1.2a1.3 1.3 0 0 1 0 2.6H9.5"/><path d="M13.5 16.5v-4h1.1a1.9 1.9 0 0 1 0 4z"/></svg>',
+      pdf: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>',
       naik: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21v-9l4.2-8.4a1.6 1.6 0 0 1 3 1.1L12.8 11H19l-2.2 8a1.6 1.6 0 0 1-1.6 1.2H7Z"/></svg>',
       turun: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v9l4.2 8.4a1.6 1.6 0 0 0 3-1.1L12.8 13H19l-2.2-8A1.6 1.6 0 0 0 15.2 3H7Z"/></svg>',
     };
 
-    const ALAT_JAWABAN = [
-      ['salin', 'Salin jawaban', 'Salin', IKON.salin],
-      ['markdown', 'Unduh jawaban sebagai berkas Markdown', 'Markdown', IKON.unduh],
-      ['txt', 'Unduh jawaban sebagai berkas teks', 'TXT', IKON.unduh],
-      ['pdf', 'Ekspor jawaban ini ke PDF', 'PDF', IKON.pdf],
-    ];
-    const ALAT_PERASA = [
-      ['suka', 'Jawaban ini membantu', IKON.naik],
-      ['tidak', 'Jawaban ini kurang membantu', IKON.turun],
-    ];
+    /*
+     * Unduhan PDF bersifat kontekstual, bukan perabot tetap setiap balon.
+     * Sinyalnya permintaan dokumen dari penanya, dikonfirmasi bentuk
+     * jawabannya: tanpa judul atau tabel, jawabannya masih narasi biasa dan
+     * tidak ada berkas yang bisa diunduh.
+     */
+    const PERMINTAAN_DOKUMEN = /\b(surat|proposal|laporan|notulen|memo|memorandum|undangan|keterangan|sk|rab|rka|anggaran|konsep|draf|draft|materi|modul|panduan|makalah|kisi-kisi|kerangka|dokumen|pdf)\b/i;
+
+    function adalahDokumen(soal, isi) {
+      const teks = String(isi || '').trim();
+      if (!soal || !PERMINTAAN_DOKUMEN.test(String(soal)) || teks.length < 320) return false;
+      const judul = (teks.match(/^#{1,4}[^\n]*$/gm) || []).length;
+      const barisTabel = (teks.match(/^\s*\|[^\n]*\|\s*$/gm) || []).length;
+      return judul >= 2 || barisTabel >= 3;
+    }
+
+    /** Judul bab pertama dipakai sebagai nama dokumen pada lembar cetak. */
+    function judulDokumen(isi) {
+      const kepala = String(isi || '').match(/^#{1,3}[^\n]*$/m);
+      return kepala ? kepala[0].replace(/^#+\s*/, '').replace(/[*_`]/g, '').trim().slice(0, 120) : '';
+    }
 
     /**
-     * Toolbar di bawah setiap jawaban: salin, unduh Markdown/TXT, ekspor PDF,
-     * penanda bantuan, dan jawab ulang. Tombol hanya ikon di layar sempit.
+     * Toolbar jawaban: salin, suka, tidak suka, dan jawab ulang. Tombol unduh
+     * PDF hanya menyelinap di antaranya bila balon ini memang sebuah dokumen.
      */
     function alatBlok(urut, turn) {
-      const kiri = ALAT_JAWABAN.map(([act, label, teks, ikon]) =>
-        `<button type="button" class="tanya-act" data-act="${act}" aria-label="${label}" title="${label}">${ikon}<span>${teks}</span></button>`).join('');
-      const rasa = ALAT_PERASA.map(([act, label, ikon]) =>
-        `<button type="button" class="tanya-act is-rasa${turn?.rasa === act ? ' is-aktif' : ''}" data-act="${act}"`
-        + ` aria-label="${label}" aria-pressed="${turn?.rasa === act ? 'true' : 'false'}" title="${label}">${ikon}</button>`).join('');
+      const soal = urut > 0 ? turns[urut - 1]?.content : '';
+      const tombol = [['salin', 'Salin jawaban', 'Salin', IKON.salin, '']];
+      if (adalahDokumen(soal, turn?.content)) {
+        tombol.push(['pdf', 'Unduh dokumen ini sebagai PDF', 'Unduh PDF', IKON.pdf, ' is-unduh']);
+      }
+      const kiri = tombol.map(([act, label, teks, ikon, extra]) =>
+        `<button type="button" class="tanya-act${extra}" data-act="${act}" aria-label="${label}" title="${label}">${ikon}<span>${teks}</span></button>`).join('');
+      const rasa = [['suka', 'Jawaban ini membantu', IKON.naik], ['tidak', 'Jawaban ini kurang membantu', IKON.turun]]
+        .map(([act, label, ikon]) =>
+          `<button type="button" class="tanya-act is-rasa${turn?.rasa === act ? ' is-aktif' : ''}" data-act="${act}"`
+          + ` aria-label="${label}" aria-pressed="${turn?.rasa === act ? 'true' : 'false'}" title="${label}">${ikon}</button>`).join('');
       const ulang = `<button type="button" class="tanya-act" data-act="ulang" aria-label="Jawab ulang pertanyaan ini" title="Jawab ulang">${IKON.ulang}<span>Ulangi</span></button>`;
-      return `<div class="tanya-actions"><span class="tanya-actions_kiri">${kiri}</span>`
-        + `<span class="tanya-actions_kanan">${rasa}${ulang}</span></div>`;
+      return `<div class="tanya-actions">${kiri}${rasa}${ulang}</div>`;
     }
 
     function bubble(role, content, rujukan, status, rujukanWeb, urut) {
@@ -305,12 +310,11 @@
       return row;
     }
 
-    /** Jatah habis: tawarkan jalan keluar, bukan tombol coba ulang yang buntu. */
+    /** Jatah tamu habis: satu jalan keluar fungsional, tanpa gaya promosi. */
     function upgradeRow(message) {
       const boleh = window.PBPIIAkun?.canSignIn?.() !== false;
-      const ajakan = boleh ? `
-          <button type="button" class="tanya-upgrade" data-tab="daftar">Daftar akun kader</button>
-          <button type="button" class="tanya-upgrade is-plain" data-tab="email">Masuk dengan akun yang sudah ada</button>` : '';
+      const ajakan = boleh
+        ? '<button type="button" class="tanya-upgrade" data-tab="daftar">Masuk kader</button>' : '';
       const row = document.createElement('div');
       row.className = 'tanya-row is-assistant is-quota';
       row.innerHTML = `
@@ -368,19 +372,10 @@
       const urut = Number(baris?.dataset.urut);
       const turn = turns[urut];
       if (!turn) return;
-      const soal = urut > 0 ? turns[urut - 1]?.content : '';
 
       if (act === 'salin') {
         salinTeks(teksJawaban(turn), tombol);
         toast('Berhasil disalin.');
-      } else if (act === 'markdown') {
-        unduhTeks(`${namaBerkas(soal)}.md`, salinanMarkdown(turn), 'text/markdown');
-        toast('Berkas Markdown diunduh.');
-      } else if (act === 'txt') {
-        const teks = window.PBPIIMarkdown?.toPlainText
-          ? window.PBPIIMarkdown.toPlainText(teksJawaban(turn)) : teksJawaban(turn);
-        unduhTeks(`${namaBerkas(soal)}.txt`, `${soal ? `${soal}\n${'='.repeat(Math.min(60, soal.length))}\n\n` : ''}${teks}\n`, 'text/plain');
-        toast('Berkas TXT diunduh.');
       } else if (act === 'pdf') {
         cetakJawaban(urut);
       } else if (act === 'suka' || act === 'tidak') {
@@ -392,25 +387,6 @@
         jawabUlang(urut);
       }
     });
-
-    /** Berkas .md: pertanyaan + jawaban mentah, rujukan di bawah sebagai catatan. */
-    function salinanMarkdown(turn) {
-      const urut = turns.indexOf(turn);
-      const soal = urut > 0 ? turns[urut - 1]?.content : '';
-      const sumber = rujukanTeks(turn);
-      return [
-        soal ? `# ${soal}\n` : '',
-        teksJawaban(turn),
-        sumber ? `\n\n---\n\n## Rujukan\n\n${sumber}` : '',
-        '\n\n_Dijawab oleh Tanya PII — Asisten Pelajar Islam Indonesia, Badan Khusus Inovasi Digital PB PII._\n',
-      ].join('\n');
-    }
-
-    function rujukanTeks(turn) {
-      const berkas = (turn.rujukan || []).map((s) => `- **${s.judul}**${s.kategori ? ` — ${s.kategori}` : ''}${halamanTeks(s.halaman)}`);
-      const daring = (turn.rujukanWeb || []).map((s) => `- [${s.judul}](${s.url})`);
-      return [...berkas, ...daring].join('\n');
-    }
 
     const halamanTeks = (halaman) => (Array.isArray(halaman) && halaman.length && Number(halaman[0])
       ? (halaman[0] === halaman[1] ? ` (hal. ${halaman[0]})` : ` (hal. ${halaman[0]}-${halaman[1]})`) : '');
@@ -426,7 +402,12 @@
       day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
 
-    function lembarCetak(judul, daftar) {
+    /*
+     * Lembar cetak khusus dokumen: judul dokumen menjadi kepala halaman dan
+     * pertanyaan penanya tidak ikut dicetak, supaya hasilnya terbaca sebagai
+     * surat/proposal/laporan, bukan sebagai tangkapan percakapan.
+     */
+    function lembarCetak(judul, daftar, dokumen) {
       let lembar = document.querySelector('#tanyaPrint');
       if (!lembar) {
         lembar = document.createElement('div');
@@ -439,8 +420,8 @@
         const urut = daftar.indexOf(turn);
         const soal = daftar[urut - 1]?.role === 'user' ? daftar[urut - 1].content : '';
         return `<section class="tanya-cetak-bab">
-          ${soal ? `<p class="tanya-cetak-label">Pertanyaan</p><h2 class="tanya-cetak-soal">${escapeHTML(soal)}</h2>` : ''}
-          <p class="tanya-cetak-label">Jawaban Tanya PII</p>
+          ${!dokumen && soal ? `<p class="tanya-cetak-label">Pertanyaan</p><h2 class="tanya-cetak-soal">${escapeHTML(soal)}</h2>` : ''}
+          ${dokumen ? '' : '<p class="tanya-cetak-label">Jawaban Tanya PII</p>'}
           ${richText(turn.content)}
           ${sumberCetak(turn)}
         </section>`;
@@ -468,9 +449,14 @@
       return `<div class="tanya-cetak-sumber"><p class="tanya-cetak-label">Rujukan</p><ul>${berkas}${daring}</ul></div>`;
     }
 
-    function cetak(judul, daftar) {
-      if (!daftar.length) { toast('Belum ada jawaban untuk diekspor.'); return; }
-      lembarCetak(judul, daftar);
+    /** Lembar disusun dan diperiksa lebih dulu; dialog hanya terbuka bila isinya nyata. */
+    function cetak(judul, daftar, dokumen) {
+      const lembar = lembarCetak(judul, daftar, dokumen);
+      const isi = lembar.querySelector('.tanya-cetak-isi');
+      if (!isi || !isi.textContent.trim()) {
+        toast('Dokumen belum tersusun, jadi PDF tidak dibuat.');
+        return false;
+      }
       document.body.classList.add('tanya-mencetak');
       const selesai = () => {
         document.body.classList.remove('tanya-mencetak');
@@ -478,17 +464,16 @@
       };
       window.addEventListener('afterprint', selesai);
       setTimeout(() => { window.print(); setTimeout(selesai, 1500); }, 60);
+      return true;
     }
 
+    /** Hanya satu jawaban yang dicetak; ekspor seluruh percakapan sudah dicabut. */
     function cetakJawaban(urut) {
       const jawaban = turns[urut];
-      const soal = turns[urut - 1]?.content || 'Jawaban Tanya PII';
-      cetak(soal, turns.slice(Math.max(0, urut - 1), urut + 1));
-    }
-
-    function cetakPercakapan() {
-      const pertama = turns.find((turn) => turn.role === 'user');
-      cetak(pertama ? `Percakapan Tanya PII — ${pertama.content.slice(0, 60)}` : 'Percakapan Tanya PII', turns);
+      const soal = turns[urut - 1]?.content || '';
+      const dokumen = adalahDokumen(soal, jawaban?.content);
+      cetak(judulDokumen(jawaban?.content) || soal || 'Dokumen Tanya PII',
+        turns.slice(Math.max(0, urut - 1), urut + 1), dokumen);
     }
 
     function salinTeks(teks, tombol) {
@@ -564,7 +549,6 @@
 
       const row = pending(text);
       stick(true);
-      const start = Date.now();
       pembatal = typeof AbortController === 'function' ? new AbortController() : null;
 
       try {
@@ -599,7 +583,7 @@
         });
         save();
         paint();
-        showQuota(data, start);
+        showQuota(data);
       } catch (error) {
         row.remove();
         paint();
@@ -621,14 +605,9 @@
 
     const errorShown = () => Boolean(thread.querySelector('.is-error'));
 
-    function showQuota(data, askedAt) {
+    function showQuota(data) {
       if (typeof data?.sisa !== 'number') return;
-      paintMeter({
-        sisa: data.sisa,
-        batas: data.batas,
-        akun: data.akun || (sessionToken() ? 'akun' : 'tamu'),
-        detik: Math.max(1, Math.round((Date.now() - (askedAt || Date.now())) / 1000))
-      });
+      paintMeter({ sisa: data.sisa, batas: data.batas, akun: data.akun || (sessionToken() ? 'akun' : 'tamu') });
     }
 
     async function loadQuota() {
@@ -638,34 +617,27 @@
           sisa: status.sisa,
           batas: status.batas,
           akun: status.akun || (sessionToken() ? 'akun' : 'tamu'),
-          habis: status.boleh === false
         });
       } catch {
-        quota.textContent = 'Kuota harian berlaku; jawaban tetap dikirim bila layanan AI sedang longgar.';
+        quota.hidden = true;
       }
     }
 
-    /** Pill kuota: singkat agar muat di layar kecil, plus pintasan masuk saat jatah tamu habis. */
-    function paintMeter({ sisa, batas, akun, detik, habis }) {
-      const tamu = akun === 'tamu';
-      const nama = window.PBPIIAkun?.account?.().name || '';
-      const inti = `Sisa ${sisa}/${batas || (tamu ? 5 : 20)} pertanyaan hari ini`;
-      const ekor = tamu ? ' · gratis dari jaringan ini' : (nama ? ` · ${nama}` : '');
-      quota.textContent = inti + ekor + (detik ? ` · ${detik}s` : '');
-      if (tamu && (habis || sisa === 0) && window.PBPIIAkun?.canSignIn?.() !== false) {
-        const tombol = document.createElement('button');
-        tombol.type = 'button';
-        tombol.className = 'tanya-quota-cta';
-        tombol.textContent = 'Masuk kader, jatah naik jadi 20';
-        tombol.addEventListener('click', () => window.PBPIIAkun?.openPanel('', 'daftar'));
-        quota.append(' ', tombol);
-      }
+    /*
+     * Baris kuota hanya angka: tidak ada lagi CTA "Masuk kader, jatah naik
+     * jadi 20" di bawah kolom tulis. Bila statusnya tidak diketahui, barisnya
+     * disembunyikan daripada menampilkan teks pengantar.
+     */
+    function paintMeter({ sisa, batas, akun }) {
+      if (typeof sisa !== 'number') { quota.hidden = true; return; }
+      quota.textContent = `Sisa ${sisa}/${batas || (akun === 'tamu' ? 5 : 20)} pertanyaan hari ini`;
+      quota.hidden = false;
     }
 
     // Tinggi textarea mengikuti isi; sisanya menggulir di dalam kolom (lihat max-height CSS).
     const grow = () => {
       input.style.height = 'auto';
-      input.style.height = `${Math.min(input.scrollHeight, 118)}px`;
+      input.style.height = `${Math.min(input.scrollHeight, 110)}px`;
     };
 
     input.addEventListener('input', grow);
@@ -691,7 +663,6 @@
     });
 
     document.querySelector('#tanyaStop')?.addEventListener('click', () => pembatal?.abort());
-    document.querySelector('#tanyaExport')?.addEventListener('click', cetakPercakapan);
 
     /** Tombol lompat ke bawah: hanya muncul saat pembaca sedang menggulir ke atas. */
     const bawah = document.querySelector('#tanyaBawah');
