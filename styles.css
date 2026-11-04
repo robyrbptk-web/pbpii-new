@@ -4863,15 +4863,41 @@ body.has-kader-dialog {
 }
 
 .tanya-sumber li em {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
   color: var(--muted);
   font-style: normal;
   font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tanya-sumber-link {
   color: var(--blue);
   font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Rujukan harus bisa diperiksa, bukan cuma dibaca: tautan ke halaman aslinya. */
+.tanya-sumber-buka {
+  flex: 0 0 auto;
+  border: 1px solid #cfe1f3;
+  border-radius: 999px;
+  padding: 2px 9px;
+  background: #fff;
+  color: var(--blue);
+  font-size: .68rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.tanya-sumber-buka:hover,
+.tanya-sumber-buka:focus-visible {
+  border-color: var(--blue);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

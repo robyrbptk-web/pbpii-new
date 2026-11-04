@@ -516,6 +516,110 @@
       background: rgb(255 255 255 / 14%);
     }
 
+    /* display chip di atas mengalahkan hidden, jadi tombol yang belum
+       tersedia tetap harus disembunyikan secara eksplisit. */
+    .pustaka-alat[hidden],
+    .pustaka-reader-pdf[hidden] {
+      display: none;
+    }
+
+    .pustaka-reader-alat {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pustaka-alat {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      border: 1px solid rgb(255 255 255 / 26%);
+      border-radius: 999px;
+      padding: 6px 11px;
+      background: rgb(255 255 255 / 9%);
+      color: #fff;
+      font: inherit;
+      font-size: .74rem;
+      font-weight: 800;
+      letter-spacing: .01em;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background-color .16s ease, color .16s ease;
+    }
+
+    .pustaka-alat:hover {
+      background: rgb(255 255 255 / 18%);
+    }
+
+    .pustaka-alat.is-aktif {
+      border-color: #cfe6fb;
+      background: #eaf4fd;
+      color: var(--navy);
+    }
+
+    /* Suasana baca: kertas diganti warna, chrome biru tetap bawaan situs. */
+    .pustaka-reader[data-tema='krem'] .pustaka-reader-body.is-teks {
+      background: #efe6d4;
+    }
+
+    .pustaka-reader[data-tema='krem'] .pustaka-dokumen {
+      border-color: #e3d6bd;
+      background: #fbf3e4;
+      color: #3a2f1f;
+      box-shadow: 0 12px 34px rgb(84 66 34 / 14%);
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-reader-body.is-teks {
+      background: #0b1a2a;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-dokumen {
+      border-color: #26405c;
+      background: #12283f;
+      color: #dbe7f2;
+      box-shadow: 0 12px 34px rgb(3 10 18 / 45%);
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-halaman,
+    .pustaka-reader[data-tema='malam'] .pustaka-sampul-baris {
+      color: #8fb0cd;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-sampul-baris:first-child,
+    .pustaka-reader[data-tema='malam'] .pustaka-judul-1 {
+      color: #cfe6fb;
+      border-bottom-color: #2c4a6b;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-judul-2 {
+      color: #9fd0f5;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-judul-3,
+    .pustaka-reader[data-tema='malam'] .pustaka-toc-judul {
+      color: #e6f0f8;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-toc-jalur {
+      border-bottom-color: #345a7f;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-toc-halaman {
+      color: #9fd0f5;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-dokumen mark,
+    .pustaka-reader[data-tema='malam'] .pustaka-cuplikan mark {
+      background: #f0b83a;
+      color: #14202c;
+    }
+
+    .pustaka-reader[data-tema='malam'] .pustaka-meta,
+    .pustaka-reader[data-tema='malam'] .pustaka-note {
+      color: #a8c4dc;
+    }
+
     .pustaka-reader-body {
       flex: 1 1 auto;
       min-height: 0;
@@ -717,6 +821,68 @@
       font-weight: 700;
     }
 
+    /* Penanda baca: lanjutkan baca dari bagian yang pernah dibuka. */
+    .pustaka-penanda {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 11px 13px;
+      background: #fff;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .16s ease, box-shadow .16s ease, transform .12s ease;
+    }
+
+    .pustaka-penanda:hover {
+      border-color: #b9d5ee;
+      box-shadow: 0 6px 16px rgb(16 43 73 / 9%);
+      transform: translateY(-1px);
+    }
+
+    .pustaka-penanda b {
+      display: block;
+      overflow: hidden;
+      color: var(--navy);
+      font-size: .9rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pustaka-penanda span {
+      display: block;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: .78rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pustaka-penanda-hapus {
+      border: 0;
+      background: none;
+      color: var(--muted);
+      font: inherit;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .pustaka-penanda-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pustaka-penanda-row .pustaka-penanda {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
     .pustaka-skeleton {
       display: grid;
       gap: 11px;
@@ -781,7 +947,42 @@
       }
 
       .pustaka-reader-bar {
+        flex-wrap: wrap;
         padding: calc(env(safe-area-inset-top) + 8px) 10px 10px;
+      }
+
+      .pustaka-reader-title {
+        flex: 1 1 calc(100% - 60px);
+        order: 1;
+      }
+
+      .pustaka-reader-alat {
+        order: 2;
+        flex: 1 1 100%;
+        margin-left: 54px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .pustaka-reader-alat::-webkit-scrollbar {
+        display: none;
+      }
+
+      .pustaka-alat {
+        min-height: 40px;
+        padding: 7px 12px;
+      }
+
+      .pustaka-reader-pdf {
+        min-height: 40px;
+      }
+
+      .pustaka-penanda-row {
+        gap: 8px;
+      }
+
+      .pustaka-penanda {
+        padding: 12px;
       }
 
       .pustaka-reader-body.is-teks {
@@ -837,6 +1038,7 @@
       .pustaka-back:active,
       .pustaka-chip:active,
       .pustaka-more:active,
+      .pustaka-penanda:hover,
       .pustaka-clear:active {
         transform: none;
       }
@@ -928,6 +1130,11 @@
         <div class="pustaka-list" id="pustakaHasil"></div>
       </section>
 
+      <section id="pustakaPenandaBagian" hidden>
+        <h2 class="pustaka-section-title"><span>Penanda baca</span><small class="pustaka-status">lanjut baca dari sini</small></h2>
+        <div class="pustaka-list" id="pustakaPenanda"></div>
+      </section>
+
       <section id="pustakaBerkasBagian">
         <h2 class="pustaka-section-title"><span>Berkas dalam pustaka</span><small class="pustaka-status" id="pustakaBerkasHint"></small></h2>
         <div class="pustaka-list" id="pustakaBerkas"></div>
@@ -942,7 +1149,12 @@
         <b id="pustakaReaderJudul">—</b>
         <small id="pustakaReaderMeta">Memilih berkas</small>
       </div>
-      <a class="pustaka-reader-pdf" id="pustakaReaderPdf" href="#" target="_blank" rel="noopener" hidden>Buka PDF asli ↗</a>
+      <div class="pustaka-reader-alat">
+        <button class="pustaka-alat" id="pustakaReaderTema" type="button" aria-label="Ganti suasana baca">Tema</button>
+        <button class="pustaka-alat" id="pustakaReaderPenanda" type="button">Simpan</button>
+        <a class="pustaka-alat" id="pustakaReaderTanya" href="tanya.html" hidden>Tanyakan</a>
+        <a class="pustaka-reader-pdf" id="pustakaReaderPdf" href="#" target="_blank" rel="noopener" hidden>PDF asli ↗</a>
+      </div>
     </header>
     <div class="pustaka-reader-body" id="pustakaReaderBody"></div>
     <footer class="pustaka-reader-kaki">
@@ -986,6 +1198,11 @@
       const POTONG_LOMPAT = 40;
       const ADMIN_TOKEN_KEY = 'pbpii_admin_token';
       const ORG_TOKEN_KEY = 'pbpii_org_token';
+      const TEMA_KEY = 'pbpii_pustaka_tema';
+      const PENANDA_KEY = 'pbpii_pustaka_penanda';
+      const TEMA = ['putih', 'krem', 'malam'];
+      const TEMA_LABEL = { putih: 'Putih', krem: 'Krem', malam: 'Malam' };
+      const BATAS_PENANDA = 20;
 
       const el = (id) => document.getElementById(id);
       const gate = el('pustakaGate');
@@ -1009,6 +1226,11 @@
       const pembacaPdf = el('pustakaReaderPdf');
       const pembacaInfo = el('pustakaReaderInfo');
       const pembacaMore = el('pustakaReaderMore');
+      const alatTema = el('pustakaReaderTema');
+      const alatPenanda = el('pustakaReaderPenanda');
+      const alatTanya = el('pustakaReaderTanya');
+      const bagianPenanda = el('pustakaPenandaBagian');
+      const daftarPenanda = el('pustakaPenanda');
 
       /** Sesi mengikuti pola situs: kader dari akun.js, pengurus dari sesi login.
           Token disimpan di localStorage agar sesi tetap hidup walau tab ditutup. */
@@ -1028,8 +1250,28 @@
         scope: '',
         kueri: '',
         hasil: [],
+        penanda: penandaMuat(),
         jeda: null
       };
+
+      /* Tanya PII menautkan rujukannya ke sini: ?doc=&hal= membuka berkas pada
+         halaman yang tadi dikutip, ?cari= mengisi kolom cari. */
+      const tautanMasuk = (() => {
+        const param = new URLSearchParams(window.location.search);
+        const doc = String(param.get('doc') || '').slice(0, 60);
+        const hal = Math.max(0, Math.min(9999, Math.round(Number(param.get('hal')) || 0)));
+        const cari = String(param.get('cari') || '').slice(0, 160);
+        if (!doc && !cari) return { doc: '', hal: 0, cari: '' };
+        if (cari) {
+          input.value = cari;
+          state.kueri = cari;
+          tombolHapus.hidden = false;
+        }
+        try {
+          window.history.replaceState({}, '', window.location.pathname);
+        } catch { /* pratinjau lokal tanpa server: biarkan alamatnya apa adanya */ }
+        return { doc, hal, cari };
+      })();
 
       function tautanAman(nilai) {
         const teks = String(nilai || '').trim();
@@ -1166,7 +1408,9 @@
           renderChips();
           renderScope();
           renderBerkas();
+          renderPenanda();
           if (state.kueri) cari();
+          bukaDariTautan();
         } catch (error) {
           if (butuhLogin(error.message)) {
             suruhMasuk();
@@ -1421,6 +1665,170 @@
         });
       }
 
+      // ----------------------------------------------------- tema baca & penanda
+
+      /** Suasana baca hanya milik perangkat ini, jadi cukup di localStorage. */
+      function bacaTema() {
+        try {
+          const nilai = localStorage.getItem(TEMA_KEY);
+          return TEMA.includes(nilai) ? nilai : 'putih';
+        } catch {
+          return 'putih';
+        }
+      }
+
+      function pasangTema(tema) {
+        const dipilih = TEMA.includes(tema) ? tema : 'putih';
+        if (dipilih === 'putih') pembaca.removeAttribute('data-tema');
+        else pembaca.dataset.tema = dipilih;
+        alatTema.textContent = TEMA_LABEL[dipilih];
+        alatTema.classList.toggle('is-aktif', dipilih !== 'putih');
+        alatTema.setAttribute('aria-label', `Suasana baca ${TEMA_LABEL[dipilih]}. Klik untuk berganti.`);
+        return dipilih;
+      }
+
+      function gantiTema() {
+        const berikut = TEMA[(TEMA.indexOf(pasangTema(pembaca.dataset.tema || 'putih')) + 1) % TEMA.length];
+        pasangTema(berikut);
+        try {
+          localStorage.setItem(TEMA_KEY, berikut);
+        } catch { /* penyimpanan penuh: tema tetap berlaku sampai halaman ditutup */ }
+      }
+
+      function penandaMuat() {
+        try {
+          const disimpan = JSON.parse(localStorage.getItem(PENANDA_KEY) || '[]');
+          return Array.isArray(disimpan)
+            ? disimpan.filter((item) => item && item.id).slice(0, BATAS_PENANDA)
+            : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function penandaSimpan() {
+        try {
+          localStorage.setItem(PENANDA_KEY, JSON.stringify(state.penanda.slice(0, BATAS_PENANDA)));
+        } catch { /* browser menolak penyimpanan: penanda berlaku selama tab terbuka */ }
+      }
+
+      /* Penanda dan berkas ditandai id + nomor halaman lanjut baca, jadi satu
+         berkas bisa punya beberapa titik berhenti. */
+      function penandaKunci(item) {
+        return `${String(item.id)}#${Number(item.halaman) || 0}`;
+      }
+
+      function penandaSaatIni() {
+        if (!state.baca) return null;
+        const doc = state.docs.find((item) => String(item.id) === String(state.baca.id)) || {};
+        return {
+          id: state.baca.id,
+          judul: String(doc.judul || state.baca.judul || state.baca.id),
+          kategori: String(doc.kategori || state.baca.kategori || ''),
+          bab: String(state.baca.bab || ''),
+          halaman: Number(state.baca.halamanAwal) || 0,
+          waktu: new Date().toISOString()
+        };
+      }
+
+      function penandaTersimpan(item) {
+        return item && state.penanda.some((x) => penandaKunci(x) === penandaKunci(item));
+      }
+
+      function ubahPenandaBaca() {
+        const item = penandaSaatIni();
+        if (!item) return;
+        const kunci = penandaKunci(item);
+        const ada = state.penanda.findIndex((x) => penandaKunci(x) === kunci);
+        if (ada >= 0) {
+          state.penanda.splice(ada, 1);
+          pembacaInfo.textContent = 'Penanda baca dihapus.';
+        } else {
+          state.penanda.unshift(item);
+          pembacaInfo.textContent = item.halaman
+            ? `Penanda disimpan di halaman ${item.halaman}.`
+            : 'Penanda disimpan di awal berkas.';
+        }
+        penandaSimpan();
+        labeliPenandaBaca();
+        renderPenanda();
+      }
+
+      function labeliPenandaBaca() {
+        const tersimpan = penandaTersimpan(penandaSaatIni());
+        alatPenanda.textContent = tersimpan ? 'Tersimpan' : 'Simpan';
+        alatPenanda.classList.toggle('is-aktif', tersimpan);
+        alatPenanda.setAttribute('aria-pressed', String(tersimpan));
+      }
+
+      /** Serah-terima ke Tanya PII: pertanyaan tersusun dari bab/halaman yang dibaca. */
+      function tautanTanyaBaca() {
+        const item = penandaSaatIni();
+        if (!item) {
+          alatTanya.hidden = true;
+          return;
+        }
+        const bagian = item.bab || 'bagian ini';
+        const soal = `Jelaskan bagian “${bagian}”`
+          + (item.halaman ? ` (halaman ${item.halaman})` : '')
+          + ` pada berkas “${item.judul}” di Pustaka Organisasi PII.`;
+        alatTanya.href = `tanya.html?tanya=${encodeURIComponent(soal)}`;
+        alatTanya.hidden = false;
+      }
+
+      function renderPenanda() {
+        daftarPenanda.replaceChildren();
+        bagianPenanda.hidden = !state.penanda.length || !state.tersedia;
+        state.penanda.forEach((item, index) => {
+          const baris = document.createElement('div');
+          baris.className = 'pustaka-penanda-row';
+
+          const buka = document.createElement('button');
+          buka.type = 'button';
+          buka.className = 'pustaka-penanda';
+          const judul = document.createElement('b');
+          judul.textContent = item.judul || item.id;
+          const ket = document.createElement('span');
+          ket.textContent = [
+            item.bab ? item.bab : '',
+            item.halaman ? `halaman ${item.halaman}` : 'awal berkas',
+            tanggalSingkat(item.waktu)
+          ].filter(Boolean).join(' · ');
+          buka.append(judul, ket);
+          buka.addEventListener('click', () => bukaPembaca(
+            String(item.id), Number(item.halaman) || 0, { judul: item.judul, kategori: item.kategori }
+          ));
+
+          const buang = document.createElement('button');
+          buang.type = 'button';
+          buang.className = 'pustaka-penanda-hapus';
+          buang.setAttribute('aria-label', `Hapus penanda ${item.judul || item.id}`);
+          buang.textContent = '×';
+          buang.addEventListener('click', () => {
+            state.penanda.splice(index, 1);
+            penandaSimpan();
+            renderPenanda();
+            labeliPenandaBaca();
+          });
+
+          baris.append(buka, buang);
+          daftarPenanda.append(baris);
+        });
+      }
+
+      /** Tautan ?doc= dari Tanya PII: pembaca terbuka tepat di halaman yang dikutip. */
+      function bukaDariTautan() {
+        const id = tautanMasuk.doc;
+        if (!id || tautanMasuk.dipakai) return;
+        tautanMasuk.dipakai = true;
+        const doc = state.docs.find((item) => String(item.id) === id);
+        if (!doc) {
+          jelaskan('Berkas yang ditautkan tidak ada di pustaka atau tidak terbuka untuk akun Anda.', true);
+          return;
+        }
+        bukaPembaca(id, tautanMasuk.hal, { judul: doc.judul, kategori: doc.kategori });
+      }
+
       // ---------------------------------------------------------------- pembaca
 
       /** Kertas tempat teks berkas ditata; dibuat ulang setiap berkas dibuka. */
@@ -1520,11 +1928,17 @@
         (potong || []).slice(mulaiIndex || 0).forEach((item) => {
           const nomor = labelHalaman(item?.h);
           if (nomor && nomor !== state.baca?.halamanTerakhir) {
-            if (state.baca) state.baca.halamanTerakhir = nomor;
+            if (state.baca) {
+              state.baca.halamanTerakhir = nomor;
+              state.baca.halamanAwal = Number(String(nomor).split('–')[0]) || 0;
+              state.baca.bab = String(item.b || state.baca.bab || '');
+            }
             const label = document.createElement('p');
             label.className = 'pustaka-halaman';
             label.textContent = `Halaman ${nomor}`;
             dokumen.append(label);
+          } else if (state.baca && item?.b && !state.baca.bab) {
+            state.baca.bab = String(item.b);
           }
 
           String(item?.t || '').split(/\r?\n/).forEach((barisAsli) => {
@@ -1590,12 +2004,22 @@
         pembacaInfo.textContent = '';
         state.baca = null;
         dokumen = null;
+        labeliPenandaBaca();
+        tautanTanyaBaca();
       }
 
       async function bukaPembaca(id, target, informasi) {
         if (!id) return;
         const doc = { ...(state.docs.find((item) => String(item.id) === String(id)) || {}), ...(informasi || {}) };
-        state.baca = { id, mulai: 0, sisa: 0, busy: true, kueri: String(informasi?.kueri || '') };
+        state.baca = {
+          id,
+          mulai: 0,
+          sisa: 0,
+          busy: true,
+          kueri: String(informasi?.kueri || ''),
+          judul: String(doc.judul || id),
+          kategori: String(doc.kategori || '')
+        };
         const pdf = tautanAman(doc.tautan);
         pembacaPdf.hidden = !pdf;
         if (pdf) pembacaPdf.href = pdf;
@@ -1617,6 +2041,7 @@
           const muatan = tujuan ? POTONG_LOMPAT : POTONG_PER_MUAT;
           let jawaban = await api({ action: 'pustakaBaca', doc: id, mulai: 0, jumlah: muatan });
           let index = 0;
+          let lompatKe = 0;
           if (tujuan) {
             let ditemukan = -1;
             let mulai = 0;
@@ -1632,7 +2057,7 @@
                 const lewat = potong.findIndex((item) => (Array.isArray(item?.h) ? Number(item.h[0]) : 0) >= tujuan);
                 if (lewat >= 0) ditemukan = lewat;
               }
-              if (ditemukan >= 0) { index = ditemukan; break; }
+              if (ditemukan >= 0) { index = ditemukan; lompatKe = tujuan; break; }
               const sisaSebelumnya = Number(jawaban?.sisa) || 0;
               if (sisaSebelumnya <= 0) break;
               mulai += potong.length;
@@ -1661,10 +2086,17 @@
           state.baca.mulai = (Number(jawaban?.mulai) || 0) + potong.length;
           state.baca.sisa = Number(jawaban?.sisa) || 0;
           tataTeks(potong, index, dariAwal);
-          if (index > 0) {
+          if (lompatKe) {
             const catatan = document.createElement('p');
             catatan.className = 'pustaka-meta';
-            catatan.textContent = 'Bagian ini dibuka pada halaman yang dicari dari hasil pencarian.';
+            catatan.textContent = `Bagian ini dibuka pada halaman ${lompatKe} yang Anda tuju.`;
+            dokumen.prepend(catatan);
+          } else if (tujuan) {
+            /* Tautan rujukan menyebut nomor halaman, tetapi korpus berkas ini
+               belum menyimpannya — dibuka dari awal, bukan dibuat seolah benar. */
+            const catatan = document.createElement('p');
+            catatan.className = 'pustaka-meta';
+            catatan.textContent = `Halaman ${tujuan} belum terindeks pada berkas ini, jadi baca dimulai dari awal.`;
             dokumen.prepend(catatan);
           }
           /* Nomor halaman belum tentu tersedia, jadi kalau berkas dibuka dari
@@ -1703,6 +2135,8 @@
           pembacaInfo.textContent = 'Tutup tampilan baca, lalu buka berkasnya lagi.';
         } finally {
           if (state.baca) state.baca.busy = false;
+          labeliPenandaBaca();
+          tautanTanyaBaca();
         }
       }
 
@@ -1738,6 +2172,8 @@
         } finally {
           state.baca = state.baca ? { ...state.baca, busy: false } : null;
           pembacaMore.disabled = false;
+          labeliPenandaBaca();
+          tautanTanyaBaca();
         }
       }
 
@@ -1794,6 +2230,8 @@
 
       el('pustakaReaderClose').addEventListener('click', tutupPembaca);
       pembacaMore.addEventListener('click', muatBerikutnya);
+      alatTema.addEventListener('click', gantiTema);
+      alatPenanda.addEventListener('click', ubahPenandaBaca);
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && pembaca.classList.contains('is-open')) tutupPembaca();
       });
@@ -1808,6 +2246,9 @@
       function pasang() {
         const tahun = el('year');
         if (tahun) tahun.textContent = new Date().getFullYear();
+        pasangTema(bacaTema());
+        labeliPenandaBaca();
+        renderPenanda();
         if (window.PBPIIAkun?.onChange) window.PBPIIAkun.onChange(terapkan);
         else {
           terapkan();

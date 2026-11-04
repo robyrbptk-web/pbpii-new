@@ -146,9 +146,21 @@
     };
 
     /**
+     * Tautan balik ke Pustaka: berkas dan halaman persis yang tadi dikutip,
+     * jadi pembaca bisa memeriksa kutipan di dokumen aslinya. Id berkas dibatasi
+     * karakter yang aman untuk query string.
+     */
+    function tautanBerkas(sumber) {
+      const id = String(sumber.berkas || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+      if (!id) return '';
+      const halaman = Number(Array.isArray(sumber.halaman) ? sumber.halaman[0] : 0) || 0;
+      return `pustaka.html?doc=${encodeURIComponent(id)}${halaman ? `&hal=${halaman}` : ''}`;
+    }
+
+    /**
      * Nama berkas + halaman yang tadi dikutip model. Isinya tidak ikut dikirim ke
-     * browser, hanya judul, kategori, dan nomor halaman sebagai rujukan pembaca.
-     * Rujukan web ditampilkan sebagai tautan supaya sumbernya bisa diperiksa.
+     * browser, hanya judul, kategori, bab, dan nomor halaman sebagai rujukan
+     * pembaca. Rujukan web ditampilkan sebagai tautan supaya sumbernya bisa diperiksa.
      */
     function sumberBlok(rujukan, rujukanWeb, status) {
       const berkas = (Array.isArray(rujukan) ? rujukan : []).filter((item) => item && item.judul);
@@ -167,8 +179,16 @@
         ? ' · <a class="tanya-sumber-link" href="pustaka.html">buka Pustaka</a>'
         : '';
       const barisBerkas = berkas.slice(0, 3).map((sumber) => {
-        const ket = [sumber.kategori, halamanTeks(sumber.halaman).replace(/^ /, '')].filter(Boolean).join(' · ');
-        return `<li><span>${escapeHTML(sumber.judul)}</span><em>${escapeHTML(ket)}</em></li>`;
+        const ket = [
+          sumber.kategori,
+          halamanTeks(sumber.halaman).replace(/^ /, ''),
+          String(sumber.bab || '').slice(0, 60)
+        ].filter(Boolean).join(' · ');
+        const buka = tautanBerkas(sumber);
+        const tombol = buka
+          ? `<a class="tanya-sumber-buka" href="${escapeHTML(buka)}">baca bagian ini</a>`
+          : '';
+        return `<li><span>${escapeHTML(sumber.judul)}</span><em>${escapeHTML(ket)}</em>${tombol}</li>`;
       }).join('');
       const barisWeb = daring.slice(0, 3).map((sumber) => `
         <li>
@@ -443,7 +463,7 @@
 
     function sumberCetak(turn) {
       const berkas = (turn.rujukan || []).map((sumber) => `<li><b>${escapeHTML(sumber.judul)}</b>${
-        escapeHTML(`${sumber.kategori ? ` · ${sumber.kategori}` : ''}${halamanTeks(sumber.halaman)}`)}</li>`).join('');
+        escapeHTML(`${sumber.kategori ? ` · ${sumber.kategori}` : ''}${sumber.bab ? ` · ${sumber.bab}` : ''}${halamanTeks(sumber.halaman)}`)}</li>`).join('');
       const daring = (turn.rujukanWeb || []).map((sumber) => `<li><b>${escapeHTML(sumber.judul)}</b> — ${escapeHTML(sumber.url)}</li>`).join('');
       if (!berkas && !daring) return '';
       return `<div class="tanya-cetak-sumber"><p class="tanya-cetak-label">Rujukan</p><ul>${berkas}${daring}</ul></div>`;
@@ -565,6 +585,8 @@
           .map((sumber) => ({
             judul: String(sumber.judul).slice(0, 120),
             kategori: String(sumber.kategori || '').slice(0, 40),
+            berkas: String(sumber.berkas || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60),
+            bab: String(sumber.bab || '').slice(0, 120),
             halaman: Array.isArray(sumber.halaman) ? sumber.halaman.slice(0, 2) : [],
           }));
         const rujukanWeb = (Array.isArray(data?.rujukanWeb) ? data.rujukanWeb : [])
@@ -704,7 +726,17 @@
 
     paint(true);
     loadQuota();
-    if (!window.matchMedia('(pointer: coarse)').matches) input.focus({ noScroll: true });
+    /* Serah-terima dari pembaca Pustaka: pertanyaan tentang bagian yang sedang
+       dibaca sudah tersusun di URL, tinggal diperiksa lalu dikirim sendiri. */
+    const bawaan = String(new URLSearchParams(window.location.search).get('tanya') || '').slice(0, 500);
+    if (bawaan) {
+      input.value = bawaan;
+      grow();
+      input.focus({ noScroll: true });
+      try {
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch { /* pratinjau lokal tanpa server: biarkan alamatnya apa adanya */ }
+    } else if (!window.matchMedia('(pointer: coarse)').matches) input.focus({ noScroll: true });
   }
 
   if (document.querySelector('#tanyaThread')) {

@@ -241,10 +241,12 @@ function sumberBagian(pustaka, web) {
   const berkas = (Array.isArray(pustaka) ? pustaka : []).map((item) => {
     const isi = clean(item.isi || item.cuplikan).slice(0, 1400);
     if (!isi) return '';
-    const halaman = Array.isArray(item.h)
-      ? (item.h[0] === item.h[1] ? `, halaman ${item.h[0]}` : `, halaman ${item.h[0]}-${item.h[1]}`)
-      : '';
-    return `- Berkas "${clean(item.judul)}"${halaman}: ${isi}`;
+    const bab = clean(item.b).slice(0, 120);
+    const rentang = Array.isArray(item.h) ? item.h.map(Number) : [];
+    const awal = rentang[0] > 0 ? rentang[0] : 0;
+    const akhir = rentang[rentang.length - 1] > awal ? rentang[rentang.length - 1] : awal;
+    const halaman = awal ? (akhir > awal ? `, halaman ${awal}-${akhir}` : `, halaman ${awal}`) : '';
+    return `- Berkas "${clean(item.judul)}"${bab ? ` — ${bab}` : ''}${halaman}: ${isi}`;
   }).filter(Boolean);
 
   const daring = (Array.isArray(web) ? web : []).map((item) => {
@@ -265,12 +267,14 @@ function sumberBagian(pustaka, web) {
   ].join('\n');
 }
 
-/** Nama berkas + halaman yang dikirim ke browser sebagai rujukan jawaban. */
+/** Nama berkas + bab + halaman yang dikirim ke browser sebagai rujukan jawaban. */
 function pustakaSitasi(hasil) {
   if (!Array.isArray(hasil)) return [];
   return hasil.map((item) => ({
     judul: clean(item.judul),
     kategori: clean(item.kategori),
+    berkas: clean(item.d).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60),
+    bab: clean(item.b).slice(0, 120),
     halaman: Array.isArray(item.h) ? item.h : [],
     cuplikan: clean(item.cuplikan).slice(0, 320)
   }));
