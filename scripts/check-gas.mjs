@@ -18,9 +18,9 @@ const HEADERS = {
   Gallery: ['id', 'title', 'imageUrl', 'caption', 'featured', 'sortOrder', 'createdAt'],
   Settings: ['key', 'value'],
   Orgs: ['id', 'jenjang', 'name', 'province', 'district', 'subdistrict', 'parentId', 'email', 'passwordHash', 'passwordSalt', 'phone', 'skUrl', 'status', 'verifiedBy', 'verifiedAt', 'createdAt', 'updatedAt', 'lastLoginAt', 'note'],
-  Activities: ['id', 'orgId', 'title', 'category', 'date', 'location', 'description', 'participants', 'coverImage', 'status', 'createdAt', 'updatedAt'],
-  Forms: ['id', 'orgId', 'activityId', 'title', 'description', 'status', 'createdAt', 'updatedAt'],
-  Participants: ['id', 'formId', 'orgId', 'name', 'institution', 'phone', 'email', 'note', 'createdAt'],
+  Activities: ['id', 'orgId', 'title', 'category', 'date', 'location', 'description', 'participants', 'coverImage', 'status', 'createdAt', 'updatedAt', 'startTime', 'endTime', 'registrationDeadline', 'quota', 'additionalInfo'],
+  Forms: ['id', 'orgId', 'activityId', 'title', 'description', 'status', 'createdAt', 'updatedAt', 'fields'],
+  Participants: ['id', 'formId', 'orgId', 'name', 'institution', 'phone', 'email', 'note', 'createdAt', 'answers', 'status', 'updatedAt', 'registrationKey'],
   Letters: ['id', 'fromOrgId', 'toOrgId', 'category', 'subject', 'body', 'status', 'createdAt', 'readAt', 'replyToId', 'threadId', 'attachmentId', 'attachmentName'],
   Sessions: ['token', 'kind', 'subject', 'createdAt', 'expiresAt'],
   Chat: ['createdAt', 'kind', 'subject', 'question', 'answer', 'provider', 'status'],
@@ -306,7 +306,8 @@ const source = readFileSync(new URL('../gas/Code.gs', import.meta.url), 'utf8');
 const exported = [
   'monthShift_', 'monthlyActivityIndex_', 'standardsMap_', 'keaktifanFor_',
   'eventsFeed_', 'publicData_', 'orgData_', 'orgSetStandard_', 'keaktifanSettings_',
-  'orgSaveActivity_', 'orgSaveArticle_', 'requireOrg_', 'currentMonthKey_', 'todayKey_', 'APP', 'STANDARD_HEADERS',
+  'orgSaveActivity_', 'orgSaveForm_', 'orgSaveArticle_', 'orgParticipants_', 'orgSetParticipantStatus_',
+  'publicForm_', 'publicRegister_', 'requireOrg_', 'currentMonthKey_', 'todayKey_', 'APP', 'STANDARD_HEADERS',
   'doPost', 'throttle_', 'clientIp_', 'captchaIssue_', 'assertCaptcha_', 'kaderLogin_',
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
   'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_',
@@ -668,6 +669,26 @@ check('pengunjung tanpa akun tidak punya suka', gas.eventsFeed_(orgs, rowsOf('Ac
 check('kegiatan tanpa formulir tidak punya tombol daftar', feed.find((event) => event.id === 'act-poltek').form, null);
 check('umpan terurut tanggal menurun', feed.map((event) => event.date), feed.map((event) => event.date).sort().reverse());
 
+const feedStateActivity = {
+  id: 'act-feed-state', orgId: 'pk-untan', title: 'Status pendaftaran umpan', category: 'Kegiatan',
+  date: future, status: 'published', participants: 5, quota: 2,
+  registrationDeadline: `${month}-28T23:59`
+};
+const feedStateForm = { id: 'form-feed-state', orgId: 'pk-untan', activityId: feedStateActivity.id, title: 'Formulir umpan', status: 'open' };
+const feedStateParticipants = [
+  { id: 'feed-accepted', formId: feedStateForm.id, status: 'accepted' },
+  { id: 'feed-rejected', formId: feedStateForm.id, status: 'rejected' }
+];
+const feedState = gas.eventsFeed_(orgs, [feedStateActivity], [feedStateForm], feedStateParticipants, '')
+  .find((event) => event.id === feedStateActivity.id);
+check('umpan tidak menghitung peserta yang ditolak', [feedState.form.registered, feedState.form.quota, feedState.form.remaining], [1, 2, 1]);
+check('umpan memakai status pendaftaran terbuka selama kuota dan deadline aman', feedState.form.status, 'open');
+
+const deadlineActivity = { ...feedStateActivity, id: 'act-feed-deadline', registrationDeadline: `${month}-01T00:00` };
+const deadlineFeed = gas.eventsFeed_(orgs, [deadlineActivity], [{ ...feedStateForm, activityId: deadlineActivity.id }], [], '')
+  .find((event) => event.id === deadlineActivity.id);
+check('umpan menampilkan formulir sebagai tertutup setelah batas daftar', [deadlineFeed.form.status, deadlineFeed.form.closedReason], ['closed', 'Batas waktu pendaftaran sudah berakhir.']);
+
 const publicPayload = gas.publicData_();
 check('aksi public ikut mengirim events', Array.isArray(publicPayload.events), true);
 check('bawaan keaktifan terbawa ke situs publik', publicPayload.keaktifan.defaultMin, 2);
@@ -703,6 +724,83 @@ check('kegiatan baru tersimpan', rowsOf('Activities').some((row) => row.title ==
 check('formulir terpilih tertaut ke kegiatan baru', rowsOf('Forms').find((row) => row.id === 'form-kadaria').activityId, linked.id);
 const foreignForm = captureError(() => gas.orgSaveActivity_({ id: 'pk-untan', jenjang: 'PK', name: 'PK Universitas Tanjungpura', status: 'verified' }, { title: 'Salah Form', date: future, status: 'published', formId: 'pd-singkawang-tidak-ada' }));
 check('formulir yang tidak ada ditolak', foreignForm, 'Formulir pendaftaran tidak ditemukan.');
+
+const customFields = [
+  { id: 'name', type: 'short', label: 'Nama lengkap', required: true, maxLength: 120 },
+  { id: 'phone', type: 'phone', label: 'Nomor WhatsApp', required: true },
+  { id: 'email', type: 'email', label: 'Email' },
+  { id: 'info', type: 'info', label: 'Informasi', help: 'Bawa kartu pelajar.' },
+  { id: 'jenis', type: 'radio', label: 'Kategori peserta', required: true, options: ['Pelajar', 'Umum'] },
+  { id: 'minat', type: 'checkbox', label: 'Sesi yang diminati', options: ['Diskusi', 'Simulasi'] },
+  { id: 'usia', type: 'number', label: 'Usia', required: true },
+  { id: 'persetujuan', type: 'consent', label: 'Saya menyetujui tata tertib', required: true }
+];
+const customActivity = gas.orgSaveActivity_(senderOrg, {
+  title: 'Sekolah Advokasi Pelajar', date: future, startTime: '08:30', endTime: '12:00',
+  registrationDeadline: '2099-12-31T23:59', quota: 2, additionalInfo: 'Datang 15 menit lebih awal.',
+  category: 'Pendidikan', location: 'Aula PB PII', participants: 0, status: 'published',
+  form: { enabled: true, status: 'open', description: 'Isi data dengan benar.', fields: customFields }
+});
+const customActivityRow = rowsOf('Activities').find((row) => row.id === customActivity.id);
+const customFormRow = rowsOf('Forms').find((row) => row.id === customActivity.formId);
+check('event dan custom form tersimpan dalam satu aksi', [
+  Boolean(customActivity.formId), customActivityRow.startTime, customActivityRow.endTime,
+  customActivityRow.quota, customFormRow.activityId, JSON.parse(customFormRow.fields).length
+], [true, '08:30', '12:00', 2, customActivity.id, 8]);
+const customPublic = gas.publicForm_(customActivity.formId);
+check('form publik menerima definisi field dan status kuota', [
+  customPublic.fields.find((field) => field.id === 'jenis').options,
+  customPublic.registrationOpen, customPublic.remaining, customPublic.activity.additionalInfo
+], [['Pelajar', 'Umum'], true, 2, 'Datang 15 menit lebih awal.']);
+check('form lama otomatis memakai field bawaan yang kompatibel',
+  gas.publicForm_('form-lk-open').fields.map((field) => field.id), ['name', 'institution', 'phone', 'email', 'note']);
+const customAnswers = {
+  name: 'Peserta Dinamis', phone: '0812000111', email: '', jenis: 'Pelajar',
+  minat: ['Diskusi', 'Simulasi'], usia: 17, persetujuan: true
+};
+check('field wajib divalidasi di server', captureError(() => gas.publicRegister_({
+  formId: customActivity.formId, ip: 'dynamic-missing', answers: { ...customAnswers, jenis: '' }
+})), 'Field "Kategori peserta" wajib diisi.');
+check('pilihan di luar definisi ditolak', captureError(() => gas.publicRegister_({
+  formId: customActivity.formId, ip: 'dynamic-option', answers: { ...customAnswers, jenis: 'Pilihan palsu' }
+})), 'Pilihan pada field "Kategori peserta" tidak valid.');
+const dynamicRegistration = gas.publicRegister_({
+  formId: customActivity.formId, ip: 'dynamic-success', registrationKey: 'dynamic-registration-key-1', answers: customAnswers
+});
+const dynamicParticipant = rowsOf('Participants').find((row) => row.id === dynamicRegistration.id);
+check('jawaban dinamis dan kolom kompatibilitas tersimpan', [
+  dynamicParticipant.name, dynamicParticipant.phone, dynamicParticipant.status,
+  JSON.parse(dynamicParticipant.answers).minat, dynamicRegistration.registrationCode
+], ['Peserta Dinamis', '0812000111', 'pending', ['Diskusi', 'Simulasi'], gas.publicRegister_({
+  formId: customActivity.formId, ip: 'dynamic-replay', registrationKey: 'dynamic-registration-key-1', answers: customAnswers
+}).registrationCode]);
+check('retry dengan kunci yang sama tidak menggandakan peserta',
+  rowsOf('Participants').filter((row) => row.formId === customActivity.formId).length, 1);
+gas.publicRegister_({
+  formId: customActivity.formId, ip: 'dynamic-second', registrationKey: 'dynamic-registration-key-2',
+  answers: { ...customAnswers, name: 'Peserta Kedua', phone: '0812000222' }
+});
+check('kuota ditutup setelah pendaftar mencapai batas', captureError(() => gas.publicRegister_({
+  formId: customActivity.formId, ip: 'dynamic-third', registrationKey: 'dynamic-registration-key-3',
+  answers: { ...customAnswers, name: 'Peserta Ketiga', phone: '0812000333' }
+})), 'Kuota peserta sudah penuh.');
+const customParticipants = gas.orgParticipants_(senderOrg, customActivity.formId);
+check('pengelola menerima jawaban, kode, dan statistik peserta', [
+  customParticipants.stats.total,
+  customParticipants.participants.find((row) => row.id === dynamicRegistration.id).answers.jenis,
+  customParticipants.participants.every((row) => row.registrationCode.startsWith('PII-'))
+], [2, 'Pelajar', true]);
+gas.orgSetParticipantStatus_(senderOrg, dynamicRegistration.id, 'accepted');
+check('keputusan peserta tersimpan dan statistik berubah', [
+  rowsOf('Participants').find((row) => row.id === dynamicRegistration.id).status,
+  gas.orgParticipants_(senderOrg, customActivity.formId).stats.accepted
+], ['accepted', 1]);
+check('lembaga lain tidak dapat mengubah peserta', captureError(() => gas.orgSetParticipantStatus_(
+  rowsOf('Orgs').find((row) => row.id === 'pk-poltek'), dynamicRegistration.id, 'rejected'
+)), 'Peserta ini bukan milik formulir lembaga Anda.');
+check('field nama wajib tidak dapat dihapus', captureError(() => gas.orgSaveForm_(senderOrg, {
+  title: 'Tanpa nama', fields: [{ id: 'email', type: 'email', label: 'Email', required: true }]
+})), 'Field Nama lengkap wajib ada, bertipe jawaban singkat, dan wajib diisi.');
 
 // -------------------------------------- keamanan: pembatas laju, captcha, akun
 

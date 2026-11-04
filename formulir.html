@@ -27,9 +27,21 @@
     .desc{font-size:13px;color:#3d4d60;background:#f7fafc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:20px;white-space:pre-wrap}
     .lbl{display:block;font-size:12.5px;font-weight:750;margin:0 0 6px}
     .field{margin-bottom:14px}
-    input,textarea{display:block;width:100%;border:1px solid #d5e0eb;border-radius:10px;padding:12px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);outline:none}
+    input,textarea,select{display:block;width:100%;border:1px solid #d5e0eb;border-radius:10px;padding:12px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);outline:none}
     textarea{resize:vertical;min-height:80px}
-    input:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
+    input:focus,textarea:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #176da81b}
+    .choice-list{display:grid;gap:10px;padding:3px 0}
+    .choice{display:flex;align-items:flex-start;gap:10px;cursor:pointer;line-height:1.5}
+    .choice input{width:19px;height:19px;min-height:0;flex:0 0 auto;margin:1px 0 0;padding:0;accent-color:var(--blue)}
+    .form-info{padding:13px 14px;border-left:3px solid var(--blue);background:#f0f6fb;border-radius:9px;margin-bottom:16px}
+    .form-info strong{color:var(--navy)}
+    .form-info .hint{white-space:pre-wrap}
+    .event-details{display:grid;gap:9px;margin:0 0 18px;padding:14px;border:1px solid var(--line);border-radius:11px;background:#fbfcfd}
+    .event-details div{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;font-size:12.5px}
+    .event-details dt{color:var(--muted)}
+    .event-details dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+    .registration-code{display:inline-block;margin:12px 0 16px;padding:11px 17px;border:1px dashed #8fb2cd;border-radius:10px;background:#f0f6fb;color:var(--navy);font-size:21px;font-weight:850;letter-spacing:1.5px}
+    .consent-field{padding:4px 0}
     .hint{font-size:11px;color:var(--muted);margin-top:4px}
     button.primary{width:100%;border:0;background:var(--navy);color:#fff;padding:14px;border-radius:11px;font:inherit;font-weight:800;margin-top:8px;cursor:pointer}
     button.primary:hover{background:var(--blue)}
@@ -44,7 +56,15 @@
     .success p{color:var(--muted);font-size:13px;margin:0 0 6px}
     .foot{margin-top:18px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
     .hidden{display:none!important}
-    @media(max-width:520px){.card{padding:21px 17px;border-radius:15px}input,textarea{min-height:46px;font-size:16px}.foot a{display:inline-flex;align-items:center;min-height:44px}.brand small{font-size:12px}}
+    @media(max-width:520px){
+      .card{padding:21px 17px;border-radius:15px}
+      input,textarea,select{min-height:46px;font-size:16px}
+      .foot a{display:inline-flex;align-items:center;min-height:44px}
+      .brand small{font-size:12px}
+      .event-details div{grid-template-columns:minmax(0,1fr);gap:2px}
+      .event-details dt{font-size:11.5px}
+      .registration-code{font-size:18px;letter-spacing:1px;word-break:break-all}
+    }
   </style>
   <link rel="stylesheet" href="/captcha.css">
 </head>
@@ -63,15 +83,12 @@
         <div class="eyebrow" id="formOrg">PB PII</div>
         <h1 id="formTitle">—</h1>
         <p class="org" id="formMeta">—</p>
+        <dl id="activityDetails" class="event-details hidden"></dl>
         <div class="desc" id="formDesc"></div>
-        <div id="closedBox" class="closed hidden">Formulir ini sudah ditutup. Hubungi panitia bila masih perlu mendaftar.</div>
+        <div id="closedBox" class="closed hidden"></div>
         <div class="msg ok" id="formMessage" role="status" aria-live="polite"></div>
         <form id="registerForm">
-          <div class="field"><label class="lbl" for="rName">Nama lengkap *</label><input id="rName" maxlength="120" required></div>
-          <div class="field"><label class="lbl" for="rInstitution">Asal sekolah / lembaga</label><input id="rInstitution" maxlength="160"></div>
-          <div class="field"><label class="lbl" for="rPhone">Nomor WhatsApp</label><input id="rPhone" inputmode="tel" maxlength="40"></div>
-          <div class="field"><label class="lbl" for="rEmail">Email</label><input id="rEmail" type="email" maxlength="160"></div>
-          <div class="field"><label class="lbl" for="rNote">Catatan</label><textarea id="rNote" maxlength="1000" placeholder="Kebutuhan khusus, asal daerah, atau pertanyaan."></textarea></div>
+          <div id="dynamicFields"></div>
           <div class="field"><span class="lbl">Verifikasi keamanan</span><div id="captchaBox"></div></div>
           <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
         </form>
@@ -80,6 +97,8 @@
       <div id="successView" class="success hidden">
         <h2>Pendaftaran tercatat</h2>
         <p id="successText">Terima kasih. Panitia akan menghubungi Anda melalui kontak yang diberikan.</p>
+        <div id="registrationCode" class="registration-code hidden"></div>
+        <p id="registrationCodeHint" class="hidden">Simpan kode registrasi ini sebagai bukti pendaftaran.</p>
         <p><a href="/">← Kembali ke website PB PII</a></p>
       </div>
 
@@ -90,10 +109,13 @@
     </main>
   </div>
 
+  <script src="/form-builder.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
     const $ = (id) => document.getElementById(id);
     const formId = new URLSearchParams(location.search).get('id') || '';
+    const registrationKey = window.crypto?.randomUUID?.()
+      || Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     let formData = null;
     let verifikasi = null;
 
@@ -101,6 +123,75 @@
       $('errorBox').className = 'msg show err';
       $('errorBox').textContent = text;
       $('loading').classList.add('hidden');
+    }
+
+    function showFormMessage(text) {
+      $('formMessage').className = 'msg show err';
+      $('formMessage').textContent = text;
+    }
+
+    function formatDate(value, withTime) {
+      const text = String(value || '');
+      if (!text) return '';
+      const date = new Date(text + (withTime ? ':00' : 'T00:00:00'));
+      if (!Number.isFinite(date.getTime())) return text.replace('T', ' ');
+      return new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {})
+      }).format(date);
+    }
+
+    function addDetail(label, value) {
+      if (value === '' || value == null) return;
+      const row = document.createElement('div');
+      const term = document.createElement('dt');
+      const detail = document.createElement('dd');
+      term.textContent = label;
+      detail.textContent = String(value);
+      row.append(term, detail);
+      $('activityDetails').append(row);
+    }
+
+    function renderActivityDetails() {
+      const activity = formData.activity;
+      $('activityDetails').replaceChildren();
+      if (!activity) return;
+      addDetail('Tanggal', formatDate(activity.date, false));
+      addDetail('Waktu', [activity.startTime, activity.endTime].filter(Boolean).join('–'));
+      addDetail('Lokasi', activity.location);
+      addDetail('Batas daftar', formatDate(activity.registrationDeadline, true));
+      if (Number(formData.quota) > 0) {
+        addDetail('Kuota', formData.registered + ' dari ' + formData.quota + ' peserta');
+        addDetail('Sisa kuota', formData.remaining);
+      }
+      addDetail('Tentang kegiatan', activity.description);
+      addDetail('Informasi tambahan', activity.additionalInfo);
+      $('activityDetails').classList.toggle('hidden', !$('activityDetails').childElementCount);
+    }
+
+    function collectAnswers() {
+      const answers = {};
+      const controls = Array.from($('dynamicFields').querySelectorAll('[data-field-id]'));
+      for (const field of formData.fields) {
+        if (field.type === 'info') continue;
+        const control = controls.find((item) => item.dataset.fieldId === String(field.id));
+        if (!control) continue;
+        if (field.type === 'radio') {
+          answers[field.id] = control.querySelector('input:checked')?.value || '';
+        } else if (field.type === 'checkbox') {
+          answers[field.id] = Array.from(control.querySelectorAll('input:checked')).map((input) => input.value);
+          if (field.required && !answers[field.id].length) {
+            showFormMessage('Pilih minimal satu jawaban untuk "' + field.label + '".');
+            control.querySelector('input')?.focus();
+            return null;
+          }
+        } else if (field.type === 'consent') {
+          answers[field.id] = control.checked;
+        } else {
+          answers[field.id] = control.value;
+        }
+      }
+      return answers;
     }
 
     (async () => {
@@ -114,20 +205,31 @@
         const result = await response.json();
         if (!result.ok) throw new Error(result.error || 'Formulir tidak dapat dimuat.');
         formData = result.data;
+        formData.fields = Array.isArray(formData.fields) && formData.fields.length
+          ? formData.fields
+          : window.PBPIIFormBuilder.defaults();
 
         $('formOrg').textContent = formData.org.name;
         $('formTitle').textContent = formData.title;
         $('formMeta').textContent = [
           formData.activityTitle,
           formData.org.district || formData.org.province,
-          formData.registered + ' peserta terdaftar'
+          Number(formData.quota) > 0
+            ? formData.registered + ' dari ' + formData.quota + ' kuota terisi'
+            : formData.registered + ' peserta terdaftar'
         ].filter(Boolean).join(' · ');
         $('formDesc').textContent = formData.description || '';
         $('formDesc').classList.toggle('hidden', !formData.description);
+        $('dynamicFields').innerHTML = window.PBPIIFormBuilder.render(formData.fields, { idPrefix: 'answer' });
+        renderActivityDetails();
 
         $('loading').classList.add('hidden');
         $('formView').classList.remove('hidden');
-        if (formData.status !== 'open') {
+        const registrationOpen = formData.registrationOpen === undefined
+          ? formData.status === 'open'
+          : formData.registrationOpen;
+        if (!registrationOpen) {
+          $('closedBox').textContent = formData.closedReason || 'Formulir ini sudah ditutup. Hubungi panitia bila masih perlu mendaftar.';
           $('closedBox').classList.remove('hidden');
           $('registerForm').classList.add('hidden');
         } else {
@@ -141,18 +243,19 @@
 
     $('registerForm').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const name = $('rName').value.trim();
-      const phone = $('rPhone').value.trim();
-      const email = $('rEmail').value.trim();
-      if (!name) return;
-      if (!phone && !email) {
-        $('formMessage').className = 'msg show err';
-        $('formMessage').textContent = 'Isi nomor WhatsApp atau email agar panitia dapat menghubungi.';
+      $('formMessage').className = 'msg';
+      const answers = collectAnswers();
+      if (!answers) return;
+      const name = String(answers.name || '').trim();
+      const phone = String(answers.phone || '').trim();
+      const email = String(answers.email || '').trim();
+      const fields = formData.fields.map((field) => field.id);
+      if (fields.includes('phone') && fields.includes('email') && !phone && !email) {
+        showFormMessage('Isi nomor WhatsApp atau email agar panitia dapat menghubungi.');
         return;
       }
       if (verifikasi && !verifikasi.valid()) {
-        $('formMessage').className = 'msg show err';
-        $('formMessage').textContent = 'Centang kotak verifikasi keamanan di atas dulu, lalu kirim.';
+        showFormMessage('Selesaikan verifikasi keamanan di atas, lalu kirim.');
         return;
       }
 
@@ -166,11 +269,13 @@
           body: JSON.stringify({
             action: 'publicRegister',
             formId,
+            registrationKey,
+            answers,
             name,
-            institution: $('rInstitution').value.trim(),
+            institution: String(answers.institution || '').trim(),
             phone,
             email,
-            note: $('rNote').value.trim(),
+            note: String(answers.note || '').trim(),
             ...(verifikasi ? verifikasi.fields() : {})
           })
         });
@@ -182,10 +287,19 @@
         }
         $('formView').classList.add('hidden');
         $('successView').classList.remove('hidden');
-        $('successText').textContent = 'Terima kasih, ' + name + '. Pendaftaran Anda untuk "' + formData.title + '" tercatat. Panitia akan menghubungi melalui ' + (phone ? 'WhatsApp ' + phone : 'email ' + email) + '.';
+        const contact = [phone && 'WhatsApp ' + phone, email && 'email ' + email].filter(Boolean).join(' atau ');
+        const kegiatan = formData.activityTitle || formData.title;
+        $('successText').textContent = 'Terima kasih' + (name ? ', ' + name : '') + '. Pendaftaran Anda untuk "'
+          + kegiatan + '" tercatat.' + (contact ? ' Panitia akan menghubungi melalui ' + contact + '.' : '');
+        const code = String(result.data.registrationCode || '');
+        if (code) {
+          $('registrationCode').textContent = code;
+          $('registrationCode').classList.remove('hidden');
+          $('registrationCodeHint').classList.remove('hidden');
+        }
+        $('successView').scrollIntoView({ behavior: 'smooth', block: 'center' });
       } catch (error) {
-        $('formMessage').className = 'msg show err';
-        $('formMessage').textContent = error.message;
+        showFormMessage(error.message);
         // Token lama sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
         if (error.code === 'captcha' && verifikasi) await verifikasi.reload();
       } finally {

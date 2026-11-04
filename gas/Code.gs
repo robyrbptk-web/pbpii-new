@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-04.2';
+const BACKEND_VERSION = '2026-11-04.3';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -91,13 +91,15 @@ const ORG_HEADERS = [
 ];
 const ACTIVITY_HEADERS = [
   'id', 'orgId', 'title', 'category', 'date', 'location', 'description',
-  'participants', 'coverImage', 'status', 'createdAt', 'updatedAt'
+  'participants', 'coverImage', 'status', 'createdAt', 'updatedAt',
+  'startTime', 'endTime', 'registrationDeadline', 'quota', 'additionalInfo'
 ];
 const FORM_HEADERS = [
-  'id', 'orgId', 'activityId', 'title', 'description', 'status', 'createdAt', 'updatedAt'
+  'id', 'orgId', 'activityId', 'title', 'description', 'status', 'createdAt', 'updatedAt', 'fields'
 ];
 const PARTICIPANT_HEADERS = [
-  'id', 'formId', 'orgId', 'name', 'institution', 'phone', 'email', 'note', 'createdAt'
+  'id', 'formId', 'orgId', 'name', 'institution', 'phone', 'email', 'note', 'createdAt',
+  'answers', 'status', 'updatedAt', 'registrationKey'
 ];
 const LETTER_HEADERS = [
   'id', 'fromOrgId', 'toOrgId', 'category', 'subject', 'body', 'status', 'createdAt', 'readAt',
@@ -1998,6 +2000,8 @@ function orgAction_(action, body, org) {
       return orgSetFormStatus_(org, body.id, body.status);
     case 'orgParticipants':
       return orgParticipants_(org, body.formId);
+    case 'orgSetParticipantStatus':
+      return orgSetParticipantStatus_(org, body.id, body.status);
     case 'orgDeleteParticipant':
       return orgDeleteParticipant_(org, body.id);
     case 'orgSendLetter':
@@ -2089,7 +2093,7 @@ function orgData_(org) {
   const formsAll = forms.filter(function (item) {
     return item.orgId === me.id || scopeIds.indexOf(item.orgId) >= 0;
   }).map(function (item) {
-    return Object.assign({}, item, {
+    return Object.assign(formView_(item), {
       orgName: orgName[item.orgId] || '',
       mine: item.orgId === me.id,
       participantCount: participantCount[item.id] || 0
@@ -2190,23 +2194,250 @@ function orgProfile_(org, body) {
   return orgSelf_(orgById_(rows_(APP.SHEET_ORGS), org.id));
 }
 
+const FORM_FIELD_TYPES = ['short', 'paragraph', 'email', 'phone', 'number', 'radio', 'checkbox', 'select', 'date', 'consent', 'info'];
+const PARTICIPANT_STATUSES = ['pending', 'accepted', 'rejected', 'attended', 'absent'];
+
+function defaultFormFields_() {
+  return [
+    { id: 'name', type: 'short', label: 'Nama lengkap', help: '', required: true, options: [], maxLength: 120 },
+    { id: 'institution', type: 'short', label: 'Asal sekolah / lembaga', help: '', required: false, options: [], maxLength: 160 },
+    { id: 'phone', type: 'phone', label: 'Nomor WhatsApp', help: '', required: false, options: [], maxLength: 40 },
+    { id: 'email', type: 'email', label: 'Email', help: '', required: false, options: [], maxLength: 160 },
+    { id: 'note', type: 'paragraph', label: 'Catatan', help: 'Kebutuhan khusus, asal daerah, atau pertanyaan.', required: false, options: [], maxLength: 1000 }
+  ];
+}
+
+function normalizeFormFields_(input) {
+  let raw = input;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch (error) { raw = []; }
+  }
+  if (!Array.isArray(raw) || !raw.length) raw = defaultFormFields_();
+  if (raw.length > 40) throw new Error('Satu formulir maksimal memiliki 40 field.');
+
+  const ids = {};
+  const fields = raw.map(function (item, index) {
+    const source = item && typeof item === 'object' ? item : {};
+    let id = String(source.id || ('field' + (index + 1))).trim();
+    if (!/^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(id)) throw new Error('ID field tidak valid.');
+    if (ids[id]) throw new Error('Setiap field harus memiliki ID yang berbeda.');
+    ids[id] = true;
+
+    let type = String(source.type || 'short').toLowerCase();
+    if (type === 'text') type = 'short';
+    if (type === 'textarea') type = 'paragraph';
+    if (type === 'dropdown') type = 'select';
+    if (FORM_FIELD_TYPES.indexOf(type) < 0) throw new Error('Jenis field "' + type + '" belum didukung.');
+    const label = cleanText_(source.label).slice(0, 160) || (type === 'info' ? 'Informasi' : '');
+    if (!label) throw new Error('Label field nomor ' + (index + 1) + ' wajib diisi.');
+
+    let options = [];
+    if (['radio', 'checkbox', 'select'].indexOf(type) >= 0) {
+      const rawOptions = Array.isArray(source.options) ? source.options : String(source.options || '').split(/\r?\n/);
+      options = rawOptions.map(function (option) { return cleanText_(option).slice(0, 120); })
+        .filter(Boolean).filter(function (option, optionIndex, all) {
+          return all.findIndex(function (other) { return normText_(other) === normText_(option); }) === optionIndex;
+        });
+      if (!options.length || options.length > 30) throw new Error('Field "' + label + '" harus memiliki 1–30 pilihan.');
+    }
+
+    const defaultMax = type === 'paragraph' ? 4000 : type === 'short' ? 300 : type === 'email' ? 160 : type === 'phone' ? 40 : 0;
+    const requestedMax = Number(source.maxLength);
+    const maxLength = defaultMax
+      ? Math.min(defaultMax, Math.max(1, Number.isFinite(requestedMax) && requestedMax > 0 ? Math.round(requestedMax) : defaultMax))
+      : 0;
+    return {
+      id: id,
+      type: type,
+      label: label,
+      help: String(source.help || '').trim().slice(0, type === 'info' ? 4000 : 500),
+      required: type !== 'info' && source.required === true,
+      options: options,
+      maxLength: maxLength
+    };
+  });
+
+  const nameField = fields.filter(function (field) { return field.id === 'name'; })[0];
+  if (!nameField || nameField.type !== 'short' || !nameField.required) {
+    throw new Error('Field Nama lengkap wajib ada, bertipe jawaban singkat, dan wajib diisi.');
+  }
+  if (!fields.some(function (field) { return field.type !== 'info'; })) {
+    throw new Error('Formulir harus memiliki setidaknya satu field jawaban.');
+  }
+  if (JSON.stringify(fields).length > 40000) throw new Error('Definisi formulir terlalu besar.');
+  return fields;
+}
+
+function formFields_(form) {
+  if (!form || !form.fields) return defaultFormFields_();
+  try { return normalizeFormFields_(form.fields); } catch (error) { return defaultFormFields_(); }
+}
+
+function formView_(form) {
+  const view = Object.assign({}, form, { fields: formFields_(form) });
+  delete view._row;
+  return view;
+}
+
+function registrationCode_(id) {
+  return 'PII-' + String(id || '').replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+function participantView_(row) {
+  let answers = {};
+  try {
+    const parsed = JSON.parse(String(row.answers || '{}'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) answers = parsed;
+  } catch (error) {}
+  ['name', 'institution', 'phone', 'email', 'note'].forEach(function (key) {
+    if (answers[key] === undefined) answers[key] = row[key] || '';
+  });
+  const status = PARTICIPANT_STATUSES.indexOf(String(row.status)) >= 0 ? String(row.status) : 'pending';
+  const view = Object.assign({}, row, {
+    answers: answers,
+    status: status,
+    registrationCode: registrationCode_(row.id)
+  });
+  delete view._row;
+  delete view.registrationKey;
+  return view;
+}
+
+function activityDeadlineValid_(value) {
+  if (!value) return true;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false;
+  return isFinite(Date.parse(value + ':00'));
+}
+
+function registrationState_(form, activity, participants) {
+  const registered = participants.filter(function (row) {
+    return row.formId === form.id && String(row.status || 'pending') !== 'rejected';
+  }).length;
+  const quota = Math.max(0, Number(activity && activity.quota) || Number(activity && activity.participants) || 0);
+  let reason = '';
+  if (String(form.status) !== 'open') reason = 'Formulir ini sudah ditutup.';
+  else if (activity && String(activity.status) !== 'published') reason = 'Pendaftaran belum dibuka untuk umum.';
+  else if (activity && activity.registrationDeadline) {
+    const now = Utilities.formatDate(new Date(), timeZone_(), "yyyy-MM-dd'T'HH:mm");
+    if (String(activity.registrationDeadline) < now) reason = 'Batas waktu pendaftaran sudah berakhir.';
+  }
+  if (!reason && quota > 0 && registered >= quota) reason = 'Kuota peserta sudah penuh.';
+  return {
+    open: !reason,
+    reason: reason,
+    registered: registered,
+    quota: quota,
+    remaining: quota ? Math.max(0, quota - registered) : null
+  };
+}
+
+function normalizeRegistrationAnswers_(form, body) {
+  const fields = formFields_(form);
+  const source = body.answers && typeof body.answers === 'object' && !Array.isArray(body.answers)
+    ? body.answers
+    : {
+      name: body.name, institution: body.institution, phone: body.phone,
+      email: body.email, note: body.note
+    };
+  const values = {};
+
+  fields.forEach(function (field) {
+    if (field.type === 'info') return;
+    const raw = source[field.id];
+    let value = '';
+    if (field.type === 'checkbox') {
+      const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+      value = list.map(function (item) { return cleanText_(item); }).filter(function (item) {
+        return field.options.indexOf(item) >= 0;
+      }).filter(function (item, index, all) { return all.indexOf(item) === index; });
+      if (Array.isArray(raw) && value.length !== raw.length) throw new Error('Pilihan pada field "' + field.label + '" tidak valid.');
+    } else if (field.type === 'consent') {
+      value = raw === true || raw === 'true' || raw === 'yes' || raw === 1;
+    } else if (field.type === 'number') {
+      const text = String(raw == null ? '' : raw).trim();
+      if (text) {
+        const number = Number(text);
+        if (!isFinite(number)) throw new Error('Jawaban "' + field.label + '" harus berupa angka.');
+        value = number;
+      }
+    } else {
+      value = String(raw == null ? '' : raw).trim();
+      if (field.type !== 'paragraph') value = cleanText_(value);
+      if (field.maxLength && value.length > field.maxLength) {
+        throw new Error('Jawaban "' + field.label + '" melebihi ' + field.maxLength + ' karakter.');
+      }
+      if (value && field.type === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+        throw new Error('Alamat email pada field "' + field.label + '" tidak valid.');
+      }
+      if (value && ['radio', 'select'].indexOf(field.type) >= 0 && field.options.indexOf(value) < 0) {
+        throw new Error('Pilihan pada field "' + field.label + '" tidak valid.');
+      }
+      if (value && field.type === 'date' && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !isFinite(Date.parse(value + 'T00:00:00')))) {
+        throw new Error('Tanggal pada field "' + field.label + '" tidak valid.');
+      }
+    }
+
+    const empty = field.type === 'checkbox' ? !value.length : field.type === 'consent' ? value !== true : value === '';
+    if (field.required && empty) throw new Error('Field "' + field.label + '" wajib diisi.');
+    values[field.id] = value;
+  });
+
+  if (values.name !== undefined && !cleanText_(values.name)) throw new Error('Nama peserta wajib diisi.');
+  if (fields.some(function (field) { return field.id === 'phone'; })
+    && fields.some(function (field) { return field.id === 'email'; })
+    && !values.phone && !values.email) {
+    throw new Error('Isi nomor WhatsApp atau email agar panitia dapat menghubungi.');
+  }
+  const json = JSON.stringify(values);
+  if (json.length > 40000) throw new Error('Total jawaban melebihi kapasitas penyimpanan formulir.');
+  return { values: values, json: json };
+}
+
 function orgSaveActivity_(org, activity) {
   assertVerified_(org);
   const title = cleanText_(activity.title).slice(0, 180);
   const date = String(activity.date || '').trim();
+  const startTime = String(activity.startTime || '').trim();
+  const endTime = String(activity.endTime || '').trim();
+  const deadline = String(activity.registrationDeadline || '').trim();
   if (!title) throw new Error('Judul kegiatan wajib diisi.');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Tanggal kegiatan harus format YYYY-MM-DD.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isFinite(Date.parse(date + 'T00:00:00'))) {
+    throw new Error('Tanggal kegiatan harus format YYYY-MM-DD.');
+  }
+  if ((startTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(startTime))
+    || (endTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(endTime))) {
+    throw new Error('Waktu kegiatan harus memakai format HH:MM.');
+  }
+  if (!activityDeadlineValid_(deadline)) throw new Error('Batas pendaftaran tidak valid.');
 
   const participants = Number(activity.participants);
+  const quota = Number(activity.quota);
   const status = String(activity.status || 'published').toLowerCase();
   const cover = driveImageUrl_(String(activity.coverImage || '').trim());
   if (['draft', 'published'].indexOf(status) < 0) throw new Error('Status kegiatan tidak valid.');
   if (cover && !/^https:\/\//i.test(cover)) throw new Error('URL gambar harus diawali https://');
+  if (activity.quota !== undefined && activity.quota !== ''
+    && (!Number.isFinite(quota) || quota < 0 || quota > 1000000)) throw new Error('Kuota peserta tidak valid.');
 
   const sheet = sheet_(APP.SHEET_ACTIVITIES);
   const id = String(activity.id || Utilities.getUuid());
   const existing = findRow_(APP.SHEET_ACTIVITIES, id);
   if (existing && existing.orgId !== org.id) throw new Error('Kegiatan ini bukan milik lembaga Anda.');
+
+  const embedded = activity.form && typeof activity.form === 'object' ? activity.form : null;
+  if (embedded && embedded.enabled !== false) {
+    normalizeFormFields_(embedded.fields);
+    if (embedded.id) {
+      const owned = findRow_(APP.SHEET_FORMS, embedded.id);
+      if (!owned || owned.orgId !== org.id) throw new Error('Formulir ini bukan milik lembaga Anda.');
+    }
+  }
+  const formId = String(activity.formId || '').trim();
+  if (formId) {
+    const form = findRow_(APP.SHEET_FORMS, formId);
+    if (!form) throw new Error('Formulir pendaftaran tidak ditemukan.');
+    if (form.orgId !== org.id) throw new Error('Formulir itu milik lembaga lain.');
+  }
 
   const now = new Date().toISOString();
   const row = [
@@ -2214,28 +2445,39 @@ function orgSaveActivity_(org, activity) {
     date, cleanText_(activity.location).slice(0, 160),
     String(activity.description || '').slice(0, 8000),
     Number.isFinite(participants) ? Math.max(0, Math.round(participants)) : 0,
-    cover, status, existing ? existing.createdAt : now, now
+    cover, status, existing ? existing.createdAt : now, now,
+    startTime, endTime, deadline,
+    Number.isFinite(quota) ? Math.max(0, Math.round(quota)) : 0,
+    String(activity.additionalInfo || '').trim().slice(0, 4000)
   ];
 
-  if (existing) {
-    sheet.getRange(existing._row, 1, 1, row.length).setValues([row]);
-  } else {
-    sheet.appendRow(row);
-  }
+  if (existing) sheet.getRange(existing._row, 1, 1, row.length).setValues([row]);
+  else sheet.appendRow(row);
 
-  // Satu simpanan langsung menautkan formulir pendaftaran pilihan panitia.
-  const formId = String(activity.formId || '').trim();
-  if (formId) {
+  let savedFormId = '';
+  if (embedded) {
+    if (embedded.enabled === false) {
+      const linkedForm = embedded.id ? findRow_(APP.SHEET_FORMS, embedded.id) : rows_(APP.SHEET_FORMS).filter(function (form) {
+        return form.activityId === id && form.orgId === org.id;
+      })[0];
+      if (linkedForm) {
+        if (linkedForm.orgId !== org.id) throw new Error('Formulir ini bukan milik lembaga Anda.');
+        setCells_(sheet_(APP.SHEET_FORMS), linkedForm._row, { status: 'closed', updatedAt: now });
+        savedFormId = linkedForm.id;
+      }
+    } else {
+      savedFormId = saveFormRecord_(org, Object.assign({}, embedded, {
+        title: cleanText_(embedded.title) || 'Pendaftaran ' + title,
+        activityId: id
+      })).id;
+    }
+  } else if (formId) {
     const form = findRow_(APP.SHEET_FORMS, formId);
-    if (!form) throw new Error('Formulir pendaftaran tidak ditemukan.');
-    if (form.orgId !== org.id) throw new Error('Formulir itu milik lembaga lain.');
-    setCells_(sheet_(APP.SHEET_FORMS), form._row, {
-      activityId: id,
-      updatedAt: new Date().toISOString()
-    });
+    setCells_(sheet_(APP.SHEET_FORMS), form._row, { activityId: id, updatedAt: now });
+    savedFormId = form.id;
   }
 
-  return { id: id, status: status };
+  return { id: id, status: status, formId: savedFormId };
 }
 
 function orgDeleteActivity_(org, id) {
@@ -2247,8 +2489,7 @@ function orgDeleteActivity_(org, id) {
   return { deleted: true, id: String(id) };
 }
 
-function orgSaveForm_(org, form) {
-  assertVerified_(org);
+function saveFormRecord_(org, form) {
   const title = cleanText_(form.title).slice(0, 180);
   if (!title) throw new Error('Judul formulir wajib diisi.');
   const activityId = String(form.activityId || '').trim();
@@ -2263,18 +2504,23 @@ function orgSaveForm_(org, form) {
   const id = String(form.id || Utilities.getUuid());
   const existing = findRow_(APP.SHEET_FORMS, id);
   if (existing && existing.orgId !== org.id) throw new Error('Formulir ini bukan milik lembaga Anda.');
+  const fields = Object.prototype.hasOwnProperty.call(form, 'fields')
+    ? normalizeFormFields_(form.fields)
+    : formFields_(existing);
 
   const now = new Date().toISOString();
   const row = [
     id, org.id, activityId, title, String(form.description || '').slice(0, 4000),
-    status, existing ? existing.createdAt : now, now
+    status, existing ? existing.createdAt : now, now, JSON.stringify(fields)
   ];
-  if (existing) {
-    sheet.getRange(existing._row, 1, 1, row.length).setValues([row]);
-  } else {
-    sheet.appendRow(row);
-  }
+  if (existing) sheet.getRange(existing._row, 1, 1, row.length).setValues([row]);
+  else sheet.appendRow(row);
   return { id: id, status: status };
+}
+
+function orgSaveForm_(org, form) {
+  assertVerified_(org);
+  return saveFormRecord_(org, form);
 }
 
 function orgSetFormStatus_(org, id, status) {
@@ -2299,8 +2545,32 @@ function orgParticipants_(org, formId) {
   }
   const participants = rows_(APP.SHEET_PARTICIPANTS)
     .filter(function (row) { return row.formId === form.id; })
-    .sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
-  return { form: form, participants: participants, canDelete: form.orgId === org.id };
+    .sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); })
+    .map(participantView_);
+  const stats = { total: participants.length, pending: 0, accepted: 0, rejected: 0, attended: 0, absent: 0 };
+  participants.forEach(function (row) { stats[row.status] += 1; });
+  return {
+    form: formView_(form),
+    participants: participants,
+    stats: stats,
+    canDelete: form.orgId === org.id,
+    canEdit: form.orgId === org.id
+  };
+}
+
+function orgSetParticipantStatus_(org, id, status) {
+  assertVerified_(org);
+  const value = String(status || '').toLowerCase();
+  if (PARTICIPANT_STATUSES.indexOf(value) < 0) throw new Error('Status peserta tidak valid.');
+  const existing = findRow_(APP.SHEET_PARTICIPANTS, id);
+  if (!existing) throw new Error('Peserta tidak ditemukan.');
+  const form = findRow_(APP.SHEET_FORMS, existing.formId);
+  if (!form || form.orgId !== org.id) throw new Error('Peserta ini bukan milik formulir lembaga Anda.');
+  setCells_(sheet_(APP.SHEET_PARTICIPANTS), existing._row, {
+    status: value,
+    updatedAt: new Date().toISOString()
+  });
+  return { id: existing.id, status: value };
 }
 
 function orgDeleteParticipant_(org, id) {
@@ -2626,19 +2896,33 @@ function publicForm_(id) {
   if (!form) throw new Error('Formulir tidak ditemukan.');
   const org = orgById_(rows_(APP.SHEET_ORGS), form.orgId);
   const activity = form.activityId ? findRow_(APP.SHEET_ACTIVITIES, form.activityId) : null;
+  const registration = registrationState_(form, activity, rows_(APP.SHEET_PARTICIPANTS));
   return {
     id: form.id,
     title: form.title,
     description: form.description,
     status: form.status,
+    fields: formFields_(form),
+    registrationOpen: registration.open,
+    closedReason: registration.reason,
     activityTitle: activity ? activity.title : '',
+    activity: activity ? {
+      title: activity.title,
+      date: activity.date,
+      startTime: activity.startTime || '',
+      endTime: activity.endTime || '',
+      location: activity.location || '',
+      description: activity.description || '',
+      additionalInfo: activity.additionalInfo || '',
+      registrationDeadline: activity.registrationDeadline || ''
+    } : null,
     org: org ? {
       name: org.name, jenjang: org.jenjang, province: org.province,
       district: org.district, subdistrict: org.subdistrict
     } : { name: 'PB PII', jenjang: 'PB', province: '', district: '', subdistrict: '' },
-    registered: rows_(APP.SHEET_PARTICIPANTS).filter(function (row) {
-      return row.formId === form.id;
-    }).length
+    registered: registration.registered,
+    quota: registration.quota,
+    remaining: registration.remaining
   };
 }
 
@@ -2648,30 +2932,51 @@ function publicRegister_(body) {
 
   const form = findRow_(APP.SHEET_FORMS, String(body.formId || ''));
   if (!form) throw new Error('Formulir tidak ditemukan.');
-  if (String(form.status) !== 'open') throw new Error('Formulir sudah ditutup.');
+  const registrationKey = String(body.registrationKey || '').trim();
+  if (registrationKey && !/^[A-Za-z0-9_-]{16,80}$/.test(registrationKey)) {
+    throw new Error('Kunci pendaftaran tidak valid.');
+  }
 
-  const name = cleanText_(body.name).slice(0, 120);
-  const institution = cleanText_(body.institution).slice(0, 160);
-  const phone = cleanText_(body.phone).slice(0, 40);
-  const email = String(body.email || '').trim().toLowerCase().slice(0, 160);
-  const note = cleanText_(body.note).slice(0, 1000);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const participants = rows_(APP.SHEET_PARTICIPANTS);
+    if (registrationKey) {
+      const previous = participants.filter(function (row) {
+        return row.formId === form.id && String(row.registrationKey || '') === registrationKey;
+      })[0];
+      if (previous) return { id: previous.id, status: 'registered', registrationCode: registrationCode_(previous.id) };
+    }
 
-  if (!name) throw new Error('Nama peserta wajib diisi.');
-  if (!phone && !email) throw new Error('Isi nomor WhatsApp atau email agar panitia dapat menghubungi.');
-  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Alamat email tidak valid.');
+    const activity = form.activityId ? findRow_(APP.SHEET_ACTIVITIES, form.activityId) : null;
+    const registration = registrationState_(form, activity, participants);
+    if (!registration.open) throw new Error(registration.reason || 'Formulir sudah ditutup.');
+    const normalized = normalizeRegistrationAnswers_(form, body);
+    const values = normalized.values;
+    const name = cleanText_(values.name).slice(0, 120);
+    const institution = cleanText_(values.institution).slice(0, 160);
+    const phone = cleanText_(values.phone).slice(0, 40);
+    const email = String(values.email || '').trim().toLowerCase().slice(0, 160);
+    const note = String(values.note || '').trim().slice(0, 1000);
 
-  const participants = rows_(APP.SHEET_PARTICIPANTS);
-  const duplicate = participants.some(function (row) {
-    return row.formId === form.id && normText_(row.name) === normText_(name)
-      && (phone ? normText_(row.phone) === normText_(phone) : true);
-  });
-  if (duplicate) throw new Error('Pendaftaran dengan nama dan nomor yang sama sudah tercatat.');
+    const duplicate = participants.some(function (row) {
+      if (row.formId !== form.id || normText_(row.name) !== normText_(name)) return false;
+      if (phone && normText_(row.phone) === normText_(phone)) return true;
+      if (email && normText_(row.email) === normText_(email)) return true;
+      return !phone && !email && !row.phone && !row.email;
+    });
+    if (duplicate) throw new Error('Pendaftaran dengan nama dan kontak yang sama sudah tercatat.');
 
-  const id = Utilities.getUuid();
-  sheet_(APP.SHEET_PARTICIPANTS).appendRow([
-    id, form.id, form.orgId, name, institution, phone, email, note, new Date().toISOString()
-  ]);
-  return { id: id, status: 'registered' };
+    const id = Utilities.getUuid();
+    const now = new Date().toISOString();
+    sheet_(APP.SHEET_PARTICIPANTS).appendRow([
+      id, form.id, form.orgId, name, institution, phone, email, note, now,
+      normalized.json, 'pending', now, registrationKey
+    ]);
+    return { id: id, status: 'registered', registrationCode: registrationCode_(id) };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* --------------------------------------------------------------- helpers -- */
@@ -2898,11 +3203,6 @@ function eventsFeed_(orgs, activities, forms, participants, actorKey) {
     if (!current || (String(current.status) !== 'open' && open)) formFor[activityId] = form;
   });
 
-  const registered = {};
-  participants.forEach(function (row) {
-    registered[row.formId] = (registered[row.formId] || 0) + 1;
-  });
-
   const today = todayKey_();
   const floor = Utilities.formatDate(new Date(Date.now() - 120 * 86400000), timeZone_(), 'yyyy-MM-dd');
   const who = String(actorKey || '');
@@ -2920,6 +3220,7 @@ function eventsFeed_(orgs, activities, forms, participants, actorKey) {
     .map(function (activity) {
       const host = byId[activity.orgId] || {};
       const form = formFor[activity.id];
+      const registration = form ? registrationState_(form, activity, participants) : null;
       const description = cleanText_(activity.description).slice(0, 320);
       const bucket = reactions[activity.id];
       const thread = comments[activity.id] || [];
@@ -2948,13 +3249,16 @@ function eventsFeed_(orgs, activities, forms, participants, actorKey) {
           province: host.province || '',
           district: host.district || ''
         },
-        form: form ? {
+        form: registration ? {
           id: form.id,
           title: cleanText_(form.title),
-          status: String(form.status || 'open'),
+          status: registration.open ? 'open' : 'closed',
           url: 'formulir.html?id=' + encodeURIComponent(String(form.id)),
-          registered: registered[form.id] || 0,
-          quota: Number(activity.participants) || 0
+          registered: registration.registered,
+          quota: registration.quota,
+          remaining: registration.remaining,
+          closedReason: registration.reason,
+          registrationDeadline: String(activity.registrationDeadline || '')
         } : null
       };
     });

@@ -302,6 +302,44 @@
       .kpi-score::after{inset:8px}
       #page-ringkasan>.grid2{gap:0}
     }
+    .registration-box{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+    .registration-toggle{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;font-weight:750;color:var(--navy);cursor:pointer}
+    .registration-toggle input,.choice input{width:18px;height:18px;min-height:0;flex:0 0 auto;margin:2px 0 0;accent-color:var(--blue)}
+    .builder-list{display:grid;gap:12px}
+    .builder-field{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfcfd}
+    .builder-field-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+    .builder-field-head>div:first-child{display:grid;gap:6px;min-width:0}
+    .builder-field-head strong{overflow-wrap:anywhere}
+    .builder-order{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+    .builder-order .btn{padding:7px 9px;min-height:36px}
+    .builder-required{display:flex;align-items:flex-end;padding-bottom:10px}
+    .choice{display:flex;align-items:flex-start;gap:9px;cursor:pointer}
+    .builder-add{display:flex;gap:8px;margin-top:12px}
+    .builder-add select{flex:1}
+    .builder-preview{margin-top:14px;border:1px dashed #bdccda;border-radius:11px;background:#f7fafc;padding:12px 14px}
+    .builder-preview summary{cursor:pointer;font-weight:750;color:var(--navy)}
+    .builder-preview-body{padding-top:16px;pointer-events:none}
+    .builder-preview-body .field{margin-bottom:13px}
+    .choice-list{display:grid;gap:9px}
+    .form-info{padding:12px 14px;border-left:3px solid var(--blue);background:#f0f6fb;border-radius:8px;margin-bottom:14px}
+    .form-info .hint{white-space:pre-wrap}
+    .participant-tools{display:grid;grid-template-columns:minmax(180px,1fr) minmax(150px,auto);gap:8px;margin:14px 0}
+    .participant-stats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+    .participant-code{font-size:11px;color:var(--muted);white-space:nowrap}
+    .participant-status{min-width:132px;padding:7px 8px;font-size:12px}
+    .answer-list{display:grid;gap:9px;margin:0}
+    .answer-list div{display:grid;grid-template-columns:minmax(120px,.45fr) minmax(0,1fr);gap:12px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+    .answer-list dt{font-weight:750;color:var(--muted)}
+    .answer-list dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+    .participant-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+    @media(max-width:620px){
+      .builder-field{padding:12px 10px}
+      .builder-field-head{display:grid}
+      .builder-order{justify-content:flex-start}
+      .builder-add{align-items:stretch;flex-direction:column}
+      .participant-tools{grid-template-columns:1fr}
+      .answer-list div{grid-template-columns:1fr;gap:3px}
+    }
   </style>
 </head>
 <body>
@@ -436,8 +474,12 @@
                   <select id="aCategory"><option>Kaderisasi</option><option>Pendidikan</option><option>Sosial</option><option>Dakwah</option><option>Organisasi</option><option>Kesekretariatan</option><option>Lainnya</option></select>
                 </div>
                 <div class="field"><label class="lbl" for="aDate">Tanggal *</label><input id="aDate" type="date" required></div>
+                <div class="field"><label class="lbl" for="aStartTime">Waktu mulai</label><input id="aStartTime" type="time"></div>
+                <div class="field"><label class="lbl" for="aEndTime">Waktu selesai</label><input id="aEndTime" type="time"></div>
                 <div class="field"><label class="lbl" for="aLocation">Lokasi</label><input id="aLocation" maxlength="160"></div>
-                <div class="field"><label class="lbl" for="aParticipants">Jumlah peserta</label><input id="aParticipants" type="number" min="0" step="1" value="0"></div>
+                <div class="field"><label class="lbl" for="aParticipants">Realisasi jumlah peserta</label><input id="aParticipants" type="number" min="0" step="1" value="0"><div class="hint">Untuk laporan keaktifan setelah kegiatan berlangsung.</div></div>
+                <div class="field"><label class="lbl" for="aQuota">Kuota pendaftar</label><input id="aQuota" type="number" min="0" max="1000000" step="1" value="0"><div class="hint">Isi 0 bila tidak dibatasi.</div></div>
+                <div class="field"><label class="lbl" for="aRegistrationDeadline">Batas pendaftaran</label><input id="aRegistrationDeadline" type="datetime-local"></div>
                 <div class="field full"><label class="lbl" for="aCover">Foto sampul kegiatan</label>
                   <div class="uploader" data-upload-for="aCover">
                     <label class="upload-drop">
@@ -451,10 +493,25 @@
                   <details class="upload-link"><summary>Pakai link gambar (opsional)</summary><input id="aCover" type="url" placeholder="https://..."></details>
                   <div class="hint">Sampul ini yang tampil pada kartu acara di halaman Acara website PB PII.</div>
                 </div>
-                <div class="field full"><label class="lbl" for="aDescription">Deskripsi</label><textarea id="aDescription" maxlength="8000" placeholder="Ringkas hasil, agenda, dan jumlah sasaran kegiatan."></textarea></div>
+                <div class="field full"><label class="lbl" for="aDescription">Deskripsi</label><textarea id="aDescription" maxlength="8000" placeholder="Ringkas agenda, sasaran, dan pelaksanaan kegiatan."></textarea></div>
+                <div class="field full"><label class="lbl" for="aAdditionalInfo">Informasi tambahan untuk peserta</label><textarea id="aAdditionalInfo" maxlength="4000" placeholder="Perlengkapan yang dibawa, kontak panitia, atau tata tertib."></textarea></div>
                 <div class="field"><label class="lbl" for="aStatus">Status</label><select id="aStatus"><option value="published">Terbitkan</option><option value="draft">Draft</option></select></div>
               </div>
-              <div class="btn-row"><button class="btn primary" type="submit" id="saveActivityBtn">Simpan kegiatan</button><button class="btn secondary" type="button" id="cancelActivity">Batal</button></div>
+              <div class="registration-box">
+                <label class="registration-toggle"><input id="aRegistrationEnabled" type="checkbox" checked><span>Buka pendaftaran dengan formulir untuk kegiatan ini</span></label>
+                <div id="activityRegistrationFields">
+                  <input type="hidden" id="aFormId">
+                  <div class="grid2">
+                    <div class="field full"><label class="lbl" for="aFormTitle">Judul formulir *</label><input id="aFormTitle" maxlength="180" placeholder="Pendaftaran peserta"></div>
+                    <div class="field full"><label class="lbl" for="aFormDescription">Keterangan formulir</label><textarea id="aFormDescription" maxlength="4000" placeholder="Syarat peserta dan petunjuk pendaftaran."></textarea></div>
+                    <div class="field"><label class="lbl" for="aFormStatus">Status formulir</label><select id="aFormStatus"><option value="open">Dibuka</option><option value="closed">Ditutup</option></select></div>
+                  </div>
+                  <h3>Susunan formulir</h3>
+                  <p class="intro">Tambah, ubah, urutkan, dan pratinjau pertanyaan. Peserta dapat mendaftar lewat tautan tanpa membuat akun.</p>
+                  <div id="activityFormBuilder"></div>
+                </div>
+              </div>
+              <div class="btn-row"><button class="btn primary" type="submit" id="saveActivityBtn">Simpan kegiatan & formulir</button><button class="btn secondary" type="button" id="cancelActivity">Batal</button></div>
             </form>
           </div>
           <div class="panel">
@@ -525,6 +582,7 @@
                 <div class="field"><label class="lbl" for="fActivity">Kegiatan terkait</label><select id="fActivity"><option value="">Tidak terhubung kegiatan</option></select></div>
                 <div class="field"><label class="lbl" for="fStatus">Status</label><select id="fStatus"><option value="open">Dibuka</option><option value="closed">Ditutup</option></select></div>
                 <div class="field full"><label class="lbl" for="fDescription">Keterangan</label><textarea id="fDescription" maxlength="4000" placeholder="Syarat peserta, tanggal pelaksanaan, kontak panitia."></textarea></div>
+                <div class="field full"><label class="lbl">Susunan pertanyaan</label><div id="standaloneFormBuilder"></div></div>
               </div>
               <div class="btn-row"><button class="btn primary" type="submit">Simpan formulir</button><button class="btn secondary" type="button" id="cancelForm">Batal</button></div>
             </form>
@@ -640,6 +698,7 @@
 
   <script src="captcha.js"></script>
   <script src="/editor.js"></script>
+  <script src="/form-builder.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
     const TOKEN_KEY = 'pbpii_org_token';
@@ -918,12 +977,33 @@
 
     // --------------------------------------------------------------- kegiatan
 
+    const activityBuilder = window.PBPIIFormBuilder.mount({ host: $('activityFormBuilder') });
+    const standaloneBuilder = window.PBPIIFormBuilder.mount({ host: $('standaloneFormBuilder') });
+    const syncActivityRegistration = () => {
+      const enabled = $('aRegistrationEnabled').checked;
+      $('activityRegistrationFields').classList.toggle('hidden', !enabled);
+      $('aFormTitle').required = enabled;
+    };
+    $('aRegistrationEnabled').addEventListener('change', syncActivityRegistration);
+    $('aTitle').addEventListener('input', () => {
+      if ($('aFormTitle').dataset.touched === 'true') return;
+      $('aFormTitle').value = $('aTitle').value.trim() ? 'Pendaftaran ' + $('aTitle').value.trim() : '';
+    });
+    $('aFormTitle').addEventListener('input', () => { $('aFormTitle').dataset.touched = 'true'; });
+
     function resetActivityForm() {
       editingActivity = null;
       $('activityForm').reset();
       $('aId').value = '';
       $('aDate').value = new Date().toISOString().slice(0, 10);
       $('aStatus').value = 'published';
+      $('aFormId').value = '';
+      $('aFormTitle').value = '';
+      $('aFormTitle').dataset.touched = 'false';
+      $('aFormStatus').value = 'open';
+      $('aRegistrationEnabled').checked = true;
+      activityBuilder.setFields(window.PBPIIFormBuilder.defaults());
+      syncActivityRegistration();
       $('activityFormTitle').textContent = 'Tambah kegiatan';
       refreshUploader('aCover');
       $('activityEditor').classList.remove('hidden');
@@ -940,6 +1020,9 @@
     $('activityForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const button = $('saveActivityBtn');
+      const registrationEnabled = $('aRegistrationEnabled').checked;
+      const builderError = registrationEnabled ? activityBuilder.validate() : '';
+      if (builderError) return toast(builderError);
       button.disabled = true;
       try {
         await api('orgSaveActivity', {
@@ -948,16 +1031,29 @@
             title: $('aTitle').value.trim(),
             category: $('aCategory').value,
             date: $('aDate').value,
+            startTime: $('aStartTime').value,
+            endTime: $('aEndTime').value,
+            registrationDeadline: $('aRegistrationDeadline').value,
             location: $('aLocation').value.trim(),
             participants: Number($('aParticipants').value) || 0,
+            quota: Number($('aQuota').value) || 0,
             coverImage: imageUrl($('aCover').value.trim()) || $('aCover').value.trim(),
             description: $('aDescription').value,
-            status: $('aStatus').value
+            additionalInfo: $('aAdditionalInfo').value,
+            status: $('aStatus').value,
+            form: {
+              enabled: registrationEnabled,
+              id: $('aFormId').value,
+              title: $('aFormTitle').value.trim(),
+              description: $('aFormDescription').value,
+              status: $('aFormStatus').value,
+              fields: activityBuilder.getFields()
+            }
           }
         });
         $('activityEditor').classList.add('hidden');
         await loadData();
-        toast('Kegiatan tersimpan.');
+        toast('Kegiatan dan formulir tersimpan.');
       } catch (error) {
         toast(error.message);
       } finally {
@@ -973,11 +1069,25 @@
       $('aTitle').value = item.title || '';
       $('aCategory').value = item.category || 'Kaderisasi';
       $('aDate').value = String(item.date || '').slice(0, 10);
+      $('aStartTime').value = item.startTime || '';
+      $('aEndTime').value = item.endTime || '';
+      $('aRegistrationDeadline').value = item.registrationDeadline || '';
       $('aLocation').value = item.location || '';
       $('aParticipants').value = Number(item.participants) || 0;
+      $('aQuota').value = Number(item.quota) || 0;
       $('aCover').value = item.coverImage || '';
       $('aDescription').value = item.description || '';
+      $('aAdditionalInfo').value = item.additionalInfo || '';
       $('aStatus').value = item.status || 'published';
+      const linked = state.forms.find((form) => form.mine && form.activityId === item.id);
+      $('aFormId').value = linked?.id || '';
+      $('aFormTitle').value = linked?.title || 'Pendaftaran ' + (item.title || '');
+      $('aFormTitle').dataset.touched = 'true';
+      $('aFormDescription').value = linked?.description || '';
+      $('aFormStatus').value = linked?.status || 'open';
+      $('aRegistrationEnabled').checked = Boolean(linked);
+      activityBuilder.setFields(linked?.fields || window.PBPIIFormBuilder.defaults());
+      syncActivityRegistration();
       $('activityFormTitle').textContent = 'Edit kegiatan';
       refreshUploader('aCover');
       $('activityEditor').classList.remove('hidden');
@@ -1003,6 +1113,7 @@
         const bind = linked
           ? '<div class="bind-row"><span class="badge ' + (linked.status === 'open' ? 'verified' : 'pending') + '">' +
             (linked.status === 'open' ? 'PENDAFTARAN DIBUKA' : 'PENDAFTARAN DITUTUP') + '</span>' +
+            '<button class="btn secondary" type="button" data-participants="' + esc(linked.id) + '">Peserta (' + linked.participantCount + ')</button>' +
             '<button class="btn secondary" type="button" data-copy-form="' + esc(linked.id) + '">Salin tautan daftar</button></div>'
           : item.status === 'published'
             ? '<div class="bind-row"><span class="badge">BELUM ADA FORMULIR</span>' +
@@ -1156,6 +1267,7 @@
       $('createForm').reset();
       $('fId').value = '';
       $('fStatus').value = 'open';
+      standaloneBuilder.setFields(window.PBPIIFormBuilder.defaults());
       $('formEditorTitle').textContent = 'Formulir baru';
       $('formEditor').classList.remove('hidden');
       $('formEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1165,6 +1277,8 @@
 
     $('createForm').addEventListener('submit', async (event) => {
       event.preventDefault();
+      const builderError = standaloneBuilder.validate();
+      if (builderError) return toast(builderError);
       try {
         await api('orgSaveForm', {
           form: {
@@ -1172,7 +1286,8 @@
             title: $('fTitle').value.trim(),
             activityId: $('fActivity').value,
             status: $('fStatus').value,
-            description: $('fDescription').value
+            description: $('fDescription').value,
+            fields: standaloneBuilder.getFields()
           }
         });
         $('formEditor').classList.add('hidden');
@@ -1192,6 +1307,7 @@
       $('fActivity').value = form.activityId || '';
       $('fStatus').value = form.status || 'open';
       $('fDescription').value = form.description || '';
+      standaloneBuilder.setFields(form.fields || window.PBPIIFormBuilder.defaults());
       $('formEditorTitle').textContent = 'Edit formulir';
       $('formEditor').classList.remove('hidden');
       $('formEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1219,45 +1335,132 @@
       }
     }
 
+    const PARTICIPANT_STATUS = {
+      pending: ['Menunggu', 'pending'], accepted: ['Diterima', 'verified'], rejected: ['Ditolak', 'rejected'],
+      attended: ['Hadir', 'verified'], absent: ['Tidak hadir', 'rejected']
+    };
+    let participantData = null;
+    let participantQuery = '';
+    let participantFilter = 'all';
+
+    function participantBadge(status) {
+      const item = PARTICIPANT_STATUS[status] || PARTICIPANT_STATUS.pending;
+      return '<span class="badge ' + item[1] + '">' + item[0] + '</span>';
+    }
+
+    function participantStats() {
+      const stats = { total: participantData.participants.length, pending: 0, accepted: 0, rejected: 0, attended: 0, absent: 0 };
+      participantData.participants.forEach((row) => { stats[row.status] = (stats[row.status] || 0) + 1; });
+      participantData.stats = stats;
+      return stats;
+    }
+
     async function openParticipants(formId) {
       try {
-        const data = await api('orgParticipants', { formId });
-        $('modalTitle').textContent = data.form.title;
-        $('modalSub').textContent = data.participants.length + ' peserta terdaftar. Data ini juga dapat diunduh sebagai CSV.';
-        $('modalBody').innerHTML = data.participants.length ? (
-          '<table><thead><tr><th>Nama</th><th>Asal</th><th>Kontak</th><th>Catatan</th><th>Tanggal</th><th></th></tr></thead><tbody>' +
-          data.participants.map((row) => (
-            '<tr><td>' + esc(row.name) + '</td><td>' + esc(row.institution) + '</td><td>' +
-            esc([row.phone, row.email].filter(Boolean).join(' · ')) + '</td><td>' + esc(row.note) + '</td><td>' +
-            fmtDate(row.createdAt) + '</td><td>' + (data.canDelete
-              ? '<button class="btn danger" type="button" data-delete-participant="' + esc(row.id) + '">Hapus</button>' : '') +
-            '</td></tr>'
-          )).join('') + '</tbody></table>'
-        ) : '<div class="empty">Belum ada peserta.</div>';
-
-        const csvButton = document.createElement('button');
-        csvButton.className = 'btn secondary';
-        csvButton.type = 'button';
-        csvButton.textContent = 'Unduh CSV';
-        csvButton.style.marginTop = '12px';
-        csvButton.addEventListener('click', () => downloadCsv(data.form.title, data.participants));
-        $('modalBody').appendChild(csvButton);
+        participantData = await api('orgParticipants', { formId });
+        participantQuery = '';
+        participantFilter = 'all';
+        $('modalTitle').textContent = participantData.form.title;
+        $('modalSub').textContent = 'Kelola keputusan dan kehadiran, periksa jawaban, atau unduh data untuk Excel.';
+        renderParticipantManager();
         $('modal').classList.remove('hidden');
       } catch (error) {
         toast(error.message);
       }
     }
 
-    function downloadCsv(title, rows) {
-      const head = ['Nama', 'Asal', 'WhatsApp', 'Email', 'Catatan', 'Tanggal'];
-      const body = rows.map((row) => [row.name, row.institution, row.phone, row.email, row.note, row.createdAt]);
-      const csv = [head].concat(body).map((line) => line.map((cell) => '"' + String(cell == null ? '' : cell).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+    function renderParticipantManager() {
+      const stats = participantStats();
+      $('modalBody').innerHTML =
+        '<div class="participant-stats"><span class="badge cat">Total ' + stats.total + '</span>' +
+        Object.entries(PARTICIPANT_STATUS).map(([key, item]) => '<span class="badge ' + item[1] + '">' + item[0] + ' ' + stats[key] + '</span>').join('') + '</div>' +
+        '<div class="participant-tools"><input id="participantSearch" type="search" placeholder="Cari nama, kontak, kode, atau jawaban" value="' + esc(participantQuery) + '">' +
+        '<select id="participantFilter" aria-label="Filter status"><option value="all">Semua status</option>' +
+        Object.entries(PARTICIPANT_STATUS).map(([key, item]) => '<option value="' + key + '"' + (participantFilter === key ? ' selected' : '') + '>' + item[0] + '</option>').join('') + '</select></div>' +
+        '<div class="btn-row" style="margin:0 0 14px"><button class="btn secondary" type="button" id="downloadParticipants">Unduh CSV (Excel)</button></div>' +
+        '<div id="participantResults"></div>';
+      $('participantSearch').addEventListener('input', (event) => {
+        participantQuery = event.target.value;
+        renderParticipantRows();
+      });
+      $('participantFilter').addEventListener('change', (event) => {
+        participantFilter = event.target.value;
+        renderParticipantRows();
+      });
+      $('downloadParticipants').addEventListener('click', () => downloadCsv(participantData.form.title, participantData.participants, participantData.form.fields));
+      renderParticipantRows();
+    }
+
+    function renderParticipantRows() {
+      const needle = participantQuery.trim().toLocaleLowerCase('id');
+      const rows = participantData.participants.filter((row) => {
+        if (participantFilter !== 'all' && row.status !== participantFilter) return false;
+        if (!needle) return true;
+        return [row.name, row.phone, row.email, row.registrationCode, ...Object.values(row.answers || {}).flat()]
+          .join(' ').toLocaleLowerCase('id').includes(needle);
+      });
+      $('participantResults').innerHTML = rows.length ? '<table><thead><tr><th>Peserta</th><th>Kontak</th><th>Status</th><th>Terdaftar</th><th>Aksi</th></tr></thead><tbody>' +
+        rows.map((row) => '<tr><td><b>' + esc(row.name || 'Tanpa nama') + '</b><br><span class="participant-code">' + esc(row.registrationCode) + '</span></td><td>' +
+          esc([row.phone, row.email].filter(Boolean).join(' · ') || '—') + '</td><td>' +
+          (participantData.canEdit
+            ? '<select class="participant-status" data-participant-status="' + esc(row.id) + '" aria-label="Status ' + esc(row.name) + '">' +
+              Object.entries(PARTICIPANT_STATUS).map(([key, item]) => '<option value="' + key + '"' + (row.status === key ? ' selected' : '') + '>' + item[0] + '</option>').join('') + '</select>'
+            : participantBadge(row.status)) + '</td><td>' + fmtDate(row.createdAt) + '</td><td><div class="item-actions">' +
+          '<button class="btn secondary" type="button" data-participant-detail="' + esc(row.id) + '">Detail</button>' +
+          (participantData.canDelete ? '<button class="btn danger" type="button" data-delete-participant="' + esc(row.id) + '">Hapus</button>' : '') +
+          '</div></td></tr>').join('') + '</tbody></table>'
+        : '<div class="empty">' + (participantData.participants.length ? 'Tidak ada peserta yang cocok dengan pencarian atau filter.' : 'Belum ada peserta.') + '</div>';
+    }
+
+    function answerText(value) {
+      if (Array.isArray(value)) return value.join(', ');
+      if (value === true) return 'Ya';
+      if (value === false) return 'Tidak';
+      return value == null || value === '' ? '—' : String(value);
+    }
+
+    function showParticipantDetail(id) {
+      const row = participantData?.participants.find((item) => item.id === id);
+      if (!row) return;
+      $('modalBody').innerHTML = '<div class="participant-detail-head"><div><h3>' + esc(row.name || 'Peserta') + '</h3><p>' + esc(row.registrationCode) + ' · ' + fmtDate(row.createdAt) + '</p></div>' + participantBadge(row.status) + '</div>' +
+        '<dl class="answer-list">' + participantData.form.fields.filter((field) => field.type !== 'info').map((field) =>
+          '<div><dt>' + esc(field.label) + '</dt><dd>' + esc(answerText(row.answers?.[field.id])) + '</dd></div>').join('') + '</dl>' +
+        '<div class="btn-row"><button class="btn secondary" type="button" data-back-participants>← Kembali ke daftar</button></div>';
+    }
+
+    async function setParticipantStatus(id, status, select) {
+      select.disabled = true;
+      try {
+        await api('orgSetParticipantStatus', { id, status });
+        const row = participantData.participants.find((item) => item.id === id);
+        if (row) row.status = status;
+        renderParticipantManager();
+        toast('Status peserta diperbarui.');
+      } catch (error) {
+        select.disabled = false;
+        select.value = participantData.participants.find((item) => item.id === id)?.status || 'pending';
+        toast(error.message);
+      }
+    }
+
+    function csvCell(value) {
+      let text = answerText(value);
+      if (/^[=+\-@]/.test(text)) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function downloadCsv(title, rows, fields) {
+      const inputFields = fields.filter((field) => field.type !== 'info');
+      const head = ['Kode registrasi', 'Status', ...inputFields.map((field) => field.label), 'Tanggal pendaftaran'];
+      const body = rows.map((row) => [row.registrationCode, PARTICIPANT_STATUS[row.status]?.[0] || row.status,
+        ...inputFields.map((field) => row.answers?.[field.id]), row.createdAt]);
+      const csv = [head].concat(body).map((line) => line.map(csvCell).join(',')).join('\r\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = 'peserta-' + String(title || 'kegiatan').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv';
       link.click();
-      URL.revokeObjectURL(link.href);
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     }
 
     $('modalClose').addEventListener('click', () => $('modal').classList.add('hidden'));
@@ -1267,11 +1470,13 @@
 
     async function deleteParticipant(id) {
       if (!confirm('Hapus data peserta ini?')) return;
+      const formId = participantData?.form.id;
       try {
         await api('orgDeleteParticipant', { id });
         toast('Peserta dihapus.');
-        $('modal').classList.add('hidden');
         await loadData();
+        if (formId) await openParticipants(formId);
+        else $('modal').classList.add('hidden');
       } catch (error) {
         toast(error.message);
       }
@@ -1954,6 +2159,9 @@
       if (editF) return editForm(editF.dataset.editForm);
       const delP = target.closest('[data-delete-participant]');
       if (delP) return deleteParticipant(delP.dataset.deleteParticipant);
+      const detail = target.closest('[data-participant-detail]');
+      if (detail) return showParticipantDetail(detail.dataset.participantDetail);
+      if (target.closest('[data-back-participants]')) return renderParticipantManager();
       const letter = target.closest('[data-letter]');
       if (letter) return markLetter(letter.dataset.letter, letter.dataset.status);
       const attachment = target.closest('[data-open-letter-pdf]');
@@ -1962,6 +2170,11 @@
       if (standard) return setStandard(standard);
       const bind = target.closest('[data-form-for]');
       if (bind) return openFormFor(bind.dataset.formFor);
+    });
+
+    document.addEventListener('change', (event) => {
+      const select = event.target.closest('[data-participant-status]');
+      if (select) setParticipantStatus(select.dataset.participantStatus, select.value, select);
     });
 
     /** Standar keaktifan berjenjang: hanya lembaga di bawah Anda yang bisa disetel. */
@@ -1995,6 +2208,7 @@
       $('fTitle').value = activity ? 'Pendaftaran ' + activity.title : '';
       $('fActivity').value = activityId;
       $('fStatus').value = 'open';
+      standaloneBuilder.setFields(window.PBPIIFormBuilder.defaults());
       $('formEditorTitle').textContent = 'Formulir pendaftaran kegiatan';
       $('formEditor').classList.remove('hidden');
       $('formEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
