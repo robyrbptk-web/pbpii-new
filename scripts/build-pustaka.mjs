@@ -70,18 +70,48 @@ function bersihkan(baris) {
     .trim();
 }
 
+/**
+ * Pelacak posisi di dalam dokumen. Nama bab/sub-bab/pasal diambil apa adanya
+ * dari teks, jadi sitasi tidak pernah mengarang judul yang tidak ada di berkas.
+ */
+const POLA_BAB = /^(bab|bagian|chapter|session|sesi)\b/i;
+const POLA_JUDUL_ISI = /^(bab|bagian|chapter|sub[-\s]?bab|pasal|ketentuan|session|sesi)\b[^\n]{0,70}$/i;
+
+function judulIsi(baris) {
+  const n = baris
+    .replace(/^[^\p{L}\p{N}]+/u, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.\u2026\s]+\d+$/, '');
+  if (!n || n.length > 72) return '';
+  if (!POLA_JUDUL_ISI.test(n)) return '';
+  const kata = n.split(' ')[1] || '';
+  if (/^[a-zà-ÿ]/.test(kata)) return '';
+  return n;
+}
+
+/** Nomor versi hanya diambil bila berkas memang menuliskannya. */
+function versiTeks(teks) {
+  const cocok = teks.match(/\b(edisi|cetakan|versi)\s*(ke[-.\s]?[0-9ivxlcdm]+|[0-9]{1,3})\b/i);
+  return cocok ? `${cocok[1]} ${cocok[2]}`.replace(/\s+/g, ' ') : '';
+}
+
 /** Potongan panjangnya TARGET_WORDS agar muat sebagai konteks AI dan enak dicuplik. */
 function potong(docId, halaman) {
   const chunks = [];
   let buf = [];
   let kata = 0;
   let mulai = 0;
+  let bab = '';
+  let bagian = '';
+
+  const jejak = () => [bab, bagian].filter(Boolean).join(' › ');
 
   const simpan = (sampai) => {
     if (!buf.length) return;
     const teks = bersihkan(buf.join('\n '));
     if (teks.split(/\s+/).filter(Boolean).length >= 12) {
-      chunks.push({ d: docId, h: [mulai, sampai], t: teks });
+      chunks.push({ d: docId, h: [mulai, sampai], b: jejak(), t: teks });
     }
     buf = [];
     kata = 0;
@@ -93,6 +123,11 @@ function potong(docId, halaman) {
     for (const baris of isi.split('\n')) {
       const n = baris.trim();
       if (!n) continue;
+      const judul = judulIsi(n);
+      if (judul) {
+        if (POLA_BAB.test(judul)) { bab = judul; bagian = ''; }
+        else bagian = judul;
+      }
       buf.push(n);
       kata += n.split(/\s+/).length;
       if (kata >= TARGET_WORDS) {
@@ -138,9 +173,12 @@ for (const nama of daftarPdf) {
     halaman: halaman.filter((h) => h.trim()).length || halaman.length,
     potong: potongan.length,
     byte: fs.statSync(absolut).size,
-    berkas: nama
+    berkas: nama,
+    versi: versiTeks(halaman.slice(0, 12).join('\n')),
+    visibel: true
   });
-  console.log(`${id}: ${berkas.at(-1).halaman} hlm, ${potongan.length} potong`);
+  console.log(`${id}: ${berkas.at(-1).halaman} hlm, ${potongan.length} potong, ` +
+    `${potongan.filter((p) => p.b).length} berbab, versi: ${berkas.at(-1).versi || 'tidak tertulis'}`);
 }
 
 const isi = { versi: 1, dibuat: new Date().toISOString(), docs: berkas, chunks };

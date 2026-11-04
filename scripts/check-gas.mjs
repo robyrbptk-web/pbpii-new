@@ -28,8 +28,8 @@ const HEADERS = {
   Kaders: ['id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note', 'passwordHash', 'passwordSalt'],
   Reactions: ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt'],
   Comments: ['id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text', 'status', 'createdAt', 'updatedAt'],
-  PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas'],
-  PustakaPotongan: ['doc', 'halaman', 'teks']
+  PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'],
+  PustakaPotongan: ['doc', 'halaman', 'teks', 'halamanAkhir', 'bab']
 };
 
 const SHEETS = {};
@@ -113,13 +113,28 @@ class FakeSheet {
   deleteRow(row) { this.records.splice(row - 2, 1); return this; }
 
   setFrozenRows() { return this; }
+
+  clearContents() { this.records.length = 0; return this; }
+
+  getMaxRows() { return Math.max(1000, this.records.length + 1); }
+
+  getMaxColumns() { return Math.max(26, HEADERS[this.name].length); }
+
+  insertRowsAfter() { return this; }
+
+  insertColumnsAfter() { return this; }
 }
 
 const SpreadsheetApp = {
   openById: () => ({ getSheetByName: (name) => (HEADERS[name] ? new FakeSheet(name) : null) })
 };
+const properti = { SPREADSHEET_ID: 'fixture-spreadsheet' };
 const PropertiesService = {
-  getScriptProperties: () => ({ getProperty: (key) => (key === 'SPREADSHEET_ID' ? 'fixture-spreadsheet' : null), setProperty() {} })
+  getScriptProperties: () => ({
+    getProperty: (key) => (key in properti ? properti[key] : null),
+    setProperty: (key, value) => { properti[key] = String(value); },
+    deleteProperty: (key) => { delete properti[key]; }
+  })
 };
 const Session = { getScriptTimeZone: () => 'Asia/Jakarta' };
 let uuidSeq = 0;
@@ -212,13 +227,17 @@ const pustakaFixture = {
       kategori: 'Pelatihan', ringkas: 'Silabus LBT.', halaman: 87, potong: 1,
       berkas: 'Silabus LEADERSHIP BASIC TRAINING (POIN).pdf' },
     { id: 'buku-saku-ppo-2020', judul: 'Buku Saku PPO 2020', kategori: 'Organisasi & PPO',
-      ringkas: 'PPO.', halaman: 51, potong: 1, berkas: 'BUKU SAKU PPO 2020.pdf' }
+      ringkas: 'PPO.', halaman: 51, potong: 1, berkas: 'BUKU SAKU PPO 2020.pdf' },
+    { id: 'pku-rancangan-internal', judul: 'PKU PB PII (rancangan)', kategori: 'Kebijakan Umum',
+      ringkas: 'Draf yang belum disahkan forum.', halaman: 12, potong: 1,
+      berkas: 'PKU PB PII draf.pdf', visibel: false }
   ],
   chunks: [
-    { d: 'ebook-ta-dib-pii', h: [120, 124], t: 'Ketentuan Mengenai Waktu Turba. Waktu turba tidak dibatasi berapa minimal harinya atau maksimal harinya. Turba dilakukan sampai permasalahan yang terjadi di daerah atau wilayah yang didatangi bisa selesai.' },
+    { d: 'ebook-ta-dib-pii', h: [120, 124], b: 'BAB III ORIENTASI TA’DIB › Ketentuan Mengenai Waktu Turba', t: 'Ketentuan Mengenai Waktu Turba. Waktu turba tidak dibatasi berapa minimal harinya atau maksimal harinya. Turba dilakukan sampai permasalahan yang terjadi di daerah atau wilayah yang didatangi bisa selesai.' },
     { d: 'ebook-ta-dib-pii', h: [88, 90], t: 'Ta’lim Awal adalah jenjang pembinaan pertama bagi kader PII sebelum mengikuti training kepemimpinan.' },
     { d: 'silabus-leadership-basic-training-poin', h: [12, 15], t: 'Leadership Basic Training atau LBT adalah training kepemimpinan dasar bagi kader PII yang telah mengikuti ta’lim awal.' },
-    { d: 'buku-saku-ppo-2020', h: [7, 9], t: 'Pengembangan dan Pemberdayaan Organisasi membina pengurus komisariat, daerah, wilayah, sampai pengurus besar.' }
+    { d: 'buku-saku-ppo-2020', h: [7, 9], t: 'Pengembangan dan Pemberdayaan Organisasi membina pengurus komisariat, daerah, wilayah, sampai pengurus besar.' },
+    { d: 'pku-rancangan-internal', h: [3, 3], b: 'BAB II POLA KEBIJAKAN UMUM', t: 'Rancangan PKU memuat prioritas kerja pengurus besar yang belum disahkan forum tertinggi organisasi.' }
   ]
 };
 
@@ -1101,20 +1120,64 @@ seed('PustakaBerkas', pustakaFixture.docs.map((doc) => ({ ...doc })));
 seed('PustakaPotongan', pustakaFixture.chunks.map((chunk) => ({
   doc: chunk.d,
   halaman: chunk.h[0],
-  teks: chunk.t
+  teks: chunk.t,
+  halamanAkhir: chunk.h[1],
+  bab: chunk.b || ''
 })));
+// Satu baris warutan impor lama: hanya tiga kolom pertama yang pernah terisi.
+seed('PustakaPotongan', [{ doc: 'ebook-ta-dib-pii', halaman: 200, teks: 'Baris lama tanpa kolom bab dan halaman akhir.' }]);
 driveFiles.push({ id: 'fixture-ebook-original', name: "Ebook Ta'dib PII (tanpa password).pdf" });
 includePustakaCorpus = false;
 const daftarPustakaDariSheet = gas.pustakaDaftar_('kader');
+const korpusSheet = gas.pustakaKorpus_();
 includePustakaCorpus = true;
 check('original PDF links are resolved when the searchable corpus falls back to sheets',
   [daftarPustakaDariSheet.sumber, daftarPustakaDariSheet.docs.find((doc) => doc.id === 'ebook-ta-dib-pii')?.tautan],
   ['sheet', 'https://drive.google.com/file/d/fixture-ebook-original/view']);
+check('korpus sheet mengembalikan rentang halaman', korpusSheet.chunks[0].h, [120, 124]);
+check('korpus sheet menyimpan nama bab', korpusSheet.chunks[0].b, 'BAB III ORIENTASI TA’DIB › Ketentuan Mengenai Waktu Turba');
+check('baris warutan tetap punya halaman yang masuk akal',
+  korpusSheet.chunks.find((chunk) => chunk.t.startsWith('Baris lama')).h, [200, 200]);
+check('berkas sheet tersembunyi tidak didaftarkan untuk kader',
+  daftarPustakaDariSheet.docs.some((doc) => doc.id === 'pku-rancangan-internal'), false);
 
 const cariLbt = request({ action: 'pustakaCari', token: 'ses-rozak', q: 'apa itu LBT', ip: '198.51.100.80' });
 check('sesi kader bisa mencari isi berkas', cariLbt.ok, true);
 check('pencarian isi menemukan silabus LBT', cariLbt.data.hasil[0].judul, 'Silabus Leadership Basic Training');
 check('hasil pencarian menyebut rentang halaman', Array.isArray(cariLbt.data.hasil[0].h), true);
+
+const daftarAdmin = request({ action: 'pustakaList', token: 'ses-admin' });
+check('admin tetap melihat berkas yang disembunyikan', daftarAdmin.data.docs.some((doc) => doc.id === 'pku-rancangan-internal'), true);
+check('daftar kader menandai berkas yang tampil untuk umum', daftarPustaka.data.docs.every((doc) => doc.visibel === true), true);
+const cariRancangan = request({ action: 'pustakaCari', token: 'ses-rozak', q: 'rancangan prioritas forum tertinggi', ip: '198.51.100.90' });
+check('pencarian kader tidak menyentuh berkas tersembunyi',
+  cariRancangan.data.hasil.some((hasil) => hasil.d === 'pku-rancangan-internal'), false);
+const tanyaRancangan = request({ action: 'chat', token: 'ses-rozak', message: 'Apa isi rancangan prioritas pengurus besar?', ip: '198.51.100.91' });
+check('Tanya PII tetap punya jawaban untuk pertanyaan semi-umum', tanyaRancangan.ok, true);
+check('Tanya PII tidak mengutip berkas tersembunyi',
+  (tanyaRancangan.data.rujukan || []).every((rujukan) => rujukan.judul !== 'PKU PB PII (rancangan)'), true);
+
+/* Impor korpus: kolom bab dan halaman akhir harus benar-benar tertulis. */
+properti.PUSAKA_IMPOR_KEY = 'kunci-uji';
+check('impor tahap mulai menyimpan metadata berkas', request({
+  action: 'pustakaImpor', key: 'kunci-uji', tahap: 'mulai', docs: [
+    { id: 'uji-impor', judul: 'Berkas Uji', kategori: 'Uji', halaman: 9, potong: 1,
+      berkas: 'uji.pdf', versi: 'Edisi 2', visibel: false }
+  ]
+}).data.berkas, 1);
+check('impor tahap potongan menerima kutipan', request({
+  action: 'pustakaImpor', key: 'kunci-uji', tahap: 'potongan', potongan: [
+    { d: 'uji-impor', h: [7, 9], b: 'BAB I UJI', t: 'Kalimat uji untuk memeriksa rentang halaman dan bab ikut tersimpan.' }
+  ]
+}).data.diterima, 1);
+const barisPotong = rowsOf('PustakaPotongan').find((row) => row.doc === 'uji-impor');
+check('rentang halaman tertulis sebagai dua kolom', [barisPotong.halaman, barisPotong.halamanAkhir], [7, 9]);
+check('bab tertulis bersama potongan', barisPotong.bab, 'BAB I UJI');
+check('visibilitas tertulis di lembar berkas', rowsOf('PustakaBerkas').find((row) => row.id === 'uji-impor').visibel, 'false');
+const imporSelesai = request({ action: 'pustakaImpor', key: 'kunci-uji', tahap: 'selesai', dibuat: '2026-11-04T00:00:00.000Z' });
+check('tahap selesai melaporkan isi korpus', [imporSelesai.data.berkas, imporSelesai.data.potong], [1, 1]);
+check('kunci impor hangus sesudah tahap selesai', properti.PUSAKA_IMPOR_KEY, undefined);
+check('impor kedua tanpa kunci ditolak', request({ action: 'pustakaImpor', key: 'kunci-uji', tahap: 'mulai', docs: [] }).ok, false);
 
 const cariTurba = request({ action: 'pustakaCari', token: 'ses-rozak', q: 'aturan waktu turba', ip: '198.51.100.81' });
 check('pencarian menemukan kutipan turba di Ta’dim', /turba/i.test(cariTurba.data.hasil[0].cuplikan), true);
@@ -1128,15 +1191,19 @@ check('status pustaka khusus admin', request({ action: 'pustakaStatus', token: '
 check('aksi pustaka tidak dikenal tetap tertahan', request({ action: 'pustakaBukan' }).code === 'aksi', false);
 
 const sehatPustaka = request({ action: 'health' }).data;
-check('health melaporkan korpus pustaka', sehatPustaka.pustaka, { tersedia: true, sumber: 'drive', berkas: 3, potong: 4 });
+check('health melaporkan korpus pustaka', sehatPustaka.pustaka, { tersedia: true, sumber: 'drive', berkas: 4, potong: 5 });
 
 const tanyaKader = request({ action: 'chat', token: 'ses-rozak', message: 'Bagaimana aturan waktu turba dalam kaderisasi?', ip: '198.51.100.85' });
 const promptKader = http.calls.filter((call) => String(call.url).includes('pollinations')).at(-1);
 const sistemKader = JSON.parse(promptKader.options.payload).messages[0].content;
 check('jawaban Tanya PII ikut mengirim kutipan berkas', /Waktu turba tidak dibatasi/.test(sistemKader), true);
-check('kutipan menyebut nama berkas dan nomor halaman', /Ebook Ta'dib PII \(halaman 120-124\)/.test(sistemKader), true);
+check('kutipan menyebut nama berkas, bab, dan rentang halaman',
+  /Ebook Ta'dib PII \(BAB III ORIENTASI TA’DIB › Ketentuan Mengenai Waktu Turba, hal\. 120-124\)/.test(sistemKader), true);
 check('prompt membatasi fakta pada kutipan Pustaka', /SATU-SATUNYA SUMBER FAKTA/.test(sistemKader), true);
 check('jawaban AI membawa daftar rujukan', tanyaKader.data.rujukan[0].judul, "Ebook Ta'dib PII");
+check('rujukan dibawa sebagai berkas, bab, dan halaman yang bisa dibuka',
+  [tanyaKader.data.rujukan[0].berkas, tanyaKader.data.rujukan[0].bab, tanyaKader.data.rujukan[0].halaman],
+  ['ebook-ta-dib-pii', 'BAB III ORIENTASI TA’DIB › Ketentuan Mengenai Waktu Turba', [120, 124]]);
 check('rujukan tidak ikut mengirim teks mentah', tanyaKader.data.rujukan[0].isi, undefined);
 
 const panggilanAITamuSebelum = http.calls.filter((call) => String(call.url).includes('pollinations')).length;
