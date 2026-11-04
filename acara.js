@@ -29,7 +29,8 @@
   const open = new Set();
   let deepHandled = false;
   const akun = () => window.PBPIIAkun || null;
-  const tokenSaya = () => window.PBPIIAkun?.token() || '';
+  /** Sesi peran apa pun boleh menyukai dan mengomentari — jangan minta login ulang. */
+  const tokenSaya = () => window.PBPIIAkun?.sessionToken?.() || window.PBPIIAkun?.token?.() || '';
   let lastToken = '';
   // Kartu dirender setelah site.js memasang pengamatnya, jadi halaman ini punya
   // pengamat sendiri. Tanpa pengamat, kelas .reveal akan mengunci kartu di

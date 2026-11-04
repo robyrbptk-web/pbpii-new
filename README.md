@@ -696,7 +696,8 @@ mengembalikan `{ ok, level, parent, data: [{ code, name }] }`.
 - Verifikasi bisa dicabut (status kembali `pending`); akun tetap bisa masuk
   tetapi tidak dihitung sebagai lembaga resmi.
 - Kata sandi lembaga di-hash SHA-256 dengan salt unik dan 250 iterasi; token sesi
-  (6 jam) disimpan di `CacheService`, bukan di spreadsheet.
+  (30 hari, `APP.TOKEN_TTL_SECONDS`) disimpan di sheet `Sessions`, bukan di
+  `CacheService` yang dibatasi 10 menit.
 
 ### Kegiatan dan Indeks Keaktifan (KPI)
 Kegiatan yang berstatus **terbit** menjadi dasar KPI:
@@ -986,7 +987,7 @@ dan mengarahkan konfirmasi ke pengurus.
 (`token, kind, subject, createdAt, expiresAt`) dan `Chat`
 (`createdAt, kind, subject, question, answer, provider, status`). Baris
 `Sessions` yang sudah kedaluwarsa dibersihkan setiap kali sesi baru dibuat.
-`Sessions` inilah yang membuat login bertahan 6 jam; sebelumnya token ditaruh di
+`Sessions` inilah yang membuat login bertahan 30 hari; sebelumnya token ditaruh di
 `CacheService` yang diam-diam memotong umur cache menjadi 10 menit. Untuk
 mematikan fitur AI sepenuhnya, hapus baris `<script src="tanya.js" defer></script>`
 dari halaman terkait atau turunkan `CHAT_DAILY_LIMIT` dan `CHAT_GUEST_DAILY_LIMIT`
@@ -1018,9 +1019,20 @@ Satu orang boleh masuk lewat dua jalur. Kalau suatu saat akun email login dengan
 Google dan alamat emailnya sama, `kaderLogin_` menautkan `googleSub` ke baris yang
 sudah ada sehingga tidak muncul akun ganda.
 
-Captcha wajib hanya pada tab **Daftar**. Jawaban verifikasi sekali pakai dan
-kedaluwarsa, jadi dialog selalu meminta soal baru setelah satu pengiriman sukses
-ataupun gagal — formulir dibersihkan dan widget captcha dipasang ulang.
+Verifikasi manusia memakai **Cloudflare Turnstile** dan hanya muncul kalau
+`turnstileSiteKey` + `turnstileSecret` dua-duanya terisi; selagi keduanya kosong
+`captchaIssue_` menjawab `{kind:'none'}`, `captcha.js` menyembunyikan wadahnya, dan
+formulir hanya dibatasi laju per IP. Tidak ada lagi captcha hitungan.
+
+**Satu sesi untuk semua fitur.** Sesi disimpan di localStorage dengan tiga kunci
+(`pbpii_kader_token`, `pbpii_admin_token`, `pbpii_org_token`), tetapi `akun.js`
+membacanya sebagai satu sesi lewat `sessionToken()` dan `refresh()` — jadi pengurus
+yang login di `/lembaga.html` atau `/admin.html` tidak disuruh masuk lagi saat
+menyukai acara, menulis komentar, membuka Pustaka, atau memakai Tanya PII;
+`whoami` mengenali ketiga jenis sesi dan `actorOf_` sudah menerima kader, lembaga,
+maupun admin. Halaman publik juga tidak lagi memaksa login ulang kalau backend
+belum mengenali aksi `whoami` (peran ditandai `unknown`, token tetap dipakai).
+Aksi `Keluar` menghapus ketiga kunci itu sekaligus.
 
 Google tetap opsional. Buat **OAuth client ID ▸ Web application**, tambahkan domain
 produksi dan `http://127.0.0.1:4173` ke *Authorized JavaScript origins*, lalu isi

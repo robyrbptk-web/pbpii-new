@@ -13,6 +13,9 @@
 
   const API = window.PBPII_CONFIG?.apiEndpoint || '/api/pii';
   const TOKEN_KEY = 'pbpii_kader_token';
+  /** Sesi pengurus dan admin dibuat di halaman dashboard masing-masing, tetapi
+      tetap satu orang yang sama: semua fitur publik boleh memakainya. */
+  const TOKEN_KEY_STAF = ['pbpii_admin_token', 'pbpii_org_token'];
   const GIS_SRC = 'https://accounts.google.com/gsi/client';
   const listeners = new Set();
 
@@ -30,7 +33,25 @@
   const adaJalurMasuk = () => !!(clientId || emailAuth);
   const tabAwal = () => (clientId ? 'google' : 'email');
 
-  const token = () => localStorage.getItem(TOKEN_KEY) || '';
+  /** Token kader saja: inilah yang ditulis panel masuk daftar kader. */
+  const kaderToken = () => localStorage.getItem(TOKEN_KEY) || '';
+
+  /** Sesi peran mana pun, dibaca dari localStorage sehingga tetap hidup walau
+      tab ditutup. Satu login dipakai semua fitur, tidak perlu masuk ulang. */
+  function sessionToken() {
+    const kader = kaderToken();
+    if (kader) return kader;
+    return TOKEN_KEY_STAF.map((key) => localStorage.getItem(key) || '').find(Boolean) || '';
+  }
+
+  /** Dipakai halaman lain: "token" = sesi aktif peran apa pun. */
+  const token = sessionToken;
+
+  function buangToken(nilai) {
+    [TOKEN_KEY, ...TOKEN_KEY_STAF].forEach((key) => {
+      if (nilai && localStorage.getItem(key) === nilai) localStorage.removeItem(key);
+    });
+  }
 
   async function api(body) {
     const response = await fetch(API, {
@@ -61,7 +82,7 @@
   }
 
   async function refresh() {
-    const stored = token();
+    const stored = sessionToken();
     if (!stored) {
       account = { role: 'tamu', name: '' };
       emit();
@@ -69,23 +90,15 @@
     }
     try {
       const who = await api({ action: 'whoami', token: stored });
-      if (who.role === 'tamu') localStorage.removeItem(TOKEN_KEY);
+      if (who.role === 'tamu') buangToken(stored);
       account = { ...who, token: who.role === 'tamu' ? '' : stored };
     } catch (error) {
       // Server belum versi baru: jangan paksa pengunjung login berulang kali.
       console.warn('Cek akun gagal:', error.message);
-      account = { role: 'tamu', name: '', unknown: true };
+      account = { role: 'tamu', name: '', unknown: true, token: stored };
     }
     emit();
     return account;
-  }
-
-  /** Sesi untuk Tanya PII: kader maupun pengurus dibaca dari localStorage,
-      jadi sesi tetap hidup walau tab ditutup. */
-  function sessionToken() {
-    const kader = token();
-    if (kader) return kader;
-    return localStorage.getItem('pbpii_admin_token') || localStorage.getItem('pbpii_org_token') || '';
   }
 
   /** Isi sesi yang baru saja dibuat server, lalu tutup panel. */
@@ -118,7 +131,7 @@
   }
 
   function signOut() {
-    localStorage.removeItem(TOKEN_KEY);
+    [TOKEN_KEY, ...TOKEN_KEY_STAF].forEach((key) => localStorage.removeItem(key));
     account = { role: 'tamu', name: '' };
     if (window.google?.accounts?.id) window.google.accounts.id.disableAutoSelect();
     emit();
@@ -446,7 +459,10 @@
 
   /** Dipakai tombol suka/komentar: kembalikan akun, atau buka login dulu. */
   async function requireAccount(notice) {
-    if (account.role === 'kader' || account.role === 'org' || account.role === 'admin') return account;
+    if (account.role !== 'tamu') return account;
+    /* Server versi lama tidak menjawab whoami; sesi yang ada jangan dibuang,
+       kalau tidak pengunjung disuruh login ulang di setiap fitur. */
+    if (account.unknown && account.token) return { role: 'kader', name: '', token: account.token };
     if (!openPanel(notice)) throw new Error('Masuk kader belum dibuka.');
     return new Promise((resolve) => {
       const stop = onChange((current) => {

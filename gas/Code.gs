@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-04.1';
+const BACKEND_VERSION = '2026-11-04.2';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -29,7 +29,9 @@ const APP = {
   SHEET_COMMENTS: 'Comments',
   SHEET_PUSTAKA_BERKAS: 'PustakaBerkas',
   SHEET_PUSTAKA_POTONG: 'PustakaPotongan',
-  TOKEN_TTL_SECONDS: 21600,
+  /** Sesi 30 hari: kader tidak boleh disuruh masuk ulang setiap hari hanya
+      untuk membaca komentar atau memakai Tanya PII. */
+  TOKEN_TTL_SECONDS: 2592000,
   CHAT_DAILY_LIMIT: 20,
   // Tamu boleh mencoba Tanya PII, tapi kuota AI gratis kecil jadi dijatah ketat.
   CHAT_GUEST_DAILY_LIMIT: 5,
@@ -713,8 +715,8 @@ function logout_(token) {
 
 /**
  * Sesi disimpan di sheet, bukan CacheService. Cache script Apps Script dipaksa
- * maksimal 10 menit, jadi sesi 6 jam yang dijanjikan TOKEN_TTL_SECONDS sebenarnya
- * gugur lebih cepat dan pengguna terus diminta login ulang.
+ * maksimal 10 menit, jadi sesi panjang yang dijanjikan TOKEN_TTL_SECONDS
+ * sebenarnya gugur lebih cepat dan pengguna terus diminta login ulang.
  */
 function sessionPut_(kind, subject) {
   const token = Utilities.getUuid() + '-' + Utilities.getUuid();
