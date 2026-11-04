@@ -184,6 +184,10 @@
       "destination": "/acara.html"
     },
     {
+      "source": "/feed",
+      "destination": "/feed.html"
+    },
+    {
       "source": "/offline",
       "destination": "/offline.html"
     },
@@ -266,6 +270,10 @@
     },
     {
       "source": "/acara.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
+    },
+    {
+      "source": "/feed.js",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
     },
     {

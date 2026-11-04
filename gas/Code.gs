@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-04.5';
+const BACKEND_VERSION = '2026-11-05.0';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -29,6 +29,10 @@ const APP = {
   SHEET_COMMENTS: 'Comments',
   SHEET_PUSTAKA_BERKAS: 'PustakaBerkas',
   SHEET_PUSTAKA_POTONG: 'PustakaPotongan',
+  SHEET_POSTS: 'Posts',
+  SHEET_POST_MEDIA: 'PostMedia',
+  SHEET_FOLLOWS: 'Follows',
+  SHEET_BOOKMARKS: 'Bookmarks',
   /** Sesi 30 hari: kader tidak boleh disuruh masuk ulang setiap hari hanya
       untuk membaca komentar atau memakai Tanya PII. */
   TOKEN_TTL_SECONDS: 2592000,
@@ -37,6 +41,8 @@ const APP = {
   CHAT_GUEST_DAILY_LIMIT: 5,
   CHAT_MAX_CHARS: 900,
   COMMENT_MAX_CHARS: 500,
+  POST_MAX_CHARS: 1800,
+  POST_MEDIA_MAX: 4,
   PROP_SPREADSHEET_ID: 'SPREADSHEET_ID',
   PROP_ADMIN_USERNAME: 'ADMIN_USERNAME',
   PROP_ADMIN_PASSWORD: 'ADMIN_PASSWORD',
@@ -151,15 +157,34 @@ const KADER_HEADERS = [
   'id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note',
   'passwordHash', 'passwordSalt'
 ];
-/** Satu baris = satu suka. actorKey sudah berisi jenis akun, jadi tidak bertabrakan. */
-const REACTION_HEADERS = ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt'];
+/**
+ * Satu baris = satu suka. actorKey sudah berisi jenis akun, jadi tidak bertabrakan.
+ * Kolom eventId dipakai bersama untuk target apa pun (acara atau postingan);
+ * targetType membedakan supaya hitungan keduanya tidak pernah tercampur.
+ */
+const REACTION_HEADERS = ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt', 'targetType'];
 const COMMENT_HEADERS = [
   'id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text',
-  'status', 'createdAt', 'updatedAt'
+  'status', 'createdAt', 'updatedAt', 'targetType', 'parentId'
 ];
 /** Korpus pustaka disimpan di sheet supaya tetap terbaca walau Drive belum diizinkan. */
 const PUSTAKA_BERKAS_HEADERS = ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'];
 const PUSTAKA_POTONG_HEADERS = ['doc', 'halaman', 'teks', 'halamanAkhir', 'bab'];
+
+/**
+ * Umpan sosial kader. Satu baris = satu postingan; media nunca masuk sel karena
+ * file foto/video hidup di Drive seperti unggahan acara.
+ * jenis: 'teks' | 'foto' | 'video' | 'pengumuman' | 'acara' | 'berbagi'.
+ * 'acara' hanya menyimpan eventId, jadi data acara tidak pernah disalin ke sini.
+ */
+const POST_HEADERS = [
+  'id', 'authorKey', 'authorId', 'authorName', 'authorPicture', 'jenis', 'isi',
+  'eventId', 'repostOf', 'visibel', 'createdAt', 'updatedAt'
+];
+const POST_MEDIA_HEADERS = ['id', 'postId', 'url', 'mime', 'urut', 'createdAt'];
+/** Mengikuti satu arah: actorKey kader mengikuti targetId kader. */
+const FOLLOW_HEADERS = ['id', 'actorKey', 'actorId', 'targetId', 'createdAt'];
+const BOOKMARK_HEADERS = ['id', 'actorKey', 'postId', 'createdAt'];
 
 // Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
 const SHEET_SCHEMA = [
@@ -178,7 +203,11 @@ const SHEET_SCHEMA = [
   [APP.SHEET_REACTIONS, REACTION_HEADERS],
   [APP.SHEET_COMMENTS, COMMENT_HEADERS],
   [APP.SHEET_PUSTAKA_BERKAS, PUSTAKA_BERKAS_HEADERS],
-  [APP.SHEET_PUSTAKA_POTONG, PUSTAKA_POTONG_HEADERS]
+  [APP.SHEET_PUSTAKA_POTONG, PUSTAKA_POTONG_HEADERS],
+  [APP.SHEET_POSTS, POST_HEADERS],
+  [APP.SHEET_POST_MEDIA, POST_MEDIA_HEADERS],
+  [APP.SHEET_FOLLOWS, FOLLOW_HEADERS],
+  [APP.SHEET_BOOKMARKS, BOOKMARK_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -201,7 +230,10 @@ const DEFAULT_SETTINGS = [
   ['turnstileSiteKey', ''],
   ['turnstileSecret', ''],
   ['kaderCommentDailyLimit', '10'],
-  ['eventCommentsOpen', 'true']
+  ['eventCommentsOpen', 'true'],
+  ['feedOpen', 'true'],
+  ['feedPostDailyLimit', '10'],
+  ['feedCommentDailyLimit', '20']
 ];
 
 const ALLOWED_SETTINGS = [
@@ -224,7 +256,10 @@ const ALLOWED_SETTINGS = [
   'turnstileSiteKey',
   'turnstileSecret',
   'kaderCommentDailyLimit',
-  'eventCommentsOpen'
+  'eventCommentsOpen',
+  'feedOpen',
+  'feedPostDailyLimit',
+  'feedCommentDailyLimit'
 ];
 
 /**
@@ -283,12 +318,20 @@ function setup() {
   const pbDibuat = orgsSheet ? ensurePbOrg_(orgsSheet) : false;
   if (pbDibuat) dibuat.push('akun induk ' + APP.PB_ORG_ID);
 
+  const sisa = bersihkanSisaFeed_();
+  const bersih = sisa.komentar + sisa.reaksi + sisa.markah + sisa.berkas + sisa.kabar;
+
   const laporan = [];
   laporan.push('Backend ' + BACKEND_VERSION + ' siap. Spreadsheet: ' + spreadsheet.getId() + '.');
   laporan.push(dibuat.length
     ? 'Dibuat: ' + dibuat.join(', ') + '.'
     : 'Semua sheet sudah ada; tidak ada yang dibuat baru.');
   if (diperbaiki.length) laporan.push('Kolom dilengkapi: ' + diperbaiki.join(', ') + '.');
+  if (bersih) {
+    laporan.push('Sisa umpan yang kabarnya sudah dihapus dibersihkan: ' + sisa.komentar + ' komentar, ' +
+      sisa.reaksi + ' suka, ' + sisa.markah + ' penanda, ' + sisa.berkas + ' berkas Drive, ' +
+      sisa.kabar + ' kabar salinan.');
+  }
   if (perluTinjauan.length) {
     laporan.push('PERLU TINJAUAN MANUAL — header tidak sesuai skema, tidak diubah: ' +
       perluTinjauan.join('; ') + '.');
@@ -618,6 +661,10 @@ function doPost(event) {
       // Akses per peran sudah diperiksa di dalam pustakaAksi_, jadi tidak perlu
       // requireAuth_ di sini: kader boleh membaca, tamu ditolak di sana.
       data = pustakaAksi_(action, body);
+    } else if (action.indexOf('feed') === 0) {
+      // Umpan: baca boleh untuk tamu (sama seperti thread acara), tulis memeriksa
+      // akun kader di dalam feedAksi_ lewat actorOf_.
+      data = feedAksi_(action, body);
     } else if (action === 'login') {
       data = login_(body);
     } else if (action === 'logout') {
@@ -917,6 +964,17 @@ function chatUsageToday_(me) {
 
 function chatDay_(date) {
   return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+/**
+ * Hari kuota umpan dihitung dengan kalender WIB, sementara cap waktu pada baris
+ * sheet tersimpan sebagai ISO UTC. Memotong sepuluh karakter pertama akan
+ * membandingkan tanggal UTC dengan tanggal WIB, dan pada pukul 00.00–06.59 WIB
+ * keduanya berbeda sehari sehingga kuota harian terasa reset dan kader bisa
+ * memposting lagi di luar jatahnya.
+ */
+function feedHariIni_(createdAt, hari) {
+  return chatDay_(new Date(timeOf_(createdAt))) === hari;
 }
 
 function logChat_(me, question, answer, provider, status) {
@@ -3221,8 +3279,8 @@ function eventsFeed_(orgs, activities, forms, participants, actorKey) {
   const today = todayKey_();
   const floor = Utilities.formatDate(new Date(Date.now() - 120 * 86400000), timeZone_(), 'yyyy-MM-dd');
   const who = String(actorKey || '');
-  const reactions = reactionIndex_();
-  const comments = commentIndex_();
+  const reactions = reactionIndex_('event');
+  const comments = commentIndex_('event');
 
   return activities
     .filter(function (activity) {
@@ -3990,7 +4048,16 @@ const RATE_RULES = {
   'org-article': { limit: 20, window: 600 },
   'pustaka-cari': { limit: 40, window: 60 },
   'pustaka-baca': { limit: 40, window: 60 },
-  'chat': { limit: 6, window: 60 }
+  'chat': { limit: 6, window: 60 },
+  'feed-list': { limit: 60, window: 60 },
+  'feed-post': { limit: 6, window: 3600 },
+  'feed-post-ip': { limit: 12, window: 3600 },
+  'feed-upload': { limit: 8, window: 3600 },
+  'feed-comment': { limit: 6, window: 180 },
+  'feed-comment-ip': { limit: 20, window: 600 },
+  'feed-like': { limit: 40, window: 60 },
+  'feed-repost': { limit: 10, window: 3600 },
+  'feed-follow': { limit: 30, window: 3600 }
 };
 
 /** Cache script Apps Script dipaksa tenggelam setelah 600 detik. */
@@ -4353,28 +4420,30 @@ function whoami_(body) {
 
 /* ------------------------------------------------- suka, komentar, bagikan */
 
-function reactionIndex_() {
+function reactionIndex_(targetType) {
   const index = {};
   rows_(APP.SHEET_REACTIONS).forEach(function (row) {
-    const eventId = String(row.eventId || '');
-    if (!eventId) return;
-    const bucket = index[eventId] || (index[eventId] = { count: 0, byKey: {} });
+    const targetId = String(row.eventId || '');
+    if (!targetId) return;
+    if (targetType && (String(row.targetType || 'event') !== targetType)) return;
+    const bucket = index[targetId] || (index[targetId] = { count: 0, byKey: {} });
     bucket.count += 1;
     bucket.byKey[String(row.actorKey)] = String(row.id);
   });
   return index;
 }
 
-function commentIndex_() {
+function commentIndex_(targetType) {
   const index = {};
   const rows = rows_(APP.SHEET_COMMENTS)
     .filter(function (row) { return String(row.status || 'published') === 'published'; })
     .sort(function (a, b) { return String(a.createdAt).localeCompare(String(b.createdAt)); });
 
   rows.forEach(function (row) {
-    const eventId = String(row.eventId || '');
-    if (!eventId) return;
-    (index[eventId] || (index[eventId] = [])).push(row);
+    const targetId = String(row.eventId || '');
+    if (!targetId) return;
+    if (targetType && (String(row.targetType || 'event') !== targetType)) return;
+    (index[targetId] || (index[targetId] = [])).push(row);
   });
   return index;
 }
@@ -4402,17 +4471,18 @@ function eventLike_(body) {
   }
 
   const existing = rows_(APP.SHEET_REACTIONS).filter(function (row) {
-    return String(row.eventId) === eventId && String(row.actorKey) === actor.key;
+    return String(row.eventId) === eventId && String(row.actorKey) === actor.key &&
+      String(row.targetType || 'event') === 'event';
   });
 
   existing.forEach(function (row) { deleteRowById_(APP.SHEET_REACTIONS, row.id); });
   if (!existing.length) {
     sheet_(APP.SHEET_REACTIONS).appendRow([
-      Utilities.getUuid(), eventId, actor.key, actor.name, 'like', new Date().toISOString()
+      Utilities.getUuid(), eventId, actor.key, actor.name, 'like', new Date().toISOString(), 'event'
     ]);
   }
 
-  const total = reactionIndex_()[eventId];
+  const total = reactionIndex_('event')[eventId];
   return { liked: !existing.length, likes: total ? total.count : 0 };
 }
 
@@ -4442,7 +4512,9 @@ function eventComment_(body) {
 
   const dayKey = chatDay_(new Date());
   const today = rows_(APP.SHEET_COMMENTS).filter(function (row) {
-    return String(row.actorKey) === actor.key && String(row.createdAt || '').slice(0, 10) === dayKey;
+    return String(row.actorKey) === actor.key &&
+      String(row.targetType || 'event') === 'event' &&
+      String(row.createdAt || '').slice(0, 10) === dayKey;
   }).length;
   const limit = Math.max(0, Math.min(50, Number(settings.kaderCommentDailyLimit) || 10));
   if (today >= limit) {
@@ -4452,7 +4524,7 @@ function eventComment_(body) {
   const now = new Date().toISOString();
   const id = Utilities.getUuid();
   sheet_(APP.SHEET_COMMENTS).appendRow([
-    id, eventId, actor.key, actor.name, actor.picture, text, 'published', now, now
+    id, eventId, actor.key, actor.name, actor.picture, text, 'published', now, now, 'event', ''
   ]);
 
   return { comment: Object.assign(commentView_({ id: id, actorName: actor.name, actorPicture: actor.picture, text: text, createdAt: now }), { mine: true }) };
@@ -4462,8 +4534,8 @@ function eventComment_(body) {
 function eventThread_(body) {
   const eventId = String(body.eventId || '').trim().slice(0, 64);
   const actorKey = body.token ? safeActorKey_(body.token) : '';
-  const comments = commentIndex_()[eventId] || [];
-  const reactions = reactionIndex_()[eventId];
+  const comments = commentIndex_('event')[eventId] || [];
+  const reactions = reactionIndex_('event')[eventId];
 
   return {
     eventId: eventId,
@@ -4484,4 +4556,697 @@ function safeActorKey_(token) {
   } catch (error) {
     return '';
   }
+}
+
+/* ---------------------------------------------------- umpan sosial kader */
+
+const FEED_TAB = ['untuk-anda', 'mengikuti', 'terbaru', 'acara'];
+const FEED_JENIS = ['teks', 'foto', 'video', 'pengumuman', 'acara', 'berbagi'];
+
+/** Tanda tangan byte video; gambar sudah ditangani imageKind_ yang sejenis. */
+function videoKind_(bytes) {
+  const byte = function (value) { return value & 0xFF; };
+  const fourCC = function (offset) {
+    return String.fromCharCode.apply(null, bytes.slice(offset, offset + 4).map(byte));
+  };
+  if (fourCC(4) === 'ftyp') return 'video/mp4';
+  if (byte(bytes[0]) === 0x1A && byte(bytes[1]) === 0x45
+    && byte(bytes[2]) === 0xDF && byte(bytes[3]) === 0xA3) return 'video/webm';
+  return '';
+}
+
+/** Hanya berkas Drive milik sendiri yang boleh ditampel ke postingan. */
+function feedTautanMedia_(value) {
+  const url = safeUrl_(value);
+  return /^https:\/\/drive\.usercontent\.google\.com\/download\?id=[A-Za-z0-9_-]{10,}/.test(url)
+    ? url
+    : '';
+}
+
+function feedBoleh_() {
+  return String(settingsMap_().feedOpen).toLowerCase() !== 'false';
+}
+
+function feedMediaIndex_() {
+  const index = {};
+  rows_(APP.SHEET_POST_MEDIA)
+    .sort(function (a, b) { return (Number(a.urut) || 0) - (Number(b.urut) || 0); })
+    .forEach(function (row) {
+      const postId = String(row.postId || '');
+      const url = feedTautanMedia_(row.url);
+      if (!postId || !url) return;
+      (index[postId] || (index[postId] = [])).push({ url: url, mime: String(row.mime || '') });
+    });
+  return index;
+}
+
+function feedSimpananIndex_(actorKey) {
+  const index = {};
+  if (!actorKey) return index;
+  rows_(APP.SHEET_BOOKMARKS).forEach(function (row) {
+    if (String(row.actorKey) === actorKey) index[String(row.postId)] = true;
+  });
+  return index;
+}
+
+/** Siapa yang diikuti aktor ini, dipakai tab Mengikuti dan peringkat "Untuk Anda". */
+function feedIkutanIndex_(actorKey) {
+  const index = {};
+  if (!actorKey) return index;
+  rows_(APP.SHEET_FOLLOWS).forEach(function (row) {
+    if (String(row.actorKey) === actorKey) index[String(row.targetId)] = true;
+  });
+  return index;
+}
+
+/** Kartu acara dibangun ulang setiap membaca, jadi data kegiatan tidak pernah disalin. */
+function feedAcaraIndex_() {
+  const today = todayKey_();
+  const index = {};
+  rows_(APP.SHEET_ACTIVITIES)
+    .filter(function (activity) { return String(activity.status) === 'published'; })
+    .forEach(function (activity) {
+      index[String(activity.id)] = {
+        id: String(activity.id),
+        title: cleanText_(activity.title),
+        category: cleanText_(activity.category) || 'Kegiatan',
+        date: String(activity.date || ''),
+        upcoming: String(activity.date || '') >= today,
+        location: cleanText_(activity.location),
+        excerpt: cleanText_(activity.description).slice(0, 280),
+        coverImage: safeUrl_(activity.coverImage),
+        tautan: 'acara.html#' + String(activity.id)
+      };
+    });
+  return index;
+}
+
+/**
+ * Satu kali memindai sheet, hasilnya dipakai semua aksi baca: kartu, hitungan,
+ * dan bendera milik-aktor. Pola ini sama dengan reactionIndex_/commentIndex_.
+ */
+function feedKonteks_(actorKey) {
+  const reactions = reactionIndex_('post');
+  const comments = commentIndex_('post');
+  const media = feedMediaIndex_();
+  const simpanan = feedSimpananIndex_(actorKey);
+  const ikutan = feedIkutanIndex_(actorKey);
+  const acara = feedAcaraIndex_();
+  const semua = rows_(APP.SHEET_POSTS)
+    .filter(function (row) { return String(row.visibel) !== 'false'; })
+    .sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
+
+  const jumlahBagikan = {};
+  semua.forEach(function (row) {
+    const asal = String(row.repostOf || '');
+    if (asal) jumlahBagikan[asal] = (jumlahBagikan[asal] || 0) + 1;
+  });
+
+  const denganId = {};
+  const kartu = semua.map(function (row) {
+    const id = String(row.id);
+    const suka = reactions[id];
+    const thread = comments[id] || [];
+    const card = {
+      id: id,
+      jenis: FEED_JENIS.indexOf(String(row.jenis)) >= 0 ? String(row.jenis) : 'teks',
+      isi: cleanText_(row.isi).slice(0, APP.POST_MAX_CHARS),
+      author: {
+        id: String(row.authorId || ''),
+        kind: String(row.authorKey || '').charAt(0) === 'k' ? 'kader' : 'pengurus',
+        name: cleanText_(row.authorName) || 'Kader PII',
+        picture: safeUrl_(row.authorPicture),
+        mine: Boolean(actorKey) && String(row.authorKey) === actorKey
+      },
+      media: media[id] || [],
+      likes: suka ? suka.count : 0,
+      liked: Boolean(suka && actorKey && suka.byKey[actorKey]),
+      commentCount: thread.length,
+      reposts: jumlahBagikan[id] || 0,
+      bookmarked: Boolean(simpanan[id]),
+      createdAt: String(row.createdAt || ''),
+      updatedAt: String(row.updatedAt || ''),
+      acara: null,
+      asal: null,
+      _authorKey: String(row.authorKey || ''),
+      _repostOf: String(row.repostOf || '')
+    };
+    if (card.jenis === 'acara') card.acara = acara[String(row.eventId || '')] || null;
+    denganId[id] = card;
+    return card;
+  });
+
+  // Postingan 'berbagi' menampilkan ulang kartu aslinya, bukan salinan isinya.
+  kartu.forEach(function (card) {
+    if (card._repostOf) card.asal = denganId[card._repostOf] || null;
+  });
+
+  return {
+    kartu: kartu,
+    denganId: denganId,
+    ikutan: ikutan,
+    acara: acara,
+    actorKey: actorKey
+  };
+}
+
+/** Kolom internal tidak pernah keluar ke browser; kartu asal dirapikan juga. */
+function feedRapikan_(card) {
+  Object.keys(card).forEach(function (key) {
+    if (key.charAt(0) === '_') delete card[key];
+  });
+  if (card.asal) card.asal = feedRapikan_(card.asal);
+  return card;
+}
+
+/**
+ * "Untuk Anda" = interaksi dikali kesegaran (waktu-paruh 3 hari), ditambah
+ * kenaikan ringan untuk kader yang diikuti. Tanpa ini tab tersebut hanya jadi
+ * duplikat tab Terbaru.
+ */
+function feedSkor_(card, ikutan) {
+  const usiaJam = Math.max(0, (Date.now() - Date.parse(card.createdAt || '')) / 3600000);
+  const kesegaran = Math.pow(0.5, usiaJam / 72);
+  const interaksi = card.likes * 2 + card.commentCount * 3 + card.reposts * 4;
+  const afinitas = ikutan[card.author.id] ? 1.6 : 1;
+  return (1 + interaksi) * kesegaran * afinitas;
+}
+
+/** Kartu kegiatan untuk tab Acara; diambil langsung dari Activities. */
+function feedKartuAcara_(detail, actorKey) {
+  const reactions = reactionIndex_('event')[detail.id];
+  const comments = commentIndex_('event')[detail.id] || [];
+  return {
+    id: 'acara:' + detail.id,
+    jenis: 'acara',
+    isi: '',
+    author: { id: '', kind: 'acara', name: 'Kegiatan PII', picture: '', mine: false },
+    media: [],
+    likes: reactions ? reactions.count : 0,
+    liked: Boolean(reactions && actorKey && reactions.byKey[actorKey]),
+    commentCount: comments.length,
+    reposts: 0,
+    bookmarked: false,
+    createdAt: String(detail.date || '') + 'T00:00:00.000Z',
+    updatedAt: '',
+    acara: detail,
+    asal: null
+  };
+}
+
+function feedList_(body) {
+  const actorKey = body.token ? safeActorKey_(body.token) : '';
+  let tab = FEED_TAB.indexOf(String(body.tab)) >= 0 ? String(body.tab) : 'untuk-anda';
+  // Tamu tidak punya siapa pun untuk diikuti, jadi yang dilayani adalah daftar
+  // terbaru; nama tab dilaporkan sesuai isinya agar UI tidak bingung.
+  if (!actorKey && tab === 'mengikuti') tab = 'terbaru';
+  const batas = Math.max(5, Math.min(50, Number(body.batas) || 20));
+  const mulai = Math.max(0, Number(body.mulai) || 0);
+  const ctx = feedKonteks_(actorKey);
+
+  let daftar;
+  if (tab === 'acara') {
+    const sudah = {};
+    daftar = [];
+    // Satu kartu per kegiatan: postingan berbagi-acara tidak menambah baris baru.
+    Object.keys(ctx.acara).forEach(function (id) {
+      const detail = ctx.acara[id];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(detail.date)) return;
+      sudah[id] = true;
+      daftar.push(feedKartuAcara_(detail, actorKey));
+    });
+    ctx.kartu.forEach(function (card) {
+      if (card.jenis !== 'acara') return;
+      const id = String(card.acara && card.acara.id) || '';
+      if (!id || sudah[id]) return;
+      sudah[id] = true;
+      daftar.push(feedRapikan_(card));
+    });
+    daftar.sort(function (a, b) { return String(b.acara ? b.acara.date : b.createdAt).localeCompare(String(a.acara ? a.acara.date : a.createdAt)); });
+  } else if (tab === 'mengikuti' && actorKey) {
+    daftar = ctx.kartu.filter(function (card) {
+      return ctx.ikutan[card.author.id] || card.author.mine;
+    });
+  } else if (tab === 'terbaru' || !actorKey) {
+    daftar = ctx.kartu;
+  } else {
+    daftar = ctx.kartu.slice().sort(function (a, b) {
+      return feedSkor_(b, ctx.ikutan) - feedSkor_(a, ctx.ikutan);
+    });
+  }
+
+  const settings = settingsMap_();
+  const kuotaPos = Math.max(0, Math.min(50, Number(settings.feedPostDailyLimit) || 10));
+  const hari = chatDay_(new Date());
+  const hariIni = ctx.kartu.filter(function (card) {
+    return card.author.mine && feedHariIni_(card.createdAt, hari);
+  }).length;
+
+  return {
+    tab: tab,
+    mulai: mulai,
+    total: daftar.length,
+    sisa: Math.max(0, daftar.length - mulai - batas),
+    items: daftar.slice(mulai, mulai + batas).map(feedRapikan_),
+    kemampuan: {
+      menulis: Boolean(actorKey) && feedBoleh_(),
+      unggah: Boolean(actorKey) && driveSiap_(),
+      video: Boolean(actorKey) && driveSiap_(),
+      mengikuti: Boolean(actorKey),
+      komentar: Boolean(actorKey) && feedBoleh_()
+    },
+    kuota: { sisaPos: Math.max(0, kuotaPos - hariIni), batasPos: kuotaPos }
+  };
+}
+
+/** Izin Drive sudah ada kalau folder media bisa dibuat tanpa kesalahan. */
+function driveSiap_() {
+  try {
+    mediaFolder_();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/** Kader mengunggah berkasnya sendiri, jadi perlu pembatas laju tersendiri. */
+function feedUnggah_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('feed-upload', actor.key);
+  const raw = String(body.data || '').replace(/^data:[^,]*;base64,/i, '').replace(/\s/g, '');
+  if (!raw) throw new Error('Berkas belum diterima.');
+
+  let bytes;
+  try {
+    bytes = Utilities.base64Decode(raw);
+  } catch (error) {
+    throw new Error('Berkas tidak terbaca sebagai base64.');
+  }
+
+  const mime = imageKind_(bytes) || videoKind_(bytes);
+  if (!mime) throw new Error('Gunakan foto JPEG, PNG, WebP atau video MP4, WebM.');
+  if (bytes.length > MAX_UPLOAD_BYTES) {
+    throw new Error('Ukuran berkas melebihi 3 MB. Kecilkan terlebih dahulu.');
+  }
+
+  const extension = mime === 'image/jpeg' ? 'jpg'
+    : mime === 'image/png' ? 'png'
+    : mime === 'image/webp' ? 'webp'
+    : mime === 'video/webm' ? 'webm' : 'mp4';
+  const name = 'kader-' + slugify_(body.name || 'umpan') + '-'
+    + Utilities.getUuid().slice(0, 8) + '.' + extension;
+  const file = mediaFolder_().createFile(Utilities.newBlob(bytes, mime, name));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+  const savedBytes = file.getBlob().getBytes();
+  const kindsama = imageKind_(savedBytes) || videoKind_(savedBytes);
+  if (savedBytes.length !== bytes.length || kindsama !== mime) {
+    throw new Error('Berkas gagal diverifikasi setelah disimpan. Coba unggah ulang.');
+  }
+
+  return {
+    url: 'https://drive.usercontent.google.com/download?id=' + file.getId()
+      + '&export=view&authuser=0',
+    mime: mime,
+    bytes: bytes.length
+  };
+}
+
+function feedCekIsi_(teks) {
+  if (/@\S+\.\S+|https?:\/\/|wa\.me|\b08\d{6,}\b/i.test(teks)) {
+    throw new Error('Postingan tidak boleh memuat tautan, email, atau nomor kontak.');
+  }
+}
+
+function feedPos_(body) {
+  if (!feedBoleh_()) throw new Error('Umpan kader sedang ditutup oleh PB PII.');
+  const actor = actorOf_(body.token);
+  throttle_('feed-post', actor.key);
+  throttle_('feed-post-ip', clientIp_(body));
+
+  const jenis = FEED_JENIS.indexOf(String(body.jenis)) >= 0 ? String(body.jenis) : '';
+  if (!jenis) throw new Error('Jenis postingan tidak dikenal.');
+  if (jenis === 'berbagi') throw new Error('Pakai tombol bagikan untuk membagikan postingan.');
+
+  const isi = cleanText_(body.isi).slice(0, APP.POST_MAX_CHARS);
+  feedCekIsi_(isi);
+
+  let eventId = '';
+  if (jenis === 'acara') {
+    eventId = String(body.eventId || '').trim().slice(0, 64);
+    const activity = findRow_(APP.SHEET_ACTIVITIES, eventId);
+    if (!activity || String(activity.status) !== 'published') {
+      throw new Error('Acara tidak ditemukan atau belum diterbitkan.');
+    }
+  }
+
+  const tautanMedia = [];
+  if (jenis === 'foto' || jenis === 'video') {
+    (Array.isArray(body.media) ? body.media : []).forEach(function (item) {
+      const url = feedTautanMedia_(item && item.url);
+      const mime = String((item && item.mime) || '');
+      const cocok = jenis === 'video' ? /^video\// : /^image\//;
+      if (url && cocok.test(mime) && tautanMedia.length < APP.POST_MEDIA_MAX) {
+        tautanMedia.push({ url: url, mime: mime });
+      }
+    });
+    if (!tautanMedia.length) {
+      throw new Error(jenis === 'video' ? 'Video belum berhasil diunggah.' : 'Foto belum berhasil diunggah.');
+    }
+  } else if (Array.isArray(body.media) && body.media.length) {
+    throw new Error('Hanya postingan foto atau video yang boleh membawa berkas.');
+  }
+
+  if (jenis !== 'foto' && jenis !== 'video' && jenis !== 'acara' && isi.length < 4) {
+    throw new Error('Tulis postingan yang lebih jelas.');
+  }
+
+  const settings = settingsMap_();
+  const limit = Math.max(0, Math.min(50, Number(settings.feedPostDailyLimit) || 10));
+  const hari = chatDay_(new Date());
+  const hariIni = rows_(APP.SHEET_POSTS).filter(function (row) {
+    return String(row.authorKey) === actor.key
+      && feedHariIni_(row.createdAt, hari);
+  }).length;
+  if (hariIni >= limit) {
+    throw new Error('Kuota ' + limit + ' postingan hari ini sudah terpakai. Lanjutkan besok.');
+  }
+
+  const now = new Date().toISOString();
+  const id = Utilities.getUuid();
+  sheet_(APP.SHEET_POSTS).appendRow([
+    id, actor.key, actor.id, actor.name, actor.picture, jenis, isi,
+    eventId, '', 'true', now, now
+  ]);
+  tautanMedia.forEach(function (item, index) {
+    sheet_(APP.SHEET_POST_MEDIA).appendRow([
+      Utilities.getUuid(), id, item.url, item.mime, index + 1, now
+    ]);
+  });
+
+  const ctx = feedKonteks_(actor.key);
+  return { post: feedRapikan_(ctx.denganId[id]) };
+}
+
+/** Milik sendiri yang boleh diubah; admin boleh menertibkan postingan kader. */
+function feedAmbil_(body, actor) {
+  const id = String(body.id || '').trim().slice(0, 64);
+  const row = findRow_(APP.SHEET_POSTS, id);
+  if (!row || String(row.visibel) === 'false') throw new Error('Postingan tidak ditemukan.');
+  const pemilik = String(row.authorKey) === actor.key;
+  if (!pemilik && actor.kind !== 'admin') {
+    throw new Error('Hanya penulisnya yang dapat mengubah postingan ini.');
+  }
+  return row;
+}
+
+function feedUbah_(body) {
+  const actor = actorOf_(body.token);
+  const row = feedAmbil_(body, actor);
+  const isi = cleanText_(body.isi).slice(0, APP.POST_MAX_CHARS);
+  feedCekIsi_(isi);
+  if (isi.length < 4) throw new Error('Tulis postingan yang lebih jelas.');
+  orgSetCell_(APP.SHEET_POSTS, row.id, 'isi', isi);
+  orgSetCell_(APP.SHEET_POSTS, row.id, 'updatedAt', new Date().toISOString());
+  const ctx = feedKonteks_(actor.key);
+  return { post: feedRapikan_(ctx.denganId[String(row.id)]) };
+}
+
+function feedHapus_(body) {
+  const actor = actorOf_(body.token);
+  const row = feedAmbil_(body, actor);
+  const id = String(row.id);
+  rows_(APP.SHEET_POST_MEDIA).forEach(function (media) {
+    if (String(media.postId) !== id) return;
+    buangBerkasDrive_(String(media.url || ''));
+    deleteRowById_(APP.SHEET_POST_MEDIA, media.id);
+  });
+  rows_(APP.SHEET_POSTS).forEach(function (post) {
+    if (String(post.repostOf) === id) deleteRowById_(APP.SHEET_POSTS, post.id);
+  });
+  rows_(APP.SHEET_COMMENTS).forEach(function (komentar) {
+    if (String(komentar.eventId) === id && String(komentar.targetType || '') === 'post') {
+      deleteRowById_(APP.SHEET_COMMENTS, komentar.id);
+    }
+  });
+  rows_(APP.SHEET_REACTIONS).forEach(function (reaksi) {
+    if (String(reaksi.eventId) === id && String(reaksi.targetType || '') === 'post') {
+      deleteRowById_(APP.SHEET_REACTIONS, reaksi.id);
+    }
+  });
+  rows_(APP.SHEET_BOOKMARKS).forEach(function (mark) {
+    if (String(mark.postId) === id) deleteRowById_(APP.SHEET_BOOKMARKS, mark.id);
+  });
+  deleteRowById_(APP.SHEET_POSTS, id);
+  return { terhapus: id };
+}
+
+/** Kabar yang dihapus tidak boleh menyisakan salinan fotonya di Drive. Tautan
+    "siapa saja punya tautan" tetap hidup walau berkas masuk tempat sampah, jadi
+    izin dibuka lebih dulu. Access.MY_DRIVE tidak dikenal runtime ini dan membuat
+    setSharing melempar "Argumen tidak boleh nol", maka memakai Access.PRIVATE
+    seperti berkas surat. Berkas asing atau yang sudah hilang jangan sampai
+    menggagalkan penghapusan. */
+function buangBerkasDrive_(url) {
+  const cocok = String(url || '').match(/[?&]id=([A-Za-z0-9_-]{10,128})/);
+  if (!cocok) return;
+
+  let file;
+  try {
+    file = DriveApp.getFileById(cocok[1]);
+  } catch (error) {
+    return;
+  }
+  try {
+    file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+  } catch (error) {
+    console.warn('Izin berkas umpan gagal dicabut: ' + error.message);
+  }
+  try {
+    file.setTrashed(true);
+  } catch (error) {
+    console.warn('Berkas umpan gagal dibuang: ' + error.message);
+  }
+}
+
+/** Baris umpan yang kabar induknya sudah hilang tidak akan pernah tampil lagi,
+    tapi masih menyimpan foto dan tulisan kader di sheet. setup() menertibkannya. */
+function bersihkanSisaFeed_() {
+  const punya = {};
+  rows_(APP.SHEET_POSTS).forEach(function (post) { punya[String(post.id)] = true; });
+  const hasil = { komentar: 0, reaksi: 0, markah: 0, berkas: 0, kabar: 0 };
+
+  rows_(APP.SHEET_COMMENTS).forEach(function (komentar) {
+    if (String(komentar.targetType || '') !== 'post' || punya[String(komentar.eventId)]) return;
+    deleteRowById_(APP.SHEET_COMMENTS, komentar.id);
+    hasil.komentar += 1;
+  });
+  rows_(APP.SHEET_REACTIONS).forEach(function (reaksi) {
+    if (String(reaksi.targetType || '') !== 'post' || punya[String(reaksi.eventId)]) return;
+    deleteRowById_(APP.SHEET_REACTIONS, reaksi.id);
+    hasil.reaksi += 1;
+  });
+  rows_(APP.SHEET_BOOKMARKS).forEach(function (mark) {
+    if (punya[String(mark.postId)]) return;
+    deleteRowById_(APP.SHEET_BOOKMARKS, mark.id);
+    hasil.markah += 1;
+  });
+  rows_(APP.SHEET_POST_MEDIA).forEach(function (media) {
+    if (punya[String(media.postId)]) return;
+    buangBerkasDrive_(String(media.url || ''));
+    deleteRowById_(APP.SHEET_POST_MEDIA, media.id);
+    hasil.berkas += 1;
+  });
+  rows_(APP.SHEET_POSTS).forEach(function (post) {
+    const asal = String(post.repostOf || '');
+    if (asal && !punya[asal]) {
+      deleteRowById_(APP.SHEET_POSTS, post.id);
+      hasil.kabar += 1;
+    }
+  });
+  return hasil;
+}
+
+/** Suka postingan memakai mesin Reactions yang sama dengan suka acara. */
+function feedSuka_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('feed-like', actor.key);
+  const id = String(body.id || '').trim().slice(0, 64);
+  const row = findRow_(APP.SHEET_POSTS, id);
+  if (!row || String(row.visibel) === 'false') throw new Error('Postingan tidak ditemukan.');
+
+  const existing = rows_(APP.SHEET_REACTIONS).filter(function (reaction) {
+    return String(reaction.eventId) === id && String(reaction.actorKey) === actor.key
+      && String(reaction.targetType || 'event') === 'post';
+  });
+  existing.forEach(function (reaction) { deleteRowById_(APP.SHEET_REACTIONS, reaction.id); });
+  if (!existing.length) {
+    sheet_(APP.SHEET_REACTIONS).appendRow([
+      Utilities.getUuid(), id, actor.key, actor.name, 'like', new Date().toISOString(), 'post'
+    ]);
+  }
+  const total = reactionIndex_('post')[id];
+  return { liked: !existing.length, likes: total ? total.count : 0 };
+}
+
+/** Balasan satu tingkat: parentId menunjuk komentar induk pada postingan yang sama. */
+function feedBalas_(body) {
+  if (!feedBoleh_()) throw new Error('Komentar umpan sedang ditutup oleh PB PII.');
+  const settings = settingsMap_();
+  const actor = actorOf_(body.token);
+  throttle_('feed-comment', actor.key);
+  throttle_('feed-comment-ip', clientIp_(body));
+
+  const id = String(body.id || '').trim().slice(0, 64);
+  const row = findRow_(APP.SHEET_POSTS, id);
+  if (!row || String(row.visibel) === 'false') throw new Error('Postingan tidak ditemukan.');
+
+  const text = cleanText_(body.text).slice(0, APP.COMMENT_MAX_CHARS);
+  if (text.length < 3) throw new Error('Tulis balasan yang lebih jelas.');
+  feedCekIsi_(text);
+
+  let parentId = String(body.parentId || '').trim().slice(0, 64);
+  if (parentId) {
+    const induk = commentIndex_('post')[id] || [];
+    const cocok = induk.filter(function (comment) { return String(comment.id) === parentId; });
+    // Induk selalu dilipat ke tingkat teratas supaya thread tidak bersarang dalam.
+    parentId = cocok.length ? String(cocok[0].parentId || cocok[0].id) : '';
+  }
+
+  const limit = Math.max(0, Math.min(50, Number(settings.feedCommentDailyLimit) || 20));
+  const hari = chatDay_(new Date());
+  const hariIni = rows_(APP.SHEET_COMMENTS).filter(function (comment) {
+    return String(comment.actorKey) === actor.key
+      && String(comment.targetType || 'event') === 'post'
+      && feedHariIni_(comment.createdAt, hari);
+  }).length;
+  if (hariIni >= limit) {
+    throw new Error('Kuota ' + limit + ' balasan hari ini sudah terpakai. Lanjutkan besok.');
+  }
+
+  const now = new Date().toISOString();
+  const baru = Utilities.getUuid();
+  sheet_(APP.SHEET_COMMENTS).appendRow([
+    baru, id, actor.key, actor.name, actor.picture, text, 'published', now, now, 'post', parentId
+  ]);
+
+  const view = commentView_({
+    id: baru, actorName: actor.name, actorPicture: actor.picture, text: text, createdAt: now
+  });
+  view.mine = true;
+  view.parentId = parentId;
+  const total = (commentIndex_('post')[id] || []).length;
+  return { balasan: view, commentCount: total };
+}
+
+function feedThread_(body) {
+  const id = String(body.id || '').trim().slice(0, 64);
+  const actorKey = body.token ? safeActorKey_(body.token) : '';
+  const semua = commentIndex_('post')[id] || [];
+  const suka = reactionIndex_('post')[id];
+  const simpanan = feedSimpananIndex_(actorKey);
+
+  return {
+    id: id,
+    likes: suka ? suka.count : 0,
+    liked: Boolean(suka && actorKey && suka.byKey[actorKey]),
+    bookmarked: Boolean(simpanan[id]),
+    balasan: semua.slice(-80).map(function (row) {
+      const view = commentView_(row);
+      view.mine = Boolean(actorKey) && String(row.actorKey) === actorKey;
+      view.parentId = String(row.parentId || '');
+      return view;
+    })
+  };
+}
+
+/** Bagikan = baris postingan 'berbagi' yang menunjuk kartu asli, bukan salinan isi. */
+function feedBagikan_(body) {
+  if (!feedBoleh_()) throw new Error('Umpan kader sedang ditutup oleh PB PII.');
+  const actor = actorOf_(body.token);
+  throttle_('feed-repost', actor.key);
+
+  const id = String(body.id || '').trim().slice(0, 64);
+  const row = findRow_(APP.SHEET_POSTS, id);
+  if (!row || String(row.visibel) === 'false') throw new Error('Postingan tidak ditemukan.');
+  if (String(row.authorKey) === actor.key) throw new Error('Postingan sendiri tidak perlu dibagikan.');
+  if (String(row.repostOf || '')) throw new Error('Postingan yang dibagikan tidak bisa dibagikan lagi.');
+
+  const punya = rows_(APP.SHEET_POSTS).filter(function (post) {
+    return String(post.repostOf) === id && String(post.authorKey) === actor.key;
+  });
+  punya.forEach(function (post) { deleteRowById_(APP.SHEET_POSTS, post.id); });
+
+  if (!punya.length) {
+    const now = new Date().toISOString();
+    sheet_(APP.SHEET_POSTS).appendRow([
+      Utilities.getUuid(), actor.key, actor.id, actor.name, actor.picture,
+      'berbagi', '', '', id, 'true', now, now
+    ]);
+  }
+
+  const total = rows_(APP.SHEET_POSTS).filter(function (post) {
+    return String(post.repostOf) === id && String(post.visibel) !== 'false';
+  }).length;
+  return { dibagikan: !punya.length, reposts: total };
+}
+
+function feedSimpan_(body) {
+  const actor = actorOf_(body.token);
+  const id = String(body.id || '').trim().slice(0, 64);
+  const row = findRow_(APP.SHEET_POSTS, id);
+  if (!row || String(row.visibel) === 'false') throw new Error('Postingan tidak ditemukan.');
+
+  const punya = rows_(APP.SHEET_BOOKMARKS).filter(function (mark) {
+    return String(mark.postId) === id && String(mark.actorKey) === actor.key;
+  });
+  punya.forEach(function (mark) { deleteRowById_(APP.SHEET_BOOKMARKS, mark.id); });
+  if (!punya.length) {
+    sheet_(APP.SHEET_BOOKMARKS).appendRow([
+      Utilities.getUuid(), actor.key, id, new Date().toISOString()
+    ]);
+  }
+  return { bookmarked: !punya.length };
+}
+
+/** Mengikuti satu arah dan bisa dibatalkan; identitas kader sudah unik per orang. */
+function feedIkuti_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('feed-follow', actor.key);
+
+  const targetId = String(body.kaderId || '').trim().slice(0, 64);
+  if (!targetId) throw new Error('Akun yang diikuti tidak dikenal.');
+  const target = findRow_(APP.SHEET_KADERS, targetId);
+  if (!target) throw new Error('Akun yang diikuti tidak dikenal.');
+  if ('k:' + targetId === actor.key) throw new Error('Tidak bisa mengikuti akun sendiri.');
+
+  const punya = rows_(APP.SHEET_FOLLOWS).filter(function (follow) {
+    return String(follow.actorKey) === actor.key && String(follow.targetId) === targetId;
+  });
+  punya.forEach(function (follow) { deleteRowById_(APP.SHEET_FOLLOWS, follow.id); });
+  if (!punya.length) {
+    sheet_(APP.SHEET_FOLLOWS).appendRow([
+      Utilities.getUuid(), actor.key, actor.id, targetId, new Date().toISOString()
+    ]);
+  }
+
+  const pengikut = rows_(APP.SHEET_FOLLOWS).filter(function (follow) {
+    return String(follow.targetId) === targetId;
+  }).length;
+  return { mengikuti: !punya.length, pengikut: pengikut };
+}
+
+function feedAksi_(action, body) {
+  if (action === 'feedList') return feedList_(body);
+  if (action === 'feedThread') return feedThread_(body);
+  if (action === 'feedUpload') return feedUnggah_(body);
+  if (action === 'feedPost') return feedPos_(body);
+  if (action === 'feedEdit') return feedUbah_(body);
+  if (action === 'feedDelete') return feedHapus_(body);
+  if (action === 'feedLike') return feedSuka_(body);
+  if (action === 'feedComment') return feedBalas_(body);
+  if (action === 'feedRepost') return feedBagikan_(body);
+  if (action === 'feedBookmark') return feedSimpan_(body);
+  if (action === 'feedFollow') return feedIkuti_(body);
+  throw new Error('Aksi umpan tidak dikenal.');
 }

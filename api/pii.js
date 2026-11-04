@@ -20,12 +20,14 @@ const RULES = {
 
 const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
-  'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus'
+  'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus',
+  'feedList', 'feedThread'
 ]);
 
 const WRITE_ACTIONS = new Set([
   'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'kaderEmailLogin',
-  'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage'
+  'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage',
+  'feedUpload', 'feedPost', 'feedEdit', 'feedDelete', 'feedLike', 'feedComment', 'feedRepost', 'feedBookmark', 'feedFollow'
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */
@@ -34,7 +36,7 @@ const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLog
 /** Base64 media/PDF uploads are the only payloads allowed to be large. */
 const MAX_BODY_BYTES = 220_000;
 const MAX_UPLOAD_BYTES = 4_500_000;
-const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage', 'orgUploadPdf', 'orgUploadLetterImage']);
+const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage', 'orgUploadPdf', 'orgUploadLetterImage', 'feedUpload']);
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_DRIVE_RESPONSE_BYTES = 16 * 1024 * 1024;
 
@@ -228,7 +230,7 @@ export default async function handler(req, res) {
       error: isUpload
         ? action === 'orgUploadPdf'
           ? 'Lampiran PDF terlalu besar untuk diunggah (maksimal 2,5 MB).'
-          : 'Foto terlalu besar untuk diunggah (maksimal sekitar 3 MB).'
+          : 'Berkas terlalu besar untuk diunggah (maksimal sekitar 3 MB).'
         : 'Permintaan terlalu besar untuk diproses.'
     });
   }

@@ -6559,6 +6559,978 @@ footer {
   }
 }
 
+/* ==========================================================================
+   Umpan kader — satu kolom selebar kartu baca, ritme sama dengan halaman
+   Acara supaya perpindahan fitur tidak terasa pindah aplikasi.
+   ========================================================================== */
+
+.feed-page main {
+  padding-inline: 16px;
+}
+
+.feed-board {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 22px 0 34px;
+  display: grid;
+  gap: 16px;
+}
+
+.feed-head {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.feed-head h1 {
+  margin: 6px 0 4px;
+  font-size: clamp(1.6rem, 4.6vw, 2.2rem);
+  line-height: 1.14;
+  letter-spacing: -.02em;
+  color: var(--navy);
+}
+
+.feed-head p {
+  margin: 0;
+  font-size: .95rem;
+}
+
+.feed-head-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.feed-head-side .button {
+  gap: 8px;
+}
+
+.feed-head-side .button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Tab memakai bentuk chips yang sama dengan saringan acara, bukan bar bawah. */
+.feed-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 2px;
+  scrollbar-width: none;
+  position: sticky;
+  top: 58px;
+  z-index: 6;
+  background: linear-gradient(#fff 76%, #fff0);
+}
+
+.feed-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.feed-tabs button {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font: 600 .84rem/1 inherit;
+  padding: 9px 15px;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.feed-tabs button:hover {
+  color: var(--blue);
+  border-color: #b9d8f0;
+}
+
+.feed-tabs button.is-active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+.feed-login {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed #cddbea;
+  border-radius: var(--radius);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+.feed-login .text-link {
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------ komposer */
+
+.feed-composer {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 14px;
+  box-shadow: 0 10px 26px #102b490f;
+}
+
+.feed-composer-top {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 11px;
+}
+
+.feed-composer-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.feed-composer textarea {
+  width: 100%;
+  border: 0;
+  resize: vertical;
+  min-height: 76px;
+  font: 500 .96rem/1.55 inherit;
+  color: var(--ink);
+  background: none;
+  padding: 2px 0;
+}
+
+.feed-composer textarea:focus-visible {
+  outline: none;
+}
+
+.feed-composer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+  flex-wrap: wrap;
+}
+
+.feed-kinds {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.feed-kinds button {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--soft);
+  color: var(--muted);
+  font: 700 .74rem/1 inherit;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.feed-kinds button.is-active {
+  background: var(--sky);
+  border-color: #b5d9f4;
+  color: var(--blue);
+}
+
+.feed-counter {
+  font: 700 .74rem/1 inherit;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-counter.is-low {
+  color: #b3261e;
+}
+
+.feed-composer-extra {
+  display: grid;
+  gap: 6px;
+}
+
+.feed-composer-extra label {
+  font: 700 .74rem/1 inherit;
+  letter-spacing: .04em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.feed-composer-extra select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--ink);
+  font: 600 .88rem/1 inherit;
+  padding: 11px 12px;
+}
+
+.feed-previews {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.feed-preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--soft);
+  aspect-ratio: 1;
+}
+
+.feed-preview img,
+.feed-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.feed-preview button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: #0b1d2ecc;
+  color: #fff;
+  font: 700 1rem/1 inherit;
+  cursor: pointer;
+}
+
+.feed-preview-busy {
+  position: absolute;
+  inset: 0;
+  background: #0b1d2e99;
+}
+
+.feed-preview-busy::after {
+  content: '';
+  position: absolute;
+  inset: 38%;
+  border: 2px solid #ffffff5c;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: feed-spin .8s linear infinite;
+}
+
+@keyframes feed-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.feed-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.feed-composer-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.feed-composer-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--blue);
+  font: 700 .76rem/1 inherit;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.feed-composer-tools button:hover {
+  background: var(--sky);
+}
+
+.feed-composer-tools svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feed-send {
+  padding: 10px 18px;
+  font-size: .84rem;
+}
+
+.feed-quota {
+  margin: 0;
+  font-size: .78rem;
+}
+
+.feed-note {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 11px;
+  background: #fdecea;
+  color: #8c1d18;
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+.feed-note.is-ok {
+  background: #e7f4ec;
+  color: var(--green);
+}
+
+/* ------------------------------------------------------------- kartu */
+
+.feed-list {
+  display: grid;
+  gap: 14px;
+}
+
+.feed-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 15px;
+  display: grid;
+  gap: 11px;
+}
+
+.feed-author {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.feed-ava {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--sky);
+  color: var(--blue);
+  font: 800 1rem/1 inherit;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.feed-ava.is-small {
+  width: 30px;
+  height: 30px;
+  font-size: .84rem;
+}
+
+.feed-ava img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.feed-author-name {
+  display: grid;
+  min-width: 0;
+}
+
+.feed-author-name b {
+  font-size: .93rem;
+  color: var(--navy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-author-name small {
+  font-size: .74rem;
+  color: var(--muted);
+}
+
+.feed-author-side {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.feed-follow {
+  border: 1px solid var(--blue);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--blue);
+  font: 700 .74rem/1 inherit;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.feed-follow.is-on,
+.feed-card.is-following .feed-follow {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+.feed-menu {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--muted);
+  font: 700 1rem/1 inherit;
+  width: 30px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.feed-menu-pop {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 8;
+  display: grid;
+  gap: 2px;
+  min-width: 178px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 14px 30px #102b4924;
+}
+
+.feed-menu-pop button {
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: 600 .82rem/1 inherit;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feed-menu-pop button:hover {
+  background: var(--soft);
+}
+
+.feed-menu-pop button.is-danger {
+  color: #8c1d18;
+}
+
+.feed-menu-pop span {
+  font: 700 .76rem/1.4 inherit;
+  color: var(--muted);
+  padding: 6px 10px;
+}
+
+.feed-body {
+  display: grid;
+  gap: 11px;
+}
+
+.feed-text {
+  margin: 0;
+  font-size: .95rem;
+  line-height: 1.62;
+  color: var(--ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.feed-media {
+  display: grid;
+  gap: 6px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.feed-media[data-count='2'],
+.feed-media[data-count='4'] {
+  grid-template-columns: 1fr 1fr;
+}
+
+.feed-media[data-count='3'] {
+  grid-template-columns: 1fr 1fr;
+}
+
+.feed-media[data-count='3'] .feed-shot:first-child {
+  grid-column: 1 / -1;
+}
+
+.feed-shot {
+  border: 0;
+  padding: 0;
+  background: var(--soft);
+  cursor: zoom-in;
+  display: block;
+}
+
+.feed-shot img,
+.feed-media video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+}
+
+.feed-media.is-video video {
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.feed-event {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--soft);
+}
+
+.feed-event:hover {
+  border-color: #b9d8f0;
+}
+
+.feed-event-cover img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+
+.feed-event-copy {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+}
+
+.feed-event-copy b {
+  font-size: .92rem;
+  color: var(--navy);
+  line-height: 1.32;
+}
+
+.feed-event-copy small {
+  font-size: .76rem;
+  color: var(--muted);
+}
+
+.feed-event-copy p {
+  margin: 2px 0 0;
+  font-size: .8rem;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feed-event-cta {
+  margin-top: 4px;
+  font: 700 .78rem/1 inherit;
+  color: var(--blue);
+}
+
+.feed-origin {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--blue);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: var(--soft);
+}
+
+.feed-origin-label {
+  font: 700 .7rem/1 inherit;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.feed-origin b {
+  font-size: .88rem;
+  color: var(--navy);
+}
+
+.feed-origin p {
+  margin: 0;
+  font-size: .88rem;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.feed-origin .feed-event,
+.feed-origin .feed-media {
+  background: #fff;
+}
+
+.feed-editing textarea {
+  width: 100%;
+  border: 1px solid #b5d9f4;
+  border-radius: 12px;
+  padding: 11px;
+  font: 500 .93rem/1.6 inherit;
+  color: var(--ink);
+  min-height: 92px;
+  resize: vertical;
+}
+
+.feed-editing-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/* ------------------------------------------------------ bar interaksi */
+
+.feed-actions {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.feed-actions > button {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  font: 700 .78rem/1 inherit;
+  padding: 8px 6px;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+
+.feed-actions > button:hover {
+  background: var(--soft);
+  color: var(--blue);
+}
+
+.feed-actions svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feed-like.is-on {
+  color: #c0334d;
+}
+
+.feed-like.is-on svg {
+  fill: #c0334d;
+  stroke: #c0334d;
+}
+
+.feed-save.is-on svg {
+  fill: var(--blue);
+  stroke: var(--blue);
+}
+
+.feed-repost.is-on {
+  color: var(--green);
+}
+
+.feed-like.is-pop svg {
+  animation: feed-pop .32s ease;
+}
+
+@keyframes feed-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------- utas */
+
+.feed-thread {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.feed-thread-inner {
+  display: grid;
+  gap: 10px;
+}
+
+.feed-thread-head {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.feed-thread-head b {
+  font-size: .84rem;
+  color: var(--navy);
+}
+
+.feed-thread-head span {
+  font-size: .74rem;
+  color: var(--muted);
+}
+
+.feed-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+}
+
+.feed-comment {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 9px;
+}
+
+.feed-comment.is-reply {
+  margin-left: 39px;
+  padding-left: 9px;
+  border-left: 2px solid var(--line);
+}
+
+.feed-comment b {
+  font-size: .82rem;
+  color: var(--navy);
+}
+
+.feed-comment b small {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.feed-comment p {
+  margin: 2px 0;
+  font-size: .87rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.feed-comment small {
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+.feed-reply-to {
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: 700 .72rem/1 inherit;
+  padding: 3px 0 0;
+  cursor: pointer;
+}
+
+.feed-reply-to.is-on {
+  color: var(--navy);
+}
+
+.feed-empty-comment {
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+.feed-reply {
+  display: flex;
+  gap: 8px;
+}
+
+.feed-reply input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font: 500 .88rem/1 inherit;
+  padding: 11px 15px;
+}
+
+.feed-reply input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.feed-reply .button {
+  padding: 10px 16px;
+  font-size: .8rem;
+}
+
+/* ------------------------------------------------------- keadaan halaman */
+
+.feed-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.feed-skeleton .skeleton {
+  height: 128px;
+  border-radius: var(--radius);
+}
+
+.feed-empty {
+  margin: 0;
+  padding: 22px 16px;
+  border: 1px dashed #cddbea;
+  border-radius: var(--radius);
+  text-align: center;
+  font-size: .9rem;
+}
+
+.feed-more,
+#feedMore {
+  justify-self: center;
+}
+
+.feed-loadstate {
+  min-height: 18px;
+  font-size: .78rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.feed-toast {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: var(--navy);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.feed-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: #061524e8;
+  padding: 18px;
+}
+
+.feed-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.feed-lightbox-close {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: #ffffff26;
+  color: #fff;
+  cursor: pointer;
+}
+
+.feed-lightbox-close::after {
+  content: '×';
+  font: 700 1.5rem/1 inherit;
+}
+
+body.feed-zoomed {
+  overflow: hidden;
+}
+
+/* Unsur yang sedang disembunyikan harus benar-benar hilang: kelas di atas
+   mengatur display-nya sendiri, jadi aturan bawaan peramban perlu ditegaskan. */
+.feed-page [hidden],
+.feed-thread[hidden],
+.feed-note[hidden],
+.feed-lightbox[hidden] {
+  display: none !important;
+}
+
+@media (min-width: 681px) {
+  .feed-board {
+    gap: 18px;
+    padding-top: 30px;
+  }
+
+  .feed-head {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .feed-tabs {
+    top: 64px;
+  }
+}
+
+@media (max-width: 680px) {
+  .feed-board {
+    gap: 13px;
+  }
+
+  .feed-card,
+  .feed-composer {
+    border-radius: 15px;
+  }
+
+  .feed-media[data-count='2'] video,
+  .feed-media[data-count='3'] video,
+  .feed-media[data-count='4'] video {
+    aspect-ratio: 4 / 3;
+  }
+
+  .feed-previews {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .feed-actions > button {
+    font-size: .74rem;
+    padding: 9px 4px;
+  }
+
+  .feed-comment.is-reply {
+    margin-left: 20px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

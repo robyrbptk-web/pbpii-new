@@ -26,8 +26,12 @@ const HEADERS = {
   Chat: ['createdAt', 'kind', 'subject', 'question', 'answer', 'provider', 'status'],
   Standards: ['id', 'orgId', 'minPerMonth', 'setByOrgId', 'setByName', 'note', 'updatedAt'],
   Kaders: ['id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note', 'passwordHash', 'passwordSalt'],
-  Reactions: ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt'],
-  Comments: ['id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text', 'status', 'createdAt', 'updatedAt'],
+  Reactions: ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt', 'targetType'],
+  Comments: ['id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text', 'status', 'createdAt', 'updatedAt', 'targetType', 'parentId'],
+  Posts: ['id', 'authorKey', 'authorId', 'authorName', 'authorPicture', 'jenis', 'isi', 'eventId', 'repostOf', 'visibel', 'createdAt', 'updatedAt'],
+  PostMedia: ['id', 'postId', 'url', 'mime', 'urut', 'createdAt'],
+  Follows: ['id', 'actorKey', 'actorId', 'targetId', 'createdAt'],
+  Bookmarks: ['id', 'actorKey', 'postId', 'createdAt'],
   PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'],
   PustakaPotongan: ['doc', 'halaman', 'teks', 'halamanAkhir', 'bab']
 };
@@ -256,7 +260,11 @@ function fileHandle(record) {
     getMimeType: () => record.mime,
     getDescription: () => record.description,
     setDescription: (value) => { record.description = String(value); },
-    setSharing: (access, permission) => { record.sharing = { access, permission }; },
+    setSharing: (access, permission) => {
+      if (access === undefined) throw new Error('Argumen tidak boleh nol: accessType.');
+      record.sharing = { access, permission };
+    },
+    setTrashed: (value) => { record.trashed = Boolean(value); },
     setContent: (blob) => {
       record.bytes = Array.from(blob.getBytes());
       record.mime = String(blob.getContentType());
@@ -310,7 +318,7 @@ const fakeFolder = {
 };
 const DriveApp = {
   Access: { ANYONE_WITH_LINK: 'ANYONE_WITH_LINK', PRIVATE: 'PRIVATE' },
-  Permission: { VIEW: 'VIEW' },
+  Permission: { VIEW: 'VIEW', NONE: 'NONE' },
   getFolderById: () => fakeFolder,
   getFileById(id) {
     const record = driveFiles.find((file) => file.id === String(id));
@@ -334,7 +342,9 @@ const exported = [
   'ensureDefaultSettings_', 'sanitizeArticleHtml_', 'sanitizeLetterHtml_', 'saveArticle_', 'uploadImage_', 'driveImageUrl_',
   'orgUploadPdf_', 'orgUploadLetterImage_', 'orgSendLetter_', 'orgReadLetterAttachment_', 'orgReadLetterImage_',
   'perbaikiFotoDrive', 'bytesDariTeksAngka_',
-  'pustakaDaftar_'
+  'pustakaDaftar_',
+  'feedAksi_', 'feedList_', 'feedKonteks_', 'feedSkor_', 'feedTautanMedia_', 'videoKind_', 'feedCekIsi_', 'FEED_TAB', 'FEED_JENIS', 'SHEET_SCHEMA', 'POST_HEADERS',
+  'bersihkanSisaFeed_', 'buangBerkasDrive_'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
@@ -1279,6 +1289,322 @@ check('perbaikan melaporkan berkas yang dipulihkan',
   hasilPerbaikan.berkas.some((item) => item.id === 'fixture-foto-rusak'), true);
 check('berkas yang sudah gambar tidak dihitung sebagai perbaikan',
   hasilPerbaikan.diperbaiki, 1);
+
+// ------------------------------------------------------------- umpan sosial
+
+check('setup mengenal keempat sheet umpan',
+  ['Posts', 'PostMedia', 'Follows', 'Bookmarks'].every((name) => gas.SHEET_SCHEMA.some((entry) => entry[0] === name)),
+  true);
+check('skema Posts harness sama dengan backend', gas.POST_HEADERS, HEADERS.Posts);
+check('tab umpan sesuai UI', gas.FEED_TAB, ['untuk-anda', 'mengikuti', 'terbaru', 'acara']);
+check('jenis postingan umpan', gas.FEED_JENIS, ['teks', 'foto', 'video', 'pengumuman', 'acara', 'berbagi']);
+
+/** Hanya berkas Drive sendiri yang boleh menempel pada postingan. */
+check('tautan Drive diterima sebagai media',
+  gas.feedTautanMedia_('https://drive.usercontent.google.com/download?id=abcdefghij123456&export=view&authuser=0')
+    .split('?')[0],
+  'https://drive.usercontent.google.com/download');
+check('tautan situs lain ditolak sebagai media', gas.feedTautanMedia_('https://example.com/foto.jpg'), '');
+check('video mp4 dikenali dari tanda tangan byte',
+  gas.videoKind_([0, 0, 0, 32].concat(Array.from(Buffer.from('ftypmp42', 'ascii')))), 'video/mp4');
+check('video webm dikenali dari tanda tangan byte',
+  gas.videoKind_([0x1a, 0x45, 0xdf, 0xa3, 0x00, 0x00, 0x00, 0x00]), 'video/webm');
+check('bukan video tidak diberi mime', gas.videoKind_([1, 2, 3, 4, 5, 6, 7, 8]), '');
+check('nomor kontak tidak boleh masuk postingan',
+  captureError(() => gas.feedCekIsi_('sabar ya bro, WA saya 081234567890')),
+  'Postingan tidak boleh memuat tautan, email, atau nomor kontak.');
+
+/** Peringkat "Untuk Anda": waktu-paruh 72 jam dan kenaikan untuk akun yang diikuti. */
+const kartuSkor = { author: { id: 'kader-x' }, likes: 4, commentCount: 2, reposts: 0, createdAt: new Date().toISOString() };
+const kartuBasah = { ...kartuSkor, createdAt: new Date(Date.now() - 72 * 3600 * 1000).toISOString() };
+check('sehari dua kali umur, skor separuh', gas.feedSkor_(kartuSkor, {}) / gas.feedSkor_(kartuBasah, {}), 2);
+check('kader yang diikuti dinaikkan 1,6 kali', gas.feedSkor_(kartuSkor, { 'kader-x': true }) / gas.feedSkor_(kartuSkor, {}), 1.6);
+
+const IP_ROZAK = '203.0.113.140';
+const IP_KUOTA = '203.0.113.141';
+const IP_PANJANG = '203.0.113.142';
+
+const umpanTamu = request({ action: 'feedList', ip: IP_ROZAK });
+check('umpan dapat dibaca tanpa login', umpanTamu.ok, true);
+check('tab bawaan umpan', umpanTamu.data.tab, 'untuk-anda');
+check('tamu tidak diberi hak menulis', umpanTamu.data.kemampuan.menulis, false);
+check('tamu tidak diberi hak mengunggah', umpanTamu.data.kemampuan.unggah, false);
+check('tamu tidak diberi hak berkomentar', umpanTamu.data.kemampuan.komentar, false);
+check('tab mengikuti dilayani sebagai daftar terbaru untuk tamu',
+  request({ action: 'feedList', tab: 'mengikuti', ip: IP_ROZAK }).data.tab, 'terbaru');
+check('tamu tidak dapat memposting',
+  request({ action: 'feedPost', token: '', jenis: 'teks', isi: 'Coba tanpa akun', ip: IP_ROZAK }).error,
+  'Masuk dulu dengan akun Google kader untuk melanjutkan.');
+check('sukanya kader tidak dapat ditulis tanpa akun',
+  request({ action: 'feedLike', token: '', id: 'apapun', ip: IP_ROZAK }).code, '');
+
+const sukaAcaraSebelum = request({ action: 'eventThread', eventId: 'act-kadaria', ip: IP_ROZAK }).data.likes;
+
+const posRozak = request({ action: 'feedPost', token: 'ses-rozak', jenis: 'teks', isi: 'Kajian rutin Kamis pagi di sekretariat.', ip: IP_ROZAK });
+check('kader dapat memposting teks', posRozak.ok, true);
+check('postingan baru langsung milik penulisnya', posRozak.data.post.author.mine, true);
+check('kartu menyebut penulisnya kader, jadi UI boleh menawarkan ikuti', posRozak.data.post.author.kind, 'kader');
+check('postingan baru belum punya interaksi', [posRozak.data.post.likes, posRozak.data.post.commentCount, posRozak.data.post.reposts], [0, 0, 0]);
+const ID_ROZAK = posRozak.data.post.id;
+
+check('postingan berisi tautan ditolak',
+  request({ action: 'feedPost', token: 'ses-rozak', jenis: 'teks', isi: 'lihat https://contoh.id/promo ya', ip: IP_ROZAK }).error,
+  'Postingan tidak boleh memuat tautan, email, atau nomor kontak.');
+check('jenis postingan tak dikenal ditolak',
+  request({ action: 'feedPost', token: 'ses-rozak', jenis: 'meme', isi: 'gambar lucu', ip: IP_ROZAK }).error,
+  'Jenis postingan tidak dikenal.');
+check('video tanpa berkas ditolak sebelum disimpan',
+  request({ action: 'feedPost', token: 'ses-rozak', jenis: 'video', isi: 'doktrin', ip: IP_ROZAK }).error,
+  'Video belum berhasil diunggah.');
+check('postingan berbagi memakai tombol bagikan',
+  request({ action: 'feedPost', token: 'ses-rozak', jenis: 'berbagi', isi: 'teruskan', ip: IP_ROZAK }).error,
+  'Pakai tombol bagikan untuk membagikan postingan.');
+const barisSetelahDitolak = rowsOf('Posts').length;
+check('postingan yang ditolak tidak pernah masuk sheet', barisSetelahDitolak, 1);
+
+const unggahFoto = request({ action: 'feedUpload', token: 'ses-kuota', name: 'dokumentasi-kajian', data: 'data:image/jpeg;base64,' + Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).toString('base64'), ip: IP_KUOTA });
+check('kader dapat mengunggah fotonya sendiri', unggahFoto.ok, true);
+check('hasil unggahan berupa tautan Drive', unggahFoto.data.url.split('?')[0], 'https://drive.usercontent.google.com/download');
+check('berkas unggahan dibagikan sebagai tautan lihat',
+  driveFiles[driveFiles.length - 1].sharing, { access: 'ANYONE_WITH_LINK', permission: 'VIEW' });
+check('unggah berkas non-media ditolak',
+  request({ action: 'feedUpload', token: 'ses-kuota', data: Buffer.from('bukan gambar sama sekali', 'utf8').toString('base64'), ip: IP_KUOTA }).error,
+  'Gunakan foto JPEG, PNG, WebP atau video MP4, WebM.');
+check('unggah media butuh akun', request({ action: 'feedUpload', token: '', data: 'Zm9v', ip: IP_KUOTA }).ok, false);
+
+const posFoto = request({
+  action: 'feedPost', token: 'ses-kuota', jenis: 'foto', isi: 'Dokumentasi kajian Kamis.',
+  media: [{ url: unggahFoto.data.url, mime: 'image/jpeg' }, { url: 'https://example.com/lain.jpg', mime: 'image/jpeg' }],
+  ip: IP_KUOTA
+});
+check('postingan foto tersimpan dengan media Drive', posFoto.ok && posFoto.data.post.media.length, 1);
+check('media dari situs lain dibuang, bukan disalin', posFoto.data.post.media[0].url.split('?')[0], 'https://drive.usercontent.google.com/download');
+check('foto tanpa media yang sah ditolak',
+  request({ action: 'feedPost', token: 'ses-kuota', jenis: 'foto', isi: 'fotonya mana', media: [{ url: 'https://example.com/a.jpg', mime: 'image/jpeg' }], ip: IP_KUOTA }).error,
+  'Foto belum berhasil diunggah.');
+check('teks saja tidak boleh membawa berkas',
+  request({ action: 'feedPost', token: 'ses-kuota', jenis: 'teks', isi: 'cuma teks', media: [{ url: unggahFoto.data.url, mime: 'image/jpeg' }], ip: IP_KUOTA }).error,
+  'Hanya postingan foto atau video yang boleh membawa berkas.');
+
+const posAcara = request({ action: 'feedPost', token: 'ses-kuota', jenis: 'acara', eventId: 'act-kadaria', isi: 'Ajak kawan ke kajian ini.', ip: IP_KUOTA });
+check('postingan acara membangun kartu dari data asli', posAcara.data.post.acara.title, 'Kajian Dasar Rohis');
+const posAcaraGagal = request({ action: 'feedPost', token: 'ses-kuota', jenis: 'acara', eventId: 'act-draft', ip: IP_KUOTA });
+check('acara draf tidak dapat dibagikan ke umpan', posAcaraGagal.error, 'Acara tidak ditemukan atau belum diterbitkan.');
+const ID_KUOTA = posAcara.data.post.id;
+
+check('sukanya kader dan suka acara memakai kolom terpisah',
+  request({ action: 'eventThread', eventId: 'act-kadaria', ip: IP_ROZAK }).data.likes, sukaAcaraSebelum);
+
+const suka1 = request({ action: 'feedLike', token: 'ses-rozak', id: ID_KUOTA, ip: IP_ROZAK });
+check('tombol suka menyalakan hitungan', [suka1.data.liked, suka1.data.likes], [true, 1]);
+const suka2 = request({ action: 'feedLike', token: 'ses-rozak', id: ID_KUOTA, ip: IP_ROZAK });
+check('suka sekali lagi membatalkan', [suka2.data.liked, suka2.data.likes], [false, 0]);
+check('suka pada postingan tidak menggeser suka acara',
+  request({ action: 'eventThread', eventId: 'act-kadaria', ip: IP_ROZAK }).data.likes, sukaAcaraSebelum);
+request({ action: 'feedLike', token: 'ses-panjang', id: ID_KUOTA, ip: IP_PANJANG });
+check('suka dua kader dihitung dua',
+  request({ action: 'feedThread', id: ID_KUOTA, ip: IP_ROZAK }).data.likes, 1);
+check('suka postingan yang dihapus tidak pernah ada',
+  request({ action: 'feedLike', token: 'ses-rozak', id: 'tidak-ada', ip: IP_ROZAK }).error, 'Postingan tidak ditemukan.');
+
+const balas1 = request({ action: 'feedComment', token: 'ses-kuota', id: ID_ROZAK, text: 'Insyaallah hadir, Ka.', ip: IP_KUOTA });
+check('kader dapat membalas postingan', balas1.ok, true);
+check('balasan pertama tidak punya induk', balas1.data.balasan.parentId, '');
+const balas2 = request({ action: 'feedComment', token: 'ses-rozak', id: ID_ROZAK, text: 'Terima kasih atas kehadirannya.', parentId: balas1.data.balasan.id, ip: IP_ROZAK });
+check('balasan ke balasan menempel pada induk teratas', balas2.data.balasan.parentId, balas1.data.balasan.id);
+const balas3 = request({ action: 'feedComment', token: 'ses-panjang', id: ID_ROZAK, text: 'Berarti juga untuk kami.', parentId: balas2.data.balasan.id, ip: IP_PANJANG });
+check('threads tidak bersarang: cucu dilipat ke induk', balas3.data.balasan.parentId, balas1.data.balasan.id);
+check('balasan berisi tautan ditolak',
+  request({ action: 'feedComment', token: 'ses-panjang', id: ID_ROZAK, text: '.promo https://x.id', ip: IP_PANJANG }).error,
+  'Postingan tidak boleh memuat tautan, email, atau nomor kontak.');
+check('balasan terlalu pendek ditolak',
+  request({ action: 'feedComment', token: 'ses-panjang', id: ID_ROZAK, text: 'ok', ip: IP_PANJANG }).error,
+  'Tulis balasan yang lebih jelas.');
+check('balasan pada postingan tak dikenal ditolak',
+  request({ action: 'feedComment', token: 'ses-kuota', id: 'tidak-ada', text: 'halo kawan', ip: IP_KUOTA }).error,
+  'Postingan tidak ditemukan.');
+const utasUmpan = request({ action: 'feedThread', id: ID_ROZAK, token: 'ses-rozak', ip: IP_ROZAK });
+check('utas memuat seluruh balasan', utasUmpan.data.balasan.length, 3);
+check('balasan milik sendiri ditandai', utasUmpan.data.balasan.filter((item) => item.mine).length, 1);
+check('jumlah balasan pada kartu sesuai utas',
+  request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_ROZAK }).data.items
+    .find((card) => card.id === ID_ROZAK).commentCount, 3);
+
+const bagikan1 = request({ action: 'feedRepost', token: 'ses-rozak', id: ID_KUOTA, ip: IP_ROZAK });
+check('postingan kader lain dapat dibagikan', [bagikan1.data.dibagikan, bagikan1.data.reposts], [true, 1]);
+const kartuBagikan = request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_ROZAK }).data.items
+  .find((card) => card.asal && card.asal.id === ID_KUOTA);
+check('kartu berbagi menunjuk postingan asal, bukan menyalin isinya',
+  Boolean(kartuBagikan)
+    && kartuBagikan.jenis === 'berbagi'
+    && kartuBagikan.isi === ''
+    && kartuBagikan.asal.id === ID_KUOTA
+    && kartuBagikan.asal.jenis === 'acara',
+  true);
+const bagikanLagi = request({ action: 'feedRepost', token: 'ses-rozak', id: ID_KUOTA, ip: IP_ROZAK });
+check('menekan bagikan sekali lagi membatalkannya', [bagikanLagi.data.dibagikan, bagikanLagi.data.reposts], [false, 0]);
+check('postingan sendiri tidak dibagikan',
+  request({ action: 'feedRepost', token: 'ses-kuota', id: ID_KUOTA, ip: IP_KUOTA }).error,
+  'Postingan sendiri tidak perlu dibagikan.');
+const bagikanAsal = request({ action: 'feedRepost', token: 'ses-kuota', id: ID_ROZAK, ip: IP_KUOTA });
+const kartuTurunan = request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_ROZAK }).data.items
+  .find((card) => card.asal && card.asal.id === ID_ROZAK);
+check('hasil bagikan tidak dapat dibagikan lagi',
+  request({ action: 'feedRepost', token: 'ses-rozak', id: kartuTurunan.id, ip: IP_ROZAK }).error,
+  'Postingan yang dibagikan tidak bisa dibagikan lagi.');
+
+const simpan1 = request({ action: 'feedBookmark', token: 'ses-rozak', id: ID_KUOTA, ip: IP_ROZAK });
+check('penanda baca tersimpan per kader', simpan1.data.bookmarked, true);
+check('kartu umpan melaporkan penanda baca milik aktor',
+  request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_ROZAK }).data.items
+    .find((card) => card.id === ID_KUOTA).bookmarked, true);
+check('penanda kader lain tidak ikut terlihat',
+  request({ action: 'feedList', tab: 'terbaru', token: 'ses-panjang', ip: IP_PANJANG }).data.items
+    .find((card) => card.id === ID_KUOTA).bookmarked, false);
+check('penanda baca toggel',
+  request({ action: 'feedBookmark', token: 'ses-rozak', id: ID_KUOTA, ip: IP_ROZAK }).data.bookmarked, false);
+
+const ikut = request({ action: 'feedFollow', token: 'ses-rozak', kaderId: 'kader-kuota', ip: IP_ROZAK });
+check('kader dapat mengikuti kader lain', [ikut.data.mengikuti, ikut.data.pengikut], [true, 1]);
+check('tab mengikuti memuat postingan akun yang diikuti dan diri sendiri',
+  request({ action: 'feedList', tab: 'mengikuti', token: 'ses-rozak', ip: IP_ROZAK }).data.items
+    .every((card) => ['kader-kuota', 'kader-rozak'].includes(card.author.id)), true);
+check('mengikuti diri sendiri ditolak',
+  request({ action: 'feedFollow', token: 'ses-rozak', kaderId: 'kader-rozak', ip: IP_ROZAK }).error,
+  'Tidak bisa mengikuti akun sendiri.');
+check('akun yang tidak ada tidak dapat diikuti',
+  request({ action: 'feedFollow', token: 'ses-rozak', kaderId: 'kader-asing', ip: IP_ROZAK }).error,
+  'Akun yang diikuti tidak dikenal.');
+check('membatalkan mengikuti mengurangi pengikut',
+  request({ action: 'feedFollow', token: 'ses-rozak', kaderId: 'kader-kuota', ip: IP_ROZAK }).data.pengikut, 0);
+
+const ubahMilikLain = request({ action: 'feedEdit', token: 'ses-kuota', id: ID_ROZAK, isi: 'Diubah kader lain', ip: IP_KUOTA });
+check('kader lain tidak dapat mengubah postingan', ubahMilikLain.error, 'Hanya penulisnya yang dapat mengubah postingan ini.');
+check('isi postingan tetap seperti semula',
+  rowsOf('Posts').find((row) => row.id === ID_ROZAK).isi, 'Kajian rutin Kamis pagi di sekretariat.');
+const ubahSah = request({ action: 'feedEdit', token: 'ses-rozak', id: ID_ROZAK, isi: 'Kajian rutin Kamis pagi, pindah ke aula.', ip: IP_ROZAK });
+check('penulis dapat mengubah postingannya', ubahSah.data.post.isi, 'Kajian rutin Kamis pagi, pindah ke aula.');
+check('perubahan mencatat waktu', ubahSah.data.post.updatedAt === ubahSah.data.post.createdAt, false);
+check('perubahan berisi tautan ditolak',
+  request({ action: 'feedEdit', token: 'ses-rozak', id: ID_ROZAK, isi: 'kunjungi wa.me/628123', ip: IP_ROZAK }).error,
+  'Postingan tidak boleh memuat tautan, email, atau nomor kontak.');
+check('admin boleh menertibkan postingan kader', request({ action: 'feedEdit', token: 'ses-admin', id: ID_ROZAK, isi: 'Rapi versi redaksi.', ip: IP_ROZAK }).ok, true);
+
+const tabAcara = request({ action: 'feedList', tab: 'acara', token: 'ses-rozak', ip: IP_ROZAK });
+check('tab acara hanya memuat kegiatan terjadwal',
+  tabAcara.data.items.every((card) => card.jenis === 'acara' && /^\d{4}-\d{2}-\d{2}$/.test(card.acara.date)), true);
+check('satu kegiatan hanya muncul sekali meski ada yang membagikannya',
+  tabAcara.data.items.filter((card) => card.acara.id === 'act-kadaria').length, 1);
+check('acara draf tidak masuk tab acara',
+  tabAcara.data.items.some((card) => card.acara.id === 'act-draft'), false);
+check('kartu kegiatan memakai id bentukan agar tidak tertukar dengan postingan',
+  tabAcara.data.items[0].id.indexOf('acara:'), 0);
+check('kartu kegiatan bukan milik kader sehingga tidak ada tombol ikuti',
+  tabAcara.data.items[0].author.kind, 'acara');
+
+const daftarPaginasi = request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', batas: 5, mulai: 0, ip: IP_ROZAK });
+check('paginasi membatasi jumlah kartu', [daftarPaginasi.data.items.length, daftarPaginasi.data.sisa],
+  [Math.min(5, daftarPaginasi.data.total), Math.max(0, daftarPaginasi.data.total - 5)]);
+
+aturSetting('feedPostDailyLimit', '2');
+const kuota1 = request({ action: 'feedPost', token: 'ses-panjang', jenis: 'teks', isi: 'Musyawarah komisariat sesi satu.', ip: IP_PANJANG });
+const kuota2 = request({ action: 'feedPost', token: 'ses-panjang', jenis: 'teks', isi: 'Musyawarah komisariat sesi dua.', ip: IP_PANJANG });
+const kuota3 = request({ action: 'feedPost', token: 'ses-panjang', jenis: 'teks', isi: 'Musyawarah komisariat sesi tiga.', ip: IP_PANJANG });
+check('dua postingan pertama sesuai kuota', [kuota1.ok, kuota2.ok], [true, true]);
+check('postingan keempat melebihi kuota harian', kuota3.error, 'Kuota 2 postingan hari ini sudah terpakai. Lanjutkan besok.');
+check('sisa kuota dilaporkan ke UI',
+  request({ action: 'feedList', token: 'ses-panjang', ip: IP_PANJANG }).data.kuota, { sisaPos: 0, batasPos: 2 });
+aturSetting('feedPostDailyLimit', '10');
+
+/* Kuota harian mengikuti kalender setempat (WIB di produksi), tetapi cap waktu
+   baris tersimpan sebagai ISO UTC. Baris di ujung hari jatuh pada tanggal UTC
+   sebelah, jadi perbandingan tanggal mentah membuat kabarnya tidak dihitung dan
+   jatah harian terasa reset setiap dini hari. */
+const diniHari = new Date(-new Date().getTimezoneOffset() >= 0 ? `${today}T00:30:00` : `${today}T23:30:00`).toISOString();
+aturSetting('feedPostDailyLimit', '3');
+seed('Posts', [{
+  id: 'pos-dini-hari', authorKey: 'k:kader-panjang', authorId: 'kader-panjang', authorName: 'Kader Panjang',
+  authorPicture: '', jenis: 'teks', isi: 'Muhasabah setelah tengah malam.', eventId: '', repostOf: '',
+  visibel: 'true', createdAt: diniHari, updatedAt: diniHari
+}]);
+check('kabar dini hari tetap memakai kuota hari berjalan',
+  request({ action: 'feedPost', token: 'ses-panjang', jenis: 'teks', isi: 'Rapat lanjutan usai sahur.', ip: '203.0.113.151' }).error,
+  'Kuota 3 postingan hari ini sudah terpakai. Lanjutkan besok.');
+check('sisa kuota melihat kabar dini hari',
+  request({ action: 'feedList', token: 'ses-panjang', ip: '203.0.113.151' }).data.kuota, { sisaPos: 0, batasPos: 3 });
+aturSetting('feedPostDailyLimit', '10');
+
+const sisaRozak = request({ action: 'feedList', token: 'ses-rozak', ip: IP_ROZAK }).data.kuota.sisaPos;
+check('kuota harian Rozak berkurang setelah memposting', sisaRozak, 10 - rowsOf('Posts').filter((row) => row.authorKey === 'k:kader-rozak').length);
+
+const umpanDitutup = (() => {
+  aturSetting('feedOpen', 'false');
+  const hasil = [
+    request({ action: 'feedPost', token: 'ses-rozak', jenis: 'teks', isi: 'masih terbuka', ip: '203.0.113.149' }).error,
+    request({ action: 'feedComment', token: 'ses-rozak', id: ID_ROZAK, text: 'masih terbuka', ip: '203.0.113.149' }).error,
+    request({ action: 'feedRepost', token: 'ses-rozak', id: ID_KUOTA, ip: '203.0.113.149' }).error
+  ];
+  const kemampuan = request({ action: 'feedList', token: 'ses-rozak', ip: '203.0.113.149' }).data.kemampuan;
+  aturSetting('feedOpen', 'true');
+  return { hasil, kemampuan };
+})();
+check('redaksi dapat menutup umpan dari Settings', umpanDitutup.hasil, [
+  'Umpan kader sedang ditutup oleh PB PII.',
+  'Komentar umpan sedang ditutup oleh PB PII.',
+  'Umpan kader sedang ditutup oleh PB PII.'
+]);
+check('umpan tertutup menyembunyikan tombol menulis', [umpanDitutup.kemampuan.menulis, umpanDitutup.kemampuan.komentar], [false, false]);
+
+const hapusMilikLain = request({ action: 'feedDelete', token: 'ses-kuota', id: ID_ROZAK, ip: IP_KUOTA });
+check('kader lain tidak dapat menghapus postingan', hapusMilikLain.error, 'Hanya penulisnya yang dapat mengubah postingan ini.');
+const posSementara = request({
+  action: 'feedPost', token: 'ses-kuota', jenis: 'foto', isi: 'Foto sementara sebelum dihapus.',
+  media: [{ url: unggahFoto.data.url, mime: 'image/jpeg' }], ip: IP_KUOTA
+});
+const ID_SEMENTARA = posSementara.data.post.id;
+request({ action: 'feedRepost', token: 'ses-rozak', id: ID_SEMENTARA, ip: IP_ROZAK });
+request({ action: 'feedBookmark', token: 'ses-rozak', id: ID_SEMENTARA, ip: IP_ROZAK });
+request({ action: 'feedLike', token: 'ses-rozak', id: ID_SEMENTARA, ip: IP_ROZAK });
+request({ action: 'feedComment', token: 'ses-rozak', id: ID_SEMENTARA, isi: 'Bagus, thanks sudah dibagikan.', ip: IP_ROZAK });
+const mediaSebelumHapus = rowsOf('PostMedia').filter((row) => row.postId === ID_SEMENTARA).length;
+const berkasFoto = driveFiles.find((file) => unggahFoto.data.url.includes('id=' + file.id + '&'));
+const hapus = request({ action: 'feedDelete', token: 'ses-kuota', id: ID_SEMENTARA, ip: IP_KUOTA });
+check('penulis dapat menghapus postingannya', hapus.data.terhapus, ID_SEMENTARA);
+check('media postingan ikut terhapus', [mediaSebelumHapus, rowsOf('PostMedia').filter((row) => row.postId === ID_SEMENTARA).length], [1, 0]);
+check('komentar pada postingan yang dihapus ikut hilang',
+  rowsOf('Comments').some((row) => row.eventId === ID_SEMENTARA && row.targetType === 'post'), false);
+check('suka pada postingan yang dihapus ikut hilang',
+  rowsOf('Reactions').some((row) => row.eventId === ID_SEMENTARA && row.targetType === 'post'), false);
+check('tautan lihat foto postingan yang dihapus dicabut', berkasFoto.sharing, { access: 'PRIVATE', permission: 'NONE' });
+check('foto postingan yang dihapus masuk tempat sampah Drive', berkasFoto.trashed, true);
+check('bagikan atas postingan yang dihapus ikut hilang', rowsOf('Posts').some((row) => row.repostOf === ID_SEMENTARA), false);
+check('penanda baca pada postingan yang dihapus ikut hilang', rowsOf('Bookmarks').some((row) => row.postId === ID_SEMENTARA), false);
+check('postingan yang dihapus tidak muncul di umpan',
+  request({ action: 'feedList', tab: 'terbaru', token: 'ses-kuota', ip: IP_KUOTA }).data.items.some((card) => card.id === ID_SEMENTARA),
+  false);
+check('id internal umpan tidak pernah keluar ke browser',
+  JSON.stringify(request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_ROZAK }).data.items)
+    .includes('_authorKey'), false);
+
+// Sapuan setup(): baris umpan yang kabarnya sudah hilang tidak boleh menumpuk.
+rowsOf('Comments').push({ id: 'komentar-yatim', eventId: ID_SEMENTARA, targetType: 'post', isi: 'komentar tanpa induk' });
+rowsOf('Reactions').push({ id: 'suka-yatim', eventId: ID_SEMENTARA, targetType: 'post', actorKey: 'k:kader-rozak' });
+rowsOf('Comments').push({ id: 'komentar-kegiatan', eventId: 'act-tak-kenal', targetType: 'event', isi: 'komentar kegiatan' });
+gas.bersihkanSisaFeed_();
+check('sapuan menghapus komentar umpan tanpa kabar', rowsOf('Comments').some((row) => row.id === 'komentar-yatim'), false);
+check('sapuan menghapus suka umpan tanpa kabar', rowsOf('Reactions').some((row) => row.id === 'suka-yatim'), false);
+check('sapuan tidak menyentuh komentar kegiatan', rowsOf('Comments').some((row) => row.id === 'komentar-kegiatan'), true);
+check('sapuan kedua tidak menghapus apa pun lagi',
+  Object.values(gas.bersihkanSisaFeed_()).reduce((jumlah, nilai) => jumlah + nilai, 0), 0);
+
+let kenaLaju = 0;
+const batasLajuPos = gas.RATE_RULES['feed-post'].limit;
+for (let i = 0; i < batasLajuPos + 1; i += 1) {
+  const hasil = request({ action: 'feedPost', token: 'ses-admin', jenis: 'teks', isi: 'Pengumuman rapat pengurus ' + (i + 1), ip: '203.0.113.150' });
+  if (hasil.code === 'rate_limited') kenaLaju += 1;
+}
+check('pemosting beruntun dibatasi laju, bukan dimuat semua', [kenaLaju, batasLajuPos], [1, gas.RATE_RULES['feed-post'].limit]);
+check('aksi umpan asing ditolak di pintu masuk', request({ action: 'feedTidakAda', token: 'ses-rozak', ip: IP_ROZAK }).error, 'Aksi umpan tidak dikenal.');
 
 // ------------------------------------------------------------------ laporan
 
