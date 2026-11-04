@@ -811,6 +811,7 @@ seed('Sessions', [
   { token: 'ses-panjang', kind: 'kader', subject: 'kader-panjang', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
   { token: 'ses-pd', kind: 'org', subject: 'pd-pontianak', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
   { token: 'ses-poltek', kind: 'org', subject: 'pk-poltek', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
+  { token: 'ses-admin', kind: 'admin', subject: 'admin', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
   { token: 'ses-kedaluwarsa', kind: 'kader', subject: 'kader-rozak', createdAt: `${ancient}T07:00:00.000Z`, expiresAt: `${ancient}T07:00:00.000Z` }
 ]);
 seed('Kaders', [
@@ -872,6 +873,12 @@ check('browser ditawari widget Turnstile, bukan soal hitung', widget.data, { kin
 const payloadPublic = request({ action: 'public', ip: '203.0.113.7' });
 check('kunci rahasia tidak pernah keluar ke browser', 'turnstileSecret' in payloadPublic.data.settings, false);
 check('kunci situs Turnstile boleh dilihat browser', payloadPublic.data.settings.turnstileSiteKey, 'site-key-abc');
+const paketAdmin = request({ action: 'adminData', token: 'ses-admin' });
+check('dasbor admin pun tidak menerima nilai secret', 'turnstileSecret' in paketAdmin.data.settings, false);
+check('dasbor admin hanya menerima penanda secret terisi', paketAdmin.data.settings.turnstileSecretSet, true);
+const hasilSimpan = request({ action: 'saveSettings', token: 'ses-admin', settings: { turnstileSiteKey: 'site-key-abc', turnstileSecret: 'secret-xyz' } });
+check('simpan pengaturan membalas penanda, bukan nilai secret', hasilSimpan.data.turnstileSecretSet, true);
+check('umpan simpan tidak pernah membawa nilai secret', 'turnstileSecret' in hasilSimpan.data, false);
 
 const tanpaVerifikasi = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7' });
 check('pendaftaran tanpa centang Turnstile ditolak', tanpaVerifikasi.code, 'captcha');

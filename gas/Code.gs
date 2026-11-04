@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-04.3';
+const BACKEND_VERSION = '2026-11-04.4';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -1046,7 +1046,7 @@ function keaktifanSettings_() {
 
 function adminData_() {
   return {
-    settings: settingsMap_(),
+    settings: adminSettings_(),
     articles: rows_(APP.SHEET_ARTICLES).sort(function (a, b) {
       return String(b.updatedAt).localeCompare(String(a.updatedAt));
     }),
@@ -1093,7 +1093,7 @@ function saveSettings_(values) {
     }
   });
 
-  return settingsMap_();
+  return adminSettings_();
 }
 
 function saveArticle_(article) {
@@ -3959,6 +3959,20 @@ function publicSettings_(settings) {
     copy[key] = settings[key];
   });
   return copy;
+}
+
+/**
+ * Umpan dasbor admin. Admin memang boleh melihat kunci situs, tapi secret
+ * verification tetap di server; yang dikirim hanya penanda bahwa kunci terisi,
+ * supaya dasbor bisa menulis statusnya tanpa menyimpan secret di browser.
+ */
+function adminSettings_() {
+  const settings = settingsMap_();
+  const bersih = publicSettings_(settings);
+  SECRET_SETTINGS.forEach(function (key) {
+    bersih[key + 'Set'] = Boolean(String(settings[key] || '').trim());
+  });
+  return bersih;
 }
 
 /** Kunci Cloudflare Turnstile; kedua kolom harus terisi sebelum widget dipakai. */

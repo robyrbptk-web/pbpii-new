@@ -929,8 +929,8 @@
         String(settings.eventCommentsOpen == null ? 'true' : settings.eventCommentsOpen).toLowerCase() !== 'false';
       // Secret tidak pernah ditampilkan kembali supaya tidak tertangkap riwayat form browser.
       $('turnstileSecret').value = '';
-      $('turnstileSecretHint').textContent = settings.turnstileSecret
-        ? 'Secret tersimpan di server (' + String(settings.turnstileSecret).length + ' karakter). Kosongkan untuk mempertahankan, isi untuk mengganti.'
+      $('turnstileSecretHint').textContent = settings.turnstileSecretSet
+        ? 'Secret tersimpan di server. Kosongkan untuk mempertahankan, isi untuk mengganti.'
         : 'Belum ada secret. Selama kedua kolom belum terisi, halaman masuk dan daftar tidak menampilkan captcha.';
       refreshUploader('chairmanPhoto');
     }
