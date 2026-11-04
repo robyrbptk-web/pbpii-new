@@ -2244,8 +2244,10 @@
 
   // ------------------------------------------------------------------- hijriah
 
+  // Ejaan disamakan dengan keluaran API Kemenag yang dipakai baris tanggal di
+  // atas ("Rabu, 25 Jumadilawal 1448 H") supaya satu halaman tidak dua ejaan.
   const HIJRI_MONTHS = [
-    'Muharram', 'Safar', 'Rabiul Awal', 'Rabiul Akhir', 'Jumadil Awal', 'Jumadil Akhir',
+    'Muharram', 'Safar', 'Rabiulawal', 'Rabiulakhir', 'Jumadilawal', 'Jumadilakhir',
     'Rajab', "Sya'ban", 'Ramadhan', 'Syawal', "Dzulqa'dah", 'Dzulhijjah',
   ];
   const HIJRI_MONTHS_AR = [
@@ -2293,7 +2295,7 @@
           </div>`;
         }).join('')}`;
       if (labelEl) {
-        labelEl.textContent = `${data.month} ${HIJRI_MONTHS[data.month - 1] || ''} ${data.year} H`;
+        labelEl.textContent = `${HIJRI_MONTHS[data.month - 1] || 'Bulan Hijriah'} ${data.year} H`;
       }
       if (statusEl) {
         const ar = HIJRI_MONTHS_AR[data.month - 1];
