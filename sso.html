@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Masuk — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="captcha.css">
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;min-height:100dvh;background:linear-gradient(145deg,#eaf1f7,#fff 58%,#f2f6f9);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:#182638;padding:max(24px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left))}
+    .sso-wrap{max-width:880px;margin:0 auto;display:grid;gap:22px}
+    .sso-brand{text-align:center;margin:6px 0 2px}
+    .sso-brand img{width:78px;height:78px;object-fit:contain;padding:8px;border:1px solid #e0e7ef;border-radius:22px;background:#fff;box-shadow:0 8px 22px rgb(16 43 73 / 8%)}
+    .sso-brand h1{font-size:19px;line-height:1.35;margin:12px 0 0;color:#102b49}
+    .sso-brand p{font-size:12.5px;color:#637184;margin:6px 0 0;letter-spacing:.4px}
+    .sesi-aktif{display:none;justify-content:center;gap:10px;flex-wrap:wrap}
+    .sesi-aktif.isi{display:flex}
+    .sesi-item{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid #d9e4ef;border-radius:999px;background:#fff;font-size:12.5px;font-weight:700;color:#102b49;box-shadow:0 4px 14px rgb(16 43 73 / 6%)}
+    .sesi-item a{color:#176da8;text-decoration:none}
+    .sso-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .sso-card{background:#fff;border:1px solid #e3eaf1;border-radius:22px;padding:28px;box-shadow:0 22px 64px rgb(16 43 73 / 9%)}
+    .sso-card .eyebrow{color:#176da8;font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;margin:0}
+    .sso-card h2{font-size:22px;letter-spacing:-.5px;margin:8px 0 4px;color:#102b49}
+    .sso-card .intro{font-size:13.5px;color:#637184;margin:0 0 18px;line-height:1.5}
+    .sso-card .account-slot{margin:0 0 14px}
+    .sso-go{width:100%;border:0;background:linear-gradient(115deg,#102b49,#176da8);color:#fff;padding:13px 15px;border-radius:12px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 9px 22px rgb(16 43 73 / 18%);transition:transform .15s,box-shadow .15s}
+    .sso-go:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgb(16 43 73 / 22%)}
+    .sso-go.ghost{background:#fff;color:#176da8;border:1.5px solid #c9dcef;box-shadow:none}
+    .sso-go.ghost:hover{background:#f2f8fd}
+    .sso-field{margin:0 0 13px}
+    .sso-field label{display:block;font-size:12.5px;font-weight:750;color:#102b49;margin:0 0 6px}
+    .sso-field input{width:100%;padding:12px 13px;border:1px solid #d5e0eb;border-radius:12px;font:inherit;font-size:14px;outline:none;min-height:46px}
+    .sso-field input:focus{border-color:#176da8;box-shadow:0 0 0 3px #176da81b}
+    .pass-wrap{position:relative}
+    .pass-wrap input{padding-right:86px}
+    .pass-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:#176da8;font-weight:700;font-size:12px;min-width:56px;min-height:42px;cursor:pointer}
+    .sso-card .captcha{margin:4px 0 14px}
+    .sso-msg{display:none;margin:12px 0 0;padding:11px;border-radius:10px;font-size:12.5px;overflow-wrap:anywhere}
+    .sso-msg.error{display:block;background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
+    .sso-msg.success{display:block;background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
+    .sso-links{display:flex;justify-content:space-between;gap:10px;margin-top:16px;font-size:12.5px;font-weight:700;flex-wrap:wrap}
+    .sso-links a{color:#176da8;text-decoration:none}
+    .sso-admin{text-align:center;margin-top:2px}
+    .sso-admin a{color:#637184;font-size:12.5px;font-weight:700;text-decoration:none}
+    .sso-admin a:hover{color:#176da8}
+    .sso-admin b{color:#102b49}
+    .sso-foot{text-align:center;color:#8b96a3;font-size:11.5px;margin:0}
+    @media (max-width:720px){
+      .sso-grid{grid-template-columns:1fr}
+      .sso-card{padding:22px 18px}
+      .sso-brand h1{font-size:17px}
+    }
+  </style>
+</head>
+<body>
+  <main class="sso-wrap">
+    <div class="sso-brand">
+      <img src="/assets/logo-pii.webp" alt="Logo PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <h1>PENGURUS BESAR<br>PELAJAR ISLAM INDONESIA</h1>
+      <p>Satu pintu masuk untuk kader dan lembaga PII</p>
+    </div>
+
+    <div class="sesi-aktif" id="sesiAktif" aria-live="polite"></div>
+
+    <div class="sso-grid">
+      <section class="sso-card" aria-labelledby="judulKader">
+        <p class="eyebrow">Kader PII</p>
+        <h2 id="judulKader">Masuk sebagai kader</h2>
+        <p class="intro">Suka dan komentari acara, ikut Feed kader, baca Pustaka, dan perbesar jatah Tanya PII. Tersedia lewat Google, email, atau daftar akun baru.</p>
+        <div class="account-slot" data-account aria-label="Akun kader PII"></div>
+        <button class="sso-go" type="button" id="bukaKader">Masuk / Daftar Kader</button>
+      </section>
+
+      <section class="sso-card" aria-labelledby="judulLembaga">
+        <p class="eyebrow">Lembaga PII</p>
+        <h2 id="judulLembaga">Masuk akun lembaga</h2>
+        <p class="intro">Untuk pengurus PW, PD, dan PK: kelola kegiatan, formulir, surat, dan jejaring lembaga.</p>
+        <form id="loginForm" novalidate>
+          <div class="sso-field"><label for="loginEmail">Email lembaga</label><input id="loginEmail" type="email" autocomplete="username" required></div>
+          <div class="sso-field"><label for="loginPassword">Kata sandi</label>
+            <div class="pass-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pass-toggle" id="togglePass">Lihat</button></div>
+          </div>
+          <div class="captcha" id="loginCaptcha"></div>
+          <button class="sso-go" type="submit" id="loginBtn">Masuk Lembaga</button>
+          <div class="sso-msg" id="loginMessage" role="status" aria-live="polite"></div>
+        </form>
+        <div class="sso-links">
+          <a href="/daftar.html">Daftar akun lembaga</a>
+          <a href="/">← Halaman utama</a>
+        </div>
+      </section>
+    </div>
+
+    <p class="sso-admin">Pengelola situs? <a href="/login.html">Masuk sebagai admin</a></p>
+    <p class="sso-foot">PB PII · #PIILevelUp</p>
+  </main>
+
+  <script src="captcha.js"></script>
+  <script src="akun.js"></script>
+  <script>
+    const API_ENDPOINT = '/api/pii';
+    const message = document.getElementById('loginMessage');
+    const sesiAktif = document.getElementById('sesiAktif');
+
+    function tampilPesan(node, text, type) {
+      node.className = 'sso-msg ' + type;
+      node.textContent = text;
+    }
+
+    // ------------------------------------------------------------------ sesi aktif
+    function gambarSesi() {
+      const tautan = [];
+      const akun = (window.PBPIIAkun && window.PBPIIAkun.account()) || { role: 'tamu' };
+      if (akun.role === 'kader') {
+        tautan.push('Kader: <b>' + (akun.name || 'Kader PII') + '</b> — <a href="/feed.html">lanjut ke Feed</a>');
+      }
+      if (localStorage.getItem('pbpii_org_token')) {
+        tautan.push('Lembaga: <b>' + (localStorage.getItem('pbpii_org_name') || 'Lembaga PII') + '</b> — <a href="/lembaga.html">lanjut ke dasbor</a>');
+      }
+      if (localStorage.getItem('pbpii_admin_token')) {
+        tautan.push('Admin PB PII — <a href="/admin.html">lanjut ke dasbor</a>');
+      }
+      sesiAktif.classList.toggle('isi', tautan.length > 0);
+      sesiAktif.innerHTML = tautan.map((item) => '<span class="sesi-item">' + item + '</span>').join('');
+    }
+
+    // Login kader lewat panel akun.js. Bila panel kader dibuka di halaman ini dan
+    // sesi kader muncul, antar dia ke Feed; sesi kader yang sudah ada sejak awal
+    // tidak boleh melempar orang keluar dari halaman — ia mungkin ingin masuk
+    // sebagai lembaga.
+    if (window.PBPIIAkun) {
+      let peranLama = (window.PBPIIAkun.account() || {}).role || 'tamu';
+      let panelDibuka = false;
+      window.PBPIIAkun.onChange((akun) => {
+        if (panelDibuka && peranLama !== 'kader' && akun.role === 'kader') {
+          sesiAktif.classList.add('isi');
+          sesiAktif.innerHTML = '<span class="sesi-item">Berhasil masuk sebagai <b>' + (akun.name || 'Kader PII') + '</b>. Membuka Feed…</span>';
+          setTimeout(() => { window.location.href = '/feed.html'; }, 700);
+        }
+        peranLama = akun.role || 'tamu';
+        gambarSesi();
+      });
+      document.getElementById('bukaKader').addEventListener('click', () => {
+        if (window.PBPIIAkun.account().role === 'kader') window.location.href = '/feed.html';
+        else { panelDibuka = true; window.PBPIIAkun.openPanel(); }
+      });
+    }
+
+    // ------------------------------------------------------------- login lembaga
+    document.getElementById('togglePass').addEventListener('click', () => {
+      const input = document.getElementById('loginPassword');
+      const tampil = input.type === 'password';
+      input.type = tampil ? 'text' : 'password';
+      document.getElementById('togglePass').textContent = tampil ? 'Sembunyikan' : 'Lihat';
+    });
+
+    let verifikasi = null;
+    if (window.PBPIICaptcha && document.getElementById('loginCaptcha')) {
+      verifikasi = window.PBPIICaptcha.attach(document.getElementById('loginCaptcha'));
+      verifikasi.ready().catch(() => {});
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = document.getElementById('loginBtn');
+      button.disabled = true;
+      button.textContent = 'Memeriksa akun…';
+      message.className = 'sso-msg';
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'orgLogin',
+            email: document.getElementById('loginEmail').value.trim(),
+            password: document.getElementById('loginPassword').value,
+            ...(verifikasi ? verifikasi.fields() : {})
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+          const error = new Error((result && result.error) || 'Masuk gagal.');
+          error.code = String((result && result.code) || '');
+          throw error;
+        }
+        const data = result.data;
+        if (!data || !data.token) throw new Error('Server tidak mengembalikan token sesi.');
+        localStorage.setItem('pbpii_org_token', data.token);
+        localStorage.setItem('pbpii_org_name', (data.org && data.org.name) || '');
+        tampilPesan(message, 'Masuk berhasil. Membuka dasbor lembaga…', 'success');
+        setTimeout(() => { window.location.href = '/lembaga.html'; }, 700);
+      } catch (error) {
+        tampilPesan(message, error.message || 'Tidak dapat terhubung ke server.', 'error');
+        // Token verifikasi sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
+        if (verifikasi && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
+          verifikasi.reset();
+          verifikasi.reload?.().catch(() => {});
+        }
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Masuk Lembaga';
+      }
+    });
+
+    gambarSesi();
+  </script>
+  <script src="site.js" defer></script>
+</body>
+</html>

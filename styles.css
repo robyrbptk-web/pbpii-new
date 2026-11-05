@@ -2015,6 +2015,21 @@ nav a:hover {
   display: none;
 }
 
+/* "Masuk" tampil sebagai pil agar jelas ini pintu masuk akun, bukan menu isi. */
+nav .nav-masuk {
+  padding: 8px 16px;
+  border: 1.5px solid #c9dcef;
+  border-radius: 999px;
+  font-weight: 750;
+  color: var(--blue);
+  transition: background .15s ease, color .15s ease;
+}
+
+nav .nav-masuk:hover {
+  background: #edf6fd;
+  color: var(--navy);
+}
+
 /* "Lainnya" hanya dipakai di bar bawah ponsel; di layar lebar semua menu sudah tampil. */
 .nav-more {
   display: none;
@@ -2309,6 +2324,12 @@ footer {
   /* Menu sekunder disembunyikan dari bar dan dipindahkan ke sheet "Lainnya". */
   nav .nav-extra {
     display: none;
+  }
+
+  /* Pil "Masuk" tidak relevan di bar bawah ponsel: bentuknya disamakan saja. */
+  nav .nav-masuk {
+    border: 0;
+    border-radius: 10px;
   }
 
   nav a,
