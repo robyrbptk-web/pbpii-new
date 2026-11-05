@@ -196,6 +196,9 @@ function systemPrompt(mode) {
     'Jangan memberi fatwa agama, tidak berpolitik praktis, dan untuk urusan kesehatan,',
     'hukum, atau keuangan arahkan pembaca ke profesional yang berwenang.',
     'Lebih baik mengaku tidak tahu daripada mengarang.',
+    'Balasan yang lebih awal boleh ikut dikirim sebagai konteks. Lanjutan seperti "terus", "yang kedua itu',
+    'gimana", atau "kalau untuk cabang" dijawab dengan merujuk topik yang sedang dibicarakan, bukan',
+    'dijawab sebagai pertanyaan baru yang yatim.',
   ];
   if (mode === 'organisasi') {
     dasar.push(
@@ -215,6 +218,53 @@ function systemPrompt(mode) {
 
 function clean(text) {
   return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Galat lapisan AI bersifat teknis — dan menyebut nama penyedia layanan di layar
+ * pembaca tidak membantu siapa pun. Semua kegagalan teknis diringkas menjadi
+ * satu kalimat Indonesia yang bisa ditindaklanjuti.
+ */
+const GALAT_TEKNIS = /timeout|abort|network|fetch failed|etimedout|socket|menolak permintaan|kode \d{3}|kosong|padat|terlambat|limit|rate/i;
+
+function pesanPembaca(message) {
+  const teks = String(message || '').trim();
+  if (!teks || GALAT_TEKNIS.test(teks)) {
+    return 'Layanan AI sedang padat dan belum menjawab. Coba kirim ulang beberapa saat lagi.';
+  }
+  return teks.slice(0, 180);
+}
+
+/**
+ * Riwayat percakapan yang dibawa browser ke pertanyaan berikutnya. Tanpa ini
+ * "terus, yang kedua gimana?" terbaca sebagai pertanyaan baru yang yatim.
+ * Hanya enam balasan terakhir, dipotong pendek, dan dirapikan supaya berakhir
+ * di jawaban — jadi susunannya selalu bergantian user/assistant/system.
+ */
+const MAX_RIWAYAT = 6;
+
+function riwayatBersih(raw) {
+  const daftar = (Array.isArray(raw) ? raw : []).slice(-MAX_RIWAYAT)
+    .filter((turn) => turn && (turn.role === 'user' || turn.role === 'assistant'))
+    .map((turn) => ({
+      role: turn.role,
+      content: (turn.role === 'user' ? clean(turn.content) : rapikanTeks(turn.content))
+        .slice(0, turn.role === 'user' ? MAX_CHARS : 1200),
+    }))
+    .filter((turn) => turn.content.length > 1);
+  while (daftar.length && daftar[daftar.length - 1].role !== 'assistant') daftar.pop();
+  return daftar;
+}
+
+/**
+ * Bahan pencarian untuk pertanyaan yang menyangkut organisasi. Lanjutan yang
+ * terlalu pendek untuk dicari ("terus syaratnya?") dirangkai dengan pertanyaan
+ * sebelumnya supaya pencariannya masih tentang topik yang sama.
+ */
+function kueriPencarian(question, riwayat) {
+  if (question.length > 26 || !riwayat.length) return question;
+  const sebelum = riwayat.filter((turn) => turn.role === 'user').pop();
+  return sebelum ? clean(`${sebelum.content} ${question}`).slice(0, MAX_CHARS) : question;
 }
 
 /**
@@ -657,6 +707,7 @@ export default async function handler(req, res) {
   }
 
   const question = clean(body.message).slice(0, MAX_CHARS);
+  const riwayat = riwayatBersih(body.riwayat);
   if (question.length < 3) {
     reply(res, 200, { ok: false, error: 'Tulis pertanyaan dengan jelas.' });
     return;
@@ -713,8 +764,9 @@ export default async function handler(req, res) {
      * ke berkas internal, jadi pertanyaan yang sama masih bisa dijawab dari sumber
      * daring selama kutipannya ada. Dua-duanya kosong = tidak ada yang dikarang.
      */
-    pustaka = await gasKonteks(body, ip, question).catch(() => []);
-    web = await cariWeb(question);
+    const kueri = kueriPencarian(question, riwayat);
+    pustaka = await gasKonteks(body, ip, kueri).catch(() => []);
+    web = await cariWeb(kueri);
     if (!pustaka.length && !web.length) {
       reply(res, 200, {
         ok: true,
@@ -739,6 +791,7 @@ export default async function handler(req, res) {
   ].filter(Boolean).join('\n\n');
   const messages = [
     { role: 'system', content: sistem },
+    ...riwayat,
     { role: 'user', content: question },
   ];
 
@@ -765,7 +818,7 @@ export default async function handler(req, res) {
   } catch (error) {
     reply(res, 200, {
       ok: false,
-      error: error.message || 'Layanan AI tidak menjawab tepat waktu.',
+      error: pesanPembaca(error.message),
       retryAfter: error.retryAfter || 0,
     });
   }

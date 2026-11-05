@@ -16,12 +16,16 @@
   const ENDPOINT = window.PBPII_CONFIG?.chatEndpoint || '/api/chat';
   const ADMIN_TOKEN_KEY = 'pbpii_admin_token';
   const ORG_TOKEN_KEY = 'pbpii_org_token';
+  /** Riwayat lama: satu percakapan tunggal, dimigrasikan ke daftar di bawah. */
   const THREAD_KEY = 'pbpii_tanya_thread';
   const THREAD_VERSION_KEY = 'pbpii_tanya_thread_version';
+  const THREADS_KEY = 'pbpii_tanya_threads';
+  const AKTIF_KEY = 'pbpii_tanya_aktif';
   const DEVICE_KEY = 'pbpii_tanya_device';
-  const MAX_TURNS = 12;
-  /** Versi 3: jawaban boleh tanpa rujukan berkas dan menyimpan tautan web. */
-  const THREAD_VERSION = '3';
+  const MAX_TURNS = 40;
+  const MAX_THREADS = 30;
+  /** Versi 4: percakapan disimpan sebagai riwayat, bukan satu thread yang ditimpa. */
+  const THREAD_VERSION = '4';
 
   const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -45,6 +49,117 @@
       || `web${Date.now().toString(36)}`;
     localStorage.setItem(DEVICE_KEY, stored);
     return stored;
+  }
+
+  // ------------------------------------------------------------------ riwayat
+
+  /**
+   * Percakapan disimpan sebagai daftar di perangkat penanya: "Percakapan baru"
+   * membuka lembaran baru dan yang lama tetap bisa dibuka lagi, bukan dihapus.
+   * Isinya kutipan jawaban dan rujukan yang sudah tampil, jadi tidak ada data
+   * akun yang ikut tersimpan.
+   */
+  function idThread() {
+    const bytes = new Uint8Array(6);
+    (window.crypto || window.msCrypto)?.getRandomValues?.(bytes);
+    const acak = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${acak || 't'}${Date.now().toString(36)}`;
+  }
+
+  function threadBaru() {
+    const sekarang = Date.now();
+    return { id: idThread(), judul: '', dibuat: sekarang, diubah: sekarang, turns: [] };
+  }
+
+  /** Pertanyaan pertama menjadi nama percakapan pada daftar riwayat. */
+  function judulDari(teks) {
+    const ringkas = String(teks || '').replace(/\s+/g, ' ').trim().slice(0, 58);
+    return ringkas ? `${ringkas}${String(teks || '').trim().length > 58 ? '…' : ''}` : '';
+  }
+
+  function bersihkanTurns(turns) {
+    return (Array.isArray(turns) ? turns : [])
+      .filter((turn) => turn && (turn.role === 'user' || turn.role === 'assistant'))
+      .map((turn) => ({
+        role: turn.role,
+        content: String(turn.content || '').slice(0, 9000),
+        rujukan: Array.isArray(turn.rujukan) ? turn.rujukan.slice(0, 3) : [],
+        rujukanWeb: Array.isArray(turn.rujukanWeb) ? turn.rujukanWeb.slice(0, 3) : [],
+        status: turn.status === 'no_source' ? 'no_source' : '',
+        rasa: turn.rasa === 'suka' || turn.rasa === 'tidak' ? turn.rasa : '',
+      }))
+      .filter((turn) => turn.content)
+      .slice(-MAX_TURNS);
+  }
+
+  function muatThreads() {
+    try {
+      const disimpan = JSON.parse(localStorage.getItem(THREADS_KEY) || 'null');
+      if (Array.isArray(disimpan)) {
+        return disimpan
+          .filter((thread) => thread && thread.id)
+          .map((thread) => ({
+            id: String(thread.id).slice(0, 40),
+            judul: String(thread.judul || '').slice(0, 70),
+            dibuat: Number(thread.dibuat) || 0,
+            diubah: Number(thread.diubah) || Number(thread.dibuat) || 0,
+            turns: bersihkanTurns(thread.turns),
+          }))
+          .filter((thread) => thread.turns.length)
+          .sort((a, b) => b.diubah - a.diubah)
+          .slice(0, MAX_THREADS);
+      }
+    } catch {
+      /* daftar rusak: mulai dari riwayat tunggal di bawah */
+    }
+
+    /*
+     * Migrasi sekali jalan untuk penanya yang sudah pakai Tanya PII sebelumnya:
+     * satu-satunya percakapan yang ada dijadikan butir pertama, bukan dibuang.
+     */
+    let tunggal = [];
+    try {
+      const disimpan = JSON.parse(localStorage.getItem(THREAD_KEY) || '[]');
+      tunggal = Array.isArray(disimpan) ? bersihkanTurns(disimpan) : [];
+    } catch { tunggal = []; }
+    localStorage.removeItem(THREAD_KEY);
+    localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
+    if (!tunggal.length) return [];
+    const pertama = threadBaru();
+    pertama.turns = tunggal;
+    pertama.judul = judulDari(tunggal.find((turn) => turn.role === 'user')?.content);
+    return [pertama];
+  }
+
+  /**
+   * Menulis daftar riwayat dengan penjagaan kuota: kalau penyimpanan perangkat
+   * penuh, percakapan paling lama ditinggalkan sampai tulisannya muat — bukan
+   * percakapan yang sedang berjalan.
+   */
+  function simpanThreads(threads) {
+    let daftar = threads.slice(0, MAX_THREADS);
+    for (let percobaan = 0; percobaan < MAX_THREADS; percobaan += 1) {
+      try {
+        localStorage.setItem(THREADS_KEY, JSON.stringify(daftar));
+        localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
+        return daftar;
+      } catch {
+        if (daftar.length <= 1) return daftar;
+        daftar = daftar.slice(0, -1);
+      }
+    }
+    return daftar;
+  }
+
+  const WAKTU = new Intl.RelativeTimeFormat('id', { numeric: 'auto' });
+  function waktuLalu(stamp) {
+    const detik = Math.round((Number(stamp) - Date.now()) / 1000);
+    if (!Number.isFinite(detik) || !stamp) return '';
+    if (detik > -90) return 'baru saja';
+    if (detik > -3600) return WAKTU.format(Math.round(detik / 60), 'minute');
+    if (detik > -86400) return WAKTU.format(Math.round(detik / 3600), 'hour');
+    if (detik > -604800) return WAKTU.format(Math.round(detik / 86400), 'day');
+    return new Intl.DateTimeFormat('id', { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(stamp));
   }
 
   /**
@@ -109,6 +224,18 @@
     return result.data;
   }
 
+  /**
+   * Kegagalan jaringan selalu membawa teks teknis bahasa Inggris dari peramban.
+   * Pembacca hanya perlu tahu apa yang bisa mereka lakukan berikutnya.
+   */
+  const GALAT_TEKNIS = /timeout|abort|network|failed to fetch|load failed|etimedout|socket|fetch/i;
+
+  function pesanPembaca(message) {
+    const teks = String(message || '').trim();
+    if (!teks || GALAT_TEKNIS.test(teks)) return 'Koneksi ke Tanya PII terputus. Periksa jaringan, lalu kirim lagi.';
+    return teks.slice(0, 200);
+  }
+
   // ------------------------------------------------------------------- halaman
 
   function initChat() {
@@ -120,18 +247,25 @@
     const submit = document.querySelector('#tanyaSubmit');
     const quota = document.querySelector('#tanyaQuota');
     const reset = document.querySelector('#tanyaReset');
+    const panel = document.querySelector('#tanyaRiwayat');
+    const panelBuka = document.querySelector('#tanyaRiwayatBuka');
+    const panelDaftar = document.querySelector('#tanyaRiwayatDaftar');
+    const panelKosong = document.querySelector('#tanyaRiwayatKosong');
     if (!scroll || !thread || !form) return;
 
-    if (localStorage.getItem(THREAD_VERSION_KEY) !== THREAD_VERSION) {
-      localStorage.removeItem(THREAD_KEY);
-      localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
+    let threads = muatThreads();
+    let aktifId = String(localStorage.getItem(AKTIF_KEY) || '');
+    let aktif = threads.find((item) => item.id === aktifId) || threads[0];
+    if (!aktif) {
+      aktif = threadBaru();
+      threads = [aktif];
     }
-
-    let turns = [];
-    try {
-      const stored = JSON.parse(localStorage.getItem(THREAD_KEY) || '[]');
-      turns = Array.isArray(stored) ? stored.slice(-MAX_TURNS) : [];
-    } catch { turns = []; }
+    aktifId = aktif.id;
+    localStorage.setItem(AKTIF_KEY, aktifId);
+    let turns = aktif.turns;
+    /* Hasil migrasi langsung ditulis; kalau hanya ditahan di memori, percakapan
+       lama hilang begitu halaman dibuka lagi. */
+    if (turns.length) simpanThreads(threads);
 
     let busy = false;
     let retryTimer = null;
@@ -208,6 +342,8 @@
       pdf: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>',
       naik: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21v-9l4.2-8.4a1.6 1.6 0 0 1 3 1.1L12.8 11H19l-2.2 8a1.6 1.6 0 0 1-1.6 1.2H7Z"/></svg>',
       turun: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v9l4.2 8.4a1.6 1.6 0 0 0 3-1.1L12.8 13H19l-2.2-8A1.6 1.6 0 0 0 15.2 3H7Z"/></svg>',
+      ganti: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h4L19 9a2.5 2.5 0 0 0-3.5-3.5L5 16z"/><path d="m14.5 6.5 3 3"/></svg>',
+      hapus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14"/><path d="M9.5 7V5.2h5V7"/><path d="M6.5 7 7.6 19a1.6 1.6 0 0 0 1.6 1.4h5.6A1.6 1.6 0 0 0 16.4 19L17.5 7"/><path d="M10.5 10.5v6M13.5 10.5v6"/></svg>',
     };
 
     /*
@@ -539,9 +675,20 @@
       send(soal);
     }
 
+    /**
+     * Simpan percakapan yang sedang dibuka lalu susun ulang daftar riwayat:
+     * yang terbaru selalu di atas, seperti daftar obrolan pada aplikasi pesan.
+     */
     const save = () => {
-      localStorage.setItem(THREAD_KEY, JSON.stringify(turns.slice(-MAX_TURNS)));
-      localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
+      aktif.turns = turns;
+      if (!aktif.judul) aktif.judul = judulDari(turns.find((item) => item.role === 'user')?.content);
+      aktif.diubah = Date.now();
+      threads = simpanThreads([aktif, ...threads.filter((item) => item.id !== aktif.id)]
+        .sort((a, b) => b.diubah - a.diubah));
+      aktif = threads.find((item) => item.id === aktifId) || aktif;
+      aktifId = aktif.id;
+      turns = aktif.turns;
+      lukisRiwayat();
     };
 
     function setBusy(value) {
@@ -554,12 +701,31 @@
       submit.classList.toggle('is-tertutup', value);
     }
 
+    /**
+     * Cuplikan percakapan yang sedang dibuka, dikirim bersama pertanyaan supaya
+     * "terus, yang kedua gimana?" masih tahu yang dimaksud. Hanya enam balasan
+     * terakhir dan potongan pendek: konteks dibutuhkan, transkrip penuh tidak.
+     */
+    function riwayatUntukModel() {
+      return turns.slice(0, -1).slice(-6)
+        .map((turn) => ({
+          role: turn.role,
+          content: String(turn.content || '').slice(0, turn.role === 'user' ? 600 : 1200),
+        }))
+        .filter((turn) => turn.content.length > 1);
+    }
+
     async function send(question) {
       const text = String(question || '').trim();
       if (!text || busy) return;
       clearTimeout(retryTimer);
 
-      turns.push({ role: 'user', content: text });
+      /* "Coba lagi" mengirim teks yang sama setelah jawaban gagal. Giliran
+         pertanyaannya masih ada di riwayat, jadi jangan ditulis dua kali. */
+      const terakhir = turns[turns.length - 1];
+      if (!(terakhir && terakhir.role === 'user' && terakhir.content === text)) {
+        turns.push({ role: 'user', content: text });
+      }
       if (turns.length > MAX_TURNS) turns = turns.slice(-MAX_TURNS);
       paint(true);
       intro.hidden = true;
@@ -570,11 +736,13 @@
       const row = pending(text);
       stick(true);
       pembatal = typeof AbortController === 'function' ? new AbortController() : null;
+      const sebelum = riwayatUntukModel();
 
       try {
         const data = await askServer({
           action: 'chat',
           message: text,
+          riwayat: sebelum,
           token: sessionToken(),
           device: deviceId()
         }, pembatal?.signal);
@@ -608,14 +776,19 @@
         showQuota(data);
       } catch (error) {
         row.remove();
-        paint();
         if (error?.name === 'AbortError') {
           turns.pop();
           save();
           paint(true);
           toast('Jawaban dihentikan.');
-        } else if (error.code === 'quota') upgradeRow(error.message);
-        else errorRow(error.message, Number(error.retryAfter) || 0, () => send(text));
+        } else {
+          /* Pertanyaan yang gagal dijawab tetap tinggal di riwayat; kalau tidak,
+             percakapan lanjutannya hilang begitu halaman dibuka ulang. */
+          save();
+          paint();
+          if (error.code === 'quota') upgradeRow(error.message);
+          else errorRow(pesanPembaca(error.message), Number(error.retryAfter) || 0, () => send(text));
+        }
         stick();
         loadQuota();
       } finally {
@@ -656,6 +829,176 @@
       quota.hidden = false;
     }
 
+    /* ------------------------------------------------------------- panel riwayat
+
+     * Daftar percakapan yang pernah dibuka di perangkat ini. Isinya hanya judul,
+     * jumlah balasan, dan kapan terakhir dipakai — cukup untuk mengenali
+     * obrolan, tanpa menyalin jawabannya ke tempat lain.
+     */
+    function lukisRiwayat() {
+      if (!panelDaftar) return;
+      const isi = threads.filter((item) => item.turns.length);
+      if (panelKosong) panelKosong.hidden = isi.length > 0;
+      panelDaftar.innerHTML = isi.map((item) => {
+        const pertanyaan = item.turns.filter((turn) => turn.role === 'user').length;
+        return `
+          <li class="tanya-riwayat-item${item.id === aktifId ? ' is-aktif' : ''}" data-id="${escapeHTML(item.id)}">
+            <button type="button" class="tanya-riwayat-pilih" data-pilih="${escapeHTML(item.id)}">
+              <span class="tanya-riwayat-judul">${escapeHTML(item.judul || 'Percakapan Tanya PII')}</span>
+              <span class="tanya-riwayat-meta">${pertanyaan} pertanyaan · ${escapeHTML(waktuLalu(item.diubah))}</span>
+            </button>
+            <div class="tanya-riwayat-alat">
+              <button type="button" class="tanya-riwayat-act" data-riw="ganti" data-id="${escapeHTML(item.id)}"
+                aria-label="Ganti nama percakapan ini" title="Ganti nama">${IKON.ganti}</button>
+              <button type="button" class="tanya-riwayat-act is-bahaya" data-riw="hapus" data-id="${escapeHTML(item.id)}"
+                aria-label="Hapus percakapan ini" title="Hapus">${IKON.hapus}</button>
+            </div>
+          </li>`;
+      }).join('');
+      const terpilih = panelDaftar.querySelector('.is-aktif .tanya-riwayat-judul');
+      if (terpilih) terpilih.scrollIntoView({ block: 'nearest' });
+    }
+
+    function bukaPanel() {
+      if (!panel) return;
+      lukisRiwayat();
+      panel.classList.add('is-open');
+      panel.setAttribute('aria-hidden', 'false');
+      panelBuka?.setAttribute('aria-expanded', 'true');
+      panelBuka?.classList.add('is-aktif');
+      panel.querySelector('.tanya-riwayat-panel')?.focus?.();
+    }
+
+    function tutupRiwayat() {
+      if (!panel) return;
+      panel.classList.remove('is-open');
+      panel.setAttribute('aria-hidden', 'true');
+      panelBuka?.setAttribute('aria-expanded', 'false');
+      panelBuka?.classList.remove('is-aktif');
+    }
+
+    /** Lembaran baru; percakapan yang sedang berjalan tidak dibuang, hanya ditinggalkan. */
+    function buatPercakapan() {
+      if (busy) { toast('Tunggu jawaban ini selesai.'); return; }
+      clearTimeout(retryTimer);
+      if (!turns.length) { input.focus(); return; }
+      aktif.turns = turns;
+      const baru = threadBaru();
+      threads = simpanThreads([baru, ...threads.filter((item) => item.turns.length)]);
+      aktif = baru;
+      aktifId = baru.id;
+      localStorage.setItem(AKTIF_KEY, aktifId);
+      turns = aktif.turns;
+      paint(true);
+      intro.hidden = false;
+      lukisRiwayat();
+      loadQuota();
+      input.focus();
+    }
+
+    function bukaPercakapan(id) {
+      if (busy) { toast('Tunggu jawaban ini selesai.'); return; }
+      const tujuan = threads.find((item) => item.id === id);
+      if (!tujuan) return;
+      if (tujuan.id === aktifId) { tutupRiwayat(); return; }
+      clearTimeout(retryTimer);
+      aktif.turns = turns;
+      aktif = tujuan;
+      aktifId = tujuan.id;
+      localStorage.setItem(AKTIF_KEY, aktifId);
+      turns = aktif.turns;
+      paint(true);
+      intro.hidden = turns.length > 0;
+      lukisRiwayat();
+      tutupRiwayat();
+    }
+
+    function hapusPercakapan(id) {
+      const target = threads.find((item) => item.id === id);
+      if (!target) return;
+      threads = threads.filter((item) => item.id !== id);
+      if (target.id === aktifId || !threads.length) threads = [threadBaru(), ...threads];
+      threads = simpanThreads(threads);
+      aktif = threads.find((item) => item.id === aktifId) || threads[0];
+      aktifId = aktif.id;
+      localStorage.setItem(AKTIF_KEY, aktifId);
+      turns = aktif.turns;
+      clearTimeout(retryTimer);
+      paint(true);
+      lukisRiwayat();
+      toast('Percakapan dihapus dari riwayat.');
+    }
+
+    /**
+     * Penghapusan riwayat dikonfirmasi di dalam barisnya sendiri, memakai
+     * bentuk yang sama dengan hapus kabar pada Feed.
+     */
+    function konfirmasiHapus(id, baris) {
+      baris.classList.add('is-konfirmasi');
+      baris.innerHTML = `
+        <span class="tanya-riwayat-tanya">Hapus percakapan ini dari riwayat?</span>
+        <span class="tanya-riwayat-ya">
+          <button type="button" class="tanya-riwayat-ya-hapus" data-riw="hapus-yakin" data-id="${escapeHTML(id)}">Ya, hapus</button>
+          <button type="button" data-riw="batal">Batal</button>
+        </span>`;
+    }
+
+    /** Ganti nama tanpa dialog browser: judulnya berubah menjadi kolom isian. */
+    function gantiNama(id) {
+      const item = threads.find((thread) => thread.id === id);
+      const baris = panelDaftar?.querySelector(`.tanya-riwayat-item[data-id="${CSS.escape(id)}"]`);
+      if (!item || !baris) return;
+      const pilih = baris.querySelector('.tanya-riwayat-pilih');
+      const alat = baris.querySelector('.tanya-riwayat-alat');
+      pilih.hidden = true;
+      alat.hidden = true;
+      const kolom = document.createElement('input');
+      kolom.className = 'tanya-riwayat-input';
+      kolom.type = 'text';
+      kolom.maxLength = 60;
+      kolom.value = item.judul || '';
+      kolom.placeholder = 'Nama percakapan';
+      kolom.setAttribute('aria-label', 'Nama percakapan');
+      baris.prepend(kolom);
+      kolom.focus();
+      kolom.select();
+      const selesai = (simpan) => {
+        const teks = String(kolom.value || '').trim();
+        if (simpan && teks) {
+          item.judul = teks.slice(0, 60);
+          item.diubah = item.diubah || Date.now();
+          threads = simpanThreads(threads);
+        }
+        lukisRiwayat();
+      };
+      kolom.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); selesai(true); }
+        if (event.key === 'Escape') { event.preventDefault(); selesai(false); }
+      });
+      kolom.addEventListener('blur', () => selesai(true));
+    }
+
+    panelBuka?.addEventListener('click', () => (panel?.classList.contains('is-open') ? tutupRiwayat() : bukaPanel()));
+    panel?.querySelector('.tanya-riwayat-backdrop')?.addEventListener('click', tutupRiwayat);
+    panel?.querySelector('#tanyaRiwayatTutup')?.addEventListener('click', tutupRiwayat);
+    panel?.querySelector('#tanyaRiwayatBaru')?.addEventListener('click', () => { buatPercakapan(); tutupRiwayat(); });
+    panelDaftar?.addEventListener('click', (event) => {
+      const alat = event.target.closest('[data-riw]');
+      if (alat) {
+        const baris = alat.closest('.tanya-riwayat-item');
+        if (alat.dataset.riw === 'hapus') konfirmasiHapus(alat.dataset.id, baris);
+        else if (alat.dataset.riw === 'hapus-yakin') hapusPercakapan(alat.dataset.id);
+        else if (alat.dataset.riw === 'batal') lukisRiwayat();
+        else gantiNama(alat.dataset.id);
+        return;
+      }
+      const pilih = event.target.closest('[data-pilih]');
+      if (pilih) bukaPercakapan(pilih.dataset.pilih);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') tutupRiwayat();
+    });
+
     // Tinggi textarea mengikuti isi; sisanya menggulir di dalam kolom (lihat max-height CSS).
     const grow = () => {
       input.style.height = 'auto';
@@ -667,22 +1010,15 @@
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         send(input.value);
+        return;
       }
+      if (event.key === 'Escape') tutupRiwayat();
     });
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       send(input.value);
     });
-    reset?.addEventListener('click', () => {
-      clearTimeout(retryTimer);
-      turns = [];
-      localStorage.removeItem(THREAD_KEY);
-      localStorage.setItem(THREAD_VERSION_KEY, THREAD_VERSION);
-      paint(true);
-      intro.hidden = false;
-      loadQuota();
-      input.focus();
-    });
+    reset?.addEventListener('click', buatPercakapan);
 
     document.querySelector('#tanyaStop')?.addEventListener('click', () => pembatal?.abort());
 
@@ -725,11 +1061,15 @@
     }
 
     paint(true);
+    lukisRiwayat();
     loadQuota();
     /* Serah-terima dari pembaca Pustaka: pertanyaan tentang bagian yang sedang
-       dibaca sudah tersusun di URL, tinggal diperiksa lalu dikirim sendiri. */
+       dibaca sudah tersusun di URL, tinggal diperiksa lalu dikirim sendiri.
+       Pertanyaan ini dibuka sebagai percakapan baru supaya riwayat yang sedang
+       tampil tidak ikut terbawa ke jawabannya. */
     const bawaan = String(new URLSearchParams(window.location.search).get('tanya') || '').slice(0, 500);
     if (bawaan) {
+      if (turns.length) buatPercakapan();
       input.value = bawaan;
       grow();
       input.focus({ noScroll: true });

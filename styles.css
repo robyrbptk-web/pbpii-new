@@ -6040,7 +6040,7 @@ body.has-kader-dialog {
   position: fixed;
   bottom: calc(var(--tanya-composer-tinggi, 132px) + 18px);
   left: 50%;
-  z-index: 40;
+  z-index: 48;
   max-width: min(88vw, 420px);
   border-radius: 12px;
   padding: 10px 16px;
@@ -6109,6 +6109,334 @@ body.has-kader-dialog {
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
+}
+
+/* ------------------------------------------------------- riwayat percakapan
+
+   Laci kiri berisi daftar percakapan yang pernah dibuka. Drawernya memakai
+   bahasa visual yang sama dengan menu "Lainnya": backdrop bening-navy, panel
+   putih melebar dari tepi, judul bagian huruf kecil berjarak. */
+.tanya-riwayat-buka {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #dde7f1;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--blue);
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.tanya-riwayat-buka:hover,
+.tanya-riwayat-buka.is-aktif {
+  border-color: var(--blue);
+  background: var(--sky);
+}
+
+.tanya-riwayat-buka:active {
+  transform: scale(.92);
+}
+
+.tanya-riwayat-buka svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.tanya-riwayat {
+  position: fixed;
+  z-index: 46;
+  inset: 0;
+  visibility: hidden;
+  transition: visibility .24s ease;
+}
+
+.tanya-riwayat.is-open {
+  visibility: visible;
+}
+
+.tanya-riwayat-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(9 30 52 / 52%);
+  cursor: default;
+  opacity: 0;
+  transition: opacity .24s ease;
+}
+
+.tanya-riwayat.is-open .tanya-riwayat-backdrop {
+  opacity: 1;
+}
+
+.tanya-riwayat-panel {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(340px, 88vw);
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+  border-right: 1px solid #dde7f1;
+  background: #fff;
+  box-shadow: 14px 0 40px rgb(9 30 52 / 22%);
+  transform: translateX(-102%);
+  overscroll-behavior: contain;
+  transition: transform .3s cubic-bezier(.22, 1, .36, 1);
+}
+
+.tanya-riwayat.is-open .tanya-riwayat-panel {
+  transform: none;
+}
+
+.tanya-riwayat-kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eaf0f6;
+}
+
+.tanya-riwayat-kepala p {
+  margin: 0;
+  color: #6c7d90;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.tanya-riwayat-kepala button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f2f6fb;
+  color: #43607d;
+  cursor: pointer;
+}
+
+.tanya-riwayat-kepala button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+}
+
+.tanya-riwayat-baru {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px dashed #b9cbe0;
+  border-radius: 12px;
+  background: var(--sky);
+  color: var(--blue);
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease;
+}
+
+.tanya-riwayat-baru:hover {
+  border-color: var(--blue);
+  background: #e6f0fa;
+}
+
+.tanya-riwayat-baru svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+}
+
+.tanya-riwayat-kosong {
+  margin: 6px 2px 0;
+  color: #8a99ab;
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+.tanya-riwayat-kosong[hidden] {
+  display: none;
+}
+
+.tanya-riwayat-daftar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.tanya-riwayat-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 6px;
+  border: 1px solid #eaf0f6;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.tanya-riwayat-item.is-aktif {
+  border-color: var(--blue);
+  background: #fff;
+}
+
+.tanya-riwayat-pilih {
+  display: grid;
+  gap: 3px;
+  padding: 9px 4px 9px 11px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tanya-riwayat-pilih[hidden],
+.tanya-riwayat-alat[hidden] {
+  display: none;
+}
+
+.tanya-riwayat-judul {
+  overflow: hidden;
+  color: #16324f;
+  font-size: .85rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tanya-riwayat-meta {
+  color: #93a2b3;
+  font-size: .7rem;
+}
+
+.tanya-riwayat-alat {
+  display: flex;
+  gap: 2px;
+  padding-right: 6px;
+}
+
+.tanya-riwayat-act {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #7e91a6;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+
+.tanya-riwayat-act:hover {
+  background: #eef4fa;
+  color: var(--blue);
+}
+
+.tanya-riwayat-act.is-bahaya:hover {
+  background: #fdecec;
+  color: #b3261e;
+}
+
+.tanya-riwayat-act svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tanya-riwayat-input {
+  grid-column: 1 / -1;
+  margin: 8px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--blue);
+  border-radius: 9px;
+  background: #fff;
+  color: #16324f;
+  font: inherit;
+  font-size: .85rem;
+}
+
+.tanya-riwayat-item.is-konfirmasi {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 10px 11px;
+  border-color: #f2c7c5;
+  background: #fdf4f3;
+}
+
+.tanya-riwayat-tanya {
+  color: #8a2f2a;
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.tanya-riwayat-ya {
+  display: flex;
+  gap: 8px;
+}
+
+.tanya-riwayat-ya button {
+  padding: 6px 12px;
+  border: 1px solid #d9c3c0;
+  border-radius: 9px;
+  background: #fff;
+  color: #5f6d7c;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tanya-riwayat-ya-hapus {
+  border-color: #b3261e !important;
+  background: #b3261e !important;
+  color: #fff !important;
+}
+
+.tanya-riwayat-kaki {
+  margin: 10px 2px 0;
+  padding-top: 10px;
+  border-top: 1px solid #eaf0f6;
+  color: #93a2b3;
+  font-size: .72rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 900px) {
+  .tanya-riwayat-panel {
+    width: 340px;
+    inset: 64px auto 0 0;
+    padding: 16px;
+    border-right: 1px solid #dde7f1;
+    border-radius: 0 18px 18px 0;
+  }
 }
 
 @media (max-width: 680px) {
