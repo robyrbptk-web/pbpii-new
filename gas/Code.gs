@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-05.9';
+const BACKEND_VERSION = '2026-11-05.10';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -89,18 +89,97 @@ function pustakaKataKunci_(teks) {
   });
 }
 
+/**
+ * Gabungkan potongan sebelum, sesudah, dan potongan itu sendiri dari berkas yang
+ * sama. Jawaban sering berada di kalimat tepat sebelum kata yang dicari, dan
+ * model hanya melihat bahan yang dikirimkan. Nomor halaman ikut dilebarkan supaya
+ * sitasi mencakup seluruh teks yang dijadikan bahan.
+ */
+function pustakaJendela_(korpus, indeks) {
+  const tengah = korpus.chunks[indeks];
+  if (!tengah) return null;
+  const bagian = [];
+  let rentang = halamanRentang_(tengah.h);
+  [indeks - 1, indeks, indeks + 1].forEach(function (posisi) {
+    const tetangga = korpus.chunks[posisi];
+    if (!tetangga || tetangga.d !== tengah.d) return;
+    const nomor = halamanRentang_(tetangga.h);
+    /* Potongan bersambung hanya kalau nomor halamannya bersentuhan. Impor PDF
+       tidak selalu urut halaman, jadi menggabungkan tetangga berdasarkan posisi
+       saja bisa menyambung kalimat dari bab yang sama sekali berbeda. */
+    if (nomor[1] + 1 < rentang[0] || nomor[0] > rentang[1] + 1) return;
+    const teks = String(tetangga.t).replace(/\s+/g, ' ').trim();
+    if (teks) bagian.push(teks);
+    rentang = [Math.min(rentang[0], nomor[0]), Math.max(rentang[1], nomor[1])];
+  });
+  if (!bagian.length) return null;
+
+  let isi = bagian.join(' ');
+  if (isi.length > PUSAKA_JENDELA_BATAS) {
+    const ruang = isi.lastIndexOf(' ', PUSAKA_JENDELA_BATAS);
+    isi = isi.slice(0, ruang > PUSAKA_JENDELA_BATAS * 0.6 ? ruang : PUSAKA_JENDELA_BATAS);
+  }
+  return { isi: isi, h: rentang };
+}
+
+/**
+ * Penyaring bahan untuk Tanya PII. Ambang skor BM25 mentah tidak dipakai karena
+ * panjang potongan mengubah skalanya — yang diukur adalah jarak kandidat dari
+ * skor terbaik. Peringkat BM25 lalu dilebur dengan peringkat cakupan kata kunci
+ * (reciprocal rank fusion) supaya potongan yang menjawab seluruh pertanyaan
+ * mendahului yang hanya memuat satu kata jarang.
+ */
 function pustakaKonteksCocok_(korpus, kueri) {
   const kunci = pustakaKataKunci_(kueri);
   if (!kunci.length) return [];
   const lookup = {};
   kunci.forEach(function (kata) { lookup[kata] = true; });
-  return pustakaCocok_(korpus, kueri, PUSAKA_BATAS_KONTEKS, true)
-    .filter(function (item) {
-      const jumlahCocok = item.kataCocok.filter(function (kata) { return lookup[kata]; }).length;
-      return jumlahCocok >= Math.min(2, kunci.length) && item.skor >= 0.75;
+
+  const minimal = Math.min(2, kunci.length);
+  const calon = pustakaCocok_(korpus, kueri, PUSAKA_BATAS_HITS, true).filter(function (item) {
+    const jumlahCocok = item.kataCocok.filter(function (kata) { return lookup[kata]; }).length;
+    return jumlahCocok >= minimal;
+  });
+  if (!calon.length) return [];
+
+  const puncak = calon[0].skor;
+  const layak = calon.filter(function (item) { return item.skor >= puncak * 0.35; });
+  if (!layak.length) return [];
+
+  const menurutCakupan = layak
+    .map(function (item, index) {
+      const unik = pustakaUnik_(item.kataCocok.filter(function (kata) { return lookup[kata]; }));
+      return { index: index, nilai: unik.length + (item.frasa ? 0.5 : 0) };
     })
-    .map(function (item) {
+    .sort(function (a, b) { return b.nilai - a.nilai; });
+  const peringkat = [];
+  menurutCakupan.forEach(function (entri, posisi) { peringkat[entri.index] = posisi + 1; });
+
+  const perBerkas = {};
+  return layak
+    .map(function (item, index) {
+      return {
+        item: item,
+        padu: 1 / (PUSAKA_RRF_K + index + 1) + 1 / (PUSAKA_RRF_K + peringkat[index])
+      };
+    })
+    .sort(function (a, b) { return b.padu - a.padu; })
+    .filter(function (entri) {
+      const berkas = entri.item.d;
+      perBerkas[berkas] = (perBerkas[berkas] || 0) + 1;
+      return perBerkas[berkas] <= PUSAKA_BATAS_PER_BERKAS;
+    })
+    .slice(0, PUSAKA_BATAS_KONTEKS)
+    .map(function (entri) {
+      const item = entri.item;
+      const jendela = pustakaJendela_(korpus, item.indeks);
+      if (jendela) {
+        item.isi = jendela.isi;
+        item.h = jendela.h;
+      }
       delete item.kataCocok;
+      delete item.indeks;
+      delete item.frasa;
       return item;
     });
 }
@@ -285,6 +364,7 @@ const DEFAULT_SETTINGS = [
   ['turnstileSecret', ''],
   ['eventCommentsOpen', 'true'],
   ['feedOpen', 'true'],
+  ['faktaSinkronAktif', 'true'],
   ['kaderJenjang', 'Pelajar|Madya|Muda|Utama']
 ];
 
@@ -309,6 +389,7 @@ const ALLOWED_SETTINGS = [
   'turnstileSecret',
   'eventCommentsOpen',
   'feedOpen',
+  'faktaSinkronAktif',
   'kaderJenjang'
 ];
 
@@ -376,6 +457,14 @@ function setup() {
   }
 
   const faktaDitanam = faktaTanam_();
+  /* Pacu harian penarikan data resmi; gagal memasang (mis. izin belum disetujui)
+     tidak boleh membuat setup berhenti — dasbor masih bisa menarik manual. */
+  let pacuFakta = 'gagal';
+  try {
+    pacuFakta = pastikanPacuFakta_();
+  } catch (error) {
+    pacuFakta = 'gagal: ' + error.message;
+  }
 
   const sisa = bersihkanSisaFeed_();
   const bersih = sisa.komentar + sisa.reaksi + sisa.markah + sisa.berkas + sisa.kabar;
@@ -390,6 +479,7 @@ function setup() {
     laporan.push('Fakta awal ditanam ke sheet Fakta: ' + faktaDitanam +
       ' keterangan. Sunting di sana setiap kali kepengurusan berganti.');
   }
+  laporan.push('Pacu harian penarikan data resmi pbpii.or.id: ' + pacuFakta + '.');
   if (bersih) {
     laporan.push('Sisa feed yang kabarnya sudah dihapus dibersihkan: ' + sisa.komentar + ' komentar, ' +
       sisa.reaksi + ' suka, ' + sisa.markah + ' penanda, ' + sisa.berkas + ' berkas Drive, ' +
@@ -801,6 +891,8 @@ function adminAction_(action, body) {
       return faktaSimpan_(body, 'admin:' + clientIp_(body));
     case 'faktaHapus':
       return deleteRowById_(APP.SHEET_FACTA, body.id);
+    case 'faktaSinkron':
+      return faktaSinkron(true);
     default:
       throw new Error('Aksi tidak dikenal.');
   }
@@ -3820,6 +3912,12 @@ const PUSAKA_KORPUS_NAMA = 'pustaka.json';
 const PUSAKA_PERAN_BOBOT = { tamu: 0, kader: 1, org: 2, admin: 3 };
 const PUSAKA_BATAS_HITS = 12;
 const PUSAKA_BATAS_KONTEKS = 5;
+/** Batas bahan yang dikirim ke model untuk satu rujukan, termasuk jendela konteks. */
+const PUSAKA_JENDELA_BATAS = 1800;
+/** Satu berkas tidak boleh mendominasi rujukan; sisanya untuk berkas lain. */
+const PUSAKA_BATAS_PER_BERKAS = 2;
+/** Konstanta peleburan peringkat (reciprocal rank fusion); makin besar makin lunak. */
+const PUSAKA_RRF_K = 60;
 const PUSAKA_KATA_UMUM = {
   apa: true, apakah: true, bagaimana: true, kapan: true, dimana: true, siapa: true,
   mengapa: true, kenapa: true, tentang: true, yang: true, untuk: true, dengan: true,
@@ -4201,7 +4299,8 @@ function pustakaCocok_(korpus, kueri, batas, denganIsi) {
       const idf = Math.log(1 + (total - (df[kata] || 1) + 0.5) / ((df[kata] || 1) + 0.5));
       skor += idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (calon.kata.length / rata))));
     });
-    if (frasa.length > 8 && String(potong.t).toLowerCase().indexOf(frasa) >= 0) skor *= 1.6;
+    const kenaFrasa = frasa.length > 8 && String(potong.t).toLowerCase().indexOf(frasa) >= 0;
+    if (kenaFrasa) skor *= 1.6;
     const doc = judul[potong.d] || {};
     if (doc.kategori && pustakaKata_(kueri).indexOf(pustakaAkar_(String(doc.kategori).toLowerCase())) >= 0) skor += 1;
     hasil.push({
@@ -4216,6 +4315,10 @@ function pustakaCocok_(korpus, kueri, batas, denganIsi) {
     if (denganIsi) {
       hasil[hasil.length - 1].isi = String(potong.t).slice(0, 1400);
       hasil[hasil.length - 1].kataCocok = calon.cocok;
+      // Nomor potongan aslinya dibutuhkan penapis konteks untuk mengambil
+      // potongan tetangga; jangan ikut terkirim ke browser.
+      hasil[hasil.length - 1].indeks = calon.index;
+      hasil[hasil.length - 1].frasa = kenaFrasa;
     }
   });
 
@@ -4281,6 +4384,7 @@ function pustakaAksi_(action, body) {
      * keterangan yang memang sudah tampil di situs publik PB PII, bukan dokumen.
      */
     if (action === 'pustakaKonteks') {
+      throttle_('pustaka-konteks', clientIp_(body));
       const tanya = cleanText_(body.q).slice(0, 200);
       return { hasil: [], fakta: tanya.length < 4 ? [] : faktaCocok_(tanya, FAKTA_BATAS_KONTEKS) };
     }
@@ -4334,6 +4438,7 @@ function pustakaAksi_(action, body) {
 
   if (action === 'pustakaKonteks') {
     // Potongan teks penuh hanya dikirim untuk akun yang lolos pemeriksaan akses.
+    throttle_('pustaka-konteks', ip);
     const kueri = cleanText_(body.q).slice(0, 200);
     const hasil = kueri.length < 4 ? [] : pustakaKonteksCocok_(korpus, kueri);
     // Fakta organisasi berisi keterangan yang memang sudah tampil di situs publik,
@@ -4630,6 +4735,310 @@ function faktaTanam_() {
   return calon.length;
 }
 
+/* ------------------------------------------------ sinkronisasi data resmi
+
+   Situs resmi PB PII adalah sumber pertama untuk keterangan yang berubah waktu.
+   Job harian menarik laman/berita dari API WordPress situs tersebut, mengambil
+   kalimat kunci, dan menulisnya ke sheet Fakta sebagai baris beraut 'sinkron'
+   supaya jalur tanya-pertanyaan tidak bergantung pada penelusuran web. */
+
+const FAKTA_SINKRON_API = 'https://pbpii.or.id/wp-json/wp/v2';
+const FAKTA_SINKRON_JAM = 3;
+/**
+ * Laman (`pages`) adalah konten yang dikelola pengurus, jadi hasilnya boleh
+ * langsung berstatus terkonfirmasi. Berita (`posts`) hanya laporan kegiatan:
+ * masuk sebagai kandidat yang menunggu pemeriksaan pengurus.
+ */
+const FAKTA_SINKRON_JENIS = [
+  { jalur: 'pages', batas: 30, urut: 'modified', status: 'terkonfirmasi' },
+  { jalur: 'posts', batas: 10, urut: 'date', status: 'menunggu' }
+];
+
+/** Nama orang: minimal dua kata berhuruf besar, bukan nama lembaga. */
+function faktaNama_(teks) {
+  const nama = cleanText_(teks).replace(/\s+/g, ' ').replace(/[.,;:]+$/, '').trim().slice(0, 60);
+  const kata = nama.split(' ');
+  if (kata.length < 2 || kata.length > 6) return '';
+  if (!/^[A-ZÀ-Þ]/.test(nama)) return '';
+  if (/\b(pii|pb|pengurus|periode|badan|panitia)\b/i.test(nama)) return '';
+  return nama;
+}
+
+/** Alamat jalan dipotong pada pemisah kalimat agar tidak menyeret isi paragraf. */
+function faktaAlamat_(teks) {
+  const alamat = cleanText_(teks).replace(/\s+/g, ' ').replace(/[,;\s]+$/, '').trim().slice(0, 80);
+  if (alamat.length < 8) return '';
+  return /^(?:Jl\.|Jalan)\s+\S/i.test(alamat) ? alamat : '';
+}
+
+function faktaSurel_(teks) {
+  const surel = cleanText_(teks).trim().toLowerCase();
+  return /^[a-z0-9._%+-]{3,40}@[a-z0-9.-]{3,60}\.[a-z]{2,12}$/.test(surel) ? surel.slice(0, 80) : '';
+}
+
+function faktaPeriode_(teks) {
+  const cocok = /((?:19|20)\d{2})\s*(?:–|-|—|s\.?d\.?|sampai)\s*((?:19|20)\d{2})/i.exec(String(teks || ''));
+  return cocok ? cocok[1] + ' - ' + cocok[2] : '';
+}
+
+/**
+ * Pola per topik. `pola` hanya mengambil potongan teks, `kalimat` yang menyusun
+ * pernyataan lengkap sehingga isinya selalu terbaca sebagai keterangan organisasi,
+ * bukan kutipan mentah yang bisa terpotong di tengah.
+ */
+const FAKTA_POLA = [
+  {
+    topik: 'kepengurusan ketua umum',
+    pola: /\bketua umum\b[^.\n]{0,40}?(?:adalah|bernama|yaitu|:)\s*([^,;\n]{3,60})/i,
+    bersih: faktaNama_,
+    kalimat: function (nilai) {
+      return 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah ' + nilai + '.';
+    }
+  },
+  {
+    topik: 'periode kepengurusan pb pii',
+    pola: /\bperiode\s+((?:19|20)\d{2}\s*(?:–|-|—|s\.?d\.?|sampai)\s*(?:19|20)\d{2})/i,
+    bersih: function (nilai) {
+      const rentang = faktaPeriode_(nilai);
+      return rentang ? 'Periode ' + rentang : '';
+    },
+    kalimat: function (nilai) {
+      return 'Kepengurusan Pengurus Besar Pelajar Islam Indonesia berjalan untuk ' + nilai + '.';
+    }
+  },
+  {
+    topik: 'kantor sekretariat pb pii alamat',
+    pola: /((?:Jl\.|Jalan)\s+[A-Za-zÀ-ÿ0-9.'\-]{2,40}(?:\s+[A-Za-zÀ-ÿ0-9.'\-]{2,20}){0,4}(?:\s*(?:No|Nomor)\.?\s*[\d][\d\/\-A-Za-z]{0,9})?)/i,
+    bersih: faktaAlamat_,
+    kalimat: function (nilai) {
+      return 'Sekretariat Pengurus Besar Pelajar Islam Indonesia beralamat di ' + nilai + '.';
+    }
+  },
+  {
+    topik: 'email sekretariat pb pii',
+    pola: /([A-Za-z0-9._%+-]{3,40}@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,12})/,
+    bersih: faktaSurel_,
+    kalimat: function (nilai) {
+      return 'Surel resmi Pengurus Besar Pelajar Islam Indonesia adalah ' + nilai + '.';
+    }
+  }
+];
+
+/** Ubah HTML laman menjadi satu baris teks lurus tanpa tag dan entity. */
+function faktaTeksHtml_(html) {
+  return String(html || '')
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&#0?39;|&apos;|&#8217;/g, "'")
+    .replace(/&quot;|&#0?34;|&#8220;|&#8221;/g, '"')
+    .replace(/&#8211;|&ndash;|&#8212;|&mdash;/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Daftar laman/berita beserta isi teksnya dari API WordPress situs resmi. */
+function faktaLamanResmi_(jenis) {
+  const url = FAKTA_SINKRON_API + '/' + jenis.jalur +
+    '?_fields=link,title,date,modified,content&per_page=' + jenis.batas +
+    '&orderby=' + jenis.urut + '&order=desc';
+  let jawaban;
+  try {
+    jawaban = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+  } catch (error) {
+    return [];
+  }
+  if (Number(jawaban.getResponseCode()) !== 200) return [];
+
+  let isi;
+  try {
+    isi = JSON.parse(jawaban.getContentText('UTF-8'));
+  } catch (error) {
+    return [];
+  }
+  if (!Array.isArray(isi)) return [];
+
+  return isi.map(function (halaman) {
+    return {
+      tautan: cleanText_(halaman.link),
+      judul: faktaTeksHtml_(halaman.title && halaman.title.rendered),
+      tanggal: faktaTanggal_(halaman.modified || halaman.date),
+      teks: faktaTeksHtml_(halaman.content && halaman.content.rendered)
+    };
+  }).filter(function (halaman) {
+    return /^https:\/\/pbpii\.or\.id\//i.test(halaman.tautan) && halaman.teks.length > 40;
+  });
+}
+
+/** Pernyataan yang bisa ditarik dari satu laman; laman tanpa pola tidak ditulis. */
+function faktaCalonDari_(halaman, status) {
+  const calon = [];
+  FAKTA_POLA.forEach(function (aturan) {
+    const hasil = aturan.pola.exec(halaman.teks);
+    if (!hasil) return;
+    const nilai = aturan.bersih(hasil[1] || '');
+    if (!nilai) return;
+    calon.push({
+      topik: aturan.topik,
+      pernyataan: aturan.kalimat(nilai),
+      inti: nilai,
+      sumber: 'Laman resmi pbpii.or.id',
+      tautan: halaman.tautan,
+      terbit: halaman.tanggal,
+      status: status
+    });
+  });
+  return calon;
+}
+
+/** Tanggal terakhir job ini menulis, untuk menahan agar tidak menarik ulang hari ini. */
+function faktaTerakhirSinkron_() {
+  let terakhir = '';
+  faktaBaris_().forEach(function (item) {
+    if (cleanText_(item.peran || 'admin') !== 'sinkron') return;
+    const hari = faktaTanggal_(item.diperbarui);
+    if (hari > terakhir) terakhir = hari;
+  });
+  return terakhir;
+}
+
+/**
+ * Basis id baris mesin + penghindar tabrakan. Baris lama tidak pernah ditimpa:
+ * arsip usang dan keterangan baru harus punya id sendiri-sendiri supaya
+ * riwayat tetap terbaca.
+ */
+function faktaIdBaru_(basis) {
+  const dipakai = {};
+  faktaBaris_().forEach(function (item) { dipakai[String(item.id || '')] = true; });
+  let id = basis;
+  for (let nomor = 2; dipakai[id]; nomor += 1) id = basis + '-' + nomor;
+  return id;
+}
+
+function faktaKemarin_(hari) {
+  const kemarin = new Date(Date.parse(hari + 'T12:00:00') - 86400000);
+  return Utilities.formatDate(kemarin, timeZone_(), 'yyyy-MM-dd');
+}
+
+/**
+ * Satu kali penarikan: tulis baris baru, tandai baris lama yang tergantikan
+ * sebagai usang (tidak pernah dihapus supaya riwayat tetap terbaca), dan jangan
+ * pernah menyentuh baris yang dikelola pengurus. Bila situs resmi dan isian
+ * admin berbeda, perbedaan itu dilaporkan untuk ditinjau, bukan diputuskan sendiri.
+ */
+function faktaSinkron(paksa) {
+  const pengaturan = settingsMap_();
+  if (String(pengaturan.faktaSinkronAktif || 'true') === 'false') {
+    return { aktif: false, alasan: 'Penarikan otomatis data resmi dimatikan dari dasbor.' };
+  }
+
+  const hari = todayKey_();
+  // Trigger menerima objek peristiwa, jadi hanya nilai true yang memaksa jalan.
+  if (paksa !== true && faktaTerakhirSinkron_() === hari) {
+    return { aktif: true, lewat: true, alasan: 'Data resmi sudah ditarik hari ini.' };
+  }
+
+  const manusia = {};
+  const mesin = {};
+  faktaBaris_().forEach(function (item) {
+    const topik = cleanText_(item.topik).toLowerCase();
+    if (!topik) return;
+    if (cleanText_(item.peran || 'admin') === 'sinkron') {
+      if (cleanText_(item.status || 'terkonfirmasi') !== 'usang') mesin[topik] = item;
+    } else if (faktaBerlaku_(item, hari)) {
+      manusia[topik] = item;
+    }
+  });
+
+  const hasil = { aktif: true, baru: 0, diganti: 0, sama: 0, tinjauan: [] };
+  const dilihat = {};
+  FAKTA_SINKRON_JENIS.forEach(function (jenis) {
+    faktaLamanResmi_(jenis).forEach(function (halaman) {
+      faktaCalonDari_(halaman, jenis.status).forEach(function (calon) {
+        /* Laman sudah diurutkan dari yang paling baru, jadi topik yang sama
+           cukup diambil dari terbitan terbaru dan tidak ditimpa yang lebih lama. */
+        if (dilihat[calon.topik]) return;
+        dilihat[calon.topik] = true;
+
+        const kelola = manusia[calon.topik];
+        if (kelola) {
+          /* Pengurus yang memegang baris ini, jadi nilainya tidak ditimpa.
+             Kalau keterangan yang dikelola sudah memuat nilai dari situs,
+             keduanya sepakat dan tidak ada yang perlu dilaporkan. */
+          const kelolaTeks = cleanText_(kelola.pernyataan).toLowerCase();
+          if (kelolaTeks === calon.pernyataan.toLowerCase() ||
+              kelolaTeks.indexOf(String(calon.inti).toLowerCase()) >= 0) {
+            hasil.sama += 1;
+          } else {
+            hasil.tinjauan.push({
+              topik: calon.topik,
+              dikelola: kelolaTeks.slice(0, 200),
+              situs: calon.pernyataan.slice(0, 200),
+              tautan: calon.tautan
+            });
+          }
+          return;
+        }
+
+        const lama = mesin[calon.topik];
+        if (lama && cleanText_(lama.pernyataan) === calon.pernyataan) {
+          hasil.sama += 1;
+          return;
+        }
+        if (lama) {
+          faktaTulis_({
+            id: String(lama.id || ''),
+            topik: cleanText_(lama.topik),
+            pernyataan: cleanText_(lama.pernyataan),
+            sumber: cleanText_(lama.sumber),
+            tautan: cleanText_(lama.tautan),
+            terbit: faktaTanggal_(lama.terbit),
+            berlakuSejak: faktaTanggal_(lama.berlakuSejak) || hari,
+            berlakuSampai: faktaKemarin_(hari),
+            status: 'usang'
+          }, 'sinkron');
+          hasil.diganti += 1;
+        } else {
+          hasil.baru += 1;
+        }
+
+        faktaTulis_({
+          id: faktaIdBaru_('fakta-' + slugify_(calon.topik) + '-' + hari.replace(/-/g, '')),
+          topik: calon.topik,
+          pernyataan: calon.pernyataan,
+          sumber: calon.sumber,
+          tautan: calon.tautan,
+          terbit: calon.terbit,
+          berlakuSejak: calon.terbit || hari,
+          berlakuSampai: '',
+          status: calon.status
+        }, 'sinkron');
+      });
+    });
+  });
+
+  Logger.log('faktaSinkron ' + hari + ': baru ' + hasil.baru + ', diganti ' + hasil.diganti +
+    ', sama ' + hasil.sama + ', perlu ditinjau ' + hasil.tinjauan.length);
+  if (!hasil.baru && !hasil.diganti && !hasil.tinjauan.length) hasil.lewat = true;
+  return hasil;
+}
+
+/**
+ * Pasang pacu harian satu kali. Fungsi ini dipanggil dari setup() dan selalu
+ * memeriksa pemicu yang sudah ada, menjalankannya berulang tidak menghasilkan
+ * job ganda. Kegagalan pemasangan tidak boleh menggagalkan setup: data resmi
+ * tetap bisa ditarik manual dari dasbor.
+ */
+function pastikanPacuFakta_() {
+  const ada = ScriptApp.getProjectTriggers().filter(function (pemicu) {
+    return pemicu.getFunctionName() === 'faktaSinkron';
+  });
+  if (ada.length) return 'sudah terpasang';
+  ScriptApp.newTrigger('faktaSinkron').timeBased().everyDays(1).atHour(FAKTA_SINKRON_JAM).create();
+  return 'terpasang';
+}
+
 /* ==================================================== keamanan & akun kader
    Pembatas laju, captcha, login Google untuk kader, serta suka dan komentar
    pada acara. Semua halaman publik memakai aksi di bawah ini tanpa token
@@ -4654,6 +5063,7 @@ const RATE_RULES = {
   'org-article': { limit: 20, window: 600 },
   'pustaka-cari': { limit: 40, window: 60 },
   'pustaka-baca': { limit: 40, window: 60 },
+  'pustaka-konteks': { limit: 30, window: 60 },
   'chat': { limit: 6, window: 60 },
   'feed-list': { limit: 60, window: 60 },
   'feed-post': { limit: 20, window: 300 },

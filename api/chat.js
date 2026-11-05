@@ -300,7 +300,9 @@ function sumberBagian(fakta, pustaka, web) {
   }).filter(Boolean);
 
   const berkas = (Array.isArray(pustaka) ? pustaka : []).map((item) => {
-    const isi = clean(item.isi || item.cuplikan).slice(0, 1400);
+    /* Bahan rujukan sudah diperlebar dengan potongan tetangga di backend,
+       jadi jangan dipangkas kembali sampai teks yang dicari hilang di tengah. */
+    const isi = clean(item.isi || item.cuplikan).slice(0, 1800);
     if (!isi) return '';
     const bab = clean(item.b).slice(0, 120);
     const rentang = Array.isArray(item.h) ? item.h.map(Number) : [];

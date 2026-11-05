@@ -189,7 +189,7 @@ const scriptCache = {
 const CacheService = { getScriptCache: () => scriptCache };
 
 /** Titik-titik keluar yang bisa diatur per pemeriksaan. */
-const http = { google: null, turnstile: null, ai: null, calls: [] };
+const http = { google: null, turnstile: null, ai: null, resmi: null, calls: [] };
 const UrlFetchApp = {
   fetch(url, options) {
     http.calls.push({ url: String(url), options });
@@ -198,11 +198,29 @@ const UrlFetchApp = {
         : JSON.stringify({ choices: [{ message: { content: 'Jawaban contoh dari layanan AI.' } }] });
       return { getContentText: () => teks, getResponseCode: () => 200 };
     }
+    if (String(url).includes('/wp-json/wp/v2/')) {
+      const jalur = String(url).includes('/pages') ? 'pages' : 'posts';
+      const teks = JSON.stringify((http.resmi && http.resmi[jalur]) || []);
+      return { getContentText: () => teks, getResponseCode: () => 200 };
+    }
     const text = String(url).includes('oauth2.googleapis.com/tokeninfo')
       ? JSON.stringify(http.google || { error: 'tokeninfo belum diatur' })
       : JSON.stringify(http.turnstile || { success: false });
     return { getContentText: () => text, getResponseCode: () => 200 };
   }
+};
+
+/** Pemicu proyek hanya dicatat di sini; jadwal aslinya urusan Apps Script. */
+const pemicu = [];
+const ScriptApp = {
+  getProjectTriggers: () => pemicu.map((isi) => ({ getFunctionName: () => isi.fungsi })),
+  newTrigger: (fungsi) => ({
+    timeBased: () => ({
+      everyDays: (hari) => ({
+        atHour: (jam) => ({ create: () => pemicu.push({ fungsi, hari, jam }) })
+      })
+    })
+  })
 };
 
 const ContentService = {
@@ -345,6 +363,7 @@ const exported = [
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
   'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_',
   'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_',
+  'pustakaKonteksCocok_', 'pustakaJendela_',
   'ensureDefaultSettings_', 'sanitizeArticleHtml_', 'sanitizeLetterHtml_', 'saveArticle_', 'uploadImage_', 'driveImageUrl_',
   'orgUploadPdf_', 'orgUploadLetterImage_', 'orgSendLetter_', 'orgReadLetterAttachment_', 'orgReadLetterImage_',
   'perbaikiFotoDrive', 'bytesDariTeksAngka_',
@@ -353,10 +372,11 @@ const exported = [
   'bersihkanSisaFeed_', 'buangBerkasDrive_', 'kaderUsernameSiap_', 'kaderTautanBersih_',
   'threadAksi_', 'threadBersih_', 'threadPangkas_', 'threadKunci_', 'THREAD_HEADERS',
   'THREAD_TURN_MAX', 'THREAD_KATA_MAX', 'THREAD_SEL_MAKS',
-  'faktaCocok_', 'faktaBerlaku_', 'faktaSimpan_', 'faktaDaftar_', 'faktaTanam_', 'FAKTA_HEADERS'
+  'faktaCocok_', 'faktaBerlaku_', 'faktaSimpan_', 'faktaDaftar_', 'faktaTanam_', 'FAKTA_HEADERS',
+  'faktaSinkron', 'pastikanPacuFakta_', 'faktaTeksHtml_', 'faktaNama_', 'faktaAlamat_'
 ].join(', ');
 const load = new Function(
-  'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
+  'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog', 'ScriptApp', 'Logger',
   `${source}\nreturn { ${exported} };`
 );
 const gas = load(SpreadsheetApp, PropertiesService, Session, Utilities, CacheService,
@@ -365,7 +385,9 @@ const gas = load(SpreadsheetApp, PropertiesService, Session, Utilities, CacheSer
   { createTemplateOutput: () => ({ evaluate: () => ({ getContent: () => '' }) }) },
   UrlFetchApp,
   DriveApp,
-  { info() {}, warn() {} });
+  { info() {}, warn() {} },
+  ScriptApp,
+  { log() {} });
 
 // ------------------------------------------------------------------ fixtures
 
@@ -1244,9 +1266,63 @@ check('bentuk sitasi prompt', gas.pustakaPromptBagian_([]), '');
 
 const konteksAI = request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'aturan waktu turba', ip: '198.51.100.87' });
 check('gerbang AI minta potongan penuh ke Apps Script', /Waktu turba tidak dibatasi/.test(String(konteksAI.data.hasil[0].isi)), true);
-check('potongan rujukan dibatasi panjangnya', konteksAI.data.hasil.every((item) => String(item.isi).length <= 1400), true);
+check('bahan rujukan tidak melebihi batas jendela', konteksAI.data.hasil.every((item) => String(item.isi).length <= 1800), true);
 check('konteks tanpa kecocokan substansial tetap kosong',
   request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'apa itu', ip: '198.51.100.88' }).data.hasil.length, 0);
+
+/* Jendela konteks: potongan yang bersambungan halaman ikut menjadi bahan model. */
+const korpusJendela = {
+  tersedia: true,
+  docs: [{ id: 'uji-jendela', judul: 'Uji Jendela', kategori: 'Kelembagaan' }],
+  chunks: [
+    { d: 'uji-jendela', h: [10, 10], b: 'BAB I', t: 'Pendaftaran ditutup setelah formulir dibubuhi tanda tangan komisariat.' },
+    { d: 'uji-jendela', h: [11, 11], b: 'BAB I', t: 'Anggota baru yang lulus seleksi diangkat menjadi kader resmi organisasi.' },
+    { d: 'uji-jendela', h: [40, 40], b: 'BAB III', t: 'Muktamar memilih pimpinan pusat untuk masa bakti berikutnya.' }
+  ]
+};
+const jendela = gas.pustakaKonteksCocok_(korpusJendela, 'anggota baru lulus seleksi kader');
+check('satu bahan rujukan untuk pertanyaan yang spesifik', jendela.length, 1);
+check('jendela menarik kalimat pada halaman sebelumnya',
+  /Pendaftaran ditutup/.test(String(jendela[0].isi)), true);
+check('jendela berhenti saat nomor halaman tidak bersambungan',
+  /Muktamar/i.test(String(jendela[0].isi)), false);
+check('rentang halaman rujukan mengikuti bahan yang dikirim', jendela[0].h, [10, 11]);
+check('penanda internal potongan tidak ikut keluar',
+  [jendela[0].indeks === undefined, jendela[0].kataCocok === undefined], [true, true]);
+
+/* Penyaringan relatif: yang tersisa selalu dekat dengan skor terbaik. */
+const korpusRendah = {
+  tersedia: true,
+  docs: [{ id: 'uji-rendah', judul: 'Uji Rendah', kategori: 'Kaderisasi' }],
+  chunks: [1, 2, 3, 4, 5, 6].map((nomor) => ({
+    d: 'uji-rendah', h: [nomor, nomor], b: 'BAB I',
+    t: `Kaderisasi madya ${nomor} diselenggarakan wilayah daerah komisariat dengan persiapan matang dan laporan tertulis.`
+  }))
+};
+const rendah = gas.pustakaKonteksCocok_(korpusRendah, 'kaderisasi madya wilayah');
+check('rujukan tetap diberikan walau kata kueri umum di seluruh korpus', rendah.length > 0, true);
+check('yang tersisa tetap dekat dengan skor terbaik',
+  rendah.every((item) => item.skor >= rendah[0].skor * 0.35), true);
+check('potongan yang hanya memuat satu kata pertanyaan disaring keluar',
+  gas.pustakaKonteksCocok_({
+    tersedia: true,
+    docs: [{ id: 'uji-cakupan', judul: 'Uji Cakupan', kategori: 'Kaderisasi' }],
+    chunks: [
+      { d: 'uji-cakupan', h: [1, 1], b: 'BAB I', t: 'Zirkonium madya.' },
+      { d: 'uji-cakupan', h: [2, 2], b: 'BAB I', t: 'Kaderisasi madya wilayah dan pelantikannya.' }
+    ]
+  }, 'kaderisasi madya wilayah').length, 1);
+check('satu berkas tidak menguasai seluruh rujukan', (() => {
+  const banyak = gas.pustakaKonteksCocok_(korpus, 'turba kaderisasi madya');
+  const perBerkas = {};
+  banyak.forEach((item) => { perBerkas[item.d] = (perBerkas[item.d] || 0) + 1; });
+  return Object.keys(perBerkas).every((id) => perBerkas[id] <= 2);
+})(), true);
+check('permintaan konteks dibatasi lajunya per jaringan', (() => {
+  const ip = '198.51.100.188';
+  for (let i = 0; i < 30; i++) request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'aturan waktu turba', ip });
+  return request({ action: 'pustakaKonteks', token: 'ses-rozak', q: 'aturan waktu turba', ip }).ok;
+})(), false);
 
 // Foto: URL Drive bentuk lama 404, jadi semua jalur penyimpanan menormalkannya.
 check('URL foto lama dinormalkan ke CDN unduhan',
@@ -1714,7 +1790,7 @@ check('pengaturan jenjang diikuti saat menyimpan', (() => {
 seed('Posts', [{
   id: 'pos-profil-kuota', authorKey: 'k:kader-kuota', authorId: 'kader-kuota', authorName: 'Kader Kuota Lama',
   authorPicture: 'https://lh3.googleusercontent.com/a/kuota-lama', jenis: 'teks', isi: 'Kabar lama sebelum punya foto.',
-  eventId: '', repostOf: '', visibel: 'true', createdAt: `${today}T07:40:00.000Z`, updatedAt: `${today}T07:40:00.000Z`
+  eventId: '', repostOf: '', visibel: 'true', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
 }]);
 
 const avatarSatu = request({ action: 'kaderUnggah', token: 'ses-kuota', bagian: 'avatar', data: JPEG_PROFIL, ip: IP_KUOTA });
@@ -2236,6 +2312,99 @@ check('rujukan tamu berisi fakta, bukan berkas', (() => {
 })(), [true, 0, true]);
 check('aksi pustaka lain untuk tamu tetap ditolak', /khusus akun/.test(String(
   request({ action: 'pustakaList', ip: '198.51.100.123' }).error)), true);
+
+/* ------------------------------------------------------------------ #157
+   Penarikan berkala data resmi dari situs pbpii.or.id ke sheet Fakta. */
+const kemarinSinkron = new Date(Date.now() - 2 * 86400000).toISOString();
+const surelLama = 'fakta-email-sekretariat-pb-pii-' + hariFakta.replace(/-/g, '');
+const hariSebelumFakta = new Date(Date.parse(hariFakta + 'T12:00:00') - 86400000)
+  .toLocaleDateString('en-CA');
+SHEETS.Fakta.push({
+  id: surelLama,
+  topik: 'email sekretariat pb pii',
+  pernyataan: 'Surel resmi Pengurus Besar Pelajar Islam Indonesia adalah lama@pbpii.or.id.',
+  sumber: 'Laman resmi pbpii.or.id', tautan: 'https://pbpii.or.id/lama',
+  terbit: '', berlakuSejak: kemarinSinkron.slice(0, 10), berlakuSampai: '',
+  status: 'terkonfirmasi', diperbarui: kemarinSinkron, peran: 'sinkron'
+});
+
+http.resmi = {
+  pages: [{
+    link: 'https://pbpii.or.id/profil-organisasi/',
+    title: { rendered: 'Profil &nbsp;<b>Organisasi</b>' },
+    date: '2026-01-10T08:00:00',
+    modified: '2026-10-30T08:00:00',
+    content: { rendered: '<p>Ketua Umum PB PII adalah Kevin Prayoga, S.H. (Periode 2026 &ndash; 2028).</p>'
+      + '<p>Sekretariat di Jl. Menteng Raya No. 58, Jakarta Pusat. Surel: sekretariat@pbpii.or.id</p>' }
+  }],
+  posts: [{
+    link: 'https://pbpii.or.id/rapat-terbatas/',
+    title: { rendered: 'Rapat Terbatas' },
+    date: '2026-11-01T08:00:00',
+    content: { rendered: '<p>Rapat membahas agenda kaderisasi dan Ketua Umum adalah Badriah Nur, S.Pd.</p>' }
+  }]
+};
+
+check('html laman dibersihkan sebelum dicari polanya',
+  gas.faktaTeksHtml_('<p>A &amp; B</p><script>var x=1<\/script><div>C&nbsp;D</div>'), 'A & B C D');
+check('nama jabatan bukan nama orang', gas.faktaNama_('Ketua Umum PB'), '');
+check('dua kata berhuruf besar diterima sebagai nama', gas.faktaNama_('Kevin Prayoga,'), 'Kevin Prayoga');
+
+const panggilanSebelum = http.calls.filter((call) => /wp-json/.test(call.url)).length;
+const sinkronSatu = request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.190' });
+check('penarikan data resmi berjalan dari dasbor', sinkronSatu.ok, true);
+check('penarikan memakai dua jalur konten situs resmi',
+  http.calls.slice(panggilanSebelum).filter((call) => /wp-json/.test(call.url)).length, 2);
+check('keterangan baru ditambah, yang tergantikan ditandai usang',
+  [sinkronSatu.data.baru, sinkronSatu.data.diganti, sinkronSatu.data.sama], [1, 1, 2]);
+check('periode kepengurusan ikut tertarik dari laman resmi',
+  gas.faktaDaftar_().some((item) =>
+    item.topik === 'periode kepengurusan pb pii' && item.peran === 'sinkron' && item.berlaku), true);
+check('baris hasil tarikan ditandai sinkron', (() => {
+  const surel = gas.faktaDaftar_().find((item) => item.topik === 'email sekretariat pb pii' && item.status === 'terkonfirmasi');
+  return [surel.peran, surel.sumber, surel.tautan];
+})(), ['sinkron', 'Laman resmi pbpii.or.id', 'https://pbpii.or.id/profil-organisasi/']);
+check('baris baru tidak menimpa arsip yang id-nya mirip', (() => {
+  const baru = gas.faktaDaftar_().find((item) =>
+    item.topik === 'email sekretariat pb pii' && item.status === 'terkonfirmasi');
+  return [baru.id === surelLama, baru.id.indexOf(surelLama) === 0];
+})(), [false, true]);
+check('baris sinkron lama ditandai usang, bukan dihapus', (() => {
+  const lama = gas.faktaDaftar_().find((item) => /lama@pbpii/.test(item.pernyataan));
+  return [lama.status, lama.berlakuSampai, lama.id === surelLama];
+})(), ['usang', hariSebelumFakta, true]);
+check('keterangan usang tidak lagi menjawab pertanyaan',
+  /lama@pbpii/.test(JSON.stringify(gas.faktaCocok_('email sekretariat pb pii', 4))), false);
+check('surel terbaru yang menjawab pertanyaan',
+  /sekretariat@pbpii\.or\.id/.test(String(gas.faktaCocok_('email sekretariat pb pii', 4)[0].pernyataan)), true);
+check('berita tidak menyingkirkan laman resmi untuk topik yang sama',
+  /Badriah/.test(JSON.stringify(gas.faktaDaftar_())), false);
+check('baris yang dikelola pengurus tidak pernah disentuh penarik', (() => {
+  const ketua = gas.faktaDaftar_().find((item) => item.topik === 'kepengurusan ketua umum');
+  return [ketua.peran, /Kevin Prayoga/.test(ketua.pernyataan)];
+})(), ['admin', true]);
+
+const panggilanDua = http.calls.filter((call) => /wp-json/.test(call.url)).length;
+check('pacu harian tidak menarik ulang pada hari yang sama', gas.faktaSinkron().lewat, true);
+check('jalur otomatis hemat: tidak ada permintaan ulang',
+  http.calls.filter((call) => /wp-json/.test(call.url)).length, panggilanDua);
+check('penarikan paksa dari dasbor tetap berjalan',
+  request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.191' }).data.sama > 0, true);
+
+aturSetting('faktaSinkronAktif', 'false');
+const panggilanTiga = http.calls.filter((call) => /wp-json/.test(call.url)).length;
+const mati = request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.192' });
+check('sakelar dasbor menghentikan penarikan otomatis', mati.data.aktif, false);
+check('sakelar mati tidak memanggil situs resmi',
+  http.calls.filter((call) => /wp-json/.test(call.url)).length, panggilanTiga);
+aturSetting('faktaSinkronAktif', 'true');
+
+const pemicuSebelum = pemicu.length;
+check('pacu dipasang sekali dengan nama fungsi yang benar',
+  [gas.pastikanPacuFakta_(), pemicu.length - pemicuSebelum], ['terpasang', 1]);
+check('pemasangan ulang tidak menghasilkan job ganda',
+  [gas.pastikanPacuFakta_(), pemicu.length - pemicuSebelum], ['sudah terpasang', 1]);
+check('pacu dijadwalkan harian', [pemicu[pemicu.length - 1].hari, pemicu[pemicu.length - 1].jam], [1, 3]);
 
 // ------------------------------------------------------------------ laporan
 
