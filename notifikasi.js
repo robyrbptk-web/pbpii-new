@@ -10,7 +10,7 @@
   'use strict';
 
   const API = () => (window.PBPII_CONFIG && window.PBPII_CONFIG.apiEndpoint) || '/api/pii';
-  const KUNCI_TOKEN = ['pbpii_kader_token', 'pbpii_admin_token', 'pbpii_org_token'];
+  const KUNCI_TOKEN = { kader: 'pbpii_kader_token', admin: 'pbpii_admin_token', lembaga: 'pbpii_org_token' };
   const JEDA = 300000;
 
   let tombol = null;
@@ -23,7 +23,35 @@
   let dipasang = false;
   let terakhirTarik = 0;
 
-  const sesi = () => KUNCI_TOKEN.map((key) => localStorage.getItem(key) || '').find(Boolean) || '';
+  /**
+   * Halaman menyatakan kuasa sesinya lewat `data-sesi` pada tag script. Satu
+   * peramban bisa menyimpan beberapa peran sekaligus, jadi mengambil "token apa
+   * yang ada" lebih dulu salah di dasbor: orang yang juga kader akan membuka
+   * kotak kadernya sendiri, bukan kotak pengurus yang sedang ia pegang.
+   * Halaman kader sengaja mengikuti urutan akun.js (kader, lalu staf) karena
+   * di situlah fitur feed mengambil sesinya.
+   */
+  let kunciHalaman = null;
+
+  function peranHalaman() {
+    if (kunciHalaman !== null) return kunciHalaman;
+    const tag = document.querySelector('script[src*="notifikasi.js"]');
+    const peran = String((tag && tag.getAttribute('data-sesi')) || '').trim();
+    kunciHalaman = KUNCI_TOKEN[peran] ? peran : '';
+    return kunciHalaman;
+  }
+
+  function sesi() {
+    const peran = peranHalaman();
+    if (peran === 'kader') {
+      return localStorage.getItem(KUNCI_TOKEN.kader) ||
+        localStorage.getItem(KUNCI_TOKEN.admin) ||
+        localStorage.getItem(KUNCI_TOKEN.lembaga) || '';
+    }
+    if (peran) return localStorage.getItem(KUNCI_TOKEN[peran]) || '';
+    return Object.keys(KUNCI_TOKEN).map((nama) => localStorage.getItem(KUNCI_TOKEN[nama]) || '')
+      .find(Boolean) || '';
+  }
 
   async function kirim(badan) {
     const respons = await fetch(API(), {
