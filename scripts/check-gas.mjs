@@ -32,6 +32,7 @@ const HEADERS = {
   PostMedia: ['id', 'postId', 'url', 'mime', 'urut', 'createdAt'],
   Follows: ['id', 'actorKey', 'actorId', 'targetId', 'createdAt'],
   Bookmarks: ['id', 'actorKey', 'postId', 'createdAt'],
+  Stories: ['id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa'],
   PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'],
   PustakaPotongan: ['doc', 'halaman', 'teks', 'halamanAkhir', 'bab']
 };
@@ -1766,6 +1767,95 @@ check('aksi profil asing ditolak di pintu masuk', request({ action: 'kaderTidakA
   'Aksi profil kader tidak dikenal.');
 check('pengunggah gambar profil memakai pembatas laju sendiri',
   [!!gas.RATE_RULES['kader-profil'], !!gas.RATE_RULES['kader-unggah']], [true, true]);
+
+/* Cerita 24 jam: lingkaran di umpan, hilang sendiri, berkasnya dicabut. */
+const URL_LAMA = 'https://drive.usercontent.google.com/download?id=cerita-lama-abcdefghij&export=view&authuser=0';
+const ceritaTamu = request({ action: 'ceritaList', ip: IP_ROZAK });
+check('cerita dapat dibaca tanpa login', ceritaTamu.ok, true);
+check('belum ada cerita saat lembar masih kosong', ceritaTamu.data.cerita, []);
+check('tamu tidak diberi hak mengunggah cerita', ceritaTamu.data.kemampuan.unggah, false);
+check('pengurus tidak ditawari tombol cerita yang pasti ditolak',
+  request({ action: 'ceritaList', token: 'ses-pd', ip: IP_ROZAK }).data.kemampuan.unggah, false);
+check('cerita bukan tempat video',
+  request({ action: 'ceritaUnggah', token: 'ses-rozak', data: Buffer.from('bukan gambar sama sekali', 'utf8').toString('base64'), ip: IP_ROZAK }).error,
+  'Cerita memakai foto JPEG, PNG, atau WebP.');
+check('akun lembaga tidak dapat mengunggah cerita',
+  request({ action: 'ceritaUnggah', token: 'ses-pd', data: JPEG_PROFIL, ip: IP_ROZAK }).error,
+  'Cerita hanya dapat diunggah akun kader.');
+
+const ceritaRozak = request({ action: 'ceritaUnggah', token: 'ses-rozak', data: JPEG_PROFIL, keterangan: 'Selesai ta’lim subuh di sekretariat.', ip: IP_ROZAK });
+check('kader dapat mengunggah cerita', ceritaRozak.ok, true);
+check('cerita diberi batas sehari',
+  Math.round((ceritaRozak.data.cerita.kedaluarsa - Date.now()) / 3600000), 24);
+check('sisa jatah cerita ikut dilaporkan', ceritaRozak.data.sisa, gas.APP.CERITA_BATAS_AKTIF - 1);
+const berkasCerita = driveFiles.find((file) => ceritaRozak.data.cerita.gambar.includes('id=' + file.id + '&'));
+check('foto cerita diberi izin tautan lihat', berkasCerita.sharing, { access: 'ANYONE_WITH_LINK', permission: 'VIEW' });
+
+const lingkaranRozak = request({ action: 'ceritaList', token: 'ses-rozak', ip: IP_ROZAK });
+check('satu lingkaran satu kader', lingkaranRozak.data.jumlah, 1);
+check('lingkaran membawa nama dan foto pemiliknya', [
+  lingkaranRozak.data.cerita.length,
+  lingkaranRozak.data.cerita[0].username,
+  lingkaranRozak.data.cerita[0].cerita.length,
+  lingkaranRozak.data.cerita[0].sendiri
+], [1, 'rozak-pii', 1, true]);
+check('hak unggah muncul lagi bagi pemilik sesi', lingkaranRozak.data.kemampuan.unggah, true);
+check('umpan ikut membawa lingkaran cerita', (() => {
+  const umpan = request({ action: 'feedList', tab: 'terbaru', token: 'ses-kuota', ip: IP_KUOTA }).data;
+  return [umpan.cerita.length, umpan.cerita[0].kaderId, umpan.ceritaHak.unggah];
+})(), [1, 'kader-rozak', true]);
+check('profil kader menampilkan cerita miliknya', (() => {
+  const profil = request({ action: 'kaderProfil', username: 'rozak-pii', token: 'ses-rozak', ip: IP_ROZAK }).data;
+  return [profil.cerita.length, profil.cerita[0].keterangan];
+})(), [1, 'Selesai ta’lim subuh di sekretariat.']);
+
+request({ action: 'ceritaUnggah', token: 'ses-kuota', data: JPEG_PROFIL, ip: IP_KUOTA });
+check('cerita kader lain menjadi lingkaran terpisah',
+  request({ action: 'ceritaList', ip: IP_ROZAK }).data.cerita.map((grup) => grup.kaderId).length, 2);
+check('pengikut tidak boleh menghapus cerita kawannya',
+  request({ action: 'ceritaHapus', token: 'ses-panjang', id: ceritaRozak.data.cerita.id, ip: IP_PANJANG }).error,
+  'Cerita hanya dapat dihapus oleh pemiliknya.');
+check('cerita kader lain terbaca sebagai milik orang lain',
+  request({ action: 'ceritaList', token: 'ses-panjang', ip: IP_PANJANG }).data.cerita.some((grup) => grup.sendiri), false);
+
+/* Kedaluwarsa: baris lama tidak ditampilkan dan dibuang pada unggah berikutnya. */
+seed('Stories', [{
+  id: 'cerita-basi', kaderId: 'kader-rozak', actorKey: 'k:kader-rozak', url: URL_LAMA, mime: 'image/jpeg',
+  caption: 'Kabar kemarin.', createdAt: '2026-10-31T04:00:00.000Z', kedaluarsa: '2026-11-01T04:00:00.000Z'
+}]);
+check('cerita yang lewat batas tidak ditampilkan',
+  (request({ action: 'ceritaList', token: 'ses-rozak', ip: IP_ROZAK }).data.cerita
+    .find((grup) => grup.kaderId === 'kader-rozak') || {}).cerita.map((item) => item.keterangan),
+  ['Selesai ta’lim subuh di sekretariat.']);
+request({ action: 'ceritaUnggah', token: 'ses-rozak', data: JPEG_PROFIL, ip: IP_ROZAK });
+check('unggah berikutnya membereskan baris yang basi',
+  rowsOf('Stories').some((row) => row.id === 'cerita-basi'), false);
+
+/* Penuh: dua belas cerita aktif menutup jatah unggah berikutnya. */
+seed('Stories', Array.from({ length: gas.APP.CERITA_BATAS_AKTIF }, (_, i) => ({
+  id: `cerita-penuh-${i}`, kaderId: 'kader-panjang', actorKey: 'k:kader-panjang', url: URL_LAMA, mime: 'image/jpeg',
+  caption: '', createdAt: `${today}T08:00:00.000Z`,
+  kedaluarsa: new Date(Date.now() + 12 * 3600000).toISOString()
+})));
+check('cerita yang penuh menolak unggah baru',
+  request({ action: 'ceritaUnggah', token: 'ses-panjang', data: JPEG_PROFIL, ip: IP_PANJANG }).error,
+  `Cerita Anda masih penuh (${gas.APP.CERITA_BATAS_AKTIF}). Hapus satu yang lama lebih dulu.`);
+const daftarPenuh = request({ action: 'ceritaList', token: 'ses-panjang', ip: IP_PANJANG }).data.cerita;
+check('setiap kader mendapat lingkarannya sendiri', daftarPenuh.length, 3);
+check('isi lingkaran dihitung per kader',
+  (daftarPenuh.find((grup) => grup.kaderId === 'kader-panjang') || {}).cerita.length,
+  gas.APP.CERITA_BATAS_AKTIF);
+check('lingkaran tidak pernah melebihi empat puluh akun', daftarPenuh.length <= 40, true);
+check('lingkaran milik sendiri ditandai untuk pemiliknya',
+  daftarPenuh.some((grup) => grup.sendiri), true);
+
+const hapusCerita = request({ action: 'ceritaHapus', token: 'ses-rozak', id: ceritaRozak.data.cerita.id, ip: IP_ROZAK });
+check('pemilik dapat menghapus ceritanya', hapusCerita.ok, true);
+check('baris cerita ikut terhapus', rowsOf('Stories').some((row) => row.id === ceritaRozak.data.cerita.id), false);
+check('bingkai foto cerita yang dihapus masuk tempat sampah', berkasCerita.trashed, true);
+check('menghapus cerita yang sudah hilang tidak menjadi galat',
+  request({ action: 'ceritaHapus', token: 'ses-rozak', id: 'sudah-hilang', ip: IP_ROZAK }).ok, true);
+check('unggah cerita memakai pembatas laju sendiri', !!gas.RATE_RULES['cerita-unggah'], true);
 
 // ------------------------------------------------------------------ laporan
 

@@ -23,14 +23,14 @@ const RULES = {
 const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
   'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus',
-  'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari'
+  'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList'
 ]);
 
 const WRITE_ACTIONS = new Set([
   'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'kaderEmailLogin',
   'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage',
   'feedUpload', 'feedPost', 'feedEdit', 'feedDelete', 'feedLike', 'feedComment', 'feedRepost', 'feedBookmark', 'feedFollow',
-  'kaderProfilSimpan'
+  'kaderProfilSimpan', 'ceritaHapus'
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */
@@ -39,7 +39,7 @@ const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLog
 /** Base64 media/PDF uploads are the only payloads allowed to be large. */
 const MAX_BODY_BYTES = 220_000;
 const MAX_UPLOAD_BYTES = 4_500_000;
-const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage', 'orgUploadPdf', 'orgUploadLetterImage', 'feedUpload', 'kaderUnggah']);
+const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage', 'orgUploadPdf', 'orgUploadLetterImage', 'feedUpload', 'kaderUnggah', 'ceritaUnggah']);
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_DRIVE_RESPONSE_BYTES = 16 * 1024 * 1024;
 
@@ -111,6 +111,11 @@ async function serveDriveImage(req, res) {
       { redirect: 'follow', signal: AbortSignal.timeout(15_000) }
     );
     const finalHost = new URL(upstream.url).hostname;
+    if (finalHost === 'accounts.google.com') {
+      // Berkas yang baru saja dicabut izinnya (cerita kedaluwarsa atau kabar
+      // dihapus) dialihkan Google ke halaman masuk, bukan 404.
+      return res.status(404).json({ ok: false, error: 'Gambar sudah tidak tersedia.' });
+    }
     if (finalHost !== 'drive.google.com'
       && finalHost !== 'drive.usercontent.google.com'
       && !finalHost.endsWith('.googleusercontent.com')) {

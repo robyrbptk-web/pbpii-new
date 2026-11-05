@@ -40,6 +40,7 @@
   const videoKindEl = document.querySelector('#feedKindVideo');
   const lightboxEl = document.querySelector('#feedLightbox');
   const meAvaEl = document.querySelector('#feedMeAva');
+  const ceritaEl = document.querySelector('#ceritaStrip');
 
   const tokenSaya = () => window.PBPIIAkun?.sessionToken?.() || window.PBPIIAkun?.token?.() || '';
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -528,6 +529,7 @@
       const data = await api({ action: 'feedList', tab: state.tab, mulai, batas: PAGE, token });
       state.tokenMuat = token;
       applyMeta(data);
+      if (!lebih) window.PBPIICerita?.pasang(ceritaEl, data);
       if (lebih) appendCards(data.items || []);
       else {
         state.items = data.items || [];

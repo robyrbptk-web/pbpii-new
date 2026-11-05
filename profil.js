@@ -33,6 +33,10 @@
     ubah: document.querySelector('#profilUbah'),
     nama: document.querySelector('#profilNama'),
     akun: document.querySelector('#profilAkun'),
+    cerita: document.querySelector('#profilCerita'),
+    ceritaBuka: document.querySelector('#profilCeritaBuka'),
+    ceritaSisa: document.querySelector('#profilCeritaSisa'),
+    ceritaTambah: document.querySelector('#profilCeritaTambah'),
     bio: document.querySelector('#profilBio'),
     atribut: document.querySelector('#profilAtribut'),
     jaring: document.querySelector('#profilJaring'),
@@ -268,6 +272,41 @@
     </a>`).join('');
   }
 
+  /**
+   * Cerita 24 jam ikut tampil di profil karena lingkaran umpan dan halaman ini
+   * membuka penonton yang sama. Kelompok datanya dibangun ulang dari data
+   * profil yang sudah ada, jadi tidak ada permintaan kedua saat halaman dibuka.
+   */
+  function kelompokCerita() {
+    const profil = state.data?.profil || {};
+    const cerita = Array.isArray(state.data?.cerita) ? state.data.cerita : [];
+    if (!cerita.length) return null;
+    return {
+      kaderId: profil.id,
+      nama: profil.nama,
+      username: profil.username,
+      avatar: profil.avatar,
+      sendiri: Boolean(state.data?.kemampuan?.mengelola),
+      cerita
+    };
+  }
+
+  function catatCerita() {
+    const hak = state.data?.ceritaHak || {};
+    const grup = kelompokCerita();
+    const bolehTambah = Boolean(state.data?.kemampuan?.mengelola) && Boolean(hak.unggah);
+
+    el.avatar.classList.toggle('is-bercerita', Boolean(grup));
+    el.ceritaBuka.hidden = !grup;
+    el.ceritaTambah.hidden = !bolehTambah;
+    el.cerita.hidden = !grup && !bolehTambah;
+    if (grup) {
+      const pertama = grup.cerita[0] || {};
+      el.ceritaSisa.textContent = window.PBPIICerita?.sisaWaktu(pertama.kedaluarsa) || '';
+    }
+    state.grupCerita = grup;
+  }
+
   function catatProfil() {
     const data = state.data;
     if (!data) return;
@@ -289,6 +328,7 @@
     el.nama.textContent = profil.nama || 'Kader PII';
     el.akun.hidden = !profil.username;
     el.akun.textContent = profil.username ? '@' + profil.username : '';
+    catatCerita();
     el.bio.hidden = !profil.bio;
     el.bio.textContent = profil.bio || '';
 
@@ -431,6 +471,22 @@
   });
   el.tabPengikut?.addEventListener('click', () => aturTab('pengikut'));
   el.tabMengikuti?.addEventListener('click', () => aturTab('mengikuti'));
+
+  /* ------------------------------------------------------------------ cerita */
+
+  el.ceritaBuka?.addEventListener('click', () => {
+    if (state.grupCerita) window.PBPIICerita?.bukaSatu(state.grupCerita);
+  });
+  el.ceritaTambah?.addEventListener('click', () => window.PBPIICerita?.unggah());
+  el.avatar?.addEventListener('click', () => {
+    if (state.grupCerita) window.PBPIICerita?.bukaSatu(state.grupCerita);
+  });
+  document.addEventListener('pbpii-cerita', () => {
+    /* Unggah dan hapus terjadi di penonton layar penuh, jadi profil cukup ikut
+       memuat ulang: cincin, sisa waktu, dan hitungan tidak boleh tertinggal. */
+    state.sedangMuat = false;
+    muat();
+  });
 
   /* ------------------------------------------------------------------ ikuti */
 

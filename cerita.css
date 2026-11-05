@@ -1,0 +1,402 @@
+/**
+ * Cerita 24 jam kader. Warna cincin mengikuti identitas PII (navy–blue–hijau),
+ * bukan meniru layanan lain, dan penontonnya memakai layar gelap agar foto
+ * kader yang jarang direnungi tetap terbaca di bawah terik.
+ */
+
+.cerita-strip {
+  display: flex;
+  gap: 14px;
+  margin: 4px 0 18px;
+  padding: 4px 2px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cerita-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.cerita-ring {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 74px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cerita-ring:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+.cerita-ring-isi {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 210deg, var(--navy), var(--blue), var(--green), var(--navy));
+  padding: 3px;
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.cerita-ring-isi > * {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  object-fit: cover;
+  background: var(--soft);
+  color: var(--navy);
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.cerita-inisial {
+  font-size: 22px;
+}
+
+/* Cerita yang sudah dibaca tetap tampil, hanya cincinnya dinetralkan. */
+.cerita-ring:not(.is-baru) .cerita-ring-isi {
+  background: var(--line);
+}
+
+.cerita-ring:hover .cerita-ring-isi {
+  transform: scale(1.05);
+}
+
+.cerita-ring:active .cerita-ring-isi {
+  transform: scale(0.96);
+}
+
+.cerita-ring-nama {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cerita-ring.is-sendiri .cerita-ring-nama {
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.cerita-ring-plus {
+  position: absolute;
+  right: 8px;
+  bottom: 22px;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .cerita-ring {
+    width: 66px;
+  }
+
+  .cerita-ring-isi {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+/* ------------------------------------------------------------------ penonton */
+
+.cerita-terkunci {
+  overflow: hidden;
+}
+
+.cerita-panggung {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: #05101d;
+  color: #fff;
+  animation: cerita-hadir 200ms ease-out;
+}
+
+.cerita-panggung[hidden] {
+  display: none;
+}
+
+@keyframes cerita-hadir {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.cerita-batang {
+  grid-area: 1;
+  display: flex;
+  gap: 5px;
+  padding: 10px max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+}
+
+.cerita-batang-satu {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
+.cerita-batang-satu > b {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #fff;
+  border-radius: inherit;
+}
+
+.cerita-batang-satu.is-lewat > b {
+  width: 100%;
+}
+
+.cerita-atas {
+  grid-area: 2;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px max(14px, env(safe-area-inset-right)) 6px max(14px, env(safe-area-inset-left));
+}
+
+.cerita-ava {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.16);
+  font-weight: 700;
+}
+
+.cerita-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cerita-ident {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cerita-ident b {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cerita-ident small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.cerita-jeda,
+.cerita-tutup {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cerita-tutup {
+  font-size: 26px;
+}
+
+.cerita-jeda:hover,
+.cerita-tutup:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.cerita-badan {
+  grid-area: 2;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 4px 0 0;
+}
+
+.cerita-foto {
+  max-width: min(100%, 460px);
+  max-height: 100%;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  touch-action: manipulation;
+}
+
+.cerita-sisi {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cerita-sisi-kanan {
+  right: 0;
+  width: 68%;
+}
+
+.cerita-sisi:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: -6px;
+}
+
+.cerita-bawah {
+  grid-area: 3;
+  display: grid;
+  gap: 10px;
+  padding: 12px max(14px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background: linear-gradient(180deg, rgba(5, 16, 29, 0) 0%, rgba(5, 16, 29, 0.85) 40%);
+}
+
+.cerita-ket {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-line;
+  word-break: break-word;
+  min-height: 0;
+}
+
+.cerita-panggung.is-galat .cerita-ket {
+  color: #ffd7d7;
+}
+
+.cerita-kancing {
+  display: flex;
+  gap: 10px;
+}
+
+.cerita-kancing button,
+.cerita-mundur button {
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cerita-kancing button:hover,
+.cerita-mundur button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.cerita-kancing [data-hapus] {
+  border-color: rgba(255, 150, 150, 0.6);
+  color: #ffd9d9;
+}
+
+.cerita-mundur {
+  display: flex;
+  gap: 8px;
+}
+
+.cerita-mundur input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: inherit;
+}
+
+.cerita-mundur input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cerita-mundur button {
+  background: var(--green);
+  border-color: var(--green);
+  font-weight: 600;
+}
+
+.cerita-panggung:not(.is-pratayang) .cerita-mundur {
+  display: none;
+}
+
+.cerita-panggung.is-pratayang .cerita-kancing,
+.cerita-panggung.is-pratayang .cerita-jeda {
+  display: none;
+}
+
+/* ------------------------------------------------------------- cincin profil */
+
+.profil-avatar.is-bercerita {
+  padding: 4px;
+  border-radius: 50%;
+  background: conic-gradient(from 210deg, var(--navy), var(--blue), var(--green), var(--navy));
+  cursor: pointer;
+}
+
+.profil-avatar.is-bercerita > img,
+.profil-avatar.is-bercerita > span {
+  border: 3px solid #fff;
+  border-radius: 50%;
+}
+
+.profil-cerita-unggah {
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cerita-panggung {
+    animation: none;
+  }
+
+  .cerita-batang-satu > b {
+    transition: none !important;
+  }
+}

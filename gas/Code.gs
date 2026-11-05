@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-05.2';
+const BACKEND_VERSION = '2026-11-05.5';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -33,6 +33,7 @@ const APP = {
   SHEET_POST_MEDIA: 'PostMedia',
   SHEET_FOLLOWS: 'Follows',
   SHEET_BOOKMARKS: 'Bookmarks',
+  SHEET_STORIES: 'Stories',
   /** Sesi 30 hari: kader tidak boleh disuruh masuk ulang setiap hari hanya
       untuk membaca komentar atau memakai Tanya PII. */
   TOKEN_TTL_SECONDS: 2592000,
@@ -43,6 +44,11 @@ const APP = {
   COMMENT_MAX_CHARS: 500,
   POST_MAX_CHARS: 1800,
   POST_MEDIA_MAX: 4,
+  /** Cerita kader: foto yang hilang sendiri setelah sehari, seperti umpan sosial
+      pada umumnya. Batas aktif dijaga supaya satu kader tidak menimbun 50 berkas. */
+  CERITA_JAM: 24,
+  CERITA_BATAS_AKTIF: 12,
+  CERITA_CAPTION_MAX: 140,
   PROP_SPREADSHEET_ID: 'SPREADSHEET_ID',
   PROP_ADMIN_USERNAME: 'ADMIN_USERNAME',
   PROP_ADMIN_PASSWORD: 'ADMIN_PASSWORD',
@@ -190,6 +196,10 @@ const POST_MEDIA_HEADERS = ['id', 'postId', 'url', 'mime', 'urut', 'createdAt'];
 /** Mengikuti satu arah: actorKey kader mengikuti targetId kader. */
 const FOLLOW_HEADERS = ['id', 'actorKey', 'actorId', 'targetId', 'createdAt'];
 const BOOKMARK_HEADERS = ['id', 'actorKey', 'postId', 'createdAt'];
+/** Cerita 24 jam: satu baris = satu foto kader beserta batas waktunya. */
+const STORY_HEADERS = [
+  'id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa'
+];
 
 // Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
 const SHEET_SCHEMA = [
@@ -212,7 +222,8 @@ const SHEET_SCHEMA = [
   [APP.SHEET_POSTS, POST_HEADERS],
   [APP.SHEET_POST_MEDIA, POST_MEDIA_HEADERS],
   [APP.SHEET_FOLLOWS, FOLLOW_HEADERS],
-  [APP.SHEET_BOOKMARKS, BOOKMARK_HEADERS]
+  [APP.SHEET_BOOKMARKS, BOOKMARK_HEADERS],
+  [APP.SHEET_STORIES, STORY_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -670,6 +681,10 @@ function doPost(event) {
       // Umpan: baca boleh untuk tamu (sama seperti thread acara), tulis memeriksa
       // akun kader di dalam feedAksi_ lewat actorOf_.
       data = feedAksi_(action, body);
+    } else if (action.indexOf('cerita') === 0) {
+      // Cerita 24 jam: lingkaran boleh dilihat tamu, unggah dan hapus mengunci
+      // akun kader di dalam ceritaAksi_.
+      data = ceritaAksi_(action, body);
     } else if (action === 'login') {
       data = login_(body);
     } else if (action === 'logout') {
@@ -4074,6 +4089,7 @@ const RATE_RULES = {
   'feed-follow': { limit: 60, window: 600 },
   'kader-profil': { limit: 12, window: 600 },
   'kader-unggah': { limit: 30, window: 900 },
+  'cerita-unggah': { limit: 20, window: 900 },
   'kader-cari': { limit: 30, window: 60 }
 };
 
@@ -4813,6 +4829,7 @@ function feedList_(body) {
   const batas = Math.max(5, Math.min(50, Number(body.batas) || 20));
   const mulai = Math.max(0, Number(body.mulai) || 0);
   const ctx = feedKonteks_(actorKey);
+  const cerita = ceritaKelompok_(actorKey, Date.now());
 
   let daftar;
   if (tab === 'acara') {
@@ -4851,6 +4868,8 @@ function feedList_(body) {
     total: daftar.length,
     sisa: Math.max(0, daftar.length - mulai - batas),
     items: daftar.slice(mulai, mulai + batas).map(feedRapikan_),
+    cerita: cerita,
+    ceritaHak: ceritaHak_(actorKey, cerita),
     kemampuan: {
       menulis: Boolean(actorKey) && feedBoleh_(),
       unggah: Boolean(actorKey) && driveSiap_(),
@@ -5531,9 +5550,14 @@ function kaderLihat_(body) {
     return card.author.kind === 'kader' && card.author.id === String(row.id);
   });
   const kunci = 'k:' + String(row.id);
+  const ceritaMilik = ceritaKelompok_(actorKey, Date.now()).filter(function (grup) {
+    return grup.kaderId === String(row.id);
+  })[0];
 
   return {
     profil: kaderPublik_(row, actorKey),
+    cerita: ceritaMilik ? ceritaMilik.cerita : [],
+    ceritaHak: ceritaHak_(actorKey, ceritaMilik ? [ceritaMilik] : []),
     statistik: {
       pengikut: jaringan.pengikut[String(row.id)] || 0,
       mengikuti: jaringan.mengikuti[String(row.id)] || 0,
@@ -5726,6 +5750,189 @@ function mediaGanti_(lama, masukan, label) {
   const url = feedTautanMedia_(nilai);
   if (!url) throw new Error(label + ' harus diunggah lebih dulu lewat PB PII.');
   return url;
+}
+
+/* ------------------------------------------------------ cerita 24 jam */
+
+/**
+ * Cerita adalah foto yang hilang sendiri sehari setelah diunggah. Barisnya ikut
+ * dibuang dan berkas Drive-nya dicabut: kalau hanya disembunyikan, tautan
+ * gambarnya tetap bisa dibuka siapa pun selama filenya masih ada.
+ */
+function ceritaHidup_(row, sekarang) {
+  return timeOf_(row.kedaluarsa) > sekarang && Boolean(feedTautanMedia_(row.url));
+}
+
+/**
+ * Lembar cerita dibaca lewat jalur ini: sebelum setup() dijalankan lemparnya
+ * belum ada dan umpan tetap harus terisi, jadi ketiadaan dilaporkan sebagai
+ * null dan bukan sebagai pengecualian yang menjatuhkan seluruh permintaan.
+ */
+function ceritaBaris_() {
+  try {
+    return rows_(APP.SHEET_STORIES);
+  } catch (error) {
+    return null;
+  }
+}
+
+/** Buang cerita yang batas waktunya lewat; hanya dipanggil pada jalur tulis. */
+function ceritaSingkirkan_(sekarang) {
+  const baris = ceritaBaris_();
+  if (!baris) return;
+  const kader = {};
+  rows_(APP.SHEET_KADERS).forEach(function (row) { kader[String(row.id)] = true; });
+  baris.forEach(function (row) {
+    const mati = timeOf_(row.kedaluarsa) <= sekarang || !kader[String(row.kaderId)];
+    if (!mati) return;
+    buangBerkasDrive_(String(row.url || ''));
+    try {
+      deleteRowById_(APP.SHEET_STORIES, row.id);
+    } catch (error) {
+      console.warn('Baris cerita gagal dibuang: ' + error.message);
+    }
+  });
+}
+
+/** Kelompok cerita per kader: lingkaran di umpan satu per orang, isinya dibuka urut. */
+function ceritaKelompok_(actorKey, sekarang) {
+  const baris = ceritaBaris_();
+  if (!baris) return [];
+  const pengarang = feedPengarangIndex_();
+  const kelompok = {};
+  const daftar = [];
+
+  baris.forEach(function (row) {
+    if (!ceritaHidup_(row, sekarang)) return;
+    const id = String(row.kaderId || '');
+    const penulis = pengarang[id];
+    if (!id || !penulis) return;
+
+    let grup = kelompok[id];
+    if (!grup) {
+      grup = kelompok[id] = {
+        kaderId: id,
+        nama: penulis.name,
+        username: penulis.username,
+        avatar: penulis.picture,
+        sendiri: Boolean(actorKey) && actorKey === 'k:' + id,
+        terbaru: 0,
+        cerita: []
+      };
+      daftar.push(grup);
+    }
+    const menit = timeOf_(row.createdAt);
+    grup.terbaru = Math.max(grup.terbaru, menit);
+    grup.cerita.push({
+      id: String(row.id),
+      gambar: feedTautanMedia_(row.url),
+      keterangan: cleanText_(row.caption).slice(0, APP.CERITA_CAPTION_MAX),
+      createdAt: String(row.createdAt || ''),
+      kedaluarsa: timeOf_(row.kedaluarsa)
+    });
+  });
+
+  daftar.forEach(function (grup) {
+    // Dalam satu lingkaran, cerita tertua yang pertama tampil supaya alurnya
+    // terbaca seperti hari yang berjalan, bukan seperti tumpukan acak.
+    grup.cerita.sort(function (a, b) { return timeOf_(a.createdAt) - timeOf_(b.createdAt); });
+  });
+  daftar.sort(function (a, b) { return b.terbaru - a.terbaru; });
+  return daftar.slice(0, 40);
+}
+
+function ceritaHak_(actorKey, grup) {
+  const milik = (grup || []).filter(function (item) { return item.sendiri; })[0];
+  // Kunci cerita adalah profil kader, jadi akun pengurus atau admin tidak diberi
+  // tombol yang pasti ditolak ceritaUnggah_.
+  const kader = actorKey.indexOf('k:') === 0;
+  return {
+    unggah: kader && driveSiap_() && ceritaBaris_() !== null,
+    batas: APP.CERITA_BATAS_AKTIF,
+    sisa: milik ? Math.max(0, APP.CERITA_BATAS_AKTIF - milik.cerita.length) : APP.CERITA_BATAS_AKTIF
+  };
+}
+
+function ceritaDaftar_(body) {
+  const actorKey = body.token ? safeActorKey_(body.token) : '';
+  const grup = ceritaKelompok_(actorKey, Date.now());
+
+  return {
+    cerita: grup,
+    jumlah: grup.reduce(function (total, item) { return total + item.cerita.length; }, 0),
+    kemampuan: ceritaHak_(actorKey, grup)
+  };
+}
+
+/**
+ * Unggah sekaligus simpan satu cerita. Dua langkah terpisah pernah dipakai di
+ * umpan dan menyisakan berkas yatim di Drive ketika langkah keduanya gagal.
+ */
+function ceritaUnggah_(body) {
+  const actor = actorOf_(body.token);
+  if (actor.kind !== 'kader') throw new Error('Cerita hanya dapat diunggah akun kader.');
+  throttle_('cerita-unggah', actor.key);
+
+  const sekarang = Date.now();
+  ceritaSingkirkan_(sekarang);
+  const semua = ceritaBaris_();
+  if (!semua) throw new Error('Cerita belum dapat diunggah. Coba beberapa saat lagi.');
+  const aktif = semua.filter(function (row) {
+    return String(row.kaderId) === String(actor.id) && ceritaHidup_(row, sekarang);
+  }).length;
+  if (aktif >= APP.CERITA_BATAS_AKTIF) {
+    throw new Error('Cerita Anda masih penuh (' + aktif + '). Hapus satu yang lama lebih dulu.');
+  }
+
+  const bytes = mediaDariBase64_(body.data);
+  const mime = imageKind_(bytes);
+  if (!mime) throw new Error('Cerita memakai foto JPEG, PNG, atau WebP.');
+  if (bytes.length > MAX_UPLOAD_BYTES) {
+    throw new Error('Ukuran foto melebihi 3 MB. Kecilkan terlebih dahulu.');
+  }
+
+  const media = mediaSimpan_(bytes, mime, 'cerita-' + slugify_(actor.name) + '-'
+    + Utilities.getUuid().slice(0, 8));
+  const createdAt = new Date(sekarang).toISOString();
+  const kedaluarsa = new Date(sekarang + APP.CERITA_JAM * 3600 * 1000).toISOString();
+  const id = Utilities.getUuid();
+
+  sheet_(APP.SHEET_STORIES).appendRow([
+    id, actor.id, actor.key, media.url, media.mime,
+    cleanText_(body.keterangan).slice(0, APP.CERITA_CAPTION_MAX), createdAt, kedaluarsa
+  ]);
+
+  const baris = findRow_(APP.SHEET_STORIES, id);
+  if (!baris) throw new Error('Cerita gagal disimpan. Coba unggah ulang.');
+  return {
+    cerita: {
+      id: id,
+      gambar: media.url,
+      keterangan: cleanText_(body.keterangan).slice(0, APP.CERITA_CAPTION_MAX),
+      createdAt: createdAt,
+      kedaluarsa: timeOf_(kedaluarsa)
+    },
+    sisa: Math.max(0, APP.CERITA_BATAS_AKTIF - aktif - 1)
+  };
+}
+
+function ceritaHapus_(body) {
+  const actor = actorOf_(body.token);
+  const baris = findRow_(APP.SHEET_STORIES, String(body.id || ''));
+  if (!baris) return { deleted: true };
+  if (String(baris.actorKey) !== actor.key) {
+    throw new Error('Cerita hanya dapat dihapus oleh pemiliknya.');
+  }
+  buangBerkasDrive_(String(baris.url || ''));
+  deleteRowById_(APP.SHEET_STORIES, baris.id);
+  return { deleted: true, id: String(baris.id) };
+}
+
+function ceritaAksi_(action, body) {
+  if (action === 'ceritaList') return ceritaDaftar_(body);
+  if (action === 'ceritaUnggah') return ceritaUnggah_(body);
+  if (action === 'ceritaHapus') return ceritaHapus_(body);
+  throw new Error('Aksi cerita tidak dikenal.');
 }
 
 function kaderAksi_(action, body) {
