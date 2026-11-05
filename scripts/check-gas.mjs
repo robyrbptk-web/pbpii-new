@@ -34,6 +34,8 @@ const HEADERS = {
   Bookmarks: ['id', 'actorKey', 'postId', 'createdAt'],
   Stories: ['id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa'],
   Threads: ['id', 'actor', 'thread', 'judul', 'dibuat', 'diubah', 'isi', 'jumlah', 'status'],
+  Fakta: ['id', 'topik', 'pernyataan', 'sumber', 'tautan', 'terbit',
+    'berlakuSejak', 'berlakuSampai', 'status', 'diperbarui', 'peran'],
   PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'],
   PustakaPotongan: ['doc', 'halaman', 'teks', 'halamanAkhir', 'bab']
 };
@@ -94,6 +96,8 @@ class FakeRange {
   }
 
   setFontWeight() { return this; }
+
+  setNumberFormat() { return this; }
 }
 
 class FakeSheet {
@@ -348,7 +352,8 @@ const exported = [
   'feedAksi_', 'feedList_', 'feedKonteks_', 'feedSkor_', 'feedTautanMedia_', 'videoKind_', 'feedCekIsi_', 'FEED_TAB', 'FEED_JENIS', 'SHEET_SCHEMA', 'POST_HEADERS',
   'bersihkanSisaFeed_', 'buangBerkasDrive_', 'kaderUsernameSiap_', 'kaderTautanBersih_',
   'threadAksi_', 'threadBersih_', 'threadPangkas_', 'threadKunci_', 'THREAD_HEADERS',
-  'THREAD_TURN_MAX', 'THREAD_KATA_MAX', 'THREAD_SEL_MAKS'
+  'THREAD_TURN_MAX', 'THREAD_KATA_MAX', 'THREAD_SEL_MAKS',
+  'faktaCocok_', 'faktaBerlaku_', 'faktaSimpan_', 'faktaDaftar_', 'faktaTanam_', 'FAKTA_HEADERS'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
@@ -2089,6 +2094,148 @@ check('penanda rasa yang tidak dikenal dikosongkan',
   bersih({ turns: [{ role: 'assistant', content: 'y', rasa: 'marah' }] }).turns[0].rasa, '');
 check('aksi riwayat yang tidak dikenal ditolak',
   captureError(() => gas.threadAksi_('threadAneh', { token: 'ses-rozak' })), 'Aksi riwayat tidak dikenal.');
+
+// ------------------------------------------------------------------ fakta organisasi
+check('setup mengenal sheet fakta', gas.SHEET_SCHEMA.some((entry) => entry[0] === 'Fakta'), true);
+check('skema fakta harness sama dengan backend',
+  JSON.stringify(gas.FAKTA_HEADERS), JSON.stringify(HEADERS.Fakta));
+check('penambahan sheet fakta diberi anggaran penulisan', Boolean(gas.RATE_RULES['fakta-tulis']), true);
+
+const hariFakta = gas.todayKey_();
+const kemarinFakta = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+const besokFakta = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+seed('Fakta', [
+  {
+    id: 'fakta-ketua-lama', topik: 'kepengurusan ketua umum',
+    pernyataan: 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah Ahmad Dachlan, Periode 2012 - 2014.',
+    sumber: 'Arsip PB PII', tautan: '', terbit: '2012-01-01',
+    berlakuSejak: '2012-01-01', berlakuSampai: '2014-12-31',
+    status: 'terkonfirmasi', diperbarui: '2012-01-01', peran: 'admin'
+  },
+  {
+    id: 'fakta-ketua-baru', topik: 'kepengurusan ketua umum',
+    pernyataan: 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah Kevin Prayoga, S.H., Periode 2026 - 2028.',
+    sumber: 'Pengurus Besar PII', tautan: 'https://pbpii.or.id/kepengurusan', terbit: hariFakta,
+    berlakuSejak: hariFakta, berlakuSampai: '',
+    status: 'terkonfirmasi', diperbarui: hariFakta, peran: 'admin'
+  },
+  {
+    id: 'fakta-ketua-besok', topik: 'kepengurusan ketua umum',
+    pernyataan: 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah nama yang belum dilantik.',
+    sumber: 'Rencana Munas', tautan: '', terbit: besokFakta,
+    berlakuSejak: besokFakta, berlakuSampai: '',
+    status: 'terkonfirmasi', diperbarui: besokFakta, peran: 'admin'
+  },
+  {
+    id: 'fakta-ketua-usang', topik: 'kepengurusan ketua umum',
+    pernyataan: 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah ketua yang sudah diganti.',
+    sumber: 'Pengurus Besar PII', tautan: '', terbit: kemarinFakta,
+    berlakuSejak: kemarinFakta, berlakuSampai: '',
+    status: 'usang', diperbarui: kemarinFakta, peran: 'admin'
+  }
+]);
+
+const ketuaFakta = gas.faktaCocok_('siapa ketua umum pb pii sekarang', 4);
+check('hanya fakta yang masih berlaku ikut menjawab',
+  ketuaFakta.map((item) => item.id), ['fakta-ketua-baru']);
+check('masa berlaku ikut dikirim ke prompt', ketuaFakta[0].sejak, hariFakta);
+check('sumber fakta ikut dikirim untuk disebut', ketuaFakta[0].sumber, 'Pengurus Besar PII');
+check('separo kata kunci belum cukup untuk memakai fakta',
+  gas.faktaCocok_('wartawan ketua', 4).length, 0);
+check('fakta yang belum mulai berlaku tidak dipakai',
+  gas.faktaBerlaku_({ pernyataan: 'x', status: 'terkonfirmasi', berlakuSejak: besokFakta }, hariFakta), false);
+check('fakta tanpa masa berlaku dianggap selalu berjalan',
+  gas.faktaBerlaku_({ pernyataan: 'x', status: 'terkonfirmasi' }, hariFakta), true);
+
+const simpanFakta = request({
+  action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.120',
+  fakta: {
+    topik: 'Kontak Sekretariat', pernyataan: 'Sekretariat PB PII membuka pelayanan Senin sampai Jumat.',
+    sumber: 'Pengurus Besar PII', tautan: 'https://pbpii.or.id/kontak', berlakuSejak: hariFakta
+  }
+});
+check('admin dapat menyimpan fakta', simpanFakta.ok, true);
+check('id fakta diturunkan dari topik dan tanggal berlaku',
+  simpanFakta.data.id, 'fakta-kontak-sekretariat-' + hariFakta.replace(/-/g, ''));
+check('topik disimpan dalam huruf kecil',
+  gas.faktaDaftar_().some((item) => item.topik === 'kontak sekretariat'), true);
+check('simpan ulang topik yang sama menambah baris, bukan menumpuk',
+  request({
+    action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.120',
+    fakta: {
+      topik: 'Kontak Sekretariat', pernyataan: 'Sekretariat PB PII membuka pelayanan Selasa sampai Kamis.',
+      sumber: 'Pengurus Besar PII', tautan: 'https://pbpii.or.id/kontak', berlakuSejak: hariFakta
+    }
+  }).data.id, simpanFakta.data.id);
+check('fakta yang ditulis admin ikut terpakai',
+  /Selasa/.test(String(gas.faktaCocok_('pelayanan sekretariat pb pii', 4)[0].pernyataan)), true);
+
+check('fakta tanpa isi ditolak', request({
+  action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.121',
+  fakta: { topik: 'kepengurusan', pernyataan: '   ', sumber: 'x' }
+}).ok, false);
+check('fakta tanpa sumber ditolak', /Sumber wajib/.test(String(request({
+  action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.121',
+  fakta: { topik: 'kepengurusan', pernyataan: 'Ada apa ini', sumber: '' }
+}).error)), true);
+check('tautan bukan https ditolak', /https/.test(String(request({
+  action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.121',
+  fakta: { topik: 'kepengurusan', pernyataan: 'Coba celah', sumber: 'x', tautan: 'javascript:alert(1)' }
+}).error)), true);
+check('masa berlaku terbalik ditolak', /berakhir setelah/.test(String(request({
+  action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.121',
+  fakta: {
+    topik: 'kepengurusan', pernyataan: 'Rentang salah', sumber: 'x',
+    berlakuSejak: hariFakta, berlakuSampai: kemarinFakta
+  }
+}).error)), true);
+check('fakta tidak bisa ditulis tanpa sesi admin', request({
+  action: 'faktaSimpan', ip: '198.51.100.122',
+  fakta: { topik: 'kepengurusan', pernyataan: 'Tanpa token', sumber: 'x' }
+}).ok, false);
+check('fakta dihapus lewat jalur admin', request({
+  action: 'faktaHapus', token: 'ses-admin', id: simpanFakta.data.id
+}).data.deleted, true);
+check('fakta yang dihapus hilang dari daftar',
+  gas.faktaDaftar_().some((item) => item.id === simpanFakta.data.id), false);
+
+check('penanaman fakta tidak menimpa baris yang sudah ada', gas.faktaTanam_(), 0);
+SHEETS.Fakta = [];
+aturSetting('chairmanName', 'Kevin Prayoga, S.H.');
+aturSetting('chairmanRole', 'Periode 2026 - 2028');
+aturSetting('heroText', 'Pelajar Islam Indonesia berdiri pada 4 Mei 1947.');
+aturSetting('footerText', 'Pengurus Besar — Pelajar Islam Indonesia · Jl. Menteng Raya No. 58, Jakarta Pusat');
+const ditanam = gas.faktaTanam_();
+check('sheet fakta kosong ditanami keterangan dari Settings', ditanam, 3);
+check('hasil tanaman memakai ketua umum yang sekarang',
+  /Kevin Prayoga/.test(String(gas.faktaCocok_('siapa ketua umum pb pii', 4)[0].pernyataan)), true);
+check('alamat sekretariat ikut ditanam',
+  /Menteng Raya/.test(String(gas.faktaCocok_('alamat kantor sekretariat pb pii', 4)[0].pernyataan)), true);
+check('tanaman kedua tidak menggandakan baris', gas.faktaTanam_(), 0);
+
+SHEETS.Fakta = [];
+aturSetting('chairmanRole', 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia');
+gas.faktaTanam_();
+const ketuaTanam = String(gas.faktaCocok_('siapa ketua umum pb pii', 4)[0].pernyataan);
+check('peran yang mengulang jabatan tidak ditulis dua kali',
+  ketuaTanam.toLowerCase().split('ketua umum').length - 1, 1);
+check('nama ketua umum tetap lengkap', /Kevin Prayoga, S\.H\.$/.test(ketuaTanam), true);
+
+const tercoerce = gas.faktaDaftar_().find((item) => item.topik === 'sejarah berdiri');
+check('tanggal tanaman sejarah tidak bergeser', tercoerce.berlakuSejak, '1947-05-04');
+const tengahMalam = new Date(hariFakta + 'T00:00:00');
+SHEETS.Fakta[0].berlakuSejak = tengahMalam;
+SHEETS.Fakta[0].terbit = tengahMalam.toISOString();
+const kembali = gas.faktaCocok_('siapa ketua umum pb pii', 4)[0];
+check('sel tanggal yang diubah Sheets dibaca sebagai hari yang sama', kembali.sejak, hariFakta);
+check('stempel UTC dalam teks dikembalikan ke zona script', kembali.terbit, hariFakta);
+
+check('rujukan tamu berisi fakta, bukan berkas', (() => {
+  const tamu = request({ action: 'pustakaKonteks', q: 'siapa ketua umum pb pii', ip: '198.51.100.123' });
+  return [tamu.ok, tamu.data.hasil.length, tamu.data.fakta.length > 0];
+})(), [true, 0, true]);
+check('aksi pustaka lain untuk tamu tetap ditolak', /khusus akun/.test(String(
+  request({ action: 'pustakaList', ip: '198.51.100.123' }).error)), true);
 
 // ------------------------------------------------------------------ laporan
 

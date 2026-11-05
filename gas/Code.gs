@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-05.7';
+const BACKEND_VERSION = '2026-11-05.9';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -35,6 +35,7 @@ const APP = {
   SHEET_BOOKMARKS: 'Bookmarks',
   SHEET_STORIES: 'Stories',
   SHEET_THREADS: 'Threads',
+  SHEET_FACTA: 'Fakta',
   /** Sesi 30 hari: kader tidak boleh disuruh masuk ulang setiap hari hanya
       untuk membaca komentar atau memakai Tanya PII. */
   TOKEN_TTL_SECONDS: 2592000,
@@ -219,6 +220,23 @@ const THREAD_HEADERS = [
   'id', 'actor', 'thread', 'judul', 'dibuat', 'diubah', 'isi', 'jumlah', 'status'
 ];
 
+/**
+ * Fakta organisasi yang punya masa berlaku. Bedanya dengan Pustaka: berkas
+ * pustaka menjelaskan sejarah yang tidak berubah, sedangkan keterangan seperti
+ * siapa ketua umum hari ini bisa berganti — jadi setiap baris membawa jendela
+ * berlakunya sendiri dan pertanyaan berjenjang waktu boleh dijawab hanya dari
+ * baris yang masih berlaku pada hari pertanyaan itu diajukan.
+ * status: 'terkonfirmasi' | 'usang' | 'menunggu'.
+ * peran: siapa yang terakhir menulis baris ini; 'sinkron' menandakan baris
+ * hasil penarikan otomatis, yang boleh ditimpa job serupa tapi tidak oleh pengurus.
+ */
+const FAKTA_HEADERS = [
+  'id', 'topik', 'pernyataan', 'sumber', 'tautan', 'terbit',
+  'berlakuSejak', 'berlakuSampai', 'status', 'diperbarui', 'peran'
+];
+const FAKTA_STATUS = ['terkonfirmasi', 'usang', 'menunggu'];
+const FAKTA_BATAS_KONTEKS = 4;
+
 // Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
 const SHEET_SCHEMA = [
   [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
@@ -242,7 +260,8 @@ const SHEET_SCHEMA = [
   [APP.SHEET_FOLLOWS, FOLLOW_HEADERS],
   [APP.SHEET_BOOKMARKS, BOOKMARK_HEADERS],
   [APP.SHEET_STORIES, STORY_HEADERS],
-  [APP.SHEET_THREADS, THREAD_HEADERS]
+  [APP.SHEET_THREADS, THREAD_HEADERS],
+  [APP.SHEET_FACTA, FAKTA_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -349,6 +368,15 @@ function setup() {
   const pbDibuat = orgsSheet ? ensurePbOrg_(orgsSheet) : false;
   if (pbDibuat) dibuat.push('akun induk ' + APP.PB_ORG_ID);
 
+  const faktaLembar = spreadsheet.getSheetByName(APP.SHEET_FACTA);
+  if (faktaLembar) {
+    // Kolom tanggal dibiarkan sebagai teks supaya Sheets tidak mengubah
+    // "2026-11-05" menjadi angka seri yang tanggalnya bergeser per zona.
+    faktaLembar.getRange('F1:H').setNumberFormat('@');
+  }
+
+  const faktaDitanam = faktaTanam_();
+
   const sisa = bersihkanSisaFeed_();
   const bersih = sisa.komentar + sisa.reaksi + sisa.markah + sisa.berkas + sisa.kabar;
 
@@ -358,6 +386,10 @@ function setup() {
     ? 'Dibuat: ' + dibuat.join(', ') + '.'
     : 'Semua sheet sudah ada; tidak ada yang dibuat baru.');
   if (diperbaiki.length) laporan.push('Kolom dilengkapi: ' + diperbaiki.join(', ') + '.');
+  if (faktaDitanam) {
+    laporan.push('Fakta awal ditanam ke sheet Fakta: ' + faktaDitanam +
+      ' keterangan. Sunting di sana setiap kali kepengurusan berganti.');
+  }
   if (bersih) {
     laporan.push('Sisa feed yang kabarnya sudah dihapus dibersihkan: ' + sisa.komentar + ' komentar, ' +
       sisa.reaksi + ' suka, ' + sisa.markah + ' penanda, ' + sisa.berkas + ' berkas Drive, ' +
@@ -763,6 +795,12 @@ function adminAction_(action, body) {
       return orgSetStatus_(body.id, body.decision, 'admin', '');
     case 'adminSavePbAccount':
       return adminSavePbAccount_(body);
+    case 'faktaList':
+      return { fakta: faktaDaftar_() };
+    case 'faktaSimpan':
+      return faktaSimpan_(body, 'admin:' + clientIp_(body));
+    case 'faktaHapus':
+      return deleteRowById_(APP.SHEET_FACTA, body.id);
     default:
       throw new Error('Aksi tidak dikenal.');
   }
@@ -4237,6 +4275,15 @@ function pustakaAksi_(action, body) {
 
   const peran = pustakaPeran_(body && body.token);
   if (!pustakaBoleh_(peran)) {
+    /*
+     * Tanya PII boleh dipakai tamu dan berkas internal tetap terkunci, jadi
+     * rujukan untuk peran tanpa akses hanya boleh berisi sheet Fakta — isinya
+     * keterangan yang memang sudah tampil di situs publik PB PII, bukan dokumen.
+     */
+    if (action === 'pustakaKonteks') {
+      const tanya = cleanText_(body.q).slice(0, 200);
+      return { hasil: [], fakta: tanya.length < 4 ? [] : faktaCocok_(tanya, FAKTA_BATAS_KONTEKS) };
+    }
     throw new Error('Pustaka organisasi khusus akun. Silakan masuk lebih dulu.');
   }
 
@@ -4289,7 +4336,11 @@ function pustakaAksi_(action, body) {
     // Potongan teks penuh hanya dikirim untuk akun yang lolos pemeriksaan akses.
     const kueri = cleanText_(body.q).slice(0, 200);
     const hasil = kueri.length < 4 ? [] : pustakaKonteksCocok_(korpus, kueri);
-    return { hasil: hasil };
+    // Fakta organisasi berisi keterangan yang memang sudah tampil di situs publik,
+    // jadi tamu pun boleh memakainya — inilah jalur yang menjawab "siapa ketua
+    // umum" ketika berkas Pustaka tidak terbuka untuk akun tanpa akses.
+    const fakta = kueri.length < 4 ? [] : faktaCocok_(kueri, FAKTA_BATAS_KONTEKS);
+    return { hasil: hasil, fakta: fakta };
   }
 
   if (action === 'pustakaStatus') {
@@ -4335,6 +4386,250 @@ function pustakaPromptBagian_(rujukan) {
   ].join(' ');
 }
 
+/* ================================================================ fakta organisasi
+   Berkas Pustaka menjawab "bagaimana sejarah". Pertanyaan seperti "siapa ketua umum
+   sekarang" punya umur: jawabannya benar hari ini dan salah tiga tahun lagi. Sheet
+   Fakta menyimpan satu keterangan bersama jendela berlakunya, jadi Tanya PII bisa
+   memakai keterangan kepengurusan terbaru tanpa menyamaratakannya dengan kutipan
+   buku tua, dan bisa menolak baris yang masanya sudah lewat. */
+
+function faktaBaris_() {
+  try {
+    return rows_(APP.SHEET_FACTA);
+  } catch (error) {
+    // Sheet dibuat oleh setup(). Sebelum itu ada, pertanyaan tetap dijawab dari
+    // Pustaka dan web; bukan gagal seluruhnya karena satu kolom belum diisi.
+    return [];
+  }
+}
+
+/**
+ * Tanggal kalender dari isi sel; kolom bisa berisi teks ISO atau objek Date.
+ * Sheets mengubah teks tanggal menjadi tengah malam zona lembar, jadi nilai
+ * yang sudah bergeser ke UTC (mis. 2026-11-04T17:00Z untuk 5 November) harus
+ * dipulihkan ke zona setempat dulu — kalau tidak, masa berlaku meleset sehari.
+ */
+function faktaTanggal_(nilai) {
+  if (nilai instanceof Date) {
+    return isNaN(nilai.getTime()) ? '' : Utilities.formatDate(nilai, timeZone_(), 'yyyy-MM-dd');
+  }
+  const teks = cleanText_(nilai);
+  if (!teks) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(teks)) return teks;
+  const waktu = new Date(teks);
+  if (isNaN(waktu.getTime())) return '';
+  return Utilities.formatDate(waktu, timeZone_(), 'yyyy-MM-dd');
+}
+
+function faktaTautan_(nilai) {
+  const teks = cleanText_(nilai).replace(/^http:\/\//i, 'https://');
+  if (!teks) return '';
+  // Runtime Apps Script tidak punya konstruktor URL, jadi alamat dipecah sendiri.
+  if (!/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(\/[^\s?#]*)?(\?[^\s#]*)?(#\S*)?$/i.test(teks)) {
+    throw new Error('Tautan sumber harus alamat https yang lengkap, misalnya https://pbpii.or.id/berita.');
+  }
+  return teks.slice(0, 300);
+}
+
+/** Hanya baris terkonfirmasi yang hari ini masuk jendela waktunya yang boleh dipakai. */
+function faktaBerlaku_(baris, hari) {
+  if (cleanText_(baris.status || 'terkonfirmasi') !== 'terkonfirmasi') return false;
+  if (!cleanText_(baris.pernyataan)) return false;
+  const sejak = faktaTanggal_(baris.berlakuSejak);
+  const sampai = faktaTanggal_(baris.berlakuSampai);
+  if (sejak && hari < sejak) return false;
+  if (sampai && hari > sampai) return false;
+  return true;
+}
+
+/**
+ * Cocokkan pertanyaan dengan fakta yang masih berlaku. Suku kata dicari dengan
+ * pemenggal yang sama dengan Pustaka, jadi "kepengurusannya" dan "kepengurusan"
+ * dianggap satu kata. Hasil diurutkan jumlah kata cocok lalu tanggal terbitnya,
+ * sehingga keterangan terbaru menang atas yang lama.
+ */
+function faktaCocok_(kueri, batas) {
+  const kunci = pustakaKataKunci_(kueri);
+  const baris = faktaBaris_();
+  if (!kunci.length || !baris.length) return [];
+
+  const hari = todayKey_();
+  const dicari = {};
+  kunci.forEach(function (kata) { dicari[kata] = true; });
+
+  const kandidat = [];
+  baris.forEach(function (item) {
+    if (!faktaBerlaku_(item, hari)) return;
+    const punya = {};
+    pustakaUnik_(pustakaKata_([item.topik, item.pernyataan, item.sumber].join(' ')))
+      .forEach(function (suku) { punya[suku] = true; });
+    let cocok = 0;
+    Object.keys(dicari).forEach(function (suku) { if (punya[suku]) cocok += 1; });
+    if (cocok < Math.min(2, kunci.length)) return;
+    kandidat.push({
+      cocok: cocok,
+      terbit: faktaTanggal_(item.terbit) || faktaTanggal_(item.berlakuSejak) || '',
+      item: {
+        id: String(item.id || ''),
+        topik: cleanText_(item.topik).slice(0, 40),
+        pernyataan: cleanText_(item.pernyataan).slice(0, 600),
+        sumber: cleanText_(item.sumber).slice(0, 120),
+        tautan: cleanText_(item.tautan).slice(0, 300),
+        terbit: faktaTanggal_(item.terbit),
+        sejak: faktaTanggal_(item.berlakuSejak),
+        sampai: faktaTanggal_(item.berlakuSampai)
+      }
+    });
+  });
+
+  kandidat.sort(function (a, b) {
+    if (b.cocok !== a.cocok) return b.cocok - a.cocok;
+    if (a.terbit !== b.terbit) return a.terbit < b.terbit ? 1 : -1;
+    return a.item.id < b.item.id ? -1 : 1;
+  });
+
+  const maksimal = Number(batas) || FAKTA_BATAS_KONTEKS;
+  return kandidat.slice(0, Math.max(1, Math.min(FAKTA_BATAS_KONTEKS, maksimal)))
+    .map(function (calon) { return calon.item; });
+}
+
+/** Tulis satu baris; dipakai jalur admin dan penanaman awal supaya satu jalur saja. */
+function faktaTulis_(data, peran) {
+  const sheet = sheet_(APP.SHEET_FACTA);
+  const id = String(data.id || '');
+  const baris = [
+    id, data.topik, data.pernyataan, data.sumber, data.tautan, data.terbit,
+    data.berlakuSejak, data.berlakuSampai, data.status, new Date().toISOString(), peran || 'admin'
+  ];
+  const existing = id ? findRow_(APP.SHEET_FACTA, id) : null;
+  if (existing) {
+    pastikanGrid_(sheet, existing._row, FAKTA_HEADERS.length);
+    sheet.getRange(existing._row, 1, 1, baris.length).setValues([baris]);
+  } else {
+    sheet.appendRow(baris);
+  }
+  return id;
+}
+
+function faktaSimpan_(body, aktor) {
+  const fakta = body.fakta || {};
+  const topik = cleanText_(fakta.topik).toLowerCase().slice(0, 40);
+  if (!topik) throw new Error('Topik wajib diisi, misalnya "kepengurusan ketua umum".');
+  const pernyataan = cleanText_(fakta.pernyataan).slice(0, 600);
+  if (!pernyataan) throw new Error('Isi fakta wajib diisi.');
+  const sumber = cleanText_(fakta.sumber).slice(0, 120);
+  if (!sumber) throw new Error('Sumber wajib diisi supaya pembaca dapat memeriksa aslinya.');
+  const tautan = faktaTautan_(fakta.tautan);
+  const terbit = faktaTanggal_(fakta.terbit);
+  const sejak = faktaTanggal_(fakta.berlakuSejak) || terbit || todayKey_();
+  const sampai = faktaTanggal_(fakta.berlakuSampai);
+  if (sampai && sampai <= sejak) throw new Error('Masa berlaku harus berakhir setelah tanggal mulai berlaku.');
+  const status = FAKTA_STATUS.indexOf(cleanText_(fakta.status)) >= 0
+    ? cleanText_(fakta.status) : 'terkonfirmasi';
+  const id = cleanText_(fakta.id).slice(0, 80) ||
+    ('fakta-' + slugify_(topik) + '-' + sejak.replace(/-/g, ''));
+
+  throttle_('fakta-tulis', aktor);
+  faktaTulis_({
+    id: id, topik: topik, pernyataan: pernyataan, sumber: sumber, tautan: tautan,
+    terbit: terbit, berlakuSejak: sejak, berlakuSampai: sampai, status: status
+  }, 'admin');
+  return { id: id, disimpan: true };
+}
+
+/** Daftar penuh untuk dasbor admin, termasuk baris yang sudah usang. */
+function faktaDaftar_() {
+  const hari = todayKey_();
+  return faktaBaris_().map(function (item) {
+    return {
+      id: String(item.id || ''),
+      topik: cleanText_(item.topik),
+      pernyataan: cleanText_(item.pernyataan),
+      sumber: cleanText_(item.sumber),
+      tautan: cleanText_(item.tautan),
+      terbit: faktaTanggal_(item.terbit),
+      berlakuSejak: faktaTanggal_(item.berlakuSejak),
+      berlakuSampai: faktaTanggal_(item.berlakuSampai),
+      status: cleanText_(item.status || 'terkonfirmasi'),
+      diperbarui: String(item.diperbarui || ''),
+      peran: cleanText_(item.peran || 'admin'),
+      berlaku: faktaBerlaku_(item, hari)
+    };
+  }).sort(function (a, b) {
+    if (a.topik !== b.topik) return a.topik < b.topik ? -1 : 1;
+    return a.terbit < b.terbit ? 1 : -1;
+  });
+}
+
+/**
+ * Baris pertama sheet Fakta diambil dari data yang sudah ada di Settings, supaya
+ * pertanyaan kepengurusan langsung terjawab setelah setup() tanpa admin harus
+ * mengetik ulang. Hanya berjalan bila sheet masih kosong; tidak pernah menimpa.
+ */
+function faktaTanam_() {
+  if (faktaBaris_().length) return 0;
+  const pengaturan = {};
+  try {
+    rows_(APP.SHEET_SETTINGS).forEach(function (row) {
+      pengaturan[String(row.key)] = cleanText_(row.value);
+    });
+  } catch (error) {
+    return 0;
+  }
+
+  const hari = todayKey_();
+  const calon = [];
+  const ketua = pengaturan.chairmanName;
+  if (ketua) {
+    const peran = pengaturan.chairmanRole || '';
+    // Peran hanya dipakai bila ia menambah informasi; banyak pengurus menulis
+    // "Ketua Umum PB PII" di kolom peran sehingga kalimatnya jadi berulang.
+    const berguna = peran && peran.toLowerCase().indexOf('ketua umum') < 0;
+    const dasar = 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah ' + ketua +
+      (berguna ? ' (' + peran + ')' : '');
+    calon.push({
+      topik: 'kepengurusan ketua umum',
+      pernyataan: dasar + (/\.$/.test(dasar) ? '' : '.'),
+      sumber: 'Pengurus Besar Pelajar Islam Indonesia'
+    });
+  }
+  if (pengaturan.heroText) {
+    calon.push({
+      topik: 'sejarah berdiri',
+      pernyataan: 'Pelajar Islam Indonesia berdiri pada 4 Mei 1947 dan merupakan organisasi pelajar Islam tertua di Indonesia.',
+      sumber: 'Buku Panduan Kelembagaan PII',
+      terbit: '1947-05-04', sejak: '1947-05-04'
+    });
+  }
+  const alamat = /Jl\.[^·;\n]{3,80}/i.exec([
+    pengaturan.footerText, pengaturan.aboutText, pengaturan.heroText, pengaturan.siteName
+  ].filter(Boolean).join(' · '));
+  if (alamat) {
+    calon.push({
+      topik: 'kantor sekretariat pb pii alamat',
+      pernyataan: 'Sekretariat Pengurus Besar Pelajar Islam Indonesia beralamat di ' +
+        cleanText_(alamat[0]) + '.',
+      sumber: 'Kontak Pengurus Besar PII'
+    });
+  }
+
+  calon.forEach(function (data) {
+    const sejak = data.sejak || hari;
+    faktaTulis_({
+      id: 'fakta-' + slugify_(data.topik) + '-' + sejak.replace(/-/g, ''),
+      topik: data.topik,
+      pernyataan: data.pernyataan,
+      sumber: data.sumber,
+      tautan: '',
+      terbit: data.terbit || '',
+      berlakuSejak: sejak,
+      berlakuSampai: '',
+      status: 'terkonfirmasi'
+    }, 'admin');
+  });
+  return calon.length;
+}
+
 /* ==================================================== keamanan & akun kader
    Pembatas laju, captcha, login Google untuk kader, serta suka dan komentar
    pada acara. Semua halaman publik memakai aksi di bawah ini tanpa token
@@ -4375,7 +4670,8 @@ const RATE_RULES = {
   'kader-cari': { limit: 30, window: 60 },
   'thread-list': { limit: 60, window: 60 },
   'thread-baca': { limit: 60, window: 60 },
-  'thread-tulis': { limit: 40, window: 60 }
+  'thread-tulis': { limit: 40, window: 60 },
+  'fakta-tulis': { limit: 30, window: 600 }
 };
 
 /** Cache script Apps Script dipaksa tenggelam setelah 600 detik. */

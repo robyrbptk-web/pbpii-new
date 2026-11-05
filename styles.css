@@ -5836,6 +5836,38 @@ body.has-kader-dialog {
   text-underline-offset: 2px;
 }
 
+/* Data resmi pengurus: kalimatnya utuh, jadi boleh turun baris. */
+.tanya-sumber-resmi {
+  gap: 7px;
+}
+
+.tanya-sumber-resmi li {
+  display: block;
+  flex: 1 1 240px;
+  border-color: #e6dcb8;
+  background: #fdfaef;
+  line-height: 1.4;
+}
+
+.tanya-sumber-resmi li span {
+  display: block;
+  overflow: visible;
+  color: #6b5310;
+  font-weight: 700;
+  text-overflow: unset;
+  white-space: normal;
+}
+
+.tanya-sumber-resmi li em {
+  display: block;
+  max-width: none;
+  overflow: visible;
+  margin-top: 2px;
+  font-size: .68rem;
+  text-overflow: unset;
+  white-space: normal;
+}
+
 .tanya-composer {
   flex: 0 0 auto;
   border-top: 0;

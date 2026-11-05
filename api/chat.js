@@ -287,7 +287,18 @@ function rapikanTeks(text) {
  * penelusuran web. Setiap bahan diberi label nama aslinya, bukan nomor, supaya
  * nama yang muncul di jawaban adalah nama yang memang bisa diperiksa pembaca.
  */
-function sumberBagian(pustaka, web) {
+function sumberBagian(fakta, pustaka, web) {
+  const resmi = (Array.isArray(fakta) ? fakta : []).map((item) => {
+    const pernyataan = clean(item.pernyataan).slice(0, 600);
+    if (!pernyataan) return '';
+    const sejak = tanggalLabel(item.sejak || item.terbit);
+    const sampai = tanggalLabel(item.sampai);
+    const masa = [sejak && `berlaku sejak ${sejak}`, sampai && `sampai ${sampai}`]
+      .filter(Boolean).join(', ');
+    const sumber = clean(item.sumber) || 'Pengurus Besar PII';
+    return `- [DATA RESMI] ${clean(item.topik)}: ${pernyataan} (dikelola pengurus, sumber: ${sumber}${masa ? `; ${masa}` : ''})`;
+  }).filter(Boolean);
+
   const berkas = (Array.isArray(pustaka) ? pustaka : []).map((item) => {
     const isi = clean(item.isi || item.cuplikan).slice(0, 1400);
     if (!isi) return '';
@@ -309,14 +320,26 @@ function sumberBagian(pustaka, web) {
     return `- [${tingkat}] Laman "${clean(item.judul)}" (${[asal, kapan].filter(Boolean).join(', ')}): ${isi}`;
   }).filter(Boolean);
 
-  const daftar = [...berkas, ...daring];
+  const daftar = [...resmi, ...berkas, ...daring];
   if (!daftar.length) return '';
+
+  const petunjuk = resmi.length
+    ? [
+        'Label [DATA RESMI] = keterangan yang dikelola Pengurus Besar PII dan masih berlaku hari ini;',
+        '[RESMI] = laman resmi organisasi, [BERITA] = media yang memberitakan, [UMUM] = sumber umum.',
+        'Untuk kepengurusan, alamat, kegiatan, dan keterangan lain yang berubah waktu, mulai dari [DATA RESMI]',
+        'dan jangan menggantinya dengan hasil pencarian web walau hasil web tampak lebih baru.'
+      ]
+    : [
+        'Label [RESMI] = laman resmi organisasi, [BERITA] = media yang memberitakan, [UMUM] = sumber umum.'
+      ];
 
   return [
     'BAHAN RUJUKAN YANG BOLEH DIPAKAI UNTUK MENJAWAB:',
     daftar.join('\n'),
     'Pakai hanya bahan tersebut dan sebut sumbernya dengan nama berkas atau nama lamannya.',
-    'Label [RESMI] = laman resmi organisasi, [BERITA] = media yang memberitakan, [UMUM] = sumber umum.',
+    'Tulisan berkurung siku di atas hanya pembeda bahan di dalam pesan ini — jangan disalin ke jawaban;',
+    ...petunjuk,
     'Bedakan tiga hal: fakta tertulis di bahan; opini adalah pendapat sumber tertentu dan sebut siapa yang',
     'berpendapat; sesuatu yang tidak tertulis di bahan belum terkonfirmasi — nyatakan begitu, jangan',
     'dinyatakan pasti.',
@@ -355,13 +378,28 @@ function webSitasi(hasil) {
 /**
  * Penanda [B…]/[D…] hanya alat bantu di dalam prompt; pembaca sudah melihat
  * daftar rujukan di bawah jawaban, jadi kodenya disingkirkan dari teks.
+ * Spasi di dalam kurung tidak boleh diasumsikan spasi biasa: model menulis
+ * "DATA RESMI" dengan spasi tipis tak-putus (U+202F), jadi \s dipakai di sini.
  */
 function bersihkanPenanda(teks) {
   return String(teks || '')
     .replace(/[ \t]*\[[BD]\d{1,3}\]/gi, '')
+    .replace(/[ \t]*\[\s*(?:DATA\s+)?RESMI\s*\]/gi, '')
+    .replace(/[ \t]*\[\s*(?:BERITA|UMUM)\s*\]/gi, '')
     .replace(/^([ \t]*)(?:Sumber|Rujukan|Referensi)[ \t]*:[ \t]*$/gim, '')
     .replace(/[ \t]+$/gm, '')
     .trim();
+}
+
+/** Keterangan resmi yang dipakai ikut tampil di bawah jawaban supaya terbaca dikelola siapa. */
+function faktaSitasi(hasil) {
+  if (!Array.isArray(hasil)) return [];
+  return hasil.map((item) => ({
+    topik: clean(item.topik).slice(0, 40),
+    pernyataan: clean(item.pernyataan).slice(0, 240),
+    sejak: tanggalLabel(item.sejak || item.terbit),
+    sampai: tanggalLabel(item.sampai)
+  })).filter((item) => item.pernyataan);
 }
 
 async function fetchJson(url) {
@@ -612,6 +650,12 @@ function kataKunci(teks) {
     .slice(0, 8);
 }
 
+/** Penanya yang meminta kabar terbaru tetap dikirim ke web walau data resmi sudah ada. */
+function butuhBerita(teks) {
+  const kata = clean(teks).toLowerCase().match(/[a-z0-9']+/g) || [];
+  return kata.some((item) => KATA_WAKTU.has(item));
+}
+
 /**
  * Laman yang nyambung dengan pertanyaan: minimal satu kata kunci muncul di
  * judul, lalu dinilai seberapa besar iramanya. Rujukan yang salah lebih buruk
@@ -710,7 +754,8 @@ async function cariWeb(query, tenggatMs = 12000) {
 
 /**
  * Kutipan diminta ke Apps Script, jadi pembatas per peran ikut berlaku di sana:
- * sesi tanpa akun tidak pernah menerima isi berkas internal.
+ * sesi tanpa akun tidak pernah menerima isi berkas internal. Fakta organisasi
+ * tetap ikut terkirim karena isinya keterangan yang sudah publik di situs PB PII.
  */
 async function gasKonteks(body, ip, question) {
   const url = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
@@ -734,9 +779,13 @@ async function gasKonteks(body, ip, question) {
   if (!Array.isArray(result?.data?.hasil)) {
     throw new Error('Layanan Pustaka mengembalikan rujukan yang tidak valid.');
   }
-  return result.data.hasil.filter((item) => item
-    && clean(item.judul)
-    && clean(item.isi || item.cuplikan));
+  return {
+    pustaka: result.data.hasil.filter((item) => item
+      && clean(item.judul)
+      && clean(item.isi || item.cuplikan)),
+    fakta: (Array.isArray(result?.data?.fakta) ? result.data.fakta : [])
+      .filter((item) => item && clean(item.pernyataan))
+  };
 }
 
 function readBody(req) {
@@ -1003,19 +1052,26 @@ export default async function handler(req, res) {
   }
 
   const terkait = terkaitOrganisasi(question);
+  let fakta = [];
   let pustaka = [];
   let web = [];
 
   if (terkait) {
     /*
-     * Berkas Pustaka dan penelusuran web dipakai bersama: tamu tidak punya akses
-     * ke berkas internal, jadi pertanyaan yang sama masih bisa dijawab dari sumber
-     * daring selama kutipannya ada. Dua-duanya kosong = tidak ada yang dikarang.
+     * Tiga lapisan dipakai bersama: fakta yang dikelola pengurus, berkas Pustaka,
+     * dan hasil penelusuran web. Tamu tidak punya akses ke berkas internal, jadi
+     * pertanyaannya tetap bisa dijawab dari data resmi atau sumber daring selama
+     * kutipannya ada. Ketiganya kosong = tidak ada yang dikarang.
      */
     const kueri = kueriPencarian(question, riwayat);
-    pustaka = await gasKonteks(body, ip, kueri).catch(() => []);
-    web = await cariWeb(kueri);
-    if (!pustaka.length && !web.length) {
+    const sumber = await gasKonteks(body, ip, kueri).catch(() => ({ pustaka: [], fakta: [] }));
+    fakta = sumber.fakta || [];
+    pustaka = sumber.pustaka || [];
+    /* Data resmi yang masih berlaku menjawab pertanyaan keadaan ("siapa", "di mana"),
+       jadi penelusuran web dilewati kecuali penanya memang meminta berita terbaru —
+       fakta kepengurusan tidak boleh menutup peristiwa yang sedang dicari. */
+    if (!pustaka.length && (!fakta.length || butuhBerita(question))) web = await cariWeb(kueri);
+    if (!fakta.length && !pustaka.length && !web.length) {
       reply(res, 200, {
         ok: true,
         data: {
@@ -1035,7 +1091,7 @@ export default async function handler(req, res) {
 
   const sistem = [
     systemPrompt(terkait ? 'organisasi' : 'umum'),
-    terkait ? sumberBagian(pustaka, web) : '',
+    terkait ? sumberBagian(fakta, pustaka, web) : '',
   ].filter(Boolean).join('\n\n');
   const messages = [
     { role: 'system', content: sistem },
@@ -1058,6 +1114,7 @@ export default async function handler(req, res) {
         mode: terkait ? 'organisasi' : 'umum',
         rujukan: pustakaSitasi(pustaka),
         rujukanWeb: webSitasi(web),
+        fakta: faktaSitasi(fakta),
         akun: catat?.akun || (gas?.akun || (body.token ? 'akun' : 'tamu')),
         batas: catat?.batas || batas,
         sisa,

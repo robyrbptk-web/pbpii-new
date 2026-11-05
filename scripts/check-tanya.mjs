@@ -23,7 +23,7 @@ const modul = new Function('fetch', 'AbortSignal', 'process', 'URL', 'TextDecode
   `${sumber}\nreturn { teksUrl, bukaEntitas, teksBersih, isiTag, tanggalISO, tanggalLabel,`
   + ' sumberResmi, tautanAsli, beritaBing, beritaGoogle, hostname, saringRelevan,'
   + ' skorRelevansi, kataKunci, menyebutOrganisasi, cariWeb, sumberBagian, webSitasi,'
-  + ' wikipediaSearch, tepatWaktu, TINGKAT, SUMBER_RESMI, handler };')(
+  + ' wikipediaSearch, tepatWaktu, TINGKAT, SUMBER_RESMI, faktaSitasi, bersihkanPenanda, handler };')(
   (...args) => fetchImpl(...args),
   { timeout: () => ({}) },
   { env: {} },
@@ -218,7 +218,7 @@ const PETA = {
 /* ------------------------------------------------------------------ bahan prompt */
 
 {
-  const bagian = modul.sumberBagian([], [
+  const bagian = modul.sumberBagian([], [], [
     { judul: 'Sambutan Ketua Umum', url: 'https://pbpii.or.id/x', isi: 'Kevin Prayoga, S.H.', penerbit: 'pbpii.or.id', tier: 'resmi', tanggal: '2026-10-20' },
     { judul: 'Kabar lama', url: 'https://news.google.com/y', isi: 'Pengurus lama', penerbit: 'Antara', tier: 'berita', tanggal: '' }
   ]);
@@ -227,7 +227,60 @@ const PETA = {
   uji('Bahan menyebut tanggal Indonesia', bagian.includes('20 Oktober 2026'));
   uji('Bahan memerintahkan fakta vs opini', bagian.includes('belum terkonfirmasi'));
   uji('Bahan memerintahkan yang terbaru', bagian.includes('bertanggal paling baru'));
-  sama('Bahan kosong bila tak ada sumber', modul.sumberBagian([], []), '');
+  sama('Bahan kosong bila tak ada sumber', modul.sumberBagian([], [], []), '');
+}
+
+{
+  const bagian = modul.sumberBagian([
+    {
+      topik: 'kepengurusan ketua umum',
+      pernyataan: 'Ketua Umum PB PII adalah Kevin Prayoga, S.H., Periode 2026 - 2028.',
+      sumber: 'Pengurus Besar PII', terbit: '2026-11-01', sejak: '2026-11-01', sampai: ''
+    }
+  ], [
+    { judul: 'Buku Panduan', b: 'BAB I', h: [4, 6], isi: 'PII berdiri 1947.' }
+  ], [
+    { judul: 'Kabar lama', url: 'https://a.test/1', isi: 'Ketua Umum lama', penerbit: 'Blog', tier: 'umum', tanggal: '2012-01-01' }
+  ]);
+  uji('Bahan melabeli DATA RESMI', bagian.includes('[DATA RESMI]'));
+  uji('Bahan menyebut masa berlaku data resmi', bagian.includes('berlaku sejak 1 November 2026'));
+  uji('Bahan menyebut siapa yang mengelola', bagian.includes('dikelola pengurus'));
+  uji('Data resmi didahulukan di atas berkas dan web',
+    bagian.indexOf('[DATA RESMI]') < bagian.indexOf('Berkas "Buku Panduan"')
+      && bagian.indexOf('Berkas "Buku Panduan"') < bagian.indexOf('[UMUM]'));
+  uji('Prompt melarang web menimpa data resmi', bagian.includes('jangan menggantinya dengan hasil pencarian web'));
+  const tanpaFakta = modul.sumberBagian([], [], [
+    { judul: 'Kabar', url: 'https://a.test/1', isi: 'x', penerbit: 'Blog', tier: 'umum', tanggal: '2026-01-01' }
+  ]);
+  uji('Perintah khusus data resmi tidak muncul tanpa fakta',
+    !tanpaFakta.includes('[DATA RESMI]'));
+  uji('Prompt melarang penanda berkurung disalin ke jawaban',
+    bagian.includes('jangan disalin ke jawaban'));
+}
+
+{
+  const bersih = modul.bersihkanPenanda(
+    'Ketua Umum adalah Kevin Prayoga, S.H. Sumber: [DATA RESMI] kepengurusan ketua umum [RESMI] '
+    + 'lalu [BERITA] dan [UMUM] serta [B3].');
+  uji('Label kepercayaan dibuang dari teks pembaca',
+    !/\[(?:DATA[ ]+)?RESMI\]|\[BERITA\]|\[UMUM\]|\[B3\]/.test(bersih));
+  uji('Isi jawaban tetap utuh setelah pembersihan', /Kevin Prayoga/.test(bersih), true);
+  sama('Penanda hanya dibuang, bukan kata lain',
+    modul.bersihkanPenanda('Resmi saja, bukan [RESMI].'), 'Resmi saja, bukan.');
+
+  /* Model menyalin label dengan spasi tipis tak-putus (U+202F), bukan spasi biasa. */
+  const tipis = modul.bersihkanPenanda('Sumber: [DATA RESMI] kepengurusan ketua umum.');
+  uji('Label dengan spasi tipis ikut dibuang', !tipis.includes('['), true);
+  sama('Kalimat sumber tetap terbaca', tipis, 'Sumber: kepengurusan ketua umum.');
+
+  const dikutip = modul.faktaSitasi([
+    { topik: 'Kantor sekretariat', pernyataan: 'Jl. Menteng Raya No. 58.', sejak: '2026-11-05', sampai: '' },
+    { topik: 'tanpa isi', pernyataan: '   ' }
+  ]);
+  sama('Hanya fakta berpendapat yang jadi rujukan', dikutip.length, 1);
+  sama('Masa berlaku ikut ditampilkan ke pembaca', dikutip[0].sejak, '5 November 2026');
+  sama('Topik dirapikan ke teks biasa', dikutip[0].topik, 'Kantor sekretariat');
+  sama('Sitasi fakta kosong untuk bukan daftar', modul.faktaSitasi(null), []);
 }
 
 /* ----------------------------------------------------------------------- sitasi */

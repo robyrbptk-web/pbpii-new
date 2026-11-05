@@ -82,9 +82,15 @@
       .filter((turn) => turn && (turn.role === 'user' || turn.role === 'assistant'))
       .map((turn) => ({
         role: turn.role,
-        content: String(turn.content || '').slice(0, 9000),
+        /* Riwayat yang tersimpan sebelum penanda kepercayaan dibuang di server
+           masih menyimpan kodenya; dibersihkan saat dimuat supaya tidak lagi
+           terbaca sebagai arahan internal. */
+        content: String(turn.content || '')
+          .replace(/[ \t]*\[\s*(?:(?:DATA\s+)?RESMI|BERITA|UMUM|[BD]\d{1,3})\s*\]/gi, '')
+          .slice(0, 9000),
         rujukan: Array.isArray(turn.rujukan) ? turn.rujukan.slice(0, 3) : [],
         rujukanWeb: Array.isArray(turn.rujukanWeb) ? turn.rujukanWeb.slice(0, 3) : [],
+        fakta: Array.isArray(turn.fakta) ? turn.fakta.slice(0, 3) : [],
         status: turn.status === 'no_source' ? 'no_source' : '',
         rasa: turn.rasa === 'suka' || turn.rasa === 'tidak' ? turn.rasa : '',
       }))
@@ -365,12 +371,14 @@
      * Nama berkas + halaman yang tadi dikutip model. Isinya tidak ikut dikirim ke
      * browser, hanya judul, kategori, bab, dan nomor halaman sebagai rujukan
      * pembaca. Rujukan web ditampilkan sebagai tautan supaya sumbernya bisa diperiksa.
+     * Data resmi PB PII paling atas: pembaca perlu tahu jawaban ini bukan tebakan web.
      */
-    function sumberBlok(rujukan, rujukanWeb, status) {
+    function sumberBlok(rujukan, rujukanWeb, status, fakta) {
       const berkas = (Array.isArray(rujukan) ? rujukan : []).filter((item) => item && item.judul);
       const daring = (Array.isArray(rujukanWeb) ? rujukanWeb : []).filter((item) => item && item.judul && /^https:\/\//.test(item.url || ''));
+      const resmiData = (Array.isArray(fakta) ? fakta : []).filter((item) => item && item.pernyataan);
 
-      if (!berkas.length && !daring.length) {
+      if (!berkas.length && !daring.length && !resmiData.length) {
         const keterangan = status === 'no_source'
           ? 'Berkas Pustaka dan penelusuran belum menghasilkan rujukan untuk pertanyaan ini.'
           : '';
@@ -382,6 +390,14 @@
       const tautanPustaka = sessionToken()
         ? ' · <a class="tanya-sumber-link" href="pustaka.html">buka Pustaka</a>'
         : '';
+      const barisResmi = resmiData.slice(0, 3).map((sumber) => {
+        const masa = [
+          sumber.sejak ? `berlaku sejak ${sumber.sejak}` : '',
+          sumber.sampai ? `sampai ${sumber.sampai}` : ''
+        ].filter(Boolean).join(' · ');
+        const asal = [String(sumber.topik || '').slice(0, 40), masa].filter(Boolean).join(' · ');
+        return `<li><span>${escapeHTML(sumber.pernyataan)}</span><em>${escapeHTML(asal)}</em></li>`;
+      }).join('');
       const barisBerkas = berkas.slice(0, 3).map((sumber) => {
         const ket = [
           sumber.kategori,
@@ -407,12 +423,15 @@
 
       const resmi = daring.some((sumber) => sumber.tier === 'resmi');
       const bagian = [];
+      if (barisResmi) {
+        bagian.push(`<p class="tanya-sumber-title">Data resmi Pengurus Besar PII:</p><ul class="tanya-sumber-resmi">${barisResmi}</ul>`);
+      }
       if (barisBerkas) bagian.push(`<p class="tanya-sumber-title">Dijawab dari berkas organisasi${tautanPustaka}:</p><ul>${barisBerkas}</ul>`);
       if (barisWeb) {
         bagian.push(`<p class="tanya-sumber-title">${resmi ? 'Ditelusuri dari laman resmi:' : 'Ditelusuri dari web:'}</p><ul class="tanya-sumber-web">${barisWeb}</ul>`);
         /* Pemberitaan dan sumber umum masih perlu dicegah dibaca sebagai
            keterangan resmi organisasi, jadi statusnya dinyatakan apa adanya. */
-        if (!barisBerkas && !resmi) {
+        if (!barisBerkas && !barisResmi && !resmi) {
           bagian.push('<p class="tanya-sumber-catat">Sumber di atas bukan berkas resmi organisasi — keterangan yang tidak tertulis di Pustaka masih perlu dikonfirmasi pengurus.</p>');
         }
       }
@@ -471,12 +490,12 @@
       return `<div class="tanya-actions">${kiri}${rasa}${ulang}</div>`;
     }
 
-    function bubble(role, content, rujukan, status, rujukanWeb, urut) {
+    function bubble(role, content, rujukan, status, rujukanWeb, fakta, urut) {
       const row = document.createElement('div');
       row.className = `tanya-row is-${role}`;
       if (typeof urut === 'number') row.dataset.urut = String(urut);
       const turn = typeof urut === 'number' ? turns[urut] : null;
-      const pesan = `<div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, rujukanWeb, status) : ''}</div>`;
+      const pesan = `<div class="tanya-msg">${richText(content)}${role === 'assistant' ? sumberBlok(rujukan, rujukanWeb, status, fakta) : ''}</div>`;
       row.innerHTML = role === 'assistant'
         ? `<span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'"></span>
            <div class="tanya-body">${pesan}${alatBlok(urut, turn)}</div>`
@@ -570,7 +589,8 @@
 
     function paint(paksa) {
       thread.replaceChildren();
-      turns.forEach((turn, urut) => bubble(turn.role, turn.content, turn.rujukan, turn.status, turn.rujukanWeb, urut));
+      turns.forEach((turn, urut) =>
+        bubble(turn.role, turn.content, turn.rujukan, turn.status, turn.rujukanWeb, turn.fakta, urut));
       intro.hidden = turns.length > 0;
       stick(paksa);
       if (typeof aturBawah === 'function') aturBawah();
@@ -681,6 +701,12 @@
     }
 
     function sumberCetak(turn) {
+      const resmiData = (turn.fakta || []).map((sumber) => {
+        const masa = [sumber.sejak ? `berlaku sejak ${sumber.sejak}` : '',
+          sumber.sampai ? `sampai ${sumber.sampai}` : ''].filter(Boolean).join(' · ');
+        return `<li><b>${escapeHTML(sumber.pernyataan)}</b>${
+          escapeHTML(`${sumber.topik ? ` · ${sumber.topik}` : ''}${masa ? ` (${masa})` : ''}`)}</li>`;
+      }).join('');
       const berkas = (turn.rujukan || []).map((sumber) => `<li><b>${escapeHTML(sumber.judul)}</b>${
         escapeHTML(`${sumber.kategori ? ` · ${sumber.kategori}` : ''}${sumber.bab ? ` · ${sumber.bab}` : ''}${halamanTeks(sumber.halaman)}`)}</li>`).join('');
       const daring = (turn.rujukanWeb || []).map((sumber) => {
@@ -688,8 +714,8 @@
         return `<li><b>${escapeHTML(sumber.judul)}</b>${
           asal ? ` <i>(${escapeHTML(asal)})</i>` : ''} — ${escapeHTML(sumber.url)}</li>`;
       }).join('');
-      if (!berkas && !daring) return '';
-      return `<div class="tanya-cetak-sumber"><p class="tanya-cetak-label">Rujukan</p><ul>${berkas}${daring}</ul></div>`;
+      if (!resmiData && !berkas && !daring) return '';
+      return `<div class="tanya-cetak-sumber"><p class="tanya-cetak-label">Rujukan</p><ul>${resmiData}${berkas}${daring}</ul></div>`;
     }
 
     /** Lembar disusun dan diperiksa lebih dulu; dialog hanya terbuka bila isinya nyata. */
@@ -1091,11 +1117,22 @@
             tanggal: /^\d{4}-\d{2}-\d{2}$/.test(String(sumber.tanggal || '')) ? String(sumber.tanggal) : '',
           }));
         const status = data?.status === 'no_source' ? 'no_source' : '';
+        /* Data resmi yang dipakai menjawab ikut ditampilkan: pembaca perlu tahu
+           keterangan ini dikelola pengurus, bukan hasil telusur internet. */
+        const fakta = (Array.isArray(data?.fakta) ? data.fakta : [])
+          .filter((item) => item?.pernyataan)
+          .map((item) => ({
+            topik: String(item.topik || '').slice(0, 40),
+            pernyataan: String(item.pernyataan).slice(0, 240),
+            sejak: String(item.sejak || '').slice(0, 40),
+            sampai: String(item.sampai || '').slice(0, 40),
+          }));
         turns.push({
           role: 'assistant',
           content: reply,
           rujukan,
           rujukanWeb,
+          fakta,
           status,
         });
         save();
