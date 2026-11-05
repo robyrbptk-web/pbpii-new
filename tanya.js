@@ -151,8 +151,64 @@
     return daftar;
   }
 
-  const WAKTU = new Intl.RelativeTimeFormat('id', { numeric: 'auto' });
-  function waktuLalu(stamp) {
+  /* ------------------------------------------- sinkron riwayat lintas perangkat
+
+   * Daftar di atas hanya hidup di perangkat ini. Untuk akun yang masuk, salinan
+   * setiap percakapan ikut disimpan ke sheet "Threads" lewat /api/pii supaya
+   * ponsel dan laptop membuka obrolan yang sama.
+   *
+   * Seluruh jalurnya sengaja diam: sinkron adalah kenyamanan, jadi gangguan
+   * jaringan atau backend yang belum versi baru tidak boleh memotong chat.
+   */
+  const API = window.PBPII_CONFIG?.apiEndpoint || '/api/pii';
+  const SYNC_KEY = 'pbpii_tanya_sync';
+  const HAPUS_KEY = 'pbpii_tanya_hapus';
+  /** Ditunda supaya satu jawaban panjang tidak memicu banyak penulisan. */
+  const SYNC_JEDA_MS = 1200;
+
+  /** Selisih jam perangkat terhadap server; perangkat dengan jam ngawur tetap kalah adu "terbaru" dengan benar. */
+  let selisihJam = 0;
+
+  function bacaPeta(kunci) {
+    try {
+      const peta = JSON.parse(localStorage.getItem(kunci) || '{}');
+      return peta && typeof peta === 'object' && !Array.isArray(peta) ? peta : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function tulisPeta(kunci, peta) {
+    try { localStorage.setItem(kunci, JSON.stringify(peta)); } catch { /* penyimpanan penuh: abaikan */ }
+  }
+
+  /**
+   * Pemanggilan aksi riwayat. Token sesi ikut serta; tanpa sesi fungsi ini tidak
+   * pernah dijalankan sama sekali karena tamu menyimpan riwayatnya sendiri.
+   */
+  async function panggilRiwayat(action, payload) {
+    const token = sessionToken();
+    if (!token) return null;
+    try {
+      const response = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token, device: deviceId(), ...payload })
+      });
+      const hasil = await response.json().catch(() => null);
+      if (!hasil || !hasil.ok || !hasil.data) return null;
+      const waktuServer = Number(hasil.data.waktu);
+      if (Number.isFinite(waktuServer) && waktuServer > 0) selisihJam = waktuServer - Date.now();
+      return hasil.data;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Stempel milik perangkat ini, sudah dikoreksi terhadap jam server. */
+  const jamSinkron = () => Date.now() + selisihJam;
+
+  const WAKTU = new Intl.RelativeTimeFormat('id', { numeric: 'auto' });  function waktuLalu(stamp) {
     const detik = Math.round((Number(stamp) - Date.now()) / 1000);
     if (!Number.isFinite(detik) || !stamp) return '';
     if (detik > -90) return 'baru saja';
@@ -682,14 +738,249 @@
     const save = () => {
       aktif.turns = turns;
       if (!aktif.judul) aktif.judul = judulDari(turns.find((item) => item.role === 'user')?.content);
-      aktif.diubah = Date.now();
-      threads = simpanThreads([aktif, ...threads.filter((item) => item.id !== aktif.id)]
+      aktif.diubah = jamSinkron();
+      threads = simpanThreads([aktif, ...threads.filter((item) => item.id !== aktif.id && item.turns.length)]
         .sort((a, b) => b.diubah - a.diubah));
       aktif = threads.find((item) => item.id === aktifId) || aktif;
       aktifId = aktif.id;
       turns = aktif.turns;
       lukisRiwayat();
+      dorongRiwayat();
     };
+
+    /* -------------------------------------------------- mesin sinkron riwayat
+     *
+     * Aturan adu: yang menang adalah stempel "diubah" paling baru, jadi dua
+     * perangkat yang mengetik bersamaan tidak saling menimpa diam-diam — yang
+     * kalah menarik ulang salinan server. Penanda hapus (tombstone) membuat
+     * penghapusan ikut sampai ke perangkat lain alih-alih muncul lagi besok.
+     */
+    let sinkonAwan = !!sessionToken();
+    let penanda = bacaPeta(SYNC_KEY);   // { id percakapan: diubah yang diakui server }
+    let kuburan = bacaPeta(HAPUS_KEY);  // { id percakapan: diubah saat dihapus }
+    let jedaTulis = null;
+    let sedangTarik = null;
+    /** Rantai penulisan ditahan agar perangkat lama tidak menebus 30 percakapan sekaligus. */
+    let dorongBeruntun = 0;
+    const DORONG_BERTAHAP = 8;
+
+    function hidupkanSinkron() {
+      const akun = !!sessionToken();
+      if (akun === sinkonAwan) return;
+      sinkonAwan = akun;
+      if (akun) tarikRiwayat();
+      else {
+        penanda = {};
+        kuburan = {};
+      }
+      lukisKaki();
+    }
+
+    /** Catatan kecil di dasar panel: sumber riwayat berbeda untuk tamu dan akun. */
+    function lukisKaki() {
+      const kaki = panel?.querySelector('.tanya-riwayat-kaki');
+      if (kaki) {
+        kaki.textContent = sinkonAwan
+          ? 'Percakapan tersimpan di akun ini dan ikut terbawa ke perangkat lain yang masuk.'
+          : 'Percakapan tersimpan di perangkat ini dan tetap ada saat halaman ditutup.';
+      }
+      const kosong = panel?.querySelector('.tanya-riwayat-kosong');
+      if (kosong) {
+        kosong.textContent = sinkonAwan
+          ? 'Belum ada percakapan di akun ini.'
+          : 'Belum ada percakapan tersimpan di perangkat ini.';
+      }
+    }
+
+    async function tarikRiwayat() {
+      if (!sinkonAwan || sedangTarik) return;
+      sedangTarik = panggilRiwayat('threadList', {});
+      const data = await sedangTarik;
+      sedangTarik = null;
+      if (data) gabungRiwayat(data);
+    }
+
+    function gabungRiwayat(data) {
+      const punya = new Map(threads.map((item) => [item.id, item]));
+      const buang = (id, diubah) => {
+        kuburan[id] = Math.max(Number(kuburan[id]) || 0, diubah);
+        tulisPeta(HAPUS_KEY, kuburan);
+        delete penanda[id];
+        if (punya.has(id) && (Number(punya.get(id).diubah) || 0) <= diubah) {
+          threads = threads.filter((item) => item.id !== id);
+          punya.delete(id);
+        }
+      };
+      (data.hapus || []).forEach((kubur) => buang(kubur.id, Number(kubur.diubah) || 0));
+
+      const perluHapus = [];
+      (data.threads || []).forEach((awan) => {
+        const id = String(awan.id || '');
+        const diubah = Number(awan.diubah) || 0;
+        if (!id) return;
+        if ((Number(kuburan[id]) || 0) >= diubah) {
+          /* Penghapusan di perangkat ini belum tentu sampai ke server — misalnya
+             saat jaringan putus — jadi diulang diam-diam pada sinkron berikutnya. */
+          perluHapus.push(id);
+          if (punya.has(id) && id !== aktifId) {
+            threads = threads.filter((item) => item.id !== id);
+            punya.delete(id);
+          }
+          return;
+        }
+        const lokal = punya.get(id);
+        if (!lokal) {
+          /* Percakapan dari perangkat lain masuk sebagai baris kosong; isinya baru
+             diambil saat pembacanya benar-benar dibuka supaya daftar tetap murah. */
+          if (!Number(awan.jumlah) || (Number(penanda[id]) || 0) === diubah) return;
+          threads.push({
+            id, judul: String(awan.judul || '').slice(0, 70),
+            dibuat: Number(awan.dibuat) || diubah, diubah,
+            turns: [], jumlah: Number(awan.jumlah) || 0, awan: true
+          });
+          return;
+        }
+        if (!lokal.turns.length) {
+          lokal.judul = awan.judul || lokal.judul;
+          lokal.jumlah = Number(awan.jumlah) || lokal.jumlah;
+          lokal.diubah = Math.max(lokal.diubah || 0, diubah);
+          if (lokal.jumlah) lokal.kedaluwarsa = diubah;
+          return;
+        }
+        if ((Number(penanda[id]) || 0) === diubah) return;
+        if ((lokal.diubah || 0) > diubah) return;
+        lokal.kedaluwarsa = diubah;
+      });
+
+      threads.sort((a, b) => b.diubah - a.diubah);
+      simpanPenanda();
+      perluHapus.slice(0, 3).forEach((id) => hapusKeAwan(id, kuburan[id]));
+      lukisRiwayat();
+    }
+
+    /** Peta penanda ikut dirapikan supaya localStorage tidak tumbuh tanpa batas. */
+    function pangkasPeta(peta, batas) {
+      const isi = Object.entries(peta);
+      if (isi.length <= batas) return peta;
+      isi.sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0));
+      return Object.fromEntries(isi.slice(0, batas));
+    }
+
+    function simpanPenanda() {
+      penanda = pangkasPeta(penanda, 80);
+      kuburan = pangkasPeta(kuburan, 80);
+      tulisPeta(SYNC_KEY, penanda);
+      tulisPeta(HAPUS_KEY, kuburan);
+    }
+
+    /** Ambil isi satu percakapan dari server; hanya dipanggil saat dibutuhkan. */
+    async function isiDariAwan(item) {
+      if (!item || !sinkonAwan) return false;
+      const data = await panggilRiwayat('threadIsi', { id: item.id });
+      if (!data || !data.thread) return false;
+      const salinan = data.thread;
+      if ((Number(penanda[item.id]) || 0) === Number(salinan.diubah) && item.turns.length) {
+        delete item.kedaluwarsa;
+        delete item.awan;
+        return false;
+      }
+      item.judul = String(salinan.judul || '').slice(0, 70) || item.judul;
+      item.dibuat = Number(salinan.dibuat) || item.dibuat;
+      item.diubah = Number(salinan.diubah) || item.diubah;
+      item.turns = bersihkanTurns(salinan.turns);
+      item.jumlah = item.turns.length;
+      delete item.awan;
+      delete item.kedaluwarsa;
+      penanda[item.id] = item.diubah;
+      simpanPenanda();
+      if (item.id === aktifId) {
+        turns = item.turns;
+        aktif = item;
+        paint(true);
+        intro.hidden = turns.length > 0;
+      }
+      simpanThreads(threads.filter((x) => x.turns.length));
+      lukisRiwayat();
+      return true;
+    }
+
+    function dorongRiwayat() {
+      if (!sinkonAwan) return;
+      clearTimeout(jedaTulis);
+      jedaTulis = setTimeout(kirimRiwayat, SYNC_JEDA_MS);
+    }
+
+    /**
+     * Server hanya menyimpan satu sel (44 ribu karakter) dan proksi menolak badan
+     * besar, jadi balasan tertua dibuang di sini lebih dulu — perangkat tidak
+     * mengirim transkrip yang toh tidak akan muat.
+     */
+    const KIRIM_MAKS = 44000;
+    function siapKirim(item) {
+      let turn = item.turns.slice();
+      let isi = JSON.stringify(turn);
+      while (isi.length > KIRIM_MAKS && turn.length > 2) {
+        turn = turn.slice(Math.max(1, Math.ceil(turn.length / 4)));
+        isi = JSON.stringify(turn);
+      }
+      return { id: item.id, judul: item.judul, dibuat: item.dibuat, diubah: item.diubah, turns: turn };
+    }
+
+    /** Satu penulisan per siklus; percakapan lain menyusul pada sinkron berikutnya. */
+    async function kirimRiwayat() {
+      if (!sinkonAwan) return;
+      clearTimeout(jedaTulis);
+      const antre = threads.filter((item) => item.turns.length
+        && (Number(penanda[item.id]) || 0) !== (item.diubah || 0)
+        && (Number(kuburan[item.id]) || 0) < (item.diubah || 0));
+      const item = antre.find((x) => x.id === aktifId) || antre[0];
+      if (!item) { dorongBeruntun = 0; return; }
+      const data = await panggilRiwayat('threadSimpan', { thread: siapKirim(item) });
+      if (!data) return;
+      if (data.ditolak) {
+        const diubahServer = Number(data.diubah) || 0;
+        penanda[item.id] = diubahServer;
+        simpanPenanda();
+        if (data.ditolak === 'dihapus') {
+          buangLokal(item.id, diubahServer);
+          return;
+        }
+        /* Server bilang salinan lain lebih baru: tarik miliknya, jangan menimpa. */
+        item.kedaluwarsa = diubahServer;
+        await isiDariAwan(item);
+        return;
+      }
+      penanda[item.id] = Number(data.diubah) || item.diubah;
+      simpanPenanda();
+      dorongBeruntun += 1;
+      if (antre.length > 1 && dorongBeruntun < DORONG_BERTAHAP) dorongRiwayat();
+      else dorongBeruntun = 0;
+    }
+
+    function buangLokal(id, diubah) {
+      kuburan[id] = Math.max(Number(kuburan[id]) || 0, diubah || jamSinkron());
+      tulisPeta(HAPUS_KEY, kuburan);
+      delete penanda[id];
+      simpanPenanda();
+      if (id === aktifId) return;
+      threads = threads.filter((item) => item.id !== id);
+      simpanThreads(threads.filter((item) => item.turns.length));
+      lukisRiwayat();
+    }
+
+    function hapusKeAwan(id, diubah) {
+      if (!sinkonAwan) return;
+      kuburan[id] = Math.max(Number(kuburan[id]) || 0, diubah || jamSinkron());
+      tulisPeta(HAPUS_KEY, kuburan);
+      panggilRiwayat('threadHapus', { id }).then((data) => {
+        delete penanda[id];
+        simpanPenanda();
+        if (data && data.diubah) {
+          kuburan[id] = Math.max(Number(kuburan[id]) || 0, Number(data.diubah));
+          tulisPeta(HAPUS_KEY, kuburan);
+        }
+      });
+    }
 
     function setBusy(value) {
       busy = value;
@@ -837,10 +1128,12 @@
      */
     function lukisRiwayat() {
       if (!panelDaftar) return;
-      const isi = threads.filter((item) => item.turns.length);
+      const isi = threads.filter((item) => item.turns.length || item.jumlah);
       if (panelKosong) panelKosong.hidden = isi.length > 0;
       panelDaftar.innerHTML = isi.map((item) => {
-        const pertanyaan = item.turns.filter((turn) => turn.role === 'user').length;
+        const pertanyaan = item.turns.length
+          ? item.turns.filter((turn) => turn.role === 'user').length
+          : Number(item.jumlah) || 0;
         return `
           <li class="tanya-riwayat-item${item.id === aktifId ? ' is-aktif' : ''}" data-id="${escapeHTML(item.id)}">
             <button type="button" class="tanya-riwayat-pilih" data-pilih="${escapeHTML(item.id)}">
@@ -867,6 +1160,9 @@
       panelBuka?.setAttribute('aria-expanded', 'true');
       panelBuka?.classList.add('is-aktif');
       panel.querySelector('.tanya-riwayat-panel')?.focus?.();
+      /* Daftar ditarik ulang setiap panel dibuka: percakapan dari perangkat lain
+         muncul di sini tanpa perlu memuat ulang halaman. */
+      tarikRiwayat();
     }
 
     function tutupRiwayat() {
@@ -900,7 +1196,11 @@
       if (busy) { toast('Tunggu jawaban ini selesai.'); return; }
       const tujuan = threads.find((item) => item.id === id);
       if (!tujuan) return;
-      if (tujuan.id === aktifId) { tutupRiwayat(); return; }
+      if (tujuan.id === aktifId) {
+        if (tujuan.kedaluwarsa) isiDariAwan(tujuan);
+        else tutupRiwayat();
+        return;
+      }
       clearTimeout(retryTimer);
       aktif.turns = turns;
       aktif = tujuan;
@@ -911,6 +1211,12 @@
       intro.hidden = turns.length > 0;
       lukisRiwayat();
       tutupRiwayat();
+      /* Baris yang datang dari perangkat lain baru membawa judulnya; isinya
+         diambil sekarang, saat pembacanya memang benar-benar dibuka. */
+      if (tujuan.kedaluwarsa || (!tujuan.turns.length && tujuan.jumlah)) {
+        intro.hidden = true;
+        isiDariAwan(tujuan);
+      }
     }
 
     function hapusPercakapan(id) {
@@ -926,7 +1232,8 @@
       clearTimeout(retryTimer);
       paint(true);
       lukisRiwayat();
-      toast('Percakapan dihapus dari riwayat.');
+      hapusKeAwan(id, target.diubah);
+      toast(sinkonAwan ? 'Percakapan dihapus dari riwayat di semua perangkat.' : 'Percakapan dihapus dari riwayat.');
     }
 
     /**
@@ -966,8 +1273,11 @@
         const teks = String(kolom.value || '').trim();
         if (simpan && teks) {
           item.judul = teks.slice(0, 60);
-          item.diubah = item.diubah || Date.now();
-          threads = simpanThreads(threads);
+          /* Nama baru adalah perubahan seperti halnya balasan baru, jadi
+             stempelnya ikut naik supaya perangkat lain ikut mengambilnya. */
+          item.diubah = jamSinkron();
+          threads = simpanThreads(threads.filter((x) => x.turns.length || x.id === item.id));
+          dorongRiwayat();
         }
         lukisRiwayat();
       };
@@ -1036,6 +1346,7 @@
       if (sessionToken() === tokenTerakhir) return;
       tokenTerakhir = sessionToken();
       loadQuota();
+      hidupkanSinkron();
     });
 
     // Papan ketik ponsel tidak boleh menutupi kolom tulis, terutama di iOS.
@@ -1062,7 +1373,24 @@
 
     paint(true);
     lukisRiwayat();
+    lukisKaki();
     loadQuota();
+    if (sinkonAwan) {
+      /* Riwayat perangkat lain ditarik setelah layar siap; percakapan yang sedang
+         dibuka ikut diperbarui kalau salinan server ternyata lebih baru. */
+      tarikRiwayat().then(() => {
+        if (aktif.kedaluwarsa || (!aktif.turns.length && aktif.jumlah)) isiDariAwan(aktif);
+        /* Riwayat yang sudah ada di perangkat ini tapi belum pernah ikut naik —
+           misalnya percakapan lama yang tidak disentuh lagi — diantar sekarang. */
+        dorongRiwayat();
+      });
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(jedaTulis);
+        kirimRiwayat();
+      } else tarikRiwayat();
+    });
     /* Serah-terima dari pembaca Pustaka: pertanyaan tentang bagian yang sedang
        dibaca sudah tersusun di URL, tinggal diperiksa lalu dikirim sendiri.
        Pertanyaan ini dibuka sebagai percakapan baru supaya riwayat yang sedang

@@ -33,6 +33,7 @@ const HEADERS = {
   Follows: ['id', 'actorKey', 'actorId', 'targetId', 'createdAt'],
   Bookmarks: ['id', 'actorKey', 'postId', 'createdAt'],
   Stories: ['id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa'],
+  Threads: ['id', 'actor', 'thread', 'judul', 'dibuat', 'diubah', 'isi', 'jumlah', 'status'],
   PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'],
   PustakaPotongan: ['doc', 'halaman', 'teks', 'halamanAkhir', 'bab']
 };
@@ -345,7 +346,9 @@ const exported = [
   'perbaikiFotoDrive', 'bytesDariTeksAngka_',
   'pustakaDaftar_',
   'feedAksi_', 'feedList_', 'feedKonteks_', 'feedSkor_', 'feedTautanMedia_', 'videoKind_', 'feedCekIsi_', 'FEED_TAB', 'FEED_JENIS', 'SHEET_SCHEMA', 'POST_HEADERS',
-  'bersihkanSisaFeed_', 'buangBerkasDrive_', 'kaderUsernameSiap_', 'kaderTautanBersih_'
+  'bersihkanSisaFeed_', 'buangBerkasDrive_', 'kaderUsernameSiap_', 'kaderTautanBersih_',
+  'threadAksi_', 'threadBersih_', 'threadPangkas_', 'threadKunci_', 'THREAD_HEADERS',
+  'THREAD_TURN_MAX', 'THREAD_KATA_MAX', 'THREAD_SEL_MAKS'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog',
@@ -1856,6 +1859,220 @@ check('bingkai foto cerita yang dihapus masuk tempat sampah', berkasCerita.trash
 check('menghapus cerita yang sudah hilang tidak menjadi galat',
   request({ action: 'ceritaHapus', token: 'ses-rozak', id: 'sudah-hilang', ip: IP_ROZAK }).ok, true);
 check('unggah cerita memakai pembatas laju sendiri', !!gas.RATE_RULES['cerita-unggah'], true);
+
+// --------------------------------------------------- riwayat lintas perangkat
+
+check('setup mengenal sheet riwayat', gas.SHEET_SCHEMA.some((entry) => entry[0] === 'Threads'), true);
+check('riwayat memakai pembatas laju sendiri',
+  ['thread-list', 'thread-baca', 'thread-tulis'].every((rule) => !!gas.RATE_RULES[rule]), true);
+
+const jamRiwayat = Date.now();
+const percakapanAsli = {
+  id: 'th-lintas-perangkat',
+  judul: 'Aturan Kaderisasi',
+  dibuat: jamRiwayat - 60000,
+  diubah: jamRiwayat - 30000,
+  turns: [
+    { role: 'user', content: 'Apa syarat menjadi kader PII?' },
+    {
+      role: 'assistant',
+      content: 'Syaratnya tercantum dalam aturan organisasi.',
+      rujukan: [{ judul: 'AD ART', kategori: 'Anggaran Dasar', berkas: 'ad-art', bab: 'Bab III', halaman: [12, 13] }],
+      rujukanWeb: [
+        { judul: 'Situs resmi', url: 'https://pbpii.or.id/tentang' },
+        { judul: 'Blog tak aman', url: 'http://contoh.net/promo' }
+      ],
+      status: 'no_source',
+      rasa: 'suka'
+    }
+  ]
+};
+
+const simpanPertama = request({ action: 'threadSimpan', token: 'ses-rozak', thread: percakapanAsli, ip: IP_ROZAK });
+check('percakapan pertama tersimpan di akun kader', simpanPertama.data.id, 'th-lintas-perangkat');
+check('jumlah balasan ikut tercatat', simpanPertama.data.jumlah, 2);
+check('baris riwayat terkunci pada satu pemilik',
+  rowsOf('Threads').every((row) => row.actor === 'k:kader-rozak'), true);
+
+const daftarPertama = request({ action: 'threadList', token: 'ses-rozak', ip: IP_ROZAK });
+check('daftar riwayat membawa judul tanpa isi',
+  daftarPertama.data.threads.every((item) => item.judul && item.isi === undefined), true);
+check('daftar riwayat membawa jam server', typeof daftarPertama.data.waktu, 'number');
+check('riwayat tidak pernah muncul di akun lain',
+  request({ action: 'threadList', token: 'ses-kuota', ip: '198.51.100.71' }).data.threads.length, 0);
+check('riwayat kader tidak terbaca pengurus',
+  request({ action: 'threadIsi', token: 'ses-pd', id: 'th-lintas-perangkat', ip: '198.51.100.72' }).error,
+  'Percakapan tidak ditemukan di akun ini.');
+check('tamu tidak boleh menarik riwayat',
+  request({ action: 'threadList', ip: '198.51.100.73' }).error,
+  'Masuk dulu dengan akun Google kader untuk melanjutkan.');
+
+const isiPertama = request({ action: 'threadIsi', token: 'ses-rozak', id: 'th-lintas-perangkat', ip: IP_ROZAK });
+check('isi percakapan terbaca utuh', isiPertama.data.thread.turns.length, 2);
+check('judul percakapan bertahan', isiPertama.data.thread.judul, 'Aturan Kaderisasi');
+check('rujukan pustaka ikut menyeberang perangkat', isiPertama.data.thread.turns[1].rujukan[0].berkas, 'ad-art');
+check('rentang halaman rujukan bertahan', isiPertama.data.thread.turns[1].rujukan[0].halaman, [12, 13]);
+check('hanya tautan https yang ikut tersimpan', isiPertama.data.thread.turns[1].rujukanWeb.length, 1);
+check('penanda tanpa rujukan bertahan', isiPertama.data.thread.turns[1].status, 'no_source');
+check('penanda rasa bertahan', isiPertama.data.thread.turns[1].rasa, 'suka');
+
+const simpanLama = request({
+  action: 'threadSimpan',
+  token: 'ses-rozak',
+  thread: { ...percakapanAsli, diubah: jamRiwayat - 40000, turns: [{ role: 'user', content: 'Salinan ponsel yang tertinggal.' }] },
+  ip: IP_ROZAK
+});
+check('salinan lebih lama dari perangkat lain ditolak', simpanLama.data.ditolak, 'lebih-baru');
+check('penolakan membawa stempel server supaya perangkat bisa mengejar',
+  simpanLama.data.diubah, percakapanAsli.diubah);
+check('salinan lama tidak menimpa isi',
+  request({ action: 'threadIsi', token: 'ses-rozak', id: 'th-lintas-perangkat', ip: IP_ROZAK }).data.thread.turns.length, 2);
+
+const simpanBaru = request({
+  action: 'threadSimpan',
+  token: 'ses-rozak',
+  thread: {
+    ...percakapanAsli,
+    diubah: jamRiwayat + 1000,
+    turns: [...percakapanAsli.turns, { role: 'user', content: 'Berapa lama masa kandidatnya?' }]
+  },
+  ip: IP_ROZAK
+});
+check('salinan terbaru diterima dan menimpa', simpanBaru.data.jumlah, 3);
+check('percakapan terbaru ada di urutan paling atas',
+  request({ action: 'threadList', token: 'ses-rozak', ip: IP_ROZAK }).data.threads[0].id, 'th-lintas-perangkat');
+
+const hapusPertama = request({ action: 'threadHapus', token: 'ses-rozak', id: 'th-lintas-perangkat', ip: IP_ROZAK });
+check('penghapusan diakui server', hapusPertama.data.dihapus, true);
+check('percakapan terhapus tidak terbaca lagi',
+  request({ action: 'threadIsi', token: 'ses-rozak', id: 'th-lintas-perangkat', ip: IP_ROZAK }).error,
+  'Percakapan tidak ditemukan di akun ini.');
+check('penanda hapus ikut dikirim ke perangkat lain',
+  request({ action: 'threadList', token: 'ses-rozak', ip: IP_ROZAK }).data.hapus
+    .some((item) => item.id === 'th-lintas-perangkat'), true);
+check('percakapan yang hilang dari daftar tidak terbaca lagi',
+  request({ action: 'threadList', token: 'ses-rozak', ip: IP_ROZAK }).data.threads
+    .some((item) => item.id === 'th-lintas-perangkat'), false);
+check('menghapus riwayat yang sudah hilang tidak menjadi galat',
+  request({ action: 'threadHapus', token: 'ses-rozak', id: 'th-lintas-perangkat', ip: IP_ROZAK }).data.dihapus, true);
+
+/** Penanda hapus hanya berguna selama perangkat lain masih menyimpan salinannya. */
+const simpanUlang = request({
+  action: 'threadSimpan',
+  token: 'ses-rozak',
+  thread: { ...percakapanAsli, diubah: hapusPertama.data.diubah + 1000 },
+  ip: IP_ROZAK
+});
+check('percakapan yang disimpan lagi lepas dari penanda hapus', simpanUlang.data.jumlah, 2);
+check('status baris kembali normal',
+  rowsOf('Threads').find((row) => row.thread === 'th-lintas-perangkat').status, 'ok');
+check('menghapus id yang tidak dikenal tetap aman',
+  request({ action: 'threadHapus', token: 'ses-rozak', id: 'th-tak-pernah-ada', ip: IP_ROZAK }).data.dihapus, true);
+
+
+/** Pemangkasan: 40 percakapan terbaru saja yang hidup. */
+for (let i = 0; i < 45; i += 1) {
+  const jam = jamRiwayat - (45 - i) * 1000;
+  seed('Threads', [{
+    id: `k:kader-kuota#th-pangkas-${String(i).padStart(3, '0')}`,
+    actor: 'k:kader-kuota',
+    thread: `th-pangkas-${String(i).padStart(3, '0')}`,
+    judul: `Percakapan ${i}`,
+    dibuat: jam,
+    diubah: jam,
+    isi: JSON.stringify([{ role: 'user', content: `Pertanyaan ${i}` }]),
+    jumlah: 1,
+    status: 'ok'
+  }]);
+}
+gas.threadPangkas_('k:kader-kuota');
+const riwayatPenuh = request({ action: 'threadList', token: 'ses-kuota', ip: '198.51.100.74' });
+check('riwayat aktif tidak melebihi batas', riwayatPenuh.data.threads.length, gas.APP.THREAD_BATAS_AKTIF);
+check('yang dibuang adalah yang paling tua',
+  riwayatPenuh.data.threads.every((item) => item.judul !== 'Percakapan 0'), true);
+check('percakapan terbaru dipertahankan', riwayatPenuh.data.threads[0].judul, 'Percakapan 44');
+check('batas dilaporkan ke browser', riwayatPenuh.data.batas, gas.APP.THREAD_BATAS_AKTIF);
+check('baris riwayat ikut dipangkas di sheet',
+  rowsOf('Threads').filter((row) => row.actor === 'k:kader-kuota').length, gas.APP.THREAD_BATAS_AKTIF);
+
+/** Penanda hapus hanya berguna selama perangkat lain masih menyimpan salinannya. */
+seed('Threads', [
+  {
+    id: 'k:kader-kuota#th-tua-dikubur', actor: 'k:kader-kuota', thread: 'th-tua-dikubur',
+    judul: 'Sudah lama hilang', dibuat: jamRiwayat - 60 * 86400000, diubah: jamRiwayat - 60 * 86400000,
+    isi: '', jumlah: 0, status: 'hapus'
+  },
+  {
+    id: 'k:kader-kuota#th-muda-dikubur', actor: 'k:kader-kuota', thread: 'th-muda-dikubur',
+    judul: 'Baru saja hilang', dibuat: jamRiwayat - 86400000, diubah: jamRiwayat - 86400000,
+    isi: '', jumlah: 0, status: 'hapus'
+  }
+]);
+gas.threadPangkas_('k:kader-kuota');
+check('penanda hapus yang lewat sebulan dibuang',
+  rowsOf('Threads').some((row) => row.thread === 'th-tua-dikubur'), false);
+check('penanda hapus yang masih muda dipertahankan',
+  rowsOf('Threads').some((row) => row.thread === 'th-muda-dikubur'), true);
+check('penanda hapus tidak ikut dihitung sebagai riwayat aktif',
+  request({ action: 'threadList', token: 'ses-kuota', ip: '198.51.100.74' }).data.threads
+    .some((item) => item.judul === 'Baru saja hilang'), false);
+
+let tulisLolos = 0;
+let tulisGalat = '';
+for (let i = 0; i < gas.RATE_RULES['thread-tulis'].limit + 1; i += 1) {
+  const hasil = request({
+    action: 'threadSimpan',
+    token: 'ses-poltek',
+    thread: {
+      id: 'th-banjir-tulis',
+      judul: 'Menembak berulang',
+      dibuat: jamRiwayat,
+      diubah: jamRiwayat,
+      turns: [{ role: 'user', content: `Percobaan ${i}` }]
+    },
+    ip: '198.51.100.75'
+  });
+  if (hasil.ok) tulisLolos += 1; else tulisGalat = hasil.code;
+}
+check('penulisan riwayat punya budget sendiri per akun',
+  tulisLolos, gas.RATE_RULES['thread-tulis'].limit);
+check('menembak riwayat berlebihan ditandai rate_limited', tulisGalat, 'rate_limited');
+
+/* ---------------- pembersih percakapan (unit) ---------------- */
+const bersih = (thread) => gas.threadBersih_({ id: 'th-baku', ...thread });
+check('id percakapan yang tidak wajar ditolak',
+  gas.threadBersih_({ id: 'ab', turns: [{ role: 'user', content: 'x' }] }), null);
+check('percakapan tanpa turn dibuang', gas.threadBersih_({ id: 'th-baku', turns: [] }), null);
+check('turn kosong dibuang', bersih({ turns: [{ role: 'user', content: '   ' }] }), null);
+check('role asing tidak ikut tersimpan',
+  bersih({ turns: [{ role: 'system', content: 'bocor' }, { role: 'user', content: 'y' }] }).turns.length, 1);
+check('jam perangkat yang melompat jauh dipangkas',
+  bersih({ diubah: Date.now() + 9e12, turns: [{ role: 'user', content: 'y' }] }).diubah <= Date.now() + 300000, true);
+check('stempel waktu masa depan yang wajar tetap diterima',
+  bersih({ diubah: jamRiwayat + 1000, turns: [{ role: 'user', content: 'y' }] }).diubah, jamRiwayat + 1000);
+check('dibuat tidak pernah lebih baru daripada diubah',
+  bersih({ dibuat: jamRiwayat + 900000, diubah: jamRiwayat, turns: [{ role: 'user', content: 'y' }] }).dibuat <= jamRiwayat, true);
+check('balasan ke-41 dan seterusnya dibuang',
+  bersih({ turns: Array.from({ length: 60 }, (v, i) => ({ role: 'user', content: `t${i}` })) }).turns.length,
+  gas.THREAD_TURN_MAX);
+const gemuk = bersih({
+  turns: Array.from({ length: gas.THREAD_TURN_MAX }, () => ({ role: 'user', content: 'x'.repeat(gas.THREAD_KATA_MAX) }))
+});
+check('percakapan raksasa dimuat dalam satu sel', gemuk.isi.length <= gas.THREAD_SEL_MAKS, true);
+check('pemangkasan raksasa membuang turn tertua', gemuk.turns.length < gas.THREAD_TURN_MAX, true);
+check('balasan yang panjangnya tak masuk akal dipotong per turn',
+  gas.threadBersih_({ id: 'th-baku', turns: [{ role: 'user', content: 'x'.repeat(60000) }] })
+    .turns[0].content.length, gas.THREAD_KATA_MAX);
+check('rujukan web bukan https dibuang',
+  bersih({ turns: [{ role: 'assistant', content: 'y', rujukanWeb: [{ judul: 'a', url: 'javascript:alert(1)' }] }] })
+    .turns[0].rujukanWeb.length, 0);
+check('rujukan tanpa judul dibuang',
+  bersih({ turns: [{ role: 'assistant', content: 'y', rujukan: [{ judul: '', berkas: 'x' }] }] })
+    .turns[0].rujukan.length, 0);
+check('penanda rasa yang tidak dikenal dikosongkan',
+  bersih({ turns: [{ role: 'assistant', content: 'y', rasa: 'marah' }] }).turns[0].rasa, '');
+check('aksi riwayat yang tidak dikenal ditolak',
+  captureError(() => gas.threadAksi_('threadAneh', { token: 'ses-rozak' })), 'Aksi riwayat tidak dikenal.');
 
 // ------------------------------------------------------------------ laporan
 

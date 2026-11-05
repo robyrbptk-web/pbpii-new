@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-05.5';
+const BACKEND_VERSION = '2026-11-05.6';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -34,6 +34,7 @@ const APP = {
   SHEET_FOLLOWS: 'Follows',
   SHEET_BOOKMARKS: 'Bookmarks',
   SHEET_STORIES: 'Stories',
+  SHEET_THREADS: 'Threads',
   /** Sesi 30 hari: kader tidak boleh disuruh masuk ulang setiap hari hanya
       untuk membaca komentar atau memakai Tanya PII. */
   TOKEN_TTL_SECONDS: 2592000,
@@ -49,6 +50,13 @@ const APP = {
   CERITA_JAM: 24,
   CERITA_BATAS_AKTIF: 12,
   CERITA_CAPTION_MAX: 140,
+  /**
+   * Sinkron riwayat Tanya PII antar perangkat. Jumlah percakapan per akun
+   * dibatasi supaya satu akun tidak menimbun sel Sheets tanpa ujung; isinya
+   * sendiri dipangkas dari balasan paling tua agar selalu muat dalam satu sel.
+   */
+  THREAD_BATAS_AKTIF: 40,
+  THREAD_KUBUR_HARI: 30,
   PROP_SPREADSHEET_ID: 'SPREADSHEET_ID',
   PROP_ADMIN_USERNAME: 'ADMIN_USERNAME',
   PROP_ADMIN_PASSWORD: 'ADMIN_PASSWORD',
@@ -201,6 +209,16 @@ const STORY_HEADERS = [
   'id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa'
 ];
 
+/**
+ * Riwayat Tanya PII lintas perangkat. Satu baris = satu percakapan milik satu
+ * akun. `id` gabungan actor + thread supaya `thread` boleh bebas di sisi browser
+ * tanpa pernah menabrak percakapan orang lain; `isi` JSON-nya selalu dijaga di
+ * bawah batas satu sel Sheets.
+ */
+const THREAD_HEADERS = [
+  'id', 'actor', 'thread', 'judul', 'dibuat', 'diubah', 'isi', 'jumlah', 'status'
+];
+
 // Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
 const SHEET_SCHEMA = [
   [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
@@ -223,7 +241,8 @@ const SHEET_SCHEMA = [
   [APP.SHEET_POST_MEDIA, POST_MEDIA_HEADERS],
   [APP.SHEET_FOLLOWS, FOLLOW_HEADERS],
   [APP.SHEET_BOOKMARKS, BOOKMARK_HEADERS],
-  [APP.SHEET_STORIES, STORY_HEADERS]
+  [APP.SHEET_STORIES, STORY_HEADERS],
+  [APP.SHEET_THREADS, THREAD_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -685,6 +704,11 @@ function doPost(event) {
       // Cerita 24 jam: lingkaran boleh dilihat tamu, unggah dan hapus mengunci
       // akun kader di dalam ceritaAksi_.
       data = ceritaAksi_(action, body);
+    } else if (action.indexOf('thread') === 0) {
+      // Riwayat Tanya PII antar perangkat. 'eventThread' dan 'feedThread' sudah
+      // ditangkap lebih dulu, jadi cabang ini hanya milik sinkron riwayat yang
+      // selalu memerlukan akun kader, pengurus, atau admin di threadAksi_.
+      data = threadAksi_(action, body);
     } else if (action === 'login') {
       data = login_(body);
     } else if (action === 'logout') {
@@ -996,6 +1020,256 @@ function logChat_(me, question, answer, provider, status) {
     provider,
     status
   ]);
+}
+
+/* ------------------------------------- riwayat Tanya PII lintas perangkat */
+
+const THREAD_ID_POLA = /^[A-Za-z0-9_-]{4,40}$/;
+const THREAD_JUDUL_MAX = 60;
+const THREAD_TURN_MAX = 40;
+const THREAD_KATA_MAX = 8000;
+/** Sel Sheets menolak lebih dari 50 ribu karakter, jadi disisakan ruang aman. */
+const THREAD_SEL_MAKS = 44000;
+
+function threadKunci_(actorKey, id) {
+  return String(actorKey) + '#' + String(id);
+}
+
+/**
+ * Satu percakapan dibersihkan sebelum masuk sel: susunan turn dijaga supaya tidak
+ * ada role asing, rujukan dipangkas ke yang benar-benar dipakai, dan balasan
+ * paling tua dibuang bila totalnya melebihi kapasitas satu sel. Stempel waktu
+ * dikunci ke rentang yang masuk akal karena perangkat dengan jam ngawur bisa
+ * membuat percakapannya abadi di urutan paling atas.
+ */
+function threadBersih_(thread) {
+  if (!thread || typeof thread !== 'object') return null;
+  const id = String(thread.id || '');
+  if (!THREAD_ID_POLA.test(id)) return null;
+
+  const sekarang = Date.now();
+  const palingTua = sekarang - 730 * 86400000;
+  const palingMuda = sekarang + 300000;
+  const waktu = function (nilai, cadangan) {
+    const angka = Number(nilai);
+    if (!Number.isFinite(angka) || angka <= 0) return cadangan;
+    return Math.min(Math.max(Math.round(angka), palingTua), palingMuda);
+  };
+  const diubah = waktu(thread.diubah, waktu(thread.dibuat, sekarang));
+  const dibuat = Math.min(waktu(thread.dibuat, diubah), diubah);
+
+  const turns = (Array.isArray(thread.turns) ? thread.turns : [])
+    .map(function (turn) {
+      if (!turn || typeof turn !== 'object') return null;
+      const role = String(turn.role);
+      if (role !== 'user' && role !== 'assistant') return null;
+      const content = String(turn.content == null ? '' : turn.content).slice(0, THREAD_KATA_MAX);
+      if (!content.trim()) return null;
+      const hasil = { role: role, content: content };
+      if (role !== 'assistant') return hasil;
+
+      hasil.rujukan = (Array.isArray(turn.rujukan) ? turn.rujukan : []).slice(0, 3)
+        .map(function (sumber) {
+          if (!sumber || typeof sumber !== 'object') return null;
+          const judul = cleanText_(sumber.judul).slice(0, 120);
+          if (!judul) return null;
+          return {
+            judul: judul,
+            kategori: cleanText_(sumber.kategori).slice(0, 40),
+            berkas: String(sumber.berkas || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60),
+            bab: cleanText_(sumber.bab).slice(0, 120),
+            halaman: (Array.isArray(sumber.halaman) ? sumber.halaman : []).slice(0, 2)
+              .map(function (nomor) { return Number(nomor) || 0; })
+          };
+        }).filter(function (sumber) { return sumber !== null; });
+
+      hasil.rujukanWeb = (Array.isArray(turn.rujukanWeb) ? turn.rujukanWeb : []).slice(0, 3)
+        .map(function (sumber) {
+          if (!sumber || typeof sumber !== 'object') return null;
+          return { judul: cleanText_(sumber.judul).slice(0, 140), url: String(sumber.url || '').slice(0, 300) };
+        }).filter(function (sumber) {
+          return sumber !== null && /^https:\/\/[^\s]+$/.test(sumber.url);
+        });
+
+      hasil.status = String(turn.status) === 'no_source' ? 'no_source' : '';
+      hasil.rasa = ['suka', 'tidak'].indexOf(String(turn.rasa)) >= 0 ? String(turn.rasa) : '';
+      return hasil;
+    }).filter(function (turn) { return turn !== null; })
+    .slice(-THREAD_TURN_MAX);
+
+  if (!turns.length) return null;
+
+  let isi = JSON.stringify(turns);
+  while (isi.length > THREAD_SEL_MAKS && turns.length > 1) {
+    turns.splice(0, Math.max(1, Math.ceil(turns.length / 4)));
+    isi = JSON.stringify(turns);
+  }
+  if (isi.length > THREAD_SEL_MAKS) return null;
+
+  return {
+    id: id,
+    judul: cleanText_(thread.judul).slice(0, THREAD_JUDUL_MAX),
+    dibuat: dibuat,
+    diubah: diubah,
+    turns: turns,
+    isi: isi
+  };
+}
+
+function threadMilik_(actorKey) {
+  return rows_(APP.SHEET_THREADS).filter(function (row) {
+    return String(row.actor) === String(actorKey);
+  });
+}
+
+function threadRingkas_(row) {
+  return {
+    id: String(row.thread),
+    judul: String(row.judul || ''),
+    dibuat: Number(row.dibuat) || 0,
+    diubah: Number(row.diubah) || 0,
+    jumlah: Number(row.jumlah) || 0
+  };
+}
+
+function threadAksi_(action, body) {
+  if (action === 'threadList') return threadList_(body);
+  if (action === 'threadIsi') return threadIsi_(body);
+  if (action === 'threadSimpan') return threadSimpan_(body);
+  if (action === 'threadHapus') return threadHapus_(body);
+  throw new Error('Aksi riwayat tidak dikenal.');
+}
+
+/**
+ * Daftar + penanda hapus. Isinya sengaja tanpa teks percakapan supaya panggilan
+ * ini tetap murah; balasannya membawa jam server agar perangkat dengan salah
+ * setel waktu tidak pernah kalah adu "terbaru" selamanya.
+ */
+function threadList_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('thread-list', actor.key);
+  const hidup = [];
+  const kubur = [];
+  threadMilik_(actor.key).forEach(function (row) {
+    const ringkas = threadRingkas_(row);
+    if (String(row.status || 'ok') === 'hapus') kubur.push(ringkas);
+    else hidup.push(ringkas);
+  });
+  hidup.sort(function (a, b) { return b.diubah - a.diubah; });
+  kubur.sort(function (a, b) { return b.diubah - a.diubah; });
+  return {
+    threads: hidup.slice(0, APP.THREAD_BATAS_AKTIF),
+    hapus: kubur.slice(0, APP.THREAD_BATAS_AKTIF),
+    batas: APP.THREAD_BATAS_AKTIF,
+    waktu: Date.now()
+  };
+}
+
+/** Isi satu percakapan; hanya diminta saat pembacanya benar-benar dibuka. */
+function threadIsi_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('thread-baca', actor.key);
+  const id = String(body.id || '');
+  if (!THREAD_ID_POLA.test(id)) throw new Error('Percakapan tidak ditemukan di akun ini.');
+  const row = findRow_(APP.SHEET_THREADS, threadKunci_(actor.key, id));
+  if (!row || String(row.status || 'ok') === 'hapus') {
+    throw new Error('Percakapan tidak ditemukan di akun ini.');
+  }
+  let turns = [];
+  try {
+    turns = JSON.parse(String(row.isi || '[]'));
+  } catch (error) {
+    turns = [];
+  }
+  if (!Array.isArray(turns)) turns = [];
+  return {
+    thread: {
+      id: String(row.thread),
+      judul: String(row.judul || ''),
+      dibuat: Number(row.dibuat) || 0,
+      diubah: Number(row.diubah) || 0,
+      turns: turns
+    }
+  };
+}
+
+/**
+ * Simpan satu percakapan. Salinan yang lebih lama dari perangkat lain ditolak
+ * supaya ponsel yang tertinggal tidak menimpa jawaban yang baru ditulis di
+ * laptop; browser akan menarik salinan server pada sinkron berikutnya.
+ */
+function threadSimpan_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('thread-tulis', actor.key);
+  const thread = threadBersih_(body.thread);
+  if (!thread) throw new Error('Percakapan tidak dapat disimpan.');
+
+  const kunci = threadKunci_(actor.key, thread.id);
+  const ada = findRow_(APP.SHEET_THREADS, kunci);
+  if (ada && Number(ada.diubah) > thread.diubah) {
+    return {
+      id: thread.id,
+      ditolak: String(ada.status || 'ok') === 'hapus' ? 'dihapus' : 'lebih-baru',
+      diubah: Number(ada.diubah) || 0,
+      jumlah: Number(ada.jumlah) || 0,
+      waktu: Date.now()
+    };
+  }
+
+  if (ada) {
+    setCellsById_(APP.SHEET_THREADS, kunci, {
+      judul: thread.judul,
+      dibuat: thread.dibuat,
+      diubah: thread.diubah,
+      isi: thread.isi,
+      jumlah: thread.turns.length,
+      status: 'ok'
+    });
+  } else {
+    sheet_(APP.SHEET_THREADS).appendRow([
+      kunci, actor.key, thread.id, thread.judul, thread.dibuat, thread.diubah,
+      thread.isi, thread.turns.length, 'ok'
+    ]);
+  }
+  threadPangkas_(actor.key);
+  return { id: thread.id, diubah: thread.diubah, jumlah: thread.turns.length, waktu: Date.now() };
+}
+
+/**
+ * Penghapusan ditinggalkan sebagai penanda, bukan baris yang hilang, supaya
+ * perangkat lain tahu percakapan itu memang dibuang dan bukan belum pernah
+ * sempat disinkron. Penanda yang terlalu tua ikut dibuang saat pemangkasan.
+ */
+function threadHapus_(body) {
+  const actor = actorOf_(body.token);
+  throttle_('thread-tulis', actor.key);
+  const id = String(body.id || '');
+  if (!THREAD_ID_POLA.test(id)) return { id: id, dihapus: true };
+  const kunci = threadKunci_(actor.key, id);
+  const row = findRow_(APP.SHEET_THREADS, kunci);
+  if (!row || String(row.status || 'ok') === 'hapus') return { id: id, dihapus: true };
+  const diubah = Math.max(Number(row.diubah) || 0, Date.now());
+  setCellsById_(APP.SHEET_THREADS, kunci, { status: 'hapus', diubah: diubah, isi: '', jumlah: 0 });
+  threadPangkas_(actor.key);
+  return { id: id, dihapus: true, diubah: diubah, waktu: Date.now() };
+}
+
+/** Jejak per akun dibatasi: 40 percakapan terbaru dan penanda hapus 30 hari. */
+function threadPangkas_(actorKey) {
+  const punya = threadMilik_(actorKey);
+  const hidup = punya.filter(function (row) {
+    return String(row.status || 'ok') !== 'hapus';
+  }).sort(function (a, b) {
+    return (Number(b.diubah) || 0) - (Number(a.diubah) || 0);
+  });
+  const ambang = Date.now() - APP.THREAD_KUBUR_HARI * 86400000;
+  const buang = hidup.slice(APP.THREAD_BATAS_AKTIF).concat(punya.filter(function (row) {
+    return String(row.status || 'ok') === 'hapus' && (Number(row.diubah) || 0) < ambang;
+  }));
+  buang.forEach(function (row) {
+    deleteRowById_(APP.SHEET_THREADS, String(row.id));
+  });
+  return buang.length;
 }
 
 /**
@@ -4090,7 +4364,10 @@ const RATE_RULES = {
   'kader-profil': { limit: 12, window: 600 },
   'kader-unggah': { limit: 30, window: 900 },
   'cerita-unggah': { limit: 20, window: 900 },
-  'kader-cari': { limit: 30, window: 60 }
+  'kader-cari': { limit: 30, window: 60 },
+  'thread-list': { limit: 60, window: 60 },
+  'thread-baca': { limit: 60, window: 60 },
+  'thread-tulis': { limit: 40, window: 60 }
 };
 
 /** Cache script Apps Script dipaksa tenggelam setelah 600 detik. */

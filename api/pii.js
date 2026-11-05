@@ -23,14 +23,15 @@ const RULES = {
 const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
   'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus',
-  'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList'
+  'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList',
+  'threadList', 'threadIsi'
 ]);
 
 const WRITE_ACTIONS = new Set([
   'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'kaderEmailLogin',
   'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage',
   'feedUpload', 'feedPost', 'feedEdit', 'feedDelete', 'feedLike', 'feedComment', 'feedRepost', 'feedBookmark', 'feedFollow',
-  'kaderProfilSimpan', 'ceritaHapus'
+  'kaderProfilSimpan', 'ceritaHapus', 'threadSimpan', 'threadHapus'
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */
