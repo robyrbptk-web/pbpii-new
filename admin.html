@@ -270,6 +270,7 @@
       <button class="tab" data-page="settings"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg></span><span>Pengaturan</span></button>
       <button class="tab" data-page="gallery"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg></span><span>Galeri</span></button>
       <a class="tab" href="/pustaka"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span><span>Pustaka</span></a>
+      <button class="tab" data-page="resmi"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 20 7v6c0 4.2-3.2 6.7-8 8.5-4.8-1.8-8-4.3-8-8.5V7z"/><path d="m9 12 2 2 4-4"/></svg></span><span>Data resmi</span></button>
       <div class="side-bottom"></div>
     </aside>
 
@@ -504,6 +505,34 @@
         <div class="panel">
           <div class="list-head"><h2>Foto tersimpan</h2><button class="btn secondary" id="refreshGallery">↻ Muat ulang</button></div>
           <div class="item-list" id="galleryList"><div class="empty">Memuat data…</div></div>
+        </div>
+      </section>
+
+      <section id="page-resmi" class="hidden">
+        <div class="panel">
+          <div class="list-head">
+            <h2>Data resmi berpanduan waktu <span class="badge" id="faktaCount">0</span></h2>
+            <button class="btn secondary" id="syncFaktaButton" type="button">Tarik data resmi</button>
+          </div>
+          <p class="hint">Keterangan di bawah ini yang menjawab pertanyaan kepengurusan, alamat sekretariat, dan kontak pada Tanya PII. Nilai dari situs resmi PB PII ditarik otomatis setiap pagi dan hanya menambah baris baru — baris yang Anda kelola di sini tidak pernah ditimpa.</p>
+          <div class="message" id="faktaLaporan" aria-live="polite"></div>
+          <div class="item-list" id="faktaList"><div class="empty">Memuat data…</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="list-head"><h2 id="faktaFormTitle">Tambah keterangan</h2></div>
+          <form id="faktaForm">
+            <div class="form-grid">
+              <div class="field"><label for="faktaTopik">Topik *</label><input id="faktaTopik" placeholder="kepengurusan ketua umum"><div class="hint">Gunakan kata yang benar-benar ditanyakan kader.</div></div>
+              <div class="field"><label for="faktaStatus">Status</label><select id="faktaStatus"><option value="terkonfirmasi">Terkonfirmasi</option><option value="menunggu">Menunggu</option><option value="usang">Usang</option></select></div>
+              <div class="field full"><label for="faktaPernyataan">Pernyataan *</label><textarea id="faktaPernyataan" rows="2"></textarea></div>
+              <div class="field"><label for="faktaSumber">Sumber *</label><input id="faktaSumber" placeholder="Laman resmi pbpii.or.id"></div>
+              <div class="field"><label for="faktaTautan">Tautan sumber</label><input id="faktaTautan" placeholder="https://pbpii.or.id/..."></div>
+              <div class="field"><label for="faktaSejak">Berlaku sejak</label><input id="faktaSejak" type="date"></div>
+              <div class="field"><label for="faktaSampai">Berlaku sampai</label><input id="faktaSampai" type="date"></div>
+            </div>
+            <div class="btn-row"><button type="submit" class="btn primary">Simpan keterangan</button><button type="button" class="btn secondary" id="cancelFakta">Bersihkan form</button></div>
+          </form>
         </div>
       </section>
     </main>
@@ -813,6 +842,7 @@
         el.classList.toggle('active', el.dataset.page === name)
       );
       if (name === 'lembaga') loadOrgs();
+      if (name === 'resmi') loadFakta();
       window.scrollTo({top:0, behavior:'smooth'});
     }
 
@@ -1320,16 +1350,141 @@
       window.location.replace('/login.html');
     });
 
+    let fakta = [];
+    let faktaSedang = '';
+
+    function tanggalResmi(nilai) {
+      const teks = String(nilai || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(teks)) return '';
+      const tanggal = new Date(teks + 'T00:00:00');
+      return Number.isNaN(tanggal.getTime()) ? ''
+        : tanggal.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
+    }
+
+    function renderFakta() {
+      $('faktaCount').textContent = fakta.length;
+      $('faktaList').innerHTML = fakta.map(item => {
+        const masa = item.berlakuSejak
+          ? ' · berlaku ' + tanggalResmi(item.berlakuSejak) +
+            (item.berlakuSampai ? '–' + tanggalResmi(item.berlakuSampai) : ' dan seterusnya')
+          : '';
+        const sumber = item.tautan
+          ? '<a href="' + escapeHTML(item.tautan) + '" target="_blank" rel="noopener noreferrer">' +
+            escapeHTML(item.sumber || 'sumber resmi') + '</a>'
+          : escapeHTML(item.sumber || 'tanpa sumber');
+        return '<div class="item"><div class="item-main"><h3>' + escapeHTML(item.topik) + '</h3>' +
+          '<p>' + escapeHTML(item.pernyataan) + '</p><p class="meta-line">' +
+          '<span class="badge ' + (item.status === 'terkonfirmasi' ? 'published' : 'draft') + '">' +
+          escapeHTML(item.status) + '</span>' +
+          (item.berlaku ? '' : ' <span class="badge">di luar masa berlaku</span>') +
+          ' · sumber: ' + sumber + escapeHTML(masa) + '</p></div><div class="item-actions">' +
+          '<button class="btn secondary" data-fakta-edit="' + escapeHTML(item.id) + '">Sunting</button>' +
+          '<button class="btn danger" data-fakta-hapus="' + escapeHTML(item.id) + '">Hapus</button></div></div>';
+      }).join('') || '<div class="empty">Belum ada data resmi. Klik “Tarik data resmi” untuk mengambilnya dari situs PB PII.</div>';
+    }
+
+    function isiFaktaForm(item) {
+      faktaSedang = item ? item.id : '';
+      $('faktaFormTitle').textContent = item ? 'Sunting keterangan' : 'Tambah keterangan';
+      $('faktaTopik').value = item ? item.topik : '';
+      $('faktaStatus').value = item ? item.status : 'terkonfirmasi';
+      $('faktaPernyataan').value = item ? item.pernyataan : '';
+      $('faktaSumber').value = item ? item.sumber : '';
+      $('faktaTautan').value = item ? item.tautan : '';
+      $('faktaSejak').value = item ? item.berlakuSejak : '';
+      $('faktaSampai').value = item ? item.berlakuSampai : '';
+    }
+
+    async function loadFakta() {
+      try {
+        const data = await api('faktaList');
+        fakta = data.fakta || [];
+        renderFakta();
+      } catch (e) {
+        $('faktaList').innerHTML = '<div class="empty">' + escapeHTML(e.message) + '</div>';
+      }
+    }
+
+    $('faktaForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      try {
+        await api('faktaSimpan', {fakta: {
+          id: faktaSedang,
+          topik: $('faktaTopik').value.trim(),
+          pernyataan: $('faktaPernyataan').value.trim(),
+          sumber: $('faktaSumber').value.trim(),
+          tautan: $('faktaTautan').value.trim(),
+          status: $('faktaStatus').value,
+          berlakuSejak: $('faktaSejak').value,
+          berlakuSampai: $('faktaSampai').value
+        }});
+        isiFaktaForm(null);
+        await loadFakta();
+        notify('Keterangan resmi disimpan dan langsung dipakai Tanya PII.');
+      } catch (e) { notify(e.message, 'err'); }
+    });
+
+    $('cancelFakta').addEventListener('click', () => isiFaktaForm(null));
+
+    $('faktaList').addEventListener('click', async event => {
+      const edit = event.target.closest('[data-fakta-edit]');
+      const hapus = event.target.closest('[data-fakta-hapus]');
+      const pilih = (button, attr) => fakta.find(item => item.id === button.dataset[attr]);
+
+      if (edit) {
+        const target = pilih(edit, 'faktaEdit');
+        if (target) {
+          isiFaktaForm(target);
+          $('faktaForm').scrollIntoView({behavior:'smooth', block:'center'});
+        }
+      }
+      if (hapus) {
+        const target = pilih(hapus, 'faktaHapus');
+        if (target && confirm('Hapus keterangan “' + target.topik + '” dari data resmi?')) {
+          try {
+            await api('faktaHapus', {id: target.id});
+            if (faktaSedang === target.id) isiFaktaForm(null);
+            await loadFakta();
+            notify('Keterangan resmi dihapus.');
+          } catch (e) { notify(e.message, 'err'); }
+        }
+      }
+    });
+
+    $('syncFaktaButton').addEventListener('click', async () => {
+      const button = $('syncFaktaButton');
+      button.disabled = true;
+      button.textContent = 'Menarik…';
+      try {
+        const data = await api('faktaSinkron');
+        const tinjauan = (data.tinjauan || []).length;
+        const laporan = $('faktaLaporan');
+        laporan.textContent = 'Penarikan selesai: ' + (data.baru || 0) + ' baru, ' +
+          (data.diganti || 0) + ' diperbarui, ' + (data.sama || 0) + ' tetap sama' +
+          (tinjauan ? ' — ' + tinjauan + ' berbeda dari keterangan yang dikelola pengurus, jadi nilai pengurus dipertahankan dan sudah masuk kotak kabar' : '') +
+          '.';
+        laporan.className = 'message show ' + (tinjauan ? 'err' : 'ok');
+        await loadFakta();
+      } catch (e) { notify(e.message, 'err'); }
+      finally {
+        button.disabled = false;
+        button.textContent = 'Tarik data resmi';
+      }
+    });
+
     async function start() {
       if (!token()) {
         window.location.replace('/login.html');
         return;
       }
       await loadData();
+      const halaman = new URLSearchParams(window.location.search).get('halaman');
+      if (halaman && document.getElementById('page-' + halaman)) showPage(halaman);
     }
 
     start();
   </script>
+  <script src="notifikasi.js" defer></script>
   <script src="site.js" defer></script>
 </body>
 </html>

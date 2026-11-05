@@ -1593,12 +1593,14 @@
       };
       const renderThread = (messages) => {
         const latest = messages[messages.length - 1];
+        const percakapan = String(latest.threadId || latest.id);
         const hasUnread = messages.some((item) => item.toOrgId === state.org.id && item.status === 'unread');
         const unreadCount = messages.filter((item) => item.toOrgId === state.org.id && item.status === 'unread').length;
         const otherName = latest.fromOrgId === state.org.id ? latest.toName : latest.fromName;
         const replyTarget = latest.fromOrgId === state.org.id ? latest.toOrgId : latest.fromOrgId;
         const replyName = latest.fromOrgId === state.org.id ? latest.toName : latest.fromName;
-        return '<details class="letter ' + (hasUnread ? 'unread' : '') + '">' +
+        return '<details class="letter ' + (hasUnread ? 'unread' : '') + '" data-thread="' + esc(percakapan) +
+          '" data-ids="' + esc(messages.map((item) => item.id).join(' ')) + '">' +
           '<summary><span class="badge cat">' + esc(latest.category) + '</span>' +
           '<span class="sub">' + esc(latest.subject) + '</span>' +
           '<span class="badge">' + messages.length + ' pesan' + (unreadCount ? ' · ' + unreadCount + ' baru' : '') + '</span>' +
@@ -2224,6 +2226,20 @@
 
     bindUploaders();
 
+    /** Kabar dari lonceng membawa ?halaman= dan kadang ?letter=: buka di tempatnya. */
+    function bukaTautanKabar() {
+      const param = new URLSearchParams(window.location.search);
+      const halaman = param.get('halaman');
+      if (halaman && document.getElementById('page-' + halaman)) setPage(halaman);
+      const surat = param.get('letter');
+      if (!surat) return;
+      const kotak = Array.from(document.querySelectorAll('#inboxList details.letter, #outboxList details.letter'))
+        .find((node) => String(node.dataset.ids || '').split(' ').indexOf(surat) >= 0);
+      if (!kotak) return;
+      kotak.open = true;
+      kotak.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     (async () => {
       if (!token()) {
         showAuth();
@@ -2232,11 +2248,13 @@
       try {
         await loadData(false);
         setPage('ringkasan');
+        bukaTautanKabar();
       } catch (error) {
         showAuth();
       }
     })();
   </script>
+  <script src="notifikasi.js" defer></script>
   <script src="site.js" defer></script>
 </body>
 </html>

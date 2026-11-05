@@ -34,6 +34,7 @@ const HEADERS = {
   Bookmarks: ['id', 'actorKey', 'postId', 'createdAt'],
   Stories: ['id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa'],
   Threads: ['id', 'actor', 'thread', 'judul', 'dibuat', 'diubah', 'isi', 'jumlah', 'status'],
+  Notifikasi: ['id', 'untuk', 'jenis', 'judul', 'isi', 'tautan', 'dibuat', 'dibaca'],
   Fakta: ['id', 'topik', 'pernyataan', 'sumber', 'tautan', 'terbit',
     'berlakuSejak', 'berlakuSampai', 'status', 'diperbarui', 'peran'],
   PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'],
@@ -210,10 +211,16 @@ const UrlFetchApp = {
   }
 };
 
-/** Pemicu proyek hanya dicatat di sini; jadwal aslinya urusan Apps Script. */
+/**
+ * Pemicu proyek hanya dicatat di sini; jadwal aslinya urusan Apps Script.
+ * Objek tiruan sengaja memakai getHandlerFunction — bentuk yang benar-benar
+ * dikembalikan runtime Apps Script saat setup() dijalankan. Kalau suatu hari
+ * kode memanggil getFunctionName, pemeriksaan ini gagal alih-alih lulus lalu
+ * meledak di production.
+ */
 const pemicu = [];
 const ScriptApp = {
-  getProjectTriggers: () => pemicu.map((isi) => ({ getFunctionName: () => isi.fungsi })),
+  getProjectTriggers: () => pemicu.map((isi) => ({ getHandlerFunction: () => isi.fungsi })),
   newTrigger: (fungsi) => ({
     timeBased: () => ({
       everyDays: (hari) => ({
@@ -373,7 +380,8 @@ const exported = [
   'threadAksi_', 'threadBersih_', 'threadPangkas_', 'threadKunci_', 'THREAD_HEADERS',
   'THREAD_TURN_MAX', 'THREAD_KATA_MAX', 'THREAD_SEL_MAKS',
   'faktaCocok_', 'faktaBerlaku_', 'faktaSimpan_', 'faktaDaftar_', 'faktaTanam_', 'FAKTA_HEADERS',
-  'faktaSinkron', 'pastikanPacuFakta_', 'faktaTeksHtml_', 'faktaNama_', 'faktaAlamat_'
+  'faktaSinkron', 'pastikanPacuFakta_', 'faktaTeksHtml_', 'faktaNama_', 'faktaAlamat_',
+  'notifKirim_', 'notifTautan_', 'NOTIF_HEADERS', 'NOTIF_KOTAK_ADMIN', 'orgSetStatus_', 'orgRegister_'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog', 'ScriptApp', 'Logger',
@@ -2416,6 +2424,117 @@ function captureError(run) {
     return String(error && error.message ? error.message : error);
   }
 }
+
+/* --------------------------------------------- notifikasi internal */
+
+check('setup mengenal sheet notifikasi',
+  gas.SHEET_SCHEMA.some((entry) => entry[0] === 'Notifikasi'), true);
+
+const IP_KABAR = '198.51.100.210';
+const kotakAwal = request({ action: 'notifList', token: 'ses-pd', ip: IP_KABAR });
+const suratMasuk = kotakAwal.data.notifikasi.filter((item) => item.jenis === 'surat');
+check('surat yang terkirim muncul di kotak lembaga tujuan', suratMasuk.length, 2);
+check('kabar surat membawa subjek aslinya',
+  suratMasuk.some((item) => item.isi === 'Permohonan koordinasi'), true);
+check('kabar hanya menautkan halaman aplikasi',
+  kotakAwal.data.notifikasi.every((item) => !item.tautan || /^[a-z0-9_-]+\.html/.test(item.tautan)), true);
+check('hitung belum dibaca memakai baris yang belum bertanggal baca',
+  kotakAwal.data.belumDibaca, kotakAwal.data.notifikasi.length);
+
+const satuKabar = suratMasuk[0].id;
+const dibacaSatu = request({ action: 'notifRead', token: 'ses-pd', id: satuKabar, ip: IP_KABAR });
+check('satu kabar dapat ditandai dibaca',
+  [dibacaSatu.data.ditandai, dibacaSatu.data.belumDibaca],
+  [1, kotakAwal.data.belumDibaca - 1]);
+check('tanggal baca tersimpan pada barisnya',
+  rowsOf('Notifikasi').find((baris) => baris.id === satuKabar).dibaca !== '', true);
+check('kabar yang sudah dibaca tidak dihitung ulang',
+  request({ action: 'notifRead', token: 'ses-pd', id: satuKabar, ip: IP_KABAR }).data.ditandai, 0);
+check('lembaga lain tidak dapat menandai kabar bukan miliknya',
+  request({ action: 'notifRead', token: 'ses-poltek', id: satuKabar, ip: IP_KABAR }).data.ditandai, 0);
+check('kotak lembaga lain tidak menampung surat yang bukan tujuannya',
+  request({ action: 'notifList', token: 'ses-poltek', ip: IP_KABAR }).data.notifikasi
+    .filter((item) => item.jenis === 'surat').length, 0);
+
+const kotakAdmin = request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.215' });
+check('tamu tidak dapat membuka kotak kabar',
+  request({ action: 'notifList', ip: '198.51.100.216' }).ok, false);
+
+/* Pengurus mengganti alamat sekretariat dengan nilai yang berbeda dari situs;
+   penarikan berikutnya tidak menimpa barisnya tetapi wajib mengabari admin. */
+rowsOf('Fakta').find((item) => item.topik === 'kantor sekretariat pb pii alamat' && item.peran === 'admin')
+  .pernyataan = 'Sekretariat PB PII di Jl. Diponegoro No. 1, Jakarta Pusat.';
+const tinjauanSinkron = request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.193' });
+check('penarikan melaporkan selisih dengan baris kelolaan pengurus',
+  tinjauanSinkron.data.tinjauan.length, 1);
+check('kotak admin berisi kabar bahwa ada data resmi yang perlu ditinjau',
+  request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.215' }).data.notifikasi
+    .filter((item) => item.jenis === 'fakta').length, 1);
+check('penarikan ulang pada hari yang sama tidak menambah kabar kedua', (() => {
+  request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.193' });
+  return request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.215' }).data.notifikasi
+    .filter((item) => item.jenis === 'fakta').length;
+})(), 1);
+
+/* Kabar yang tidak membuka apa pun sama saja dengan tombol mati, jadi alamat
+   halamannya ikut diperiksa terhadap HTML dasbor yang sebenarnya. */
+const halamanBacan = new Map();
+const bacaHalaman = (nama) => {
+  if (!halamanBacan.has(nama)) {
+    try {
+      halamanBacan.set(nama, readFileSync(new URL('../' + nama, import.meta.url), 'utf8'));
+    } catch {
+      halamanBacan.set(nama, '');
+    }
+  }
+  return halamanBacan.get(nama);
+};
+const daftarTautan = [...new Set(rowsOf('Notifikasi')
+  .map((baris) => String(baris.tautan || '')).filter(Boolean))];
+const tautanPatah = daftarTautan.filter((tautan) => {
+  const [nama, tanya = ''] = tautan.split('?');
+  const isi = bacaHalaman(nama);
+  if (!isi) return true;
+  const halaman = new URLSearchParams(tanya).get('halaman');
+  return halaman ? !isi.includes('id="page-' + halaman + '"') : false;
+});
+check('tautan kabar menunjuk halaman serta tab yang benar-benar ada',
+  [...new Set(tautanPatah)].join(', '), '');
+check('kabar surat membuka tab surat tempat surat itu berada',
+  daftarTautan.filter((tautan) => tautan.indexOf('lembaga.html?halaman=surat&letter=') === 0).length >= 2, true);
+
+const jumlahJenis = (hasil, jenis) => hasil.data.notifikasi.filter((item) => item.jenis === jenis).length;
+const sukaSebelum = jumlahJenis(request({ action: 'notifList', token: 'ses-kuota', ip: IP_KUOTA }), 'suka');
+request({ action: 'feedLike', token: 'ses-rozak', id: 'pos-profil-kuota', ip: IP_ROZAK });
+check('suka pada kabar kader masuk ke kotak penulisnya',
+  jumlahJenis(request({ action: 'notifList', token: 'ses-kuota', ip: IP_KUOTA }), 'suka') - sukaSebelum, 1);
+request({ action: 'feedLike', token: 'ses-kuota', id: 'pos-profil-kuota', ip: IP_ROZAK });
+check('menyukai kabar sendiri tidak menghasilkan kabar',
+  jumlahJenis(request({ action: 'notifList', token: 'ses-kuota', ip: IP_KUOTA }), 'suka') - sukaSebelum, 1);
+const balasSebelum = jumlahJenis(request({ action: 'notifList', token: 'ses-kuota', ip: IP_KUOTA }), 'balasan');
+request({ action: 'feedComment', token: 'ses-rozak', id: 'pos-profil-kuota', text: 'Insight bagus', ip: IP_ROZAK });
+check('balasan pada kabar ikut mengabari penulisnya',
+  jumlahJenis(request({ action: 'notifList', token: 'ses-kuota', ip: IP_KUOTA }), 'balasan') - balasSebelum, 1);
+
+const sebelumUji = rowsOf('Notifikasi').length;
+gas.notifKirim_('o:pb-pii', { judul: 'Uji kotak', isi: 'Isi uji', tautan: 'https://luar.example' }, 'notif-uji-1');
+gas.notifKirim_('o:pb-pii', { judul: 'Uji kotak', isi: 'Isi uji', tautan: 'https://luar.example' }, 'notif-uji-1');
+check('satu pemicu yang berjalan ulang tidak menumpuk kabar yang sama',
+  rowsOf('Notifikasi').length, sebelumUji + 1);
+check('tautan luar tidak pernah dipakai sebagai alamat kabar',
+  rowsOf('Notifikasi').find((baris) => baris.id === 'notif-uji-1').tautan, '');
+check('pembatas laju disiapkan untuk pembacaan kotak',
+  Boolean(gas.RATE_RULES['notif-baca']), true);
+
+let kotakLolos = 0;
+let kotakTerbatas = 0;
+for (let i = 0; i < gas.RATE_RULES['notif-baca'].limit + 2; i += 1) {
+  const hasil = request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.219' });
+  if (hasil.ok) kotakLolos += 1;
+  else kotakTerbatas += 1;
+}
+check('membuka kotak kabar dibatasi per alamat IP',
+  [kotakLolos, kotakTerbatas], [gas.RATE_RULES['notif-baca'].limit, 2]);
 
 const failed = checks.filter((item) => !item.ok);
 checks.forEach((item) => {

@@ -66,6 +66,16 @@
     teks: 'Kabar', foto: 'Foto', video: 'Video', pengumuman: 'Pengumuman', acara: 'Kegiatan', berbagi: 'Dibagikan'
   };
 
+  const IKON = {
+    suka: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.2s-7.4-4.5-7.4-9.4A4.1 4.1 0 0 1 12 8.1a4.1 4.1 0 0 1 7.4 2.7c0 4.9-7.4 9.4-7.4 9.4Z"/></svg>',
+    balas: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/></svg>',
+    sebar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.8 8.6h9.9l-2.6-2.8M19.2 15.4H9.3l2.6 2.8"/></svg>',
+    kirim: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="12" r="2.6"/><circle cx="17.4" cy="6.6" r="2.6"/><circle cx="17.4" cy="17.4" r="2.6"/><path d="m9.4 10.8 5.8-3M9.4 13.2l5.8 3"/></svg>',
+    simpan: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 4.8h9.2v14.4l-4.6-3.4-4.6 3.4z"/></svg>'
+  };
+
+  const repostsOn = (card) => (Number(card.reposts) || 0) > 0;
+
   /* ------------------------------------------------------------------ api */
 
   async function api(body) {
@@ -216,54 +226,57 @@
 
   function actionBar(card) {
     const eventCard = String(card.id).indexOf('acara:') === 0;
-    const likes = Number(card.likes) || 0;
-    const replies = Number(card.commentCount) || 0;
-    const reposts = Number(card.reposts) || 0;
+    const id = escapeHTML(card.id);
+    const angka = (nilai) => (Number(nilai) || 0).toLocaleString('id-ID');
     const buttons = [];
 
-    buttons.push(`<button class="feed-like${card.liked ? ' is-on' : ''}" type="button" data-like="${escapeHTML(card.id)}"
-      aria-pressed="${card.liked ? 'true' : 'false'}" aria-label="Suka">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.2s-7.4-4.5-7.4-9.4A4.1 4.1 0 0 1 12 8.1a4.1 4.1 0 0 1 7.4 2.7c0 4.9-7.4 9.4-7.4 9.4Z"/></svg>
-      <span data-likes>${likes.toLocaleString('id-ID')}</span>
-    </button>`);
+    buttons.push(`<button class="feed-like${card.liked ? ' is-on' : ''}" type="button" data-like="${id}"
+      aria-pressed="${card.liked ? 'true' : 'false'}" aria-label="Suka kabar ini">${IKON.suka}<span data-likes>${angka(card.likes)}</span></button>`);
 
-    buttons.push(`<button class="feed-talk" type="button" data-thread="${escapeHTML(card.id)}" aria-expanded="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/></svg>
-      <span data-comments>${replies.toLocaleString('id-ID')}</span>
-      <small>Komentar</small>
-    </button>`);
+    buttons.push(`<button class="feed-talk" type="button" data-thread="${id}" aria-expanded="false"
+      aria-label="Komentar">${IKON.balas}<span data-comments>${angka(card.commentCount)}</span></button>`);
 
     if (eventCard) {
-      buttons.push(`<button class="feed-repost" type="button" data-share-event="${escapeHTML(card.acara?.id || '')}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.8 8.6h9.9l-2.6-2.8M19.2 15.4H9.3l2.6 2.8"/></svg>
-        <small>Bagikan</small>
-      </button>`);
-    } else if (!card.author.mine) {
-      buttons.push(`<button class="feed-repost${reposts ? ' is-on' : ''}" type="button" data-repost="${escapeHTML(card.id)}" aria-label="Sebarkan kabar">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.8 8.6h9.9l-2.6-2.8M19.2 15.4H9.3l2.6 2.8"/></svg>
-        <span data-reposts>${reposts.toLocaleString('id-ID')}</span>
-      </button>`);
+      buttons.push(`<button class="feed-repost" type="button" data-share-event="${escapeHTML(card.acara?.id || '')}"
+        aria-label="Bagikan kegiatan ke feed">${IKON.sebar}<span data-reposts>${angka(card.reposts)}</span></button>`);
     } else {
-      buttons.push(`<button class="feed-repost" type="button" data-share-post="${escapeHTML(card.id)}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="12" r="2.6"/><circle cx="17.4" cy="6.6" r="2.6"/><circle cx="17.4" cy="17.4" r="2.6"/><path d="m9.4 10.8 5.8-3M9.4 13.2l5.8 3"/></svg>
-        <small>Sebarkan</small>
-      </button>`);
+      if (!card.author.mine) {
+        buttons.push(`<button class="feed-repost${repostsOn(card) ? ' is-on' : ''}" type="button" data-repost="${id}"
+          aria-label="Bagikan ulang kabar ini">${IKON.sebar}<span data-reposts>${angka(card.reposts)}</span></button>`);
+      }
+      buttons.push(`<button class="feed-share" type="button" data-share-post="${id}"
+        aria-label="Sebarkan tautan kabar">${IKON.kirim}</button>`);
     }
 
     if (!eventCard) {
-      buttons.push(`<button class="feed-save${card.bookmarked ? ' is-on' : ''}" type="button" data-bookmark="${escapeHTML(card.id)}"
-        aria-pressed="${card.bookmarked ? 'true' : 'false'}" aria-label="Simpan">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 4.8h9.2v14.4l-4.6-3.4-4.6 3.4z"/></svg>
-      </button>`);
+      buttons.push(`<button class="feed-save${card.bookmarked ? ' is-on' : ''}" type="button" data-bookmark="${id}"
+        aria-pressed="${card.bookmarked ? 'true' : 'false'}" aria-label="Simpan kabar">${IKON.simpan}</button>`);
     }
     return `<div class="feed-actions">${buttons.join('')}</div>`;
   }
 
+  /** Foto kader menjadi penanda kolom kabar; kabarnya sendiri dibuka lewat utas. */
+  function avatarHtml(author, kelas = '') {
+    const initial = escapeHTML(initials(author.name));
+    const foto = author.picture
+      ? `<img src="${safeImage(author.picture)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : '';
+    return `<span class="feed-ava${kelas}" aria-hidden="true">${initial}${foto}</span>`;
+  }
+
+  function railHtml(card) {
+    const author = card.author || {};
+    const ava = avatarHtml(author);
+    return `<div class="feed-rail" aria-hidden="true">
+      ${author.username
+        ? `<a class="feed-author-ava" href="/profil.html?u=${escapeHTML(author.username)}" tabindex="-1">${ava}</a>`
+        : ava}
+      <i class="feed-sambung"></i>
+    </div>`;
+  }
+
   function authorRow(card) {
     const author = card.author || {};
-    const foto = author.picture
-      ? `<span class="feed-ava" aria-hidden="true">${escapeHTML(initials(author.name))}<img src="${safeImage(author.picture)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()"></span>`
-      : `<span class="feed-ava" aria-hidden="true">${escapeHTML(initials(author.name))}</span>`;
     const menu = [];
     if (author.kind === 'kader' && !author.mine) {
       menu.push(`<button type="button" class="feed-follow" data-follow="${escapeHTML(author.id)}">Ikuti</button>`);
@@ -272,15 +285,18 @@
       menu.push('<button type="button" class="feed-menu" data-menu aria-expanded="false" aria-label="Pilihan postingan">⋯</button>');
     }
     const ubah = card.updatedAt && card.updatedAt !== card.createdAt ? ' · diubah' : '';
+    const jenis = ['pengumuman', 'acara'].indexOf(card.jenis) >= 0
+      ? `<em class="feed-jenis">${escapeHTML(JENIS_LABEL[card.jenis] || 'Kabar')}</em>`
+      : '';
+    const nama = escapeHTML(author.name || 'Kader PII');
+    const bawah = [escapeHTML(timeAgo(card.createdAt)), author.username ? '@' + escapeHTML(author.username) : '', ubah ? 'diubah' : '']
+      .filter(Boolean).join(' · ');
     return `<div class="feed-author">
-      ${author.username
-        ? `<a class="feed-author-taut feed-author-ava" href="/profil.html?u=${escapeHTML(author.username)}" aria-hidden="true" tabindex="-1">${foto}</a>`
-        : foto}
       <span class="feed-author-name">
         ${author.username
-          ? `<a class="feed-author-taut" href="/profil.html?u=${escapeHTML(author.username)}"><b>${escapeHTML(author.name || 'Kader PII')}</b></a>`
-          : `<b>${escapeHTML(author.name || 'Kader PII')}</b>`}
-        <small>${escapeHTML(JENIS_LABEL[card.jenis] || 'Kabar')} · ${escapeHTML(timeAgo(card.createdAt))}${escapeHTML(ubah)}</small>
+          ? `<a class="feed-author-taut" href="/profil.html?u=${escapeHTML(author.username)}"><b>${nama}</b></a>`
+          : `<b>${nama}</b>`}${jenis}
+        <small>${bawah}</small>
       </span>
       <span class="feed-author-side">${menu.join('')}</span>
     </div>`;
@@ -315,10 +331,13 @@
   function cardHtml(card) {
     const id = escapeHTML(card.id);
     return `<article class="feed-card" data-post="${id}">
-      ${authorRow(card)}
-      <div class="feed-body">${bodyHtml(card)}</div>
-      ${actionBar(card)}
-      <div class="feed-thread" data-thread-panel="${id}" hidden></div>
+      ${railHtml(card)}
+      <div class="feed-col">
+        ${authorRow(card)}
+        <div class="feed-body">${bodyHtml(card)}</div>
+        ${actionBar(card)}
+        <div class="feed-thread" data-thread-panel="${id}" hidden></div>
+      </div>
     </article>`;
   }
 
@@ -366,10 +385,7 @@
   /* ------------------------------------------------------------------ utas */
 
   function commentHtml(comment) {
-    const initial = escapeHTML(initials(comment.author));
-    const foto = comment.picture
-      ? `<span class="feed-ava is-small" aria-hidden="true">${initial}<img src="${safeImage(comment.picture)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()"></span>`
-      : `<span class="feed-ava is-small" aria-hidden="true">${initial}</span>`;
+    const foto = avatarHtml({ name: comment.author, picture: comment.picture }, ' is-small');
     return `<li class="feed-comment${comment.parentId ? ' is-reply' : ''}${comment.mine ? ' is-mine' : ''}" data-comment="${escapeHTML(comment.id)}">
       ${foto}
       <div>
@@ -398,10 +414,13 @@
   function buildThread(id) {
     const panel = panelFor(id);
     if (!panel) return;
+    const akun = window.PBPIIAkun?.account?.();
+    const saya = akun && akun.role !== 'tamu' ? initials(akun.name || 'K') : '·';
     panel.innerHTML = `<div class="feed-thread-inner">
         <p class="feed-thread-head"><b data-total>Diskusi</b><span>Komentar kader terbaca oleh semua pengunjung.</span></p>
         <ul class="feed-comments"><li class="feed-empty-comment">Memuat komentar…</li></ul>
         <form class="feed-reply" data-reply-form="${escapeHTML(id)}">
+          <span class="feed-ava is-small" aria-hidden="true">${escapeHTML(saya)}</span>
           <input type="text" placeholder="Tulis balasan…" aria-label="Tulis balasan" maxlength="600" data-reply-text>
           <button type="submit" class="button button-solid">Kirim</button>
         </form>
@@ -420,6 +439,7 @@
     buildThread(id);
     panel.hidden = false;
     panel.classList.add('is-open');
+    cardFor(id)?.classList.add('is-open');
     state.open.add(id);
     panel.closest('[data-thread]')?.setAttribute?.('aria-expanded', 'true');
     cardFor(id)?.querySelector('[data-thread]')?.setAttribute('aria-expanded', 'true');
@@ -432,6 +452,7 @@
   function closeThread(id) {
     const panel = panelFor(id);
     state.open.delete(id);
+    cardFor(id)?.classList.remove('is-open');
     if (!panel) return;
     panel.hidden = true;
     panel.classList.remove('is-open');
@@ -1039,6 +1060,17 @@
   });
 
   moreEl?.addEventListener('click', () => loadFeed({ lebih: true }));
+
+  /* Kabar berikutnya ditarik begitu ujung daftar terlihat, seperti gulir
+     tanpa batas pada aplikasi media sosial; tombol tetap ada untuk yang
+     menjalankan peramban tanpa IntersectionObserver. */
+  if (moreEl && 'IntersectionObserver' in window) {
+    new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      if (moreEl.hidden || state.loading) return;
+      loadFeed({ lebih: true });
+    }, { rootMargin: '320px' }).observe(moreEl);
+  }
 
   openComposerEl?.addEventListener('click', async () => {
     const account = await requireLogin('Masuk sebagai kader untuk menulis kabar di feed.');

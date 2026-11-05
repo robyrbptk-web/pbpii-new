@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-05.10';
+const BACKEND_VERSION = '2026-11-05.12';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -36,6 +36,7 @@ const APP = {
   SHEET_STORIES: 'Stories',
   SHEET_THREADS: 'Threads',
   SHEET_FACTA: 'Fakta',
+  SHEET_NOTIFIKASI: 'Notifikasi',
   /** Sesi 30 hari: kader tidak boleh disuruh masuk ulang setiap hari hanya
       untuk membaca komentar atau memakai Tanya PII. */
   TOKEN_TTL_SECONDS: 2592000,
@@ -316,6 +317,19 @@ const FAKTA_HEADERS = [
 const FAKTA_STATUS = ['terkonfirmasi', 'usang', 'menunggu'];
 const FAKTA_BATAS_KONTEKS = 4;
 
+/**
+ * Kotak kabar internal. `untuk` memakai kunci aktor yang sama dengan sheet umpan
+ * (k:<kader>, o:<lembaga>, a:<admin>) sehingga satu sesi cukup membawa token yang
+ * sudah ada — tidak ada sistem login baru. `dibaca` kosong berarti belum dibuka.
+ */
+const NOTIF_HEADERS = ['id', 'untuk', 'jenis', 'judul', 'isi', 'tautan', 'dibuat', 'dibaca'];
+/** Kunci kotak untuk semua admin; sesi admin mana pun boleh isinya. */
+const NOTIF_KOTAK_ADMIN = 'a:admin';
+const NOTIF_BATAS_TAMPIL = 40;
+const NOTIF_JUDUL_MAX = 140;
+const NOTIF_ISI_MAX = 300;
+const NOTIF_USIA_HARI = 30;
+
 // Satu daftar skema dipakai setup() dan health_() supaya tidak pernah berbeda.
 const SHEET_SCHEMA = [
   [APP.SHEET_ARTICLES, ARTICLE_HEADERS],
@@ -340,7 +354,8 @@ const SHEET_SCHEMA = [
   [APP.SHEET_BOOKMARKS, BOOKMARK_HEADERS],
   [APP.SHEET_STORIES, STORY_HEADERS],
   [APP.SHEET_THREADS, THREAD_HEADERS],
-  [APP.SHEET_FACTA, FAKTA_HEADERS]
+  [APP.SHEET_FACTA, FAKTA_HEADERS],
+  [APP.SHEET_NOTIFIKASI, NOTIF_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -831,6 +846,10 @@ function doPost(event) {
       // ditangkap lebih dulu, jadi cabang ini hanya milik sinkron riwayat yang
       // selalu memerlukan akun kader, pengurus, atau admin di threadAksi_.
       data = threadAksi_(action, body);
+    } else if (action.indexOf('notif') === 0) {
+      // Kotak kabar internal: memakai sesi yang sudah ada (kader, lembaga, admin)
+      // dan hanya membuka kotak milik aktor itu sendiri.
+      data = notifAksi_(action, body);
     } else if (action === 'login') {
       data = login_(body);
     } else if (action === 'logout') {
@@ -2441,6 +2460,13 @@ function orgRegister_(body) {
     '', '', now, now, '', note || ('Menunggu verifikasi ' + parent.name)
   ]);
 
+  notifKirim_(NOTIF_KOTAK_ADMIN, {
+    jenis: 'verifikasi',
+    judul: 'Lembaga menunggu verifikasi: ' + name,
+    isi: 'Didaftarkan oleh ' + email + '; induk ' + parent.name + '.',
+    tautan: 'admin.html?halaman=lembaga'
+  }, 'notif-verifikasi-' + id);
+
   return { id: id, name: name, status: 'pending', parentName: parent.name };
 }
 
@@ -3168,6 +3194,14 @@ function orgSendLetter_(org, body) {
     ];
   });
   sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+  rows.forEach(function (row, index) {
+    notifLembaga_(row[2], {
+      jenis: 'surat',
+      judul: 'Surat ' + category + ' baru dari ' + (org.name || 'pengurus'),
+      isi: subject,
+      tautan: 'lembaga.html?halaman=surat&letter=' + row[0]
+    }, 'notif-surat-' + row[0]);
+  });
   const first = rows[0];
   return {
     id: first[0],
@@ -3333,6 +3367,14 @@ function orgSetStatus_(id, decision, actorLabel, note) {
     updatedAt: now,
     note: cleanText_(note).slice(0, 500)
   });
+  const keputusanLabel = { verified: 'disetujui', rejected: 'belum disetujui', pending: 'dikembalikan untuk ditinjau' };
+  notifLembaga_(target.id, {
+    jenis: 'verifikasi',
+    judul: 'Verifikasi akun lembaga ' + keputusanLabel[value],
+    isi: cleanText_(note).slice(0, 200) || 'Silakan buka dasbor lembaga untuk melihat catatan pengurus.',
+    tautan: 'lembaga.html'
+    // Id ikut keputusan supaya setiap perubahan_status menghasilkan satu kabar baru.
+  }, 'notif-keputusan-' + target.id + '-' + value + '-' + now.slice(0, 10));
   return slimOrg_(orgById_(rows_(APP.SHEET_ORGS), target.id));
 }
 
@@ -3467,6 +3509,12 @@ function publicRegister_(body) {
       id, form.id, form.orgId, name, institution, phone, email, note, now,
       normalized.json, 'pending', now, registrationKey
     ]);
+    notifLembaga_(form.orgId, {
+      jenis: 'pendaftar',
+      judul: 'Pendaftar baru: ' + (cleanText_(form.title).slice(0, 90) || 'kegiatan'),
+      isi: name + (institution ? ' — ' + institution : ''),
+      tautan: 'lembaga.html?halaman=formulir'
+    }, 'notif-pendaftar-' + id);
     return { id: id, status: 'registered', registrationCode: registrationCode_(id) };
   } finally {
     lock.releaseLock();
@@ -5020,6 +5068,14 @@ function faktaSinkron(paksa) {
 
   Logger.log('faktaSinkron ' + hari + ': baru ' + hasil.baru + ', diganti ' + hasil.diganti +
     ', sama ' + hasil.sama + ', perlu ditinjau ' + hasil.tinjauan.length);
+  if (hasil.tinjauan.length) {
+    notifKirim_(NOTIF_KOTAK_ADMIN, {
+      jenis: 'fakta',
+      judul: hasil.tinjauan.length + ' keterangan resmi perlu ditinjau',
+      isi: hasil.tinjauan.map(function (item) { return item.topik; }).join(', '),
+      tautan: 'admin.html?halaman=resmi'
+    }, 'notif-fakta-' + hari);
+  }
   if (!hasil.baru && !hasil.diganti && !hasil.tinjauan.length) hasil.lewat = true;
   return hasil;
 }
@@ -5032,11 +5088,23 @@ function faktaSinkron(paksa) {
  */
 function pastikanPacuFakta_() {
   const ada = ScriptApp.getProjectTriggers().filter(function (pemicu) {
-    return pemicu.getFunctionName() === 'faktaSinkron';
+    return namaPemicu_(pemicu) === 'faktaSinkron';
   });
   if (ada.length) return 'sudah terpasang';
   ScriptApp.newTrigger('faktaSinkron').timeBased().everyDays(1).atHour(FAKTA_SINKRON_JAM).create();
   return 'terpasang';
+}
+
+/**
+ * Nama fungsi yang dipanggil sebuah pemicu. Runtime Apps Script yang berjalan
+ * sekarang hanya mengenal getHandlerFunction; getFunctionName dipakai sebagai
+ * cadangan supaya pemicu lama tidak pernah dianggap tidak dikenal dan dipasang
+ * dobel.
+ */
+function namaPemicu_(pemicu) {
+  if (pemicu && typeof pemicu.getHandlerFunction === 'function') return pemicu.getHandlerFunction();
+  if (pemicu && typeof pemicu.getFunctionName === 'function') return pemicu.getFunctionName();
+  return '';
 }
 
 /* ==================================================== keamanan & akun kader
@@ -5064,6 +5132,7 @@ const RATE_RULES = {
   'pustaka-cari': { limit: 40, window: 60 },
   'pustaka-baca': { limit: 40, window: 60 },
   'pustaka-konteks': { limit: 30, window: 60 },
+  'notif-baca': { limit: 60, window: 60 },
   'chat': { limit: 6, window: 60 },
   'feed-list': { limit: 60, window: 60 },
   'feed-post': { limit: 20, window: 300 },
@@ -6141,6 +6210,14 @@ function feedSuka_(body) {
     sheet_(APP.SHEET_REACTIONS).appendRow([
       Utilities.getUuid(), id, actor.key, actor.name, 'like', new Date().toISOString(), 'post'
     ]);
+    if (String(row.authorKey) !== actor.key) {
+      notifKirim_(row.authorKey, {
+        jenis: 'suka',
+        judul: 'Kabar Anda disukai ' + actor.name,
+        isi: cleanText_(row.isi).slice(0, 120),
+        tautan: 'feed.html?kabar=' + id
+      }, 'notif-suka-' + id + '-' + actor.key);
+    }
   }
   const total = reactionIndex_('post')[id];
   return { liked: !existing.length, likes: total ? total.count : 0 };
@@ -6175,6 +6252,30 @@ function feedBalas_(body) {
   sheet_(APP.SHEET_COMMENTS).appendRow([
     baru, id, actor.key, actor.name, actor.picture, text, 'published', now, now, 'post', parentId
   ]);
+
+  const tautanKabar = 'feed.html?kabar=' + id;
+  if (String(row.authorKey) !== actor.key) {
+    notifKirim_(row.authorKey, {
+      jenis: 'balasan',
+      judul: parentId ? 'Balasan pada komentar Anda di kabar ' + (row.authorName || 'kader')
+        : actor.name + ' mengomentari kabar Anda',
+      isi: text,
+      tautan: tautanKabar
+    }, 'notif-balas-' + baru);
+  } else if (parentId) {
+    // Pemilik kabar mengomentari balasan: kabari penulis komentar induk.
+    const induk = (commentIndex_('post')[id] || []).filter(function (comment) {
+      return String(comment.id) === parentId;
+    })[0];
+    if (induk && String(induk.actorKey) !== actor.key) {
+      notifKirim_(induk.actorKey, {
+        jenis: 'balasan',
+        judul: 'Ada balasan pada komentar Anda',
+        isi: text,
+        tautan: tautanKabar
+      }, 'notif-balas-' + baru);
+    }
+  }
 
   const view = commentView_({
     id: baru, actorName: actor.name, actorPicture: actor.picture, text: text, createdAt: now
@@ -6934,3 +7035,106 @@ function kaderAksi_(action, body) {
   if (action === 'kaderProfilSimpan') return kaderSimpan_(body);
   throw new Error('Aksi profil kader tidak dikenal.');
 }
+
+/* ------------------------------------------------- notifikasi internal */
+
+/**
+ * Tautan kabar dibatasi ke halaman aplikasi: sebuah kotak surat tidak boleh
+ * dipakai mengirim orang ke situs luar lewat isian mana pun.
+ */
+function notifTautan_(value) {
+  const raw = String(value || '').trim().slice(0, 200);
+  return /^[a-z0-9_-]+\.html(?:[?#][^\s<>]*)?$/i.test(raw) ? raw : '';
+}
+
+/**
+ * Satu kabar masuk satu kotak. Idempoten lewat id tetap: pacu harian dan tombol
+ * manual pada hari yang sama tidak boleh menumpuk surat yang sama, dan kabar yang
+ * sudah dibuka tidak boleh berubah jadi belum dibaca.
+ */
+function notifKirim_(untuk, kabar, id) {
+  const kotak = String(untuk || '');
+  const judul = cleanText_(kabar && kabar.judul).slice(0, NOTIF_JUDUL_MAX);
+  if (!kotak || !judul) return '';
+  const barisId = String(id || 'notif-' + Utilities.getUuid());
+  if (findRow_(APP.SHEET_NOTIFIKASI, barisId)) return barisId;
+  sheet_(APP.SHEET_NOTIFIKASI).appendRow([
+    barisId, kotak, String((kabar && kabar.jenis) || 'info'), judul,
+    cleanText_(kabar.isi).slice(0, NOTIF_ISI_MAX), notifTautan_(kabar.tautan),
+    new Date().toISOString(), ''
+  ]);
+  return barisId;
+}
+
+/** Kunci aktor sudah memuat jenis akun (k:, o:, a:), jadi peran tidak perlu ditebak. */
+function notifKotak_(aktor) {
+  return aktor.kind === 'admin' ? [NOTIF_KOTAK_ADMIN] : [aktor.key];
+}
+
+function notifBaris_(kotak) {
+  const batas = new Date(Date.now() - NOTIF_USIA_HARI * 86400000).toISOString();
+  return rows_(APP.SHEET_NOTIFIKASI)
+    .filter(function (item) {
+      return kotak.indexOf(String(item.untuk)) >= 0 && String(item.dibuat) >= batas;
+    })
+    .sort(function (a, b) { return String(b.dibuat) < String(a.dibuat) ? -1 : 1; });
+}
+
+function notifTampilan_(baris) {
+  return baris.slice(0, NOTIF_BATAS_TAMPIL).map(function (item) {
+    return {
+      id: String(item.id || ''),
+      jenis: String(item.jenis || 'info'),
+      judul: String(item.judul || ''),
+      isi: String(item.isi || ''),
+      tautan: notifTautan_(item.tautan),
+      dibuat: String(item.dibuat || ''),
+      dibaca: String(item.dibaca || '')
+    };
+  });
+}
+
+function notifBelumDibaca_(baris) {
+  return baris.filter(function (item) { return !String(item.dibaca); }).length;
+}
+
+function notifDaftar_(body, aktor) {
+  throttle_('notif-baca', clientIp_(body));
+  const baris = notifBaris_(notifKotak_(aktor));
+  return { notifikasi: notifTampilan_(baris), belumDibaca: notifBelumDibaca_(baris) };
+}
+
+/** Menandai dibaca satu kabar atau seluruh isi kotak milik aktor ini saja. */
+function notifTandai_(body, aktor) {
+  const kotak = notifKotak_(aktor);
+  const id = String(body.id || '').trim().slice(0, 80);
+  const baris = notifBaris_(kotak);
+  const belum = notifBelumDibaca_(baris);
+  const kolom = NOTIF_HEADERS.indexOf('dibaca') + 1;
+  const sheet = sheet_(APP.SHEET_NOTIFIKASI);
+  const sekarang = new Date().toISOString();
+  let ditandai = 0;
+
+  baris.forEach(function (item) {
+    if (String(item.dibaca) || (id && String(item.id) !== id)) return;
+    const existing = findRow_(APP.SHEET_NOTIFIKASI, item.id);
+    if (!existing) return;
+    sheet.getRange(existing._row, kolom).setValue(sekarang);
+    ditandai += 1;
+  });
+
+  return { ditandai: ditandai, belumDibaca: Math.max(0, belum - ditandai) };
+}
+
+function notifAksi_(action, body) {
+  const aktor = actorOf_(body.token);
+  if (action === 'notifList') return notifDaftar_(body, aktor);
+  if (action === 'notifRead') return notifTandai_(body, aktor);
+  throw new Error('Aksi notifikasi tidak dikenal.');
+}
+
+/** Kabar untuk pengurus penerima serta kotak admin, dipakai beberapa aliran. */
+function notifLembaga_(orgId, kabar, id) {
+  return notifKirim_('o:' + String(orgId || ''), kabar, id);
+}
+
