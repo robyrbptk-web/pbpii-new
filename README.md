@@ -787,6 +787,12 @@ Cara memasangnya (satu kali, tanpa mengubah kode):
    (`SECRET_SETTINGS`).
 4. Terbitkan versi Apps Script baru — pengaturan dibaca dari sheet `Settings`,
    jadi tidak perlu mengubah kode.
+5. Kalau `siteverify` malah membalas "Anda tidak memiliki izin untuk memanggil
+   UrlFetchApp.fetch" padahal `script.external_request` sudah ada di
+   `appsscript.json`, izin tersimpan itu basi dan editor tidak bertanya lagi.
+   Hapus blok `oauthScopes` dari manifes, simpan, jalankan satu fungsi apa pun
+   yang memakai `UrlFetchApp`, setujui dialog "Dibutuhkan otorisasi", lalu
+   kembalikan blok `oauthScopes` dan terbitkan versi baru.
 
 Selama **kedua** kolom itu belum terisi, `captchaIssue_` mengembalikan
 `{ kind: 'none' }`: wadah verifikasi disembunyikan dan `assertCaptcha_` tidak
