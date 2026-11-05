@@ -120,7 +120,7 @@
       const tautan = [];
       const akun = (window.PBPIIAkun && window.PBPIIAkun.account()) || { role: 'tamu' };
       if (akun.role === 'kader') {
-        tautan.push('Kader: <b>' + (akun.name || 'Kader PII') + '</b> — <a href="/feed.html">lanjut ke Feed</a>');
+        tautan.push('Kader: <b>' + (akun.name || 'Kader PII') + '</b> — <a href="/app">lanjut ke Beranda</a>');
       }
       if (localStorage.getItem('pbpii_org_token')) {
         tautan.push('Lembaga: <b>' + (localStorage.getItem('pbpii_org_name') || 'Lembaga PII') + '</b> — <a href="/lembaga.html">lanjut ke dasbor</a>');
@@ -133,7 +133,7 @@
     }
 
     // Login kader lewat panel akun.js. Bila panel kader dibuka di halaman ini dan
-    // sesi kader muncul, antar dia ke Feed; sesi kader yang sudah ada sejak awal
+    // sesi kader muncul, antar dia ke Beranda aplikasi; sesi kader yang sudah ada sejak awal
     // tidak boleh melempar orang keluar dari halaman — ia mungkin ingin masuk
     // sebagai lembaga.
     if (window.PBPIIAkun) {
@@ -142,14 +142,14 @@
       window.PBPIIAkun.onChange((akun) => {
         if (panelDibuka && peranLama !== 'kader' && akun.role === 'kader') {
           sesiAktif.classList.add('isi');
-          sesiAktif.innerHTML = '<span class="sesi-item">Berhasil masuk sebagai <b>' + (akun.name || 'Kader PII') + '</b>. Membuka Feed…</span>';
-          setTimeout(() => { window.location.href = '/feed.html'; }, 700);
+          sesiAktif.innerHTML = '<span class="sesi-item">Berhasil masuk sebagai <b>' + (akun.name || 'Kader PII') + '</b>. Membuka Beranda…</span>';
+          setTimeout(() => { window.location.href = '/app'; }, 700);
         }
         peranLama = akun.role || 'tamu';
         gambarSesi();
       });
       document.getElementById('bukaKader').addEventListener('click', () => {
-        if (window.PBPIIAkun.account().role === 'kader') window.location.href = '/feed.html';
+        if (window.PBPIIAkun.account().role === 'kader') window.location.href = '/app';
         else { panelDibuka = true; window.PBPIIAkun.openPanel(); }
       });
     }

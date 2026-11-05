@@ -584,7 +584,9 @@ async function init() {
       if (settings[key]) $(selector).textContent = settings[key];
     });
     const siteName = String(settings.siteName || '').trim();
-    if (siteName) {
+    // Judul halaman publik bukan milik aplikasi: AppLayout sudah menamai
+    // Beranda/Artikel/Notifikasi sesuai tampilannya sendiri.
+    if (siteName && !document.body.classList.contains('aplikasi')) {
       const tagline = String(settings.tagline || '').trim();
       document.title = tagline && tagline !== siteName ? `${siteName} | ${tagline}` : siteName;
     }

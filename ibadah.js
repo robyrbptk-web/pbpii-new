@@ -198,7 +198,7 @@
   /** Berkas statis hasil scripts/make-ibadah-static.mjs — tanpa API Muslim. */
   async function staticRows(name) {
     if (staticCache.has(name)) return staticCache.get(name);
-    const response = await fetch(`assets/${name}`);
+    const response = await fetch(`/assets/${name}`);
     if (!response.ok) throw new Error(`${name} tidak tersedia (${response.status}).`);
     const rows = await response.json();
     staticCache.set(name, rows);

@@ -148,6 +148,42 @@
       "destination": "/peta/index.html"
     },
     {
+      "source": "/app",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app/acara",
+      "destination": "/acara.html"
+    },
+    {
+      "source": "/app/artikel",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app/feed",
+      "destination": "/feed.html"
+    },
+    {
+      "source": "/app/ibadah",
+      "destination": "/ibadah.html"
+    },
+    {
+      "source": "/app/notifikasi",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app/profil",
+      "destination": "/profil.html"
+    },
+    {
+      "source": "/app/pustaka",
+      "destination": "/pustaka.html"
+    },
+    {
+      "source": "/app/tanya",
+      "destination": "/tanya.html"
+    },
+    {
       "source": "/ibadah",
       "destination": "/ibadah.html"
     },
@@ -302,6 +338,14 @@
     },
     {
       "source": "/site.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
+    },
+    {
+      "source": "/appshell.css",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
+    },
+    {
+      "source": "/appshell.js",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
     }
   ]
