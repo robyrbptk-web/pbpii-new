@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Profil kader Pelajar Indonesia: foto, nama akun, bio, lokasi, jenjang keanggotaan, komisariat, serta kabar yang ditulis kader tersebut. Ikuti kawan untuk menata feed Anda.">
+  <meta name="theme-color" content="#0c2948">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Profil Kader PB PII">
+  <title>Profil Kader — PB PII</title>
+  <link rel="icon" href="/assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="profil-page">
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="/assets/logo-pii.webp" alt="Logo Pelajar Indonesia" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <span><b>PB PII</b><small>Profil Kader</small></span>
+    </a>
+    <nav id="nav" aria-label="Navigasi utama">
+      <a href="index.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.5h5V20"/></svg><span>Beranda</span></a>
+      <a href="acara.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/></svg><span>Acara</span></a>
+      <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
+      <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya</span></a>
+      <a href="peta.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>Peta</span></a>
+      <a class="nav-extra" href="feed.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 5.5h14.8v13H4.6z"/><path d="M7.4 9h9M7.4 12.2h9M7.4 15.4h5.4"/></svg><span>Feed</span></a>
+      <a class="nav-extra" href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka</span></a>
+      <a class="nav-extra" href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
+      <a class="nav-extra" href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri</span></a>
+      <button class="nav-more" id="navMore" type="button" aria-expanded="false" aria-controls="navMoreSheet"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.1"/><circle cx="12" cy="7" r="2.1"/><circle cx="18" cy="7" r="2.1"/><circle cx="6" cy="17" r="2.1"/><circle cx="12" cy="17" r="2.1"/><circle cx="18" cy="17" r="2.1"/></svg><span>Lainnya</span></button>
+    </nav>
+    <div class="account-slot" data-account aria-label="Akun kader PII"></div>
+  </header>
+
+  <div class="nav-sheet" id="navMoreSheet" aria-hidden="true">
+    <button class="nav-sheet-backdrop" type="button" tabindex="-1" aria-label="Tutup menu"></button>
+    <div class="nav-sheet-panel">
+      <p class="nav-sheet-title">Menu lengkap PB PII</p>
+      <div class="nav-sheet-grid">
+        <a href="feed.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 5.5h14.8v13H4.6z"/><path d="M7.4 9h9M7.4 12.2h9M7.4 15.4h5.4"/></svg><span>Feed kader</span></a>
+        <a href="profil.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.6" r="3.6"/><path d="M5.4 20c.7-3.4 3.1-5.4 6.6-5.4s5.9 2 6.6 5.4"/></svg><span>Profil kader</span></a>
+        <a href="tanya.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya PII</span></a>
+        <a href="acara.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/></svg><span>Acara &amp; kegiatan</span></a>
+        <a href="ibadah.html#quran"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Al-Qur'an</span></a>
+        <a href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka organisasi</span></a>
+        <a href="lembaga.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 20V6.5h9V20M13.5 20V10H20v10M7 9.5h1.5M7 13h1.5M7 16.5h1.5M16 13h1.5M16 16.5h1.5"/></svg><span>Akun lembaga</span></a>
+        <a href="login.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>Admin PB PII</span></a>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section class="profil-board" id="profil">
+      <form class="profil-cari" id="profilCariForm" hidden autocomplete="off">
+        <label class="sr-only" for="profilCari">Cari kader</label>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+        <input type="search" id="profilCari" maxlength="40" placeholder="Cari kader lewat nama atau nama akun">
+        <button type="submit">Cari</button>
+      </form>
+      <div class="profil-temuan" id="profilTemuan" hidden></div>
+
+      <div class="profil-keadaan" id="profilState" role="status" aria-live="polite">
+        <div class="profil-skeleton" aria-hidden="true">
+          <span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span>
+        </div>
+      </div>
+
+      <article class="profil-kartu" id="profilKartu" hidden>
+        <div class="profil-sampul" id="profilSampul">
+          <img id="profilSampulGambar" alt="" referrerpolicy="no-referrer" hidden>
+        </div>
+        <div class="profil-atas">
+          <span class="profil-avatar" id="profilAvatar" aria-hidden="true">
+            <span id="profilInisial">K</span>
+            <img id="profilAvatarGambar" alt="" referrerpolicy="no-referrer" hidden>
+          </span>
+          <div class="profil-sakelar">
+            <button class="profil-ikuti" type="button" id="profilIkuti" hidden>Ikuti</button>
+            <button class="button button-ghost" type="button" id="profilUbah" hidden>Edit profil</button>
+          </div>
+        </div>
+        <h1 id="profilNama">Kader PII</h1>
+        <p class="profil-akun" id="profilAkun" hidden></p>
+        <p class="profil-bio" id="profilBio" hidden></p>
+        <ul class="profil-attr" id="profilAtribut"></ul>
+        <div class="profil-jaring" id="profilJaring" hidden></div>
+        <div class="profil-angka">
+          <span class="profil-angka-item"><b id="profilJumlahKabar">0</b><small>Kabar</small></span>
+          <button class="profil-angka-item" type="button" id="profilTabPengikut"><b id="profilJumlahPengikut">0</b><small>Pengikut</small></button>
+          <button class="profil-angka-item" type="button" id="profilTabMengikuti"><b id="profilJumlahMengikuti">0</b><small>Mengikuti</small></button>
+        </div>
+      </article>
+
+      <div class="profil-tabs" id="profilTabs" role="tablist" aria-label="Bagian profil" hidden>
+        <button class="is-active" type="button" role="tab" aria-selected="true" data-tab="kabar">Kabar</button>
+        <button type="button" role="tab" aria-selected="false" data-tab="pengikut">Pengikut</button>
+        <button type="button" role="tab" aria-selected="false" data-tab="mengikuti">Mengikuti</button>
+      </div>
+
+      <p class="profil-masuk" id="profilMasuk" hidden>
+        <button type="button" class="text-link" id="profilMasukBuka">Masuk sebagai kader</button>
+        untuk mengikuti kawan dan menata feed Anda.
+      </p>
+
+      <div class="profil-daftar" id="profilDaftar" aria-live="polite"></div>
+
+      <p class="profil-kosong" id="profilKosong" hidden></p>
+    </section>
+  </main>
+
+  <dialog class="profil-dialog" id="profilDialog" aria-label="Edit profil kader">
+    <form class="profil-form" id="profilForm" method="dialog" autocomplete="off">
+      <div class="profil-dialog-atas">
+        <h2>Edit profil</h2>
+        <button class="profil-tutup" type="button" id="profilDialogTutup" aria-label="Tutup">×</button>
+      </div>
+      <p class="profil-lead">Isian ini tampil di profil Anda dan pada setiap kabar yang Anda tulis.</p>
+
+      <div class="profil-gambar">
+        <div class="profil-gambar-kotak">
+          <span class="profil-avatar profil-avatar-besar" aria-hidden="true">
+            <span id="dialogInisial">K</span>
+            <img id="dialogAvatar" alt="" hidden>
+          </span>
+          <button class="text-link" type="button" id="dialogAmbilAvatar">Ganti foto</button>
+          <button class="text-link" type="button" id="dialogHapusAvatar" hidden>Hapus foto</button>
+        </div>
+        <div class="profil-gambar-kotak profil-gambar-sampul">
+          <img id="dialogSampul" alt="" hidden>
+          <span class="profil-sampul-teks" id="dialogSampulTeks">Belum ada sampul</span>
+          <button class="text-link" type="button" id="dialogAmbilSampul">Ganti sampul</button>
+          <button class="text-link" type="button" id="dialogHapusSampul" hidden>Hapus sampul</button>
+        </div>
+      </div>
+      <input type="file" id="dialogBerkasAvatar" accept="image/jpeg,image/png,image/webp" hidden>
+      <input type="file" id="dialogBerkasSampul" accept="image/jpeg,image/png,image/webp" hidden>
+
+      <label class="profil-lapak"><span>Nama</span>
+        <input type="text" id="dialogNama" maxlength="90" placeholder="Nama yang tampil di profil">
+      </label>
+      <label class="profil-lapak"><span>Nama akun</span>
+        <span class="profil-akun-bungkus"><i>@</i><input type="text" id="dialogUsername" maxlength="20" spellcheck="false" placeholder="namaakun"></span>
+        <small>3–20 karakter: huruf kecil, angka, titik, atau garis bawah. Dipakai pada tautan profil Anda.</small>
+      </label>
+      <label class="profil-lapak"><span>Bio <em id="dialogBioHitung">0/240</em></span>
+        <textarea id="dialogBio" rows="3" maxlength="240" placeholder="Tulis beberapa kata tentang Anda dan kegiatan Anda di PII."></textarea>
+      </label>
+      <label class="profil-lapak"><span>Lokasi</span>
+        <input type="text" id="dialogLokasi" maxlength="60" placeholder="Kota atau kabupaten">
+      </label>
+      <div class="profil-dua">
+        <label class="profil-lapak"><span>Jenjang</span>
+          <select id="dialogJenjang"></select>
+        </label>
+        <label class="profil-lapak"><span>Komisariat / lembaga</span>
+          <select id="dialogLembaga"></select>
+        </label>
+      </div>
+
+      <fieldset class="profil-jaring-masukan">
+        <legend>Tautan</legend>
+        <p class="profil-lead">Isi nama akun saja, misalnya <b>rozak.pii</b>, atau tautan lengkapnya.</p>
+        <label class="profil-lapak"><span>Instagram</span><input type="text" id="dialogInstagram" maxlength="220" spellcheck="false" placeholder="nama akun atau tautan"></label>
+        <label class="profil-lapak"><span>YouTube</span><input type="text" id="dialogYoutube" maxlength="220" spellcheck="false" placeholder="nama kanal atau tautan"></label>
+        <label class="profil-lapak"><span>TikTok</span><input type="text" id="dialogTiktok" maxlength="220" spellcheck="false" placeholder="nama akun atau tautan"></label>
+        <label class="profil-lapak"><span>Facebook</span><input type="text" id="dialogFacebook" maxlength="220" spellcheck="false" placeholder="nama akun atau tautan"></label>
+        <label class="profil-lapak"><span>X</span><input type="text" id="dialogX" maxlength="220" spellcheck="false" placeholder="nama akun atau tautan"></label>
+        <label class="profil-lapak"><span>LinkedIn</span><input type="text" id="dialogLinkedin" maxlength="220" spellcheck="false" placeholder="nama profil atau tautan"></label>
+        <label class="profil-lapak"><span>Situs</span><input type="text" id="dialogWebsite" maxlength="220" spellcheck="false" placeholder="situs Anda"></label>
+      </fieldset>
+
+      <p class="profil-catatan" id="dialogCatatan" hidden></p>
+      <div class="profil-dialog-bawah">
+        <button class="button button-ghost" type="button" id="dialogBatal">Batal</button>
+        <button class="button button-solid" type="submit" id="dialogSimpan">Simpan profil</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer>
+    <a class="brand footer-brand" href="./">
+      <img src="/assets/logo-pii.webp" alt="Logo PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+      <span><b>PB PII</b><small>Pelajar Indonesia</small></span>
+    </a>
+    <p>Pengurus Besar Pelajar Indonesia</p>
+    <small>© <span id="year"></span> Pengurus Besar Pelajar Indonesia · Profil dikelola oleh kader masing-masing</small>
+    <small class="footer-credit">Dibuat oleh Badan Khusus Inovasi Digital PB PII</small>
+  </footer>
+
+  <script src="akun.js" defer></script>
+  <script src="profil.js" defer></script>
+  <script src="site.js" defer></script>
+</body>
+</html>

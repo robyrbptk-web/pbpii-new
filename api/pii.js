@@ -15,19 +15,22 @@ const RULES = {
   read: { limit: 240, windowMs: 60_000 },
   captcha: { limit: 30, windowMs: 600_000 },
   login: { limit: 10, windowMs: 600_000 },
-  write: { limit: 25, windowMs: 600_000 }
+  // Posting has no daily count cap, so this budget is sized for a whole campus
+  // sharing one exit IP — a burst should slow down, never look like a quota.
+  write: { limit: 150, windowMs: 600_000 }
 };
 
 const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
   'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus',
-  'feedList', 'feedThread'
+  'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari'
 ]);
 
 const WRITE_ACTIONS = new Set([
   'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'kaderEmailLogin',
   'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage',
-  'feedUpload', 'feedPost', 'feedEdit', 'feedDelete', 'feedLike', 'feedComment', 'feedRepost', 'feedBookmark', 'feedFollow'
+  'feedUpload', 'feedPost', 'feedEdit', 'feedDelete', 'feedLike', 'feedComment', 'feedRepost', 'feedBookmark', 'feedFollow',
+  'kaderProfilSimpan'
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */
@@ -36,7 +39,7 @@ const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLog
 /** Base64 media/PDF uploads are the only payloads allowed to be large. */
 const MAX_BODY_BYTES = 220_000;
 const MAX_UPLOAD_BYTES = 4_500_000;
-const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage', 'orgUploadPdf', 'orgUploadLetterImage', 'feedUpload']);
+const UPLOAD_ACTIONS = new Set(['uploadImage', 'orgUploadImage', 'orgUploadPdf', 'orgUploadLetterImage', 'feedUpload', 'kaderUnggah']);
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_DRIVE_RESPONSE_BYTES = 16 * 1024 * 1024;
 

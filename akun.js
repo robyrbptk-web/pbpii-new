@@ -53,6 +53,26 @@
     });
   }
 
+  /** Tautan Drive langsung sering ditolak browser (kunjungan lintas akun Google),
+      jadi avatar chip memakai perantara gambar yang sama dengan halaman lain. */
+  function gambarSaya(nilai) {
+    const url = String(nilai || '').trim();
+    if (!/^https:\/\//i.test(url)) return url;
+    try {
+      const u = new URL(url);
+      const driveHost = u.hostname === 'drive.google.com' ||
+        u.hostname === 'drive.usercontent.google.com' ||
+        u.hostname === 'lh3.googleusercontent.com';
+      if (!driveHost) return url;
+      const id = u.searchParams.get('id') ||
+        (u.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/i) || [])[1] ||
+        (u.pathname.match(/\/d\/([A-Za-z0-9_-]+)/i) || [])[1] || '';
+      return id ? API + '?imageId=' + encodeURIComponent(id) : url;
+    } catch {
+      return url;
+    }
+  }
+
   async function api(body) {
     const response = await fetch(API, {
       method: 'POST',
@@ -488,16 +508,26 @@
       } else {
         const initial = (account.name || 'K').trim().charAt(0).toUpperCase();
         const photo = account.picture
-          ? `<img class="account-avatar" src="${escapeHTML(account.picture)}" alt="" referrerpolicy="no-referrer">`
+          ? `<img class="account-avatar" src="${escapeHTML(gambarSaya(account.picture))}" alt="" referrerpolicy="no-referrer">`
           : `<span class="account-avatar" aria-hidden="true">${escapeHTML(initial)}</span>`;
+        /* Halaman profil hanya punya arti untuk akun kader; pengurus dan
+           lembaga masuk lewat dasbor masing-masing. */
+        const profilSaya = account.role === 'kader'
+          ? '<a class="account-menu-item" href="/profil.html" data-account-profile>Profil saya</a>'
+          : '';
         slot.innerHTML = `${photo}
           <button class="account-name" type="button" data-account-open>${escapeHTML(account.name || (isStaff ? 'Pengurus' : 'Kader'))}</button>
-          <button class="account-signout" type="button" data-account-out>Keluar</button>`;
+          <span class="account-menu">
+            ${profilSaya}
+            <button class="account-menu-item account-signout" type="button" data-account-out>Keluar</button>
+          </span>`;
       }
 
       slot.querySelector('[data-account-open]')?.addEventListener('click', () => {
-        if (account.role === 'tamu') openPanel();
-        else slot.classList.toggle('is-open');
+        if (account.role === 'tamu') { openPanel(); return; }
+        const terbuka = slot.classList.contains('is-open');
+        document.querySelectorAll('.account-slot.is-open').forEach((lain) => lain.classList.remove('is-open'));
+        if (!terbuka) slot.classList.add('is-open');
       });
       slot.querySelector('[data-account-out]')?.addEventListener('click', signOut);
     });
@@ -526,6 +556,10 @@
     slots.forEach((slot) => {
       slot.classList.add('account-slot');
       slot.setAttribute('data-account', '');
+    });
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.account-slot')) return;
+      document.querySelectorAll('.account-slot.is-open').forEach((slot) => slot.classList.remove('is-open'));
     });
     paintChip();
     onChange(paintChip);

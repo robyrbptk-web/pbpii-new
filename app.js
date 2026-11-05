@@ -517,7 +517,7 @@ function renderEventTeaser(events) {
     .slice(0, 3);
 
   if (!rows.length) {
-    host.innerHTML = `<div class="empty-state"><h3>Belum ada agenda yang tampil di sini</h3><p>Umpan kegiatan diisi otomatis ketika pengurus PW, PD, atau PK menerbitkan acara di dashboard lembaga.</p></div>`;
+    host.innerHTML = `<div class="empty-state"><h3>Belum ada agenda yang tampil di sini</h3><p>Daftar kegiatan diisi otomatis ketika pengurus PW, PD, atau PK menerbitkan acara di dashboard lembaga.</p></div>`;
     return;
   }
 

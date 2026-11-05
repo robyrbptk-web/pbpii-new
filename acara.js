@@ -1,5 +1,5 @@
 /**
- * Umpan acara publik PB PII.
+ * Lajur acara publik PB PII.
  *
  * Sumber datanya sama dengan halaman utama (aksi `public`), jadi tidak ada
  * endpoint baru: yang dibaca adalah `data.events` beserta standar keaktifan
@@ -721,7 +721,7 @@
     const year = document.querySelector('#year');
     if (year) year.textContent = String(new Date().getFullYear());
     load();
-    // Suka per kader, jadi umpan diambil ulang begitu sesi berganti.
+    // Suka per kader, jadi daftar suka diambil ulang begitu sesi berganti.
     akun()?.onChange?.(() => {
       if (tokenSaya() !== lastToken) load();
     });

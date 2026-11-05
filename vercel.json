@@ -188,6 +188,10 @@
       "destination": "/feed.html"
     },
     {
+      "source": "/profil",
+      "destination": "/profil.html"
+    },
+    {
       "source": "/offline",
       "destination": "/offline.html"
     },
@@ -274,6 +278,10 @@
     },
     {
       "source": "/feed.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
+    },
+    {
+      "source": "/profil.js",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
     },
     {

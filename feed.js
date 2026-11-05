@@ -1,5 +1,5 @@
 /**
- * Umpan sosial kader PB PII.
+ * Feed sosial kader PB PII.
  *
  * Semuanya lewat satu pintu /api/pii seperti halaman lain, jadi sesi yang sudah
  * ada dipakai tanpa minta login ulang. Kartu kegiatan pada tab "Acara" dibangun
@@ -29,7 +29,6 @@
   const kindsEl = document.querySelector('#feedKinds');
   const counterEl = document.querySelector('#feedCounter');
   const noteEl = document.querySelector('#feedNote');
-  const quotaEl = document.querySelector('#feedQuota');
   const previewsEl = document.querySelector('#feedPreviews');
   const eventRowEl = document.querySelector('#feedEventRow');
   const eventSelectEl = document.querySelector('#feedEvent');
@@ -52,7 +51,6 @@
     total: 0,
     sisa: 0,
     kemampuan: {},
-    kuota: null,
     tokenMuat: '',
     events: null,
     loading: false,
@@ -77,7 +75,7 @@
     });
     const result = await response.json().catch(() => null);
     if (!result || !result.ok) {
-      const error = new Error(result?.error || 'Umpan belum dapat dihubungi.');
+      const error = new Error(result?.error || 'Feed belum dapat dihubungi.');
       error.code = String(result?.code || '');
       error.retryAfter = Number(result?.retryAfter) || 0;
       throw error;
@@ -274,9 +272,13 @@
     }
     const ubah = card.updatedAt && card.updatedAt !== card.createdAt ? ' · diubah' : '';
     return `<div class="feed-author">
-      ${foto}
+      ${author.username
+        ? `<a class="feed-author-taut feed-author-ava" href="/profil.html?u=${escapeHTML(author.username)}" aria-hidden="true" tabindex="-1">${foto}</a>`
+        : foto}
       <span class="feed-author-name">
-        <b>${escapeHTML(author.name || 'Kader PII')}</b>
+        ${author.username
+          ? `<a class="feed-author-taut" href="/profil.html?u=${escapeHTML(author.username)}"><b>${escapeHTML(author.name || 'Kader PII')}</b></a>`
+          : `<b>${escapeHTML(author.name || 'Kader PII')}</b>`}
         <small>${escapeHTML(JENIS_LABEL[card.jenis] || 'Kabar')} · ${escapeHTML(timeAgo(card.createdAt))}${escapeHTML(ubah)}</small>
       </span>
       <span class="feed-author-side">${menu.join('')}</span>
@@ -329,7 +331,7 @@
         ? 'Belum ada kegiatan terjadwal yang dapat dibagikan.'
         : state.tab === 'mengikuti'
           ? 'Anda belum mengikuti kader mana pun. Ikuti kawan dari kartu kabarnya di tab Terbaru.'
-          : 'Belum ada kabar di umpan. Jadilah yang pertama menuliskannya.';
+          : 'Belum ada kabar di feed. Jadilah yang pertama menuliskannya.';
     }
   }
 
@@ -473,14 +475,13 @@
     state.total = Number(data.total) || 0;
     state.sisa = Number(data.sisa) || 0;
     state.kemampuan = data.kemampuan || {};
-    state.kuota = data.kuota || null;
     countEl.textContent = `${state.total.toLocaleString('id-ID')} kabar`;
     paintComposer();
   }
 
-  /* Kemampuan menulis dan mengunggah dilaporkan server bersama isi umpan.
+  /* Kemampuan menulis dan mengunggah dilaporkan server bersama isi feed.
      Selama respons pertama belum datang, sesi yang sudah ada yang dipakai —
-     kader yang sudah login tidak boleh disuruh masuk lagi hanya karena umpannya
+     kader yang sudah login tidak boleh disuruh masuk lagi hanya karena feed-nya
      telat dimuat. */
   function adaSesi() {
     const akun = window.PBPIIAkun?.account?.();
@@ -505,10 +506,6 @@
     openComposerEl.hidden = !boleh;
     loginEl.hidden = boleh || !window.PBPIIAkun;
     videoKindEl.hidden = !unggah;
-    if (state.kuota) {
-      quotaEl.hidden = false;
-      quotaEl.textContent = `Sisa ${state.kuota.sisaPos} kabar hari ini.`;
-    }
     if (adaSesi()) {
       const akun = window.PBPIIAkun.account();
       meAvaEl.textContent = initials(akun.name || 'K');
@@ -538,7 +535,7 @@
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify({ tab: data.tab, items: state.items.slice(0, 8), pada: Date.now() }));
         } catch {
-          /* penyimpanan penuh; umpan tetap dibaca dari jaringan */
+          /* penyimpanan penuh; feed tetap dibaca dari jaringan */
         }
       }
     } catch (error) {
@@ -546,7 +543,7 @@
         state.items = [];
         listEl.innerHTML = '';
         emptyEl.hidden = false;
-        emptyEl.textContent = 'Umpan belum dapat dimuat. Periksa koneksi Anda, lalu muat ulang halaman.';
+        emptyEl.textContent = 'Feed belum dapat dimuat. Periksa koneksi Anda, lalu muat ulang halaman.';
         countEl.textContent = 'Kabar harian kader';
       } else {
         toast(moreEl, error.message);
@@ -696,7 +693,7 @@
       kindsEl.querySelector('[data-jenis="teks"]')?.click();
       composerEl.classList.remove('is-open');
       composerEl.hidden = true;
-      note('Kabar Anda terbit di umpan.', 'ok');
+      note('Kabar Anda terbit di feed.', 'ok');
       setTimeout(() => note(''), 4200);
       loadFeed();
     } catch (error) {
@@ -713,7 +710,7 @@
     const id = button.dataset.like;
     const card = cardData(id);
     if (!card || button.disabled) return;
-    const account = await requireLogin('Masuk sebagai kader untuk menyukai kabar pada umpan.');
+    const account = await requireLogin('Masuk sebagai kader untuk menyukai kabar pada feed.');
     if (!account) return;
     button.disabled = true;
     try {
@@ -745,7 +742,7 @@
       const data = await api({ action: 'feedRepost', id, token: tokenSaya() });
       card.reposts = data.reposts;
       syncCounters(card);
-      toast(button, data.dibagikan ? 'Kabar kawan tampil di umpan Anda.' : 'Bagikan dibatalkan.');
+      toast(button, data.dibagikan ? 'Kabar kawan tampil di feed Anda.' : 'Bagikan dibatalkan.');
       if (data.dibagikan) setTimeout(() => loadFeed(), 700);
     } catch (error) {
       toast(button, error.message);
@@ -754,15 +751,15 @@
     }
   }
 
-  async function bagikanAcaraKeUmpan(button) {
+  async function bagikanAcaraKeFeed(button) {
     const eventId = button.dataset.shareEvent;
     if (!eventId || button.disabled) return;
-    const account = await requireLogin('Masuk sebagai kader untuk membagikan kegiatan ke umpan.');
+    const account = await requireLogin('Masuk sebagai kader untuk membagikan kegiatan ke feed.');
     if (!account) return;
     button.disabled = true;
     try {
       await api({ action: 'feedPost', token: tokenSaya(), jenis: 'acara', eventId, isi: '' });
-      toast(button, 'Kegiatan dibagikan ke umpan.');
+      toast(button, 'Kegiatan dibagikan ke feed.');
     } catch (error) {
       toast(button, error.message);
     } finally {
@@ -953,7 +950,7 @@
     const card = cardData(button.dataset.sharePost);
     if (!card) return;
     const url = `${location.origin}/feed.html?kabar=${encodeURIComponent(card.id)}`;
-    const payload = { title: 'Umpan Kader PB PII', text: String(card.isi || 'Kabar dari kader Pelajar Islam Indonesia').slice(0, 200), url };
+    const payload = { title: 'Feed Kader PB PII', text: String(card.isi || 'Kabar dari kader Pelajar Islam Indonesia').slice(0, 200), url };
     if (navigator.share) {
       try {
         await navigator.share(payload);
@@ -1003,7 +1000,7 @@
     const repost = target.closest('[data-repost]');
     if (repost) return toggleRepost(repost);
     const shareEvent = target.closest('[data-share-event]');
-    if (shareEvent) return bagikanAcaraKeUmpan(shareEvent);
+    if (shareEvent) return bagikanAcaraKeFeed(shareEvent);
     const sharePost = target.closest('[data-share-post]');
     if (sharePost) return sebarkanKeluar(sharePost);
     const bookmark = target.closest('[data-bookmark]');
@@ -1042,7 +1039,7 @@
   moreEl?.addEventListener('click', () => loadFeed({ lebih: true }));
 
   openComposerEl?.addEventListener('click', async () => {
-    const account = await requireLogin('Masuk sebagai kader untuk menulis kabar di umpan.');
+    const account = await requireLogin('Masuk sebagai kader untuk menulis kabar di feed.');
     if (!account) return;
     composerEl.hidden = false;
     composerEl.classList.add('is-open');
@@ -1052,7 +1049,7 @@
   });
 
   document.querySelector('#feedLoginOpen')?.addEventListener('click', async () => {
-    await requireLogin('Masuk sebagai kader untuk memakai umpan.');
+    await requireLogin('Masuk sebagai kader untuk memakai feed.');
   });
 
   textEl?.addEventListener('input', syncComposer);

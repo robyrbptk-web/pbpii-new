@@ -461,7 +461,6 @@
             <p class="panel-intro">Angka di bawah dipakai halaman Acara dan dashboard lembaga. Standar keaktifan dapat disetel lebih tinggi oleh lembaga induk untuk bawahan masing-masing.</p>
             <div class="form-grid">
               <div class="field"><label for="keaktifanMinPerMonth">Standar keaktifan bawaan (kegiatan/bulan)</label><input id="keaktifanMinPerMonth" name="keaktifanMinPerMonth" type="number" min="0" max="60" step="1"><div class="hint">0 berarti tidak ada target minimal. Range 0–60.</div></div>
-              <div class="field"><label for="kaderCommentDailyLimit">Komentar kader per hari</label><input id="kaderCommentDailyLimit" name="kaderCommentDailyLimit" type="number" min="0" max="50" step="1"><div class="hint">Batas komentar acara untuk satu akun Google dalam sehari.</div></div>
               <div class="field full">
                 <label class="checkline"><input type="checkbox" id="eventCommentsOpen" name="eventCommentsOpen"> Buka kolom komentar acara untuk akun kader</label>
               </div>
@@ -918,7 +917,7 @@
         'siteName','tagline','heroTitle','heroText','aboutText','footerText',
         'chairmanName','chairmanRole','chairmanPhoto','chairmanGreeting',
         'contactEmail','instagramUrl','youtubeUrl',
-        'keaktifanMinPerMonth','kaderCommentDailyLimit','googleClientId','turnstileSiteKey'
+        'keaktifanMinPerMonth','googleClientId','turnstileSiteKey'
       ];
       keys.forEach(key => {
         if ($(key)) $(key).value = settings[key] || '';
@@ -1056,7 +1055,6 @@
       settings.chairmanGreetingVisible = $('chairmanGreetingVisible').checked ? 'true' : 'false';
       settings.eventCommentsOpen = $('eventCommentsOpen').checked ? 'true' : 'false';
       settings.keaktifanMinPerMonth = String(Math.max(0, Math.min(60, Number($('keaktifanMinPerMonth').value) || 0)));
-      settings.kaderCommentDailyLimit = String(Math.max(0, Math.min(50, Number($('kaderCommentDailyLimit').value) || 0)));
       settings.turnstileSiteKey = $('turnstileSiteKey').value.trim();
       settings.googleClientId = $('googleClientId').value.trim();
       // Kolom secret kosong berarti pertahankan kunci yang sudah tersimpan.
