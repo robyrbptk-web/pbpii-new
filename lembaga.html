@@ -340,6 +340,31 @@
       .participant-tools{grid-template-columns:1fr}
       .answer-list div{grid-template-columns:1fr;gap:3px}
     }
+    /* Peningkatan tampilan dasbor: kedalaman dan hierarki tanpa mengubah
+       struktur atau warna identitas lembaga. */
+    body{background:linear-gradient(180deg,#f7fafc,#f2f6f9 340px,#f4f7fa)}
+    .topbar{background:rgb(255 255 255 / 92%);backdrop-filter:blur(14px);border-bottom-color:#e6edf4;box-shadow:0 4px 18px #102b4908}
+    aside{position:sticky;top:68px;align-self:start;height:calc(100dvh - 68px);overflow-y:auto;background:linear-gradient(180deg,#fff 0%,#fafcfe 100%)}
+    .tab{position:relative;transition:background .16s ease,color .16s ease}
+    .tab:hover{background:#f0f6fb}
+    .tab.active{background:linear-gradient(90deg,#e6f0f8 0%,#f4f8fc 100%);box-shadow:inset 0 0 0 1px #d9e7f2}
+    .tab.active::before{content:'';position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:99px;background:var(--blue)}
+    .panel{border-radius:16px;box-shadow:0 8px 26px #102b4907;transition:box-shadow .2s ease}
+    .stat{position:relative;overflow:hidden;border-radius:14px;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+    .stat::after{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--navy),var(--blue))}
+    .stat:hover{transform:translateY(-2px);box-shadow:0 14px 30px #102b4914;border-color:#cfe0ee}
+    .stat strong{font-variant-numeric:tabular-nums}
+    .btn.primary{background:linear-gradient(115deg,var(--navy),var(--blue));box-shadow:0 8px 20px #102b4926;transition:filter .18s ease,transform .18s ease}
+    .btn.primary:hover{background:linear-gradient(115deg,#0c2948,#125b8f);transform:translateY(-1px)}
+    .item{transition:border-color .16s ease,box-shadow .16s ease}
+    .item:hover{border-color:#cfe0ee;box-shadow:0 10px 24px #102b490d}
+    .letter{transition:border-color .16s ease}
+    .letter:hover{border-color:#cfe0ee}
+    .badge{letter-spacing:.2px}
+    @media(prefers-reduced-motion:reduce){
+      .stat,.item,.btn.primary{transition:none}
+      .stat:hover,.btn.primary:hover{transform:none}
+    }
   </style>
 </head>
 <body>
