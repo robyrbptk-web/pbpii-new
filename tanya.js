@@ -208,7 +208,9 @@
   /** Stempel milik perangkat ini, sudah dikoreksi terhadap jam server. */
   const jamSinkron = () => Date.now() + selisihJam;
 
-  const WAKTU = new Intl.RelativeTimeFormat('id', { numeric: 'auto' });  function waktuLalu(stamp) {
+  const WAKTU = new Intl.RelativeTimeFormat('id', { numeric: 'auto' });
+
+  function waktuLalu(stamp) {
     const detik = Math.round((Number(stamp) - Date.now()) / 1000);
     if (!Number.isFinite(detik) || !stamp) return '';
     if (detik > -90) return 'baru saja';
@@ -216,6 +218,18 @@
     if (detik > -86400) return WAKTU.format(Math.round(detik / 3600), 'hour');
     if (detik > -604800) return WAKTU.format(Math.round(detik / 86400), 'day');
     return new Intl.DateTimeFormat('id', { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(stamp));
+  }
+
+  /** Tanggal terbit sumber web ditulis apa adanya: "2026-10-02" jadi "2 Okt 2026". */
+  function tanggalTerbit(iso) {
+    const cocok = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!cocok) return '';
+    try {
+      return new Intl.DateTimeFormat('id', { day: 'numeric', month: 'short', year: 'numeric' })
+        .format(new Date(`${cocok[1]}-${cocok[2]}-${cocok[3]}T00:00:00`));
+    } catch {
+      return cocok[0];
+    }
   }
 
   /**
@@ -380,15 +394,28 @@
           : '';
         return `<li><span>${escapeHTML(sumber.judul)}</span><em>${escapeHTML(ket)}</em>${tombol}</li>`;
       }).join('');
-      const barisWeb = daring.slice(0, 3).map((sumber) => `
+      const barisWeb = daring.slice(0, 3).map((sumber) => {
+        const asal = String(sumber.penerbit || '').trim()
+          || String(sumber.url || '').replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        const kapan = tanggalTerbit(sumber.tanggal);
+        return `
         <li>
           <a href="${escapeHTML(sumber.url)}" target="_blank" rel="nofollow noopener noreferrer">${escapeHTML(sumber.judul)}</a>
-          <em>${escapeHTML(new URL(sumber.url).hostname.replace(/^www\./, ''))}</em>
-        </li>`).join('');
+          <em>${escapeHTML([asal, kapan].filter(Boolean).join(' · '))}</em>
+        </li>`;
+      }).join('');
 
+      const resmi = daring.some((sumber) => sumber.tier === 'resmi');
       const bagian = [];
       if (barisBerkas) bagian.push(`<p class="tanya-sumber-title">Dijawab dari berkas organisasi${tautanPustaka}:</p><ul>${barisBerkas}</ul>`);
-      if (barisWeb) bagian.push(`<p class="tanya-sumber-title">Ditelusuri dari web:</p><ul class="tanya-sumber-web">${barisWeb}</ul>`);
+      if (barisWeb) {
+        bagian.push(`<p class="tanya-sumber-title">${resmi ? 'Ditelusuri dari laman resmi:' : 'Ditelusuri dari web:'}</p><ul class="tanya-sumber-web">${barisWeb}</ul>`);
+        /* Pemberitaan dan sumber umum masih perlu dicegah dibaca sebagai
+           keterangan resmi organisasi, jadi statusnya dinyatakan apa adanya. */
+        if (!barisBerkas && !resmi) {
+          bagian.push('<p class="tanya-sumber-catat">Sumber di atas bukan berkas resmi organisasi — keterangan yang tidak tertulis di Pustaka masih perlu dikonfirmasi pengurus.</p>');
+        }
+      }
       return `<div class="tanya-sumber">${bagian.join('')}</div>`;
     }
 
@@ -656,7 +683,11 @@
     function sumberCetak(turn) {
       const berkas = (turn.rujukan || []).map((sumber) => `<li><b>${escapeHTML(sumber.judul)}</b>${
         escapeHTML(`${sumber.kategori ? ` · ${sumber.kategori}` : ''}${sumber.bab ? ` · ${sumber.bab}` : ''}${halamanTeks(sumber.halaman)}`)}</li>`).join('');
-      const daring = (turn.rujukanWeb || []).map((sumber) => `<li><b>${escapeHTML(sumber.judul)}</b> — ${escapeHTML(sumber.url)}</li>`).join('');
+      const daring = (turn.rujukanWeb || []).map((sumber) => {
+        const asal = [sumber.penerbit || '', tanggalTerbit(sumber.tanggal)].filter(Boolean).join(' · ');
+        return `<li><b>${escapeHTML(sumber.judul)}</b>${
+          asal ? ` <i>(${escapeHTML(asal)})</i>` : ''} — ${escapeHTML(sumber.url)}</li>`;
+      }).join('');
       if (!berkas && !daring) return '';
       return `<div class="tanya-cetak-sumber"><p class="tanya-cetak-label">Rujukan</p><ul>${berkas}${daring}</ul></div>`;
     }
@@ -1053,6 +1084,11 @@
           .map((sumber) => ({
             judul: String(sumber.judul).slice(0, 140),
             url: String(sumber.url),
+            /* Penerbit, tingkat kepercayaan, dan tanggal terbit ikut disimpan:
+               tanpa ketiganya, hasil web tampil seolah-olah keterangan resmi. */
+            penerbit: String(sumber.penerbit || '').slice(0, 60),
+            tier: ['resmi', 'berita', 'umum'].includes(String(sumber.tier)) ? String(sumber.tier) : 'umum',
+            tanggal: /^\d{4}-\d{2}-\d{2}$/.test(String(sumber.tanggal || '')) ? String(sumber.tanggal) : '',
           }));
         const status = data?.status === 'no_source' ? 'no_source' : '';
         turns.push({

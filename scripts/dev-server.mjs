@@ -258,7 +258,11 @@ const server = http.createServer(async (req, res) => {
     enhance(req, res, url, params);
     try {
       req.body = await readBody(req);
-      const handler = (await import(pathToFileURL(join(ROOT, route.file)).href)).default;
+      const berkas = join(ROOT, route.file);
+      // ESM caches per URL: tanpa penanda ini, suntingan di api/ baru berlaku
+      // setelah server diulang, dan browser diam-diam menjalankan salinan lama.
+      const versi = Math.floor(statSync(berkas).mtimeMs);
+      const handler = (await import(`${pathToFileURL(berkas).href}?v=${versi}`)).default;
       await handler(req, res);
     } catch (error) {
       console.error(`[dev] ${url.pathname}:`, error?.message || error);

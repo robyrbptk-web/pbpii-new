@@ -303,7 +303,10 @@ function sumberBagian(pustaka, web) {
     const isi = clean(item.isi || item.cuplikan).slice(0, 900);
     if (!isi) return '';
     const alamat = clean(item.url).replace(/^https?:\/\//, '');
-    return `- Laman "${clean(item.judul)}" (${alamat}): ${isi}`;
+    const tingkat = item.tier === 'resmi' ? 'RESMI' : item.tier === 'berita' ? 'BERITA' : 'UMUM';
+    const kapan = tanggalLabel(item.tanggal);
+    const asal = clean(item.penerbit) || hostname(alamat) || alamat;
+    return `- [${tingkat}] Laman "${clean(item.judul)}" (${[asal, kapan].filter(Boolean).join(', ')}): ${isi}`;
   }).filter(Boolean);
 
   const daftar = [...berkas, ...daring];
@@ -313,6 +316,12 @@ function sumberBagian(pustaka, web) {
     'BAHAN RUJUKAN YANG BOLEH DIPAKAI UNTUK MENJAWAB:',
     daftar.join('\n'),
     'Pakai hanya bahan tersebut dan sebut sumbernya dengan nama berkas atau nama lamannya.',
+    'Label [RESMI] = laman resmi organisasi, [BERITA] = media yang memberitakan, [UMUM] = sumber umum.',
+    'Bedakan tiga hal: fakta tertulis di bahan; opini adalah pendapat sumber tertentu dan sebut siapa yang',
+    'berpendapat; sesuatu yang tidak tertulis di bahan belum terkonfirmasi — nyatakan begitu, jangan',
+    'dinyatakan pasti.',
+    'Untuk pengurus, kepengurusan, kegiatan, dan data yang berubah waktu, pakai bahan bertanggal paling baru',
+    'dan sebut tanggalnya; jangan mencampur keterangan lama dengan yang baru tanpa menyebut bahwa keduanya beda waktu.',
     'Bila tidak cukup, nyatakan bahwa rujukan belum ditemukan.'
   ].join('\n');
 }
@@ -336,7 +345,10 @@ function webSitasi(hasil) {
   return hasil.map((item) => ({
     judul: clean(item.judul).slice(0, 140),
     url: clean(item.url),
-    cuplikan: clean(item.isi || item.cuplikan).slice(0, 320)
+    cuplikan: clean(item.isi || item.cuplikan).slice(0, 320),
+    penerbit: clean(item.penerbit || hostname(item.url)).slice(0, 60),
+    tier: ['resmi', 'berita', 'umum'].includes(item.tier) ? item.tier : 'umum',
+    tanggal: tanggalISO(item.tanggal)
   })).filter((item) => item.judul && /^https:\/\//.test(item.url));
 }
 
@@ -371,10 +383,180 @@ async function googleSearch(query) {
     + `&num=4&hl=id&q=${encodeURIComponent(query)}`;
   const data = await fetchJson(url).catch(() => null);
   return (data?.items || [])
-    .map((item) => ({ judul: clean(item.title), url: clean(item.link), isi: clean(item.snippet) }))
+    .map((item) => ({
+      judul: clean(item.title),
+      url: clean(item.link),
+      isi: clean(item.snippet),
+      tier: 'umum',
+      tanggal: tanggalISO(item.pse?.timestamp || ''),
+    }))
     .filter((item) => item.judul && item.isi && /^https:\/\//.test(item.url))
     .slice(0, 4);
 }
+
+/* --------------------------------------------------------------- sumber web bertingkat
+ *
+ * Hasil pencarian tidak boleh diperlakukan sama rata. Laman resmi organisasi
+ * (RESMI) berdiri di atas pemberitaan media (BERITA), dan keduanya di atas
+ * sumber umum (UMUM). Setiap bahan ikut membawa tanggal terbit supaya jawaban
+ * tentang kepengurusan atau kegiatan bisa mengutamakan yang paling baru, dan
+ * supaya pembaca tahu kapan sebuah keterangan ditulis.
+ */
+
+/** Domain resmi yang digali tanpa kunci — WordPress menyediakan API bacanya. */
+const SUMBER_RESMI = String(process.env.RESMI_DOMAINS || 'pbpii.or.id')
+  .split(',')
+  .map((satuan) => clean(satuan).toLowerCase().replace(/^www\./, ''))
+  .filter((satuan) => /^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+$/.test(satuan))
+  .slice(0, 3);
+
+async function teksUrl(url, batasMs = 6000) {
+  const response = await fetch(url, {
+    headers: { Accept: 'application/rss+xml, application/xml, text/xml, text/html, */*', 'User-Agent': 'pbpii-website/1.0' },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(batasMs),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.text();
+}
+
+function bukaEntitas(teks) {
+  return String(teks || '')
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"').replace(/&apos;/gi, "'").replace(/&#(\d{1,6});/g, (semua, kode) => {
+      const nilai = Number(kode);
+      return nilai > 31 && nilai < 1114112 ? String.fromCodePoint(nilai) : ' ';
+    })
+    .replace(/&amp;/gi, '&');
+}
+
+/** HTML atau XML → teks bacaan: tag dibuang, entitas dibuka, spasi dirapikan. */
+function teksBersih(html) {
+  return clean(bukaEntitas(String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')));
+}
+
+function isiTag(blok, nama) {
+  const cocok = blok.match(new RegExp(`<${nama}(?:\\s[^>]*)?>([\\s\\S]*?)</${nama}>`, 'i'));
+  if (!cocok) return '';
+  return cocok[1].replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, '$1').trim();
+}
+
+/** RFC 822 (RSS) atau ISO (WordPress) → "2026-10-02"; kosong kalau tidak jelas. */
+function tanggalISO(waktu) {
+  const teks = clean(waktu);
+  if (!teks) return '';
+  const cocok = teks.match(/\d{4}-\d{2}-\d{2}/);
+  if (cocok) return cocok[0];
+  const nilai = Date.parse(teks);
+  if (Number.isNaN(nilai)) return '';
+  return new Date(nilai).toISOString().slice(0, 10);
+}
+
+function tanggalLabel(iso) {
+  const cocok = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!cocok) return '';
+  const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const nomor = Number(cocok[3]);
+  return `${nomor} ${bulan[Number(cocok[2]) - 1]} ${cocok[1]}`;
+}
+
+/**
+ * Laman resmi organisasi: judul, tautan asli, tanggal, dan isi paragraf awal.
+ * Ditanya dengan kata kunci teratas supaya tidak pulang tangan kosong; kalau
+ * dua kata terlalu ketat, satu kata masih layak dicoba.
+ */
+async function sumberResmi(kunci, tenggat = Infinity) {
+  const percobaan = [kunci.slice(0, 2).join(' '), kunci[0]].filter(Boolean);
+  const hasil = [];
+  for (const domain of SUMBER_RESMI) {
+    for (const kueri of percobaan) {
+      /* Coba kedua susunan kata hanya yang pertama; kalau waktu tinggal sedikit,
+         apa yang sudah terkumpul lebih berharga daripada menunggu lengkap. */
+      const url = `https://${domain}/wp-json/wp/v2/posts`
+        + `?search=${encodeURIComponent(kueri)}&per_page=3&_fields=link,date,modified,title,content`;
+      const daftar = await fetchJson(url).catch(() => null);
+      if (Array.isArray(daftar) && daftar.length) {
+        daftar.forEach((pos) => {
+          const isi = teksBersih(pos?.content?.rendered).slice(0, 900);
+          const judul = teksBersih(pos?.title?.rendered);
+          const tautan = clean(pos?.link);
+          if (!judul || isi.length < 60 || !/^https:\/\/./.test(tautan)) return;
+          hasil.push({
+            judul, url: tautan, isi, tier: 'resmi', penerbit: domain,
+            tanggal: tanggalISO(pos.date || pos.modified),
+          });
+        });
+      }
+      if (hasil.length || Date.now() > tenggat - 1500) break;
+    }
+    if (Date.now() > tenggat - 1500) break;
+  }
+  return hasil.slice(0, 3);
+}
+
+/** Rumah Bing/MSN: tautan ke sini adalah halaman pencarian, bukan beritanya. */
+const PEMBUNGKUS_BING = ['bing.com', 'msn.com'];
+
+function tautanAsli(link) {
+  const url = clean(bukaEntitas(link));
+  const cocok = url.match(/[?&]url=([^&]+)/i);
+  const kandidat = cocok ? bukaEntitas(decodeURIComponent(cocok[1].replace(/\+/g, ' '))) : url;
+  if (!/^https:\/\/[^\s"'<>]+$/.test(kandidat)) return '';
+  const asal = hostname(kandidat);
+  if (PEMBUNGKUS_BING.some((rumah) => asal === rumah || asal.endsWith(`.${rumah}`))) return '';
+  return kandidat;
+}
+
+/** Bing News RSS: tautan penerbit asli, cuplikan, sumber, dan tanggal terbit. */
+async function beritaBing(kueri) {
+  const url = 'https://www.bing.com/news/search'
+    + `?q=${encodeURIComponent(kueri)}&format=rss&mkt=id-ID&setlang=id`;
+  const xml = await teksUrl(url).catch(() => '');
+  return xml.split(/<item[\s>]/).slice(1, 9).map((potongan) => {
+    const judul = teksBersih(isiTag(potongan, 'title'));
+    const isi = teksBersih(isiTag(potongan, 'description')).slice(0, 900);
+    const tautan = tautanAsli(isiTag(potongan, 'link'));
+    if (!judul || !tautan || isi.length < 40) return null;
+    return {
+      judul, url: tautan, isi, tier: 'berita',
+      penerbit: teksBersih(isiTag(potongan, 'News:Source')) || hostname(tautan),
+      tanggal: tanggalISO(isiTag(potongan, 'pubDate')),
+    };
+  }).filter(Boolean).slice(0, 5);
+}
+
+/** Google News RSS: cadangan kalau Bing tidak menjawab; penerbit dibaca dari judul. */
+async function beritaGoogle(kueri) {
+  const url = 'https://news.google.com/rss/search'
+    + `?q=${encodeURIComponent(kueri)}&hl=id&gl=ID&ceid=ID:id`;
+  const xml = await teksUrl(url).catch(() => '');
+  return xml.split(/<item[\s>]/).slice(1, 9).map((potongan) => {
+    const judul = teksBersih(isiTag(potongan, 'title'));
+    const tautan = clean(bukaEntitas(isiTag(potongan, 'link')));
+    const cocok = judul.match(/^(.*?)(?:\s+-\s+([^-\s][^-]{2,50}))?$/);
+    const isi = teksBersih(isiTag(potongan, 'description')).slice(0, 900)
+      || teksBersih(isiTag(potongan, 'title'));
+    if (!cocok?.[1] || !/^https:\/\/news\.google\./.test(tautan)) return null;
+    return {
+      judul: cocok[1], url: tautan, isi, tier: 'berita',
+      penerbit: clean(cocok[2]) || hostname(tautan),
+      tanggal: tanggalISO(isiTag(potongan, 'pubDate')),
+    };
+  }).filter(Boolean).slice(0, 5);
+}
+
+function hostname(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
 
 /**
  * Penelusuran tanpa kunci: Wikipedia Indonesia lebih dulu, baru Inggris.
@@ -394,6 +576,8 @@ async function wikipediaSearch(query, kunci, namaWajib) {
         judul: clean(page.title),
         url: clean(page.fullurl),
         isi: clean(page.extract),
+        tier: 'umum',
+        tanggal: tanggalISO(page.touched || ''),
       };
       if (item.judul && item.isi.length > 80 && /^https:\/\//.test(item.url)) kandidat.push(item);
     });
@@ -411,9 +595,21 @@ const KATA_TANYA = new Set([
   'bisa', 'dapat', 'akan', 'tidak', 'coba', 'tentang', 'mengenai', 'soal',
 ]);
 
+/**
+ * Kata yang hanya menandai "kapan", bukan "tentang apa". Di mesin pencari kata
+ * ini merusak hasil — "berita terbaru PII" menemukan artikel tentang apa saja —
+ * dan di penilaian relevansi kata ini mengencerkan skor tanpa membawa makna.
+ */
+const KATA_WAKTU = new Set([
+  'berita', 'terbaru', 'terkini', 'update', 'terupdate', 'minggu', 'hari',
+  'kemarin', 'besok', 'bulan', 'tahun', 'sekarang', 'saat', 'terakhir',
+  'beberapa', 'terbit', 'terbitan', 'lately', 'latest', 'news',
+]);
+
 function kataKunci(teks) {
   const kata = clean(teks).toLowerCase().match(/[a-z0-9']{4,}/g) || [];
-  return [...new Set(kata.filter((item) => !KATA_TANYA.has(item)))].slice(0, 8);
+  return [...new Set(kata.filter((item) => !KATA_TANYA.has(item) && !KATA_WAKTU.has(item)))]
+    .slice(0, 8);
 }
 
 /**
@@ -441,24 +637,75 @@ function menyebutOrganisasi(judul) {
     || nama.includes('islam indonesia') || /\bpii\b/.test(nama);
 }
 
+/** Tingkat kepercayaan: laman resmi di atas pemberitaan, pemberitaan di atas sumber umum. */
+const TINGKAT = { resmi: 0, berita: 1, umum: 2 };
+
+/**
+ * Batas waktu bersama untuk seluruh penelusuran. Model AI masih butuh jatah
+ * waktunya sendiri di dalam satu request Vercel, jadi sumber yang lambat
+ * dilepas diam-diam — bukan membuat pembaca menunggu tanpa jawaban.
+ */
+function tepatWaktu(tenggat, janji) {
+  const sisa = tenggat - Date.now();
+  if (sisa <= 0) return Promise.resolve([]);
+  let pengatur;
+  return Promise.race([
+    janji,
+    new Promise((selesai) => { pengatur = setTimeout(() => selesai([]), sisa); })
+  ]).finally(() => clearTimeout(pengatur));
+}
+
 function saringRelevan(kunci, daftar, namaWajib) {
-  return (Array.isArray(daftar) ? daftar : [])
+  const lewat = (Array.isArray(daftar) ? daftar : [])
     .map((item) => ({ item, skor: skorRelevansi(kunci, item) }))
     .filter(({ skor, item }) => skor >= 0.4 && (!namaWajib || menyebutOrganisasi(item.judul)))
-    .sort((a, b) => b.skor - a.skor)
+    .sort((a, b) => (TINGKAT[a.item.tier] ?? 2) - (TINGKAT[b.item.tier] ?? 2)
+      || String(b.item.tanggal || '').localeCompare(String(a.item.tanggal || ''))
+      || b.skor - a.skor);
+  const terlihat = new Set();
+  return lewat.filter(({ item }) => {
+    const tanda = clean(item.url).replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+    if (terlihat.has(tanda)) return false;
+    terlihat.add(tanda);
+    return true;
+  })
     .slice(0, 3)
     .map(({ item }) => item);
 }
 
-/** Sumber daring untuk menjawab pertanyaan organisasi; kosong kalau tidak ada yang nyambung. */
-async function cariWeb(query) {
+/**
+ * Sumber web untuk menjawab pertanyaan organisasi, bertingkat dari yang paling
+ * bisa dipertanggungjawabkan: laman resmi, lalu pemberitaan bertanggal, lalu
+ * sumber umum. Semua jalur berjalan paralel dan semuanya tanpa kunci API; yang
+ * gagal atau terlambat hanya hilang diam-diam, tidak merusak jawaban.
+ */
+async function cariWeb(query, tenggatMs = 12000) {
   const kalimat = clean(query).replace(/\bPII\b/gi, 'Pelajar Islam Indonesia')
     .replace(/(?:Pelajar Islam Indonesia\s+)+Pelajar Islam Indonesia/gi, 'Pelajar Islam Indonesia');
   const kunci = kataKunci(kalimat);
   const namaWajib = /pelajar islam indonesia/i.test(kalimat);
-  const google = saringRelevan(kunci, await googleSearch(kalimat).catch(() => []), namaWajib);
-  if (google.length) return google;
-  return saringRelevan(kunci, await wikipediaSearch(kalimat, kunci, namaWajib).catch(() => []), namaWajib);
+  const tenggat = Date.now() + Math.max(2000, Number(tenggatMs) || 12000);
+  const pangilan = (fn, ...args) => tepatWaktu(tenggat, fn(...args).catch(() => []));
+
+  /*
+   * Mesin pencari berita dipakai dengan kata topiknya saja. Kalimat tanya utuh
+   * ("apa berita terbaru tentang ... dalam beberapa hari terakhir") justru
+   * membawa mereka ke artikel yang tidak berhubungan.
+   */
+  const kueriTopik = kunci.length ? kunci.slice(0, 5).join(' ') : kalimat;
+
+  const [resmi, bing, google] = await Promise.all([
+    pangilan(sumberResmi, kunci, tenggat),
+    pangilan(beritaBing, kueriTopik),
+    pangilan(beritaGoogle, kueriTopik),
+  ]);
+  const beranda = saringRelevan(kunci, [...resmi, ...bing, ...google], namaWajib);
+  if (beranda.length) return beranda;
+
+  const daring = await pangilan(googleSearch, kalimat);
+  if (daring.length) return saringRelevan(kunci, daring, namaWajib);
+  return saringRelevan(kunci,
+    await pangilan(wikipediaSearch, kueriTopik, kunci, namaWajib), namaWajib);
 }
 
 /**
@@ -755,7 +1002,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  const terkait = terkaitOrganisasi(question);  let pustaka = [];
+  const terkait = terkaitOrganisasi(question);
+  let pustaka = [];
   let web = [];
 
   if (terkait) {

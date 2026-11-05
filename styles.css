@@ -5735,6 +5735,14 @@ body.has-kader-dialog {
   letter-spacing: .01em;
 }
 
+.tanya-sumber-catat {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: .72rem;
+  font-style: italic;
+  line-height: 1.45;
+}
+
 .tanya-sumber ul {
   display: flex;
   flex-wrap: wrap;

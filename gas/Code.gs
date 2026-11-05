@@ -1086,7 +1086,15 @@ function threadBersih_(thread) {
       hasil.rujukanWeb = (Array.isArray(turn.rujukanWeb) ? turn.rujukanWeb : []).slice(0, 3)
         .map(function (sumber) {
           if (!sumber || typeof sumber !== 'object') return null;
-          return { judul: cleanText_(sumber.judul).slice(0, 140), url: String(sumber.url || '').slice(0, 300) };
+          return {
+            judul: cleanText_(sumber.judul).slice(0, 140),
+            url: String(sumber.url || '').slice(0, 300),
+            penerbit: cleanText_(sumber.penerbit).slice(0, 60),
+            /* Tingkat kepercayaan ikut tersimpan supaya perangkat lain tidak
+               menampilkan hasil web sebagai keterangan resmi. */
+            tier: ['resmi', 'berita', 'umum'].indexOf(String(sumber.tier)) >= 0 ? String(sumber.tier) : 'umum',
+            tanggal: /^[\d-]{10}$/.test(String(sumber.tanggal || '')) ? String(sumber.tanggal) : ''
+          };
         }).filter(function (sumber) {
           return sumber !== null && /^https:\/\/[^\s]+$/.test(sumber.url);
         });

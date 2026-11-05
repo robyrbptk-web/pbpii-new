@@ -2069,6 +2069,22 @@ check('rujukan web bukan https dibuang',
 check('rujukan tanpa judul dibuang',
   bersih({ turns: [{ role: 'assistant', content: 'y', rujukan: [{ judul: '', berkas: 'x' }] }] })
     .turns[0].rujukan.length, 0);
+check('tingkat kepercayaan rujukan web ikut tersimpan',
+  bersih({ turns: [{ role: 'assistant', content: 'y', rujukanWeb: [
+    { judul: 'a', url: 'https://pbpii.or.id/a', penerbit: 'pbpii.or.id', tier: 'resmi', tanggal: '2026-10-02' }] }] })
+    .turns[0].rujukanWeb[0],
+  { judul: 'a', url: 'https://pbpii.or.id/a', penerbit: 'pbpii.or.id', tier: 'resmi', tanggal: '2026-10-02' });
+check('tingkat asing menjadi umum, bukan hilang',
+  bersih({ turns: [{ role: 'assistant', content: 'y', rujukanWeb: [{ judul: 'a', url: 'https://x.test/a', tier: 'rahasia' }] }] })
+    .turns[0].rujukanWeb[0].tier, 'umum');
+check('tanggal bukan ISO tidak ikut tersimpan',
+  bersih({ turns: [{ role: 'assistant', content: 'y', rujukanWeb: [
+    { judul: 'a', url: 'https://x.test/a', tanggal: 'kemarin sore' }] }] })
+    .turns[0].rujukanWeb[0].tanggal, '');
+check('penerbit panjang dipotong, bukan ditolak',
+  bersih({ turns: [{ role: 'assistant', content: 'y', rujukanWeb: [
+    { judul: 'a', url: 'https://x.test/a', penerbit: 'y'.repeat(90) }] }] })
+    .turns[0].rujukanWeb[0].penerbit.length, 60);
 check('penanda rasa yang tidak dikenal dikosongkan',
   bersih({ turns: [{ role: 'assistant', content: 'y', rasa: 'marah' }] }).turns[0].rasa, '');
 check('aksi riwayat yang tidak dikenal ditolak',
