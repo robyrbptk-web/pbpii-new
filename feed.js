@@ -112,7 +112,9 @@
 
   async function requireLogin(message) {
     if (!window.PBPIIAkun?.requireAccount) {
-      toast(composerEl, 'Masuk kader belum tersedia di halaman ini.');
+      // Panel akun belum terpasang: form masuk biasa tetap jalan, dan pengguna
+      // dikembalikan ke halaman ini setelah masuk.
+      location.href = 'sso.html?next=' + encodeURIComponent((location.pathname || '/') + (location.search || ''));
       return null;
     }
     try {

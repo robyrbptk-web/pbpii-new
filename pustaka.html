@@ -2291,7 +2291,7 @@
           'Pustaka organisasi dibuka untuk akun PII. Silakan masuk lebih dulu.',
           'email'
         );
-        if (!terbuka) window.location.href = 'sso.html';
+        if (!terbuka) window.location.href = 'sso.html?next=' + encodeURIComponent((location.pathname || '/') + (location.search || ''));
       });
 
       input.addEventListener('input', () => {

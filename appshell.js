@@ -728,4 +728,21 @@
     hapusSplash();
     pastikan();
   }
+
+  // Tautan masuk mana pun membawa orang kembali ke halaman yang memanggilnya,
+  // jadi kader yang terkunci di Pustaka atau Kabar tidak mendarat di beranda.
+  function tautanMasuk() {
+    const tujuan = (location.pathname || '/') + (location.search || '');
+    document.querySelectorAll('a[href$="sso.html"]').forEach((tautan) => {
+      const alamat = tautan.getAttribute('href') || '';
+      if (/[?&]next=/.test(alamat)) return;
+      tautan.href = 'sso.html?next=' + encodeURIComponent(tujuan);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tautanMasuk, { once: true });
+  } else {
+    tautanMasuk();
+  }
 })();

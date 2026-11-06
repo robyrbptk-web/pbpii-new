@@ -501,7 +501,9 @@
   /** Kader wajib login; pengurus/admin sudah punya sesi. */
   async function requireLogin(message) {
     if (!akun()?.requireAccount) {
-      toast(listEl.querySelector('.acara-guide'), 'Masuk kader belum tersedia di halaman ini.');
+      // Panel akun belum terpasang: form masuk biasa tetap jalan, dan pengguna
+      // dikembalikan ke halaman ini setelah masuk.
+      location.href = 'sso.html?next=' + encodeURIComponent((location.pathname || '/') + (location.search || ''));
       return null;
     }
     try {

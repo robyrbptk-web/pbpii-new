@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Dashboard Lembaga — PB PII</title>
+  <title>Dasbor Lembaga — PB PII</title>
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
@@ -372,7 +372,7 @@
     <main class="auth-card">
       <div class="auth-brand">
         <img src="/assets/logo-pii.webp" alt="Logo PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
-        <div><b>PB PII</b><small>Dashboard lembaga</small></div>
+        <div><b>PB PII</b><small>Dasbor lembaga</small></div>
       </div>
       <h1>Masuk akun lembaga</h1>
       <p class="intro">Gunakan email dan kata sandi yang didaftarkan untuk PW, PD, atau PK.</p>
@@ -845,7 +845,7 @@
         });
         localStorage.setItem(TOKEN_KEY, data.token);
         localStorage.setItem(ORG_KEY, data.org.name);
-        showLoginMessage('Masuk berhasil. Memuat dashboard…', 'ok');
+        showLoginMessage('Masuk berhasil. Memuat dasbor…', 'ok');
         await loadData();
       } catch (error) {
         showLoginMessage(error.message, 'err');
@@ -1113,7 +1113,7 @@
       $('aRegistrationEnabled').checked = Boolean(linked);
       activityBuilder.setFields(linked?.fields || window.PBPIIFormBuilder.defaults());
       syncActivityRegistration();
-      $('activityFormTitle').textContent = 'Edit kegiatan';
+      $('activityFormTitle').textContent = 'Ubah kegiatan';
       refreshUploader('aCover');
       $('activityEditor').classList.remove('hidden');
       $('activityEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1152,7 +1152,7 @@
           (item.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3>' +
           '<p>' + fmtDate(item.date) + ' · ' + esc(item.category) + ' · ' + (Number(item.participants) || 0) +
           ' peserta · ' + esc(item.location || 'Tanpa lokasi') + '</p>' + bind + '</div>' +
-          '<div class="item-actions"><button class="btn secondary" type="button" data-edit-activity="' + esc(item.id) + '">Edit</button>' +
+          '<div class="item-actions"><button class="btn secondary" type="button" data-edit-activity="' + esc(item.id) + '">Ubah</button>' +
           '<button class="btn danger" type="button" data-delete-activity="' + esc(item.id) + '">Hapus</button></div></div>';
       }).join('') || '<div class="empty">Belum ada kegiatan. Tambahkan kegiatan pertama lembaga Anda.</div>';
     }
@@ -1191,7 +1191,7 @@
           '<span class="badge ' + (article.status === 'published' ? 'verified' : 'pending') + '">' +
           (article.status === 'published' ? 'TERBIT' : 'DRAFT') + '</span></h3><p>' +
           esc(article.category || 'Berita') + ' · diperbarui ' + fmtDate(article.updatedAt) + '</p></div>' +
-          '<div class="item-actions"><button class="btn secondary" type="button" data-edit-org-article="' + esc(article.id) + '">Edit</button></div></div>';
+          '<div class="item-actions"><button class="btn secondary" type="button" data-edit-org-article="' + esc(article.id) + '">Ubah</button></div></div>';
       }).join('') || '<div class="empty">Belum ada artikel. Mulai tulis berita lembaga Anda.</div>';
     }
 
@@ -1250,7 +1250,7 @@
       const article = (state.articles || []).find((item) => item.id === edit.dataset.editOrgArticle);
       if (!article) return;
       $('orgArticleForm').reset();
-      $('orgArticleFormTitle').textContent = 'Edit artikel';
+      $('orgArticleFormTitle').textContent = 'Ubah artikel';
       $('orgArticleId').value = article.id || '';
       $('orgArticleTitle').value = article.title || '';
       $('orgArticleCategory').value = article.category || 'Berita';
@@ -1281,7 +1281,7 @@
         '<button class="btn secondary" type="button" data-copy-form="' + esc(form.id) + '">Salin tautan</button>' +
         (form.mine ? '<button class="btn secondary" type="button" data-toggle-form="' + esc(form.id) + '">' +
           (form.status === 'open' ? 'Tutup' : 'Buka') + '</button>' +
-          '<button class="btn secondary" type="button" data-edit-form="' + esc(form.id) + '">Edit</button>' : '') +
+          '<button class="btn secondary" type="button" data-edit-form="' + esc(form.id) + '">Ubah</button>' : '') +
         '</div></div>'
       )).join('') || '<div class="empty">Belum ada formulir.</div>';
     }
@@ -1333,7 +1333,7 @@
       $('fStatus').value = form.status || 'open';
       $('fDescription').value = form.description || '';
       standaloneBuilder.setFields(form.fields || window.PBPIIFormBuilder.defaults());
-      $('formEditorTitle').textContent = 'Edit formulir';
+      $('formEditorTitle').textContent = 'Ubah formulir';
       $('formEditor').classList.remove('hidden');
       $('formEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }

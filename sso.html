@@ -122,20 +122,33 @@
     const message = document.getElementById('loginMessage');
     const sesiAktif = document.getElementById('sesiAktif');
 
+    // Halaman yang memanggil form ini (Pustaka, Kabar, Acara) ingin pengguna
+    // kembali ke sana, bukan ke beranda. Hanya boleh berupa path internal:
+    // diawali satu "/" dan tanpa "\" yang bisa disalahartikan sebagai host lain.
+    const TUJUAN = (() => {
+      const raw = new URLSearchParams(location.search).get('next') || '';
+      return raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('\\') ? raw : '';
+    })();
+    const KAMBALI = (default_) => TUJUAN || default_;
+
     function tampilPesan(node, text, type) {
       node.className = 'sso-msg ' + type;
       node.textContent = text;
     }
+
+    // Nama akun dan nama lembaga datang dari isian orang lain, jadi tidak boleh
+    // langsung masuk ke innerHTML.
+    const bersihkan = (nilai) => String(nilai || '').replace(/[&<>"]/g, (huruf) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[huruf]));
 
     // ------------------------------------------------------------------ sesi aktif
     function gambarSesi() {
       const tautan = [];
       const akun = (window.PBPIIAkun && window.PBPIIAkun.account()) || { role: 'tamu' };
       if (akun.role === 'kader') {
-        tautan.push('Kader: <b>' + (akun.name || 'Kader PII') + '</b> — <a href="/app">lanjut ke Beranda</a>');
+        tautan.push('Kader: <b>' + (bersihkan(akun.name) || 'Kader PII') + '</b> — <a href="' + KAMBALI('/app') + '">' + (TUJUAN ? 'lanjut ke halaman tadi' : 'lanjut ke Beranda') + '</a>');
       }
       if (localStorage.getItem('pbpii_org_token')) {
-        tautan.push('Lembaga: <b>' + (localStorage.getItem('pbpii_org_name') || 'Lembaga PII') + '</b> — <a href="/lembaga.html">lanjut ke dasbor</a>');
+        tautan.push('Lembaga: <b>' + (bersihkan(localStorage.getItem('pbpii_org_name')) || 'Lembaga PII') + '</b> — <a href="' + KAMBALI('/lembaga.html') + '">' + (TUJUAN ? 'lanjut ke halaman tadi' : 'lanjut ke dasbor') + '</a>');
       }
       if (localStorage.getItem('pbpii_admin_token')) {
         tautan.push('Admin PB PII — <a href="/admin.html">lanjut ke dasbor</a>');
@@ -153,14 +166,14 @@
       window.PBPIIAkun.onChange((akun) => {
         if (panelDibuka && peranLama !== 'kader' && akun.role === 'kader') {
           sesiAktif.classList.add('isi');
-          sesiAktif.innerHTML = '<span class="sesi-item">Berhasil masuk sebagai <b>' + (akun.name || 'Kader PII') + '</b>. Membuka Beranda…</span>';
-          setTimeout(() => { window.location.href = '/app'; }, 700);
+          sesiAktif.innerHTML = '<span class="sesi-item">Berhasil masuk sebagai <b>' + (bersihkan(akun.name) || 'Kader PII') + '</b>. ' + (TUJUAN ? 'Membuka halaman tadi…' : 'Membuka Beranda…') + '</span>';
+          setTimeout(() => { window.location.href = KAMBALI('/app'); }, 700);
         }
         peranLama = akun.role || 'tamu';
         gambarSesi();
       });
       document.getElementById('bukaKader').addEventListener('click', () => {
-        if (window.PBPIIAkun.account().role === 'kader') window.location.href = '/app';
+        if (window.PBPIIAkun.account().role === 'kader') window.location.href = KAMBALI('/app');
         else { panelDibuka = true; window.PBPIIAkun.openPanel(null, 'google'); }
       });
     } else {
@@ -208,13 +221,13 @@
         if (!data || !data.token) throw new Error('Server tidak mengembalikan token sesi.');
         if (data.role === 'kader') {
           localStorage.setItem('pbpii_kader_token', data.token);
-          tampilPesan(message, 'Masuk berhasil. Membuka Beranda kader…', 'success');
-          setTimeout(() => { window.location.href = '/app'; }, 700);
+          tampilPesan(message, TUJUAN ? 'Masuk berhasil. Membuka halaman tadi…' : 'Masuk berhasil. Membuka Beranda kader…', 'success');
+          setTimeout(() => { window.location.href = KAMBALI('/app'); }, 700);
         } else {
           localStorage.setItem('pbpii_org_token', data.token);
           localStorage.setItem('pbpii_org_name', (data.org && data.org.name) || '');
-          tampilPesan(message, 'Masuk berhasil. Membuka dasbor lembaga…', 'success');
-          setTimeout(() => { window.location.href = '/lembaga.html'; }, 700);
+          tampilPesan(message, TUJUAN ? 'Masuk berhasil. Membuka halaman tadi…' : 'Masuk berhasil. Membuka dasbor lembaga…', 'success');
+          setTimeout(() => { window.location.href = KAMBALI('/lembaga.html'); }, 700);
         }
       } catch (error) {
         tampilPesan(message, error.message || 'Tidak dapat terhubung ke server.', 'error');

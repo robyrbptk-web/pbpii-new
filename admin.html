@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0c2948">
-  <title>Dashboard Admin — PB PII</title>
+  <title>Dasbor Admin — PB PII</title>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -498,7 +498,7 @@
           </div>
           <div class="panel">
             <h2>Acara, keaktifan, dan keamanan</h2>
-            <p class="panel-intro">Angka di bawah dipakai halaman Acara dan dashboard lembaga. Standar keaktifan dapat disetel lebih tinggi oleh lembaga induk untuk bawahan masing-masing.</p>
+            <p class="panel-intro">Angka di bawah dipakai halaman Acara dan dasbor lembaga. Standar keaktifan dapat disetel lebih tinggi oleh lembaga induk untuk bawahan masing-masing.</p>
             <div class="form-grid">
               <div class="field"><label for="keaktifanMinPerMonth">Standar keaktifan bawaan (kegiatan/bulan)</label><input id="keaktifanMinPerMonth" name="keaktifanMinPerMonth" type="number" min="0" max="60" step="1"><div class="hint">0 berarti tidak ada target minimal. Range 0–60.</div></div>
               <div class="field full">
@@ -825,7 +825,7 @@
             const pesan = /aksi tidak dikenal/i.test(error.message)
               ? 'Unggah foto belum dapat diproses layanan. Silakan coba lagi sebentar, atau tempel URL gambar bila mendesak.'
               : /authorization|perlu izin|izinkan|tidak memiliki izin/i.test(error.message)
-                ? 'Penyimpanan foto di Drive belum diizinkan. Buka editor Apps Script, jalankan fungsi apa pun sekali lalu setujui izinnya, kemudian terbitkan ulang versi web.'
+                ? 'Penyimpanan foto sedang tidak dapat dipakai. Silakan coba lagi sebentar, atau tempel URL gambar bila mendesak.'
                 : error.message;
             status.textContent = pesan;
             notify('Unggahan gagal: ' + pesan, 'err');
@@ -960,7 +960,7 @@
           '<div class="item-actions">' +
           '<button class="btn secondary" data-toggle-article="' + escapeHTML(a.id) + '">' +
           (status === 'published' ? 'Tarik ke draft' : 'Terbitkan') + '</button>' +
-          '<button class="btn secondary" data-edit-article="' + escapeHTML(a.id) + '">Edit</button>' +
+          '<button class="btn secondary" data-edit-article="' + escapeHTML(a.id) + '">Ubah</button>' +
           '<button class="btn danger" data-delete-article="' + escapeHTML(a.id) + '">Hapus</button></div></div>';
       }).join('') || '<div class="empty">' + (state.articles.length
         ? 'Tidak ada artikel yang cocok dengan pencarian atau saringan.'
@@ -984,7 +984,7 @@
           '</h3><p>Urutan: ' + escapeHTML(g.sortOrder) + ' · ' +
           (String(g.featured) === 'true' ? '<span class="badge published">TAMPIL DI BERANDA</span>' : '<span class="badge">DISEMBUNYIKAN</span>') +
           '</p></div><div class="item-actions"><button class="btn secondary" data-edit-gallery="' +
-          escapeHTML(g.id) + '">Edit</button><button class="btn danger" data-delete-gallery="' +
+          escapeHTML(g.id) + '">Ubah</button><button class="btn danger" data-delete-gallery="' +
           escapeHTML(g.id) + '">Hapus</button></div></div>';
       }).join('') || '<div class="empty">Belum ada foto galeri.</div>';
     }
@@ -1105,7 +1105,7 @@
         if (!a) return;
         showPage('articles');
         $('articleEditor').classList.remove('hidden');
-        $('articleFormTitle').textContent = 'Edit artikel';
+        $('articleFormTitle').textContent = 'Ubah artikel';
         $('articleId').value = a.id || '';
         $('articleTitle').value = a.title || '';
         $('articleSlug').value = a.slug || '';
@@ -1204,7 +1204,7 @@
         $('galleryCaption').value = g.caption || '';
         $('galleryOrder').value = Number(g.sortOrder) || 0;
         $('galleryFeatured').checked = String(g.featured) === 'true';
-        $('galleryFormTitle').textContent = 'Edit foto galeri';
+        $('galleryFormTitle').textContent = 'Ubah foto galeri';
         refreshUploader('galleryUrl');
         window.scrollTo({top:0,behavior:'smooth'});
       }
