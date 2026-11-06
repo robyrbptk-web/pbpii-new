@@ -229,6 +229,13 @@
       }
     });
 
+    /* Di subdomain masuk, "/" adalah halaman ini sendiri, jadi tautan "Halaman
+       utama" diarahkan ke alamat tanpa embel "sso." agar tidak berputar di tempat. */
+    if (/^sso\./i.test(location.hostname)) {
+      const rumah = document.querySelector('.sso-links a[href="/"]');
+      if (rumah) rumah.href = location.protocol + '//' + location.hostname.replace(/^sso\./i, '') + '/';
+    }
+
     gambarSesi();
   </script>
   <script src="site.js" defer></script>
