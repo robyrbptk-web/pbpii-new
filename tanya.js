@@ -254,8 +254,9 @@
     return String(turn?.content || '').trim();
   }
 
-  function unduhTeks(nama, isi, tipe) {
-    const berkas = new Blob([isi], { type: `${tipe || 'text/plain'};charset=utf-8` });
+  /** Unduhan apa pun disusun sebagai blob lalu diketuk lewat tautan sementara. */
+  function unduhBerkas(nama, isi, tipe) {
+    const berkas = new Blob([isi], { type: tipe || 'application/octet-stream' });
     const url = URL.createObjectURL(berkas);
     const tautan = document.createElement('a');
     tautan.href = url;
@@ -265,6 +266,10 @@
     tautan.click();
     tautan.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  function unduhTeks(nama, isi, tipe) {
+    unduhBerkas(nama, isi, `${tipe || 'text/plain'};charset=utf-8`);
   }
 
   let toastTimer = null;
@@ -521,6 +526,8 @@
       salin: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.4"/><path d="M15 6.5H6.5A2.5 2.5 0 0 0 4 9v8"/></svg>',
       ulang: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4.5V9h-4.5"/></svg>',
       pdf: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>',
+      docx: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5L19 9v10.5H5Z"/><path d="M14 4.5V9h4.5"/><path d="M8.2 12.4 9.5 16.6l1.5-4.2 1.5 4.2 1.3-4.2"/></svg>',
+      pptx: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.8" width="17" height="11.4" rx="1.8"/><path d="M12 16.2V20M8.5 20h7"/><path d="M8 13V9.8M12 13V8.4M16 13v-2.2"/></svg>',
       naik: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21v-9l4.2-8.4a1.6 1.6 0 0 1 3 1.1L12.8 11H19l-2.2 8a1.6 1.6 0 0 1-1.6 1.2H7Z"/></svg>',
       turun: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v9l4.2 8.4a1.6 1.6 0 0 0 3-1.1L12.8 13H19l-2.2-8A1.6 1.6 0 0 0 15.2 3H7Z"/></svg>',
       ganti: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h4L19 9a2.5 2.5 0 0 0-3.5-3.5L5 16z"/><path d="m14.5 6.5 3 3"/></svg>',
@@ -551,13 +558,19 @@
 
     /**
      * Toolbar jawaban: salin, suka, tidak suka, dan jawab ulang. Tombol unduh
-     * PDF hanya menyelinap di antaranya bila balon ini memang sebuah dokumen.
+     * hanya menyelinap di antaranya bila balon ini memang sebuah dokumen.
+     * Word dan PowerPoint menyusul hanya bila modul office.js ikut termuat,
+     * supaya tidak pernah ada tombol yang menghasilkan berkas kosong.
      */
     function alatBlok(urut, turn) {
       const soal = urut > 0 ? turns[urut - 1]?.content : '';
       const tombol = [['salin', 'Salin jawaban', 'Salin', IKON.salin, '']];
       if (adalahDokumen(soal, turn?.content)) {
         tombol.push(['pdf', 'Unduh dokumen ini sebagai PDF', 'Unduh PDF', IKON.pdf, ' is-unduh']);
+        if (punyaOffice()) {
+          tombol.push(['docx', 'Unduh sebagai berkas Word (.docx)', 'Word', IKON.docx, ' is-unduh']);
+          tombol.push(['pptx', 'Unduh sebagai paparan PowerPoint (.pptx)', 'PowerPoint', IKON.pptx, ' is-unduh']);
+        }
       }
       const kiri = tombol.map(([act, label, teks, ikon, extra]) =>
         `<button type="button" class="tanya-act${extra}" data-act="${act}" aria-label="${label}" title="${label}">${ikon}<span>${teks}</span></button>`).join('');
@@ -716,6 +729,8 @@
         toast('Berhasil disalin.');
       } else if (act === 'pdf') {
         cetakJawaban(urut);
+      } else if (act === 'docx' || act === 'pptx') {
+        eksporOffice(urut, act);
       } else if (act === 'suka' || act === 'tidak') {
         turn.rasa = turn.rasa === act ? '' : act;
         save();
@@ -822,6 +837,51 @@
       const dokumen = adalahDokumen(soal, jawaban?.content);
       cetak(judulDokumen(jawaban?.content) || soal || 'Dokumen Tanya PII',
         turns.slice(Math.max(0, urut - 1), urut + 1), dokumen);
+    }
+
+    /* ------------------------------------------------------------------ Office
+     * Word dan PowerPoint disusun dari Markdown yang sama dengan jawaban di
+     * layar, lewat office.js: arsip OOXML sungguhan, bukan HTML berganti
+     * ekstensi, jadi berkasnya terbuka rapi di aplikasi kantor mana pun.
+     */
+    const OFICE = {
+      docx: { buat: 'docxBerkas', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', nama: 'dokumen' },
+      pptx: { buat: 'pptxBerkas', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', nama: 'paparan' },
+    };
+
+    function punyaOffice() {
+      const modul = window.PBPIIOffice;
+      return Boolean(modul) && OFICE.docx.buat in modul && OFICE.pptx.buat in modul;
+    }
+
+    /** Nama berkas yang boleh disimpan Windows, Android, dan iOS sekaligus. */
+    function namaBerkas(judul, jenis) {
+      const dasar = String(judul || 'dokumen-tanya-pii')
+        .replace(/[\\/:*?"'<>|#]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 72) || 'dokumen-tanya-pii';
+      return `${dasar.toLowerCase().replace(/[^a-z0-9 ._-]/g, '') || 'dokumen-tanya-pii'}.${jenis}`;
+    }
+
+    function eksporOffice(urut, jenis) {
+      const jawaban = turns[urut];
+      const isi = teksJawaban(jawaban);
+      if (!isi) { toast('Jawaban belum tersusun, jadi berkas tidak dibuat.'); return; }
+      const soal = turns[urut - 1]?.content || '';
+      const judul = judulDokumen(isi) || soal || 'Dokumen Tanya PII';
+      const opsi = OFICE[jenis];
+      try {
+        const bytes = window.PBPIIOffice[opsi.buat]({
+          judul,
+          markdown: isi,
+          subjudul: 'Tanya PII — buatan Badan Khusus Inovasi Digital PB PII',
+        });
+        unduhBerkas(namaBerkas(judul, jenis), bytes, opsi.mime);
+        toast(`${opsi.nama === 'dokumen' ? 'Berkas Word' : 'Paparan PowerPoint'} sedang diunduh.`);
+      } catch {
+        toast('Berkas gagal disusun. Silakan coba lagi sebentar.');
+      }
     }
 
     function salinTeks(teks, tombol) {
