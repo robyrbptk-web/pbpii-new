@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-05.12';
+const BACKEND_VERSION = '2026-11-06.10';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -860,6 +860,8 @@ function doPost(event) {
       data = orgRegister_(body);
     } else if (action === 'orgLogin') {
       data = orgLogin_(body);
+    } else if (action === 'ssoLogin') {
+      data = ssoLogin_(body);
     } else if (action === 'publicForm') {
       data = publicForm_(body.id);
     } else if (action === 'publicRegister') {
@@ -4398,6 +4400,9 @@ function pustakaDaftar_(peran) {
     if (folder && doc.berkas) {
       const file = pustakaFileTerbaru_(folder, String(doc.berkas));
       if (file) {
+        // driveId hanya penanda (bukan tautan): berkas asli tetap mengalir lewat
+        // proksi server dengan pemeriksaan sesi, agar alamat Drive tidak bocor.
+        keluar.driveId = file.getId();
         keluar.tautan = 'https://drive.google.com/file/d/' + file.getId() + '/view';
       }
     }
@@ -4417,6 +4422,37 @@ function pustakaDaftar_(peran) {
       return { nama: nama, jumlah: kategori[nama] };
     }),
     jumlahPotong: (korpus.chunks || []).length
+  };
+}
+
+/**
+ * Penanda berkas asli di Drive untuk satu dokumen korpus. Dipakai proksi
+ * Vercel untuk memastikan permintaan unduh PDF benar-benar datang dari sesi
+ * yang berhak, tanpa pernah mengirim alamat Drive ke peramban.
+ */
+function pustakaPdf_(peran, body) {
+  const id = String(body.doc || '').slice(0, 60);
+  let folder = null;
+  try {
+    folder = pustakaFolderTerpasang_();
+  } catch (error) {
+    folder = null;
+  }
+  if (!folder) throw new Error('Berkas asli belum tersedia di penyimpanan Pustaka.');
+
+  const korpus = pustakaTerlihat_(pustakaKorpus_(), peran);
+  const doc = (korpus.docs || []).filter(function (item) { return item.id === id; })[0];
+  if (!doc || !doc.berkas) throw new Error('Berkas tidak ditemukan.');
+
+  const file = pustakaFileTerbaru_(folder, String(doc.berkas));
+  if (!file) throw new Error('Berkas asli belum tersedia di penyimpanan Pustaka.');
+
+  return {
+    doc: id,
+    driveId: file.getId(),
+    nama: String(doc.berkas),
+    ukuran: Number(file.getSize && file.getSize()) || 0,
+    judul: cleanText_(doc.judul)
   };
 }
 
@@ -4441,6 +4477,7 @@ function pustakaAksi_(action, body) {
 
   const ip = clientIp_(body);
   if (action === 'pustakaList') return pustakaDaftar_(peran);
+  if (action === 'pustakaPdf') return pustakaPdf_(peran, body);
 
   const korpus = pustakaTerlihat_(pustakaKorpus_(), peran);
   if (!korpus.tersedia) {
@@ -5123,6 +5160,7 @@ const RATE_RULES = {
   'register': { limit: 12, window: 600 },
   'captcha-issue': { limit: 18, window: 600 },
   'kader-login': { limit: 12, window: 600 },
+  'sso-login': { limit: 12, window: 600 },
   'kader-register': { limit: 5, window: 1800 },
   'event-like': { limit: 60, window: 60 },
   'event-comment': { limit: 20, window: 120 },
@@ -5427,6 +5465,51 @@ function kaderEmailLogin_(body) {
     },
     expiresIn: APP.TOKEN_TTL_SECONDS
   };
+}
+
+/**
+ * Satu form masuk untuk semua peran: alamat email yang sama dicari dulu di
+ * akun kader, lalu di akun lembaga. Captcha Turnstile hanya diperiksa sekali,
+ * karena token captcha hangus setelah satu verifikasi.
+ */
+function ssoLogin_(body) {
+  const email = String(body.email || '').trim().toLowerCase();
+  throttle_('sso-login', clientIp_(body) + ':' + email);
+  assertCaptcha_(body);
+  const password = String(body.password || '');
+
+  const rows = rows_(APP.SHEET_KADERS);
+  let row = null;
+  rows.forEach(function (item) {
+    if (String(item.email || '').toLowerCase() === email) row = item;
+  });
+
+  if (row && row.passwordHash && row.passwordSalt &&
+      hashPassword_(password, row.passwordSalt) === String(row.passwordHash)) {
+    orgSetCell_(APP.SHEET_KADERS, row.id, 'lastLoginAt', new Date().toISOString());
+    const token = sessionPut_('kader', row.id);
+    return {
+      token: token,
+      role: 'kader',
+      kader: {
+        id: row.id,
+        name: cleanText_(row.name) || 'Kader PII',
+        email: email,
+        picture: safeUrl_(row.picture)
+      },
+      expiresIn: APP.TOKEN_TTL_SECONDS
+    };
+  }
+
+  const org = orgById_(rows_(APP.SHEET_ORGS), null, email);
+  if (org && org.passwordHash && org.passwordSalt &&
+      hashPassword_(password, org.passwordSalt) === String(org.passwordHash)) {
+    const token = sessionPut_('org', org.id);
+    orgSetCell_(APP.SHEET_ORGS, org.id, 'lastLoginAt', new Date().toISOString());
+    return { token: token, role: 'org', org: orgSelf_(org), expiresIn: APP.TOKEN_TTL_SECONDS };
+  }
+
+  throw new Error('Email atau kata sandi salah.');
 }
 
 /** Meminta Google mengonfirmasi sendiri tanda tangan dan isi token. */

@@ -391,6 +391,9 @@
       color: var(--blue);
       font-size: .81rem;
       font-weight: 800;
+      background: transparent;
+      font-family: inherit;
+      cursor: pointer;
       transition: background-color .16s ease, border-color .16s ease;
     }
 
@@ -1584,7 +1587,7 @@
           judul.type = 'button';
           judul.className = 'pustaka-title';
           judul.textContent = String(doc.judul || doc.id || 'Berkas tanpa nama');
-          judul.addEventListener('click', () => bukaPembaca(String(doc.id || ''), 0));
+          judul.addEventListener('click', () => bukaBerkasPii(String(doc.id || ''), 0));
           atas.append(judul);
           badge(atas, String(doc.kategori || 'Umum'));
           if (nomor) atas.append(nomor);
@@ -1609,17 +1612,15 @@
           const buka = document.createElement('button');
           buka.type = 'button';
           buka.className = 'pustaka-open';
-          buka.textContent = 'Baca isi berkas';
-          buka.addEventListener('click', () => bukaPembaca(String(doc.id || ''), 0));
+          buka.textContent = String(doc.driveId || '') ? 'Baca dokumen asli' : 'Baca isi berkas';
+          buka.addEventListener('click', () => bukaBerkasPii(String(doc.id || ''), 0));
           aksi.append(buka);
-          const pdf = tautanAman(doc.tautan);
-          if (pdf) {
-            const tautan = document.createElement('a');
+          if (String(doc.driveId || '')) {
+            const tautan = document.createElement('button');
+            tautan.type = 'button';
             tautan.className = 'pustaka-pdf';
-            tautan.href = pdf;
-            tautan.target = '_blank';
-            tautan.rel = 'noopener';
             tautan.textContent = 'PDF asli ↗';
+            tautan.addEventListener('click', () => bukaBerkasPii(String(doc.id || ''), 0));
             aksi.append(tautan);
           }
           kartuEl.append(aksi);
@@ -1716,21 +1717,23 @@
           buka.type = 'button';
           buka.className = 'pustaka-open';
           buka.textContent = 'Buka di pembaca';
-          buka.addEventListener('click', () => bukaPembaca(
+          buka.addEventListener('click', () => bukaBerkasPii(
             String(item.d || ''),
             Number(Array.isArray(item.h) ? item.h[0] : 0) || 0,
             { judul: item.judul || '', kategori: item.kategori || '', kueri: state.kueri }
           ));
           aksi.append(buka);
           const doc = state.docs.find((item2) => String(item2.id) === String(item.d));
-          const pdf = tautanAman(doc?.tautan);
-          if (pdf) {
-            const tautan = document.createElement('a');
+          if (String(doc?.driveId || '')) {
+            const tautan = document.createElement('button');
+            tautan.type = 'button';
             tautan.className = 'pustaka-pdf';
-            tautan.href = pdf;
-            tautan.target = '_blank';
-            tautan.rel = 'noopener';
             tautan.textContent = 'PDF asli ↗';
+            tautan.addEventListener('click', () => bukaBerkasPii(
+              String(item.d || ''),
+              Number(Array.isArray(item.h) ? item.h[0] : 0) || 0,
+              { judul: item.judul || '', kategori: item.kategori || '', kueri: state.kueri }
+            ));
             aksi.append(tautan);
           }
           kartuEl.append(aksi);
@@ -1868,7 +1871,7 @@
             tanggalSingkat(item.waktu)
           ].filter(Boolean).join(' · ');
           buka.append(judul, ket);
-          buka.addEventListener('click', () => bukaPembaca(
+          buka.addEventListener('click', () => bukaBerkasPii(
             String(item.id), Number(item.halaman) || 0, { judul: item.judul, kategori: item.kategori }
           ));
 
@@ -1899,7 +1902,7 @@
           jelaskan('Berkas yang ditautkan tidak ada di pustaka atau tidak terbuka untuk akun Anda.', true);
           return;
         }
-        bukaPembaca(id, tautanMasuk.hal, { judul: doc.judul, kategori: doc.kategori });
+        bukaBerkasPii(id, tautanMasuk.hal, { judul: doc.judul, kategori: doc.kategori });
       }
 
       // ---------------------------------------------------------------- pembaca
@@ -2081,6 +2084,28 @@
         tautanTanyaBaca();
       }
 
+      /**
+       * Satu berkas dibuka lewat pembaca buku bila berkas aslinya tersedia di
+       * Drive; selain itu, atau bila dokumen asli gagal dibuka, pembaca teks
+       * korpus yang mengambil alih.
+       */
+      async function bukaBerkasPii(id, target, informasi) {
+        const doc = state.docs.find((item) => String(item.id) === String(id)) || (informasi || {});
+        const driveId = String(doc.driveId || '');
+        if (driveId && window.perpusBukaBerkas) {
+          const dibuka = await window.perpusBukaBerkas({
+            id: String(doc.id || id || ''),
+            judul: String(doc.judul || id || 'Berkas Pustaka'),
+            driveId,
+          }, {
+            halaman: Number(target) || 0,
+            mundur: (pesan) => bukaPembaca(id, target, { ...(informasi || {}), pesan }),
+          });
+          if (dibuka) return;
+        }
+        bukaPembaca(id, target, informasi);
+      }
+
       async function bukaPembaca(id, target, informasi) {
         if (!id) return;
         const doc = { ...(state.docs.find((item) => String(item.id) === String(id)) || {}), ...(informasi || {}) };
@@ -2091,10 +2116,11 @@
           busy: true,
           kueri: String(informasi?.kueri || ''),
           judul: String(doc.judul || id),
-          kategori: String(doc.kategori || '')
+          kategori: String(doc.kategori || ''),
+          driveId: String(doc.driveId || '')
         };
         const pdf = tautanAman(doc.tautan);
-        pembacaPdf.hidden = !pdf;
+        pembacaPdf.hidden = !pdf && !state.baca.driveId;
         if (pdf) pembacaPdf.href = pdf;
         pembacaJudul.textContent = String(doc.judul || id);
         pembacaMeta.textContent = [String(doc.kategori || ''), Number(doc.halaman) ? `${doc.halaman} halaman` : '']
@@ -2105,6 +2131,12 @@
         pembacaBody.replaceChildren(dokumen);
         pembacaInfo.textContent = 'Memuat isi berkas…';
         pembacaMore.hidden = true;
+        if (String(informasi?.pesan || '')) {
+          const catatan = document.createElement('p');
+          catatan.className = 'pustaka-meta';
+          catatan.textContent = String(informasi.pesan);
+          dokumen.append(catatan);
+        }
         bukaLayar();
 
         try {
@@ -2305,6 +2337,12 @@
       pembacaMore.addEventListener('click', muatBerikutnya);
       alatTema.addEventListener('click', gantiTema);
       alatPenanda.addEventListener('click', ubahPenandaBaca);
+      pembacaPdf.addEventListener('click', (event) => {
+        // Berkas yang punya dokumen asli dibuka di pembaca buku, bukan di Drive.
+        if (!state.baca?.driveId) return;
+        event.preventDefault();
+        bukaBerkasPii(state.baca.id, 0);
+      });
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && pembaca.classList.contains('is-open')) tutupPembaca();
       });

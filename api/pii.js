@@ -8,6 +8,8 @@
  * The proxy still does the things only it can do: cap request size, drop
  * abusive action/IP pairs fast, and forward the real client IP downstream.
  */
+import { Readable } from 'node:stream';
+
 export const DEFAULT_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTlciByFgttDG8CuKkAUWr2j4na-jS-ENq7S3gjiclX1Uw3cSu7Rj0d8VMALt-qh-J_w/exec';
 
 /** Reads are cheap; writes are where spam lives. `limit` requests per `windowMs`. */
@@ -22,7 +24,7 @@ const RULES = {
 
 const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
-  'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus',
+  'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus', 'pustakaPdf',
   'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList',
   'threadList', 'threadIsi', 'notifList'
 ]);
@@ -35,7 +37,7 @@ const WRITE_ACTIONS = new Set([
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */
-const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLogin']);
+const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLogin', 'ssoLogin']);
 
 /** Base64 media/PDF uploads are the only payloads allowed to be large. */
 const MAX_BODY_BYTES = 220_000;
@@ -155,6 +157,106 @@ async function serveDriveImage(req, res) {
   }
 }
 
+/**
+ * Antaran berkas asli Pustaka ke pdf.js. Peramban hanya tahu id Drive dan id
+ * dokumen korpus; keduanya dicocokkan dulu dengan sesi lewat Apps Script
+ * (aksi pustakaPdf), jadi berkas tidak pernah tersaji untuk akun tanpa akses.
+ * Header Range diteruskan supaya pdf.js hanya menarik bagian yang dibuka.
+ */
+async function serveDrivePdf(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  const driveId = String(req.query?.pdf || '');
+  const docId = String(req.query?.doc || '');
+  if (!/^[A-Za-z0-9_-]{10,128}$/.test(driveId) || !/^[\w.-]{1,60}$/.test(docId)) {
+    return res.status(400).json({ ok: false, error: 'Berkas Pustaka tidak dikenali.' });
+  }
+  const sesi = String(req.headers['x-pii-sesi'] || '').slice(0, 140);
+
+  const decision = allow('pustaka-pdf|' + clientIp(req), RULES.read);
+  if (!decision.ok) {
+    res.setHeader('Retry-After', String(decision.retryAfter));
+    return res.status(429).json({ ok: false, error: 'Terlalu sering memuat berkas. Coba lagi sebentar.' });
+  }
+
+  const gasUrl = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
+  try {
+    // Sesi diperiksa di Apps Script: balasan berisi driveId milik dokumen itu.
+    const verifikasi = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'pustakaPdf', token: sesi, doc: docId, ip: clientIp(req) }),
+      signal: AbortSignal.timeout(15_000)
+    });
+    const body = await verifikasi.json().catch(() => null);
+    if (!body?.ok || String(body.data?.driveId || '') !== driveId) {
+      return res.status(403).json({ ok: false, error: 'Akses berkas Pustaka ditolak. Silakan masuk ulang.' });
+    }
+  } catch (error) {
+    return res.status(502).json({ ok: false, error: 'Pemeriksaan akses Pustaka gagal. Coba lagi sebentar.' });
+  }
+
+  const header = {
+    Accept: 'application/pdf;q=0.9, */*;q=0.5',
+    'Accept-Encoding': 'identity'
+  };
+  const rentang = req.headers?.range || req.headers?.Range;
+  if (typeof rentang === 'string' && /^bytes=\d*-\d*$/.test(rentang) && rentang !== 'bytes=-') {
+    header.Range = rentang;
+  }
+
+  // Batas waktu hanya untuk kedatangan kepala jawaban; aliran isi tidak dipotong.
+  const penanda = new AbortController();
+  const penjaga = setTimeout(() => penanda.abort(), 15_000);
+
+  try {
+    const hulu = await fetch(
+      'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(driveId) + '&export=download&authuser=0',
+      { redirect: 'follow', headers: header, signal: penanda.signal }
+    );
+    clearTimeout(penjaga);
+
+    const finalHost = new URL(hulu.url).hostname;
+    if (finalHost === 'accounts.google.com') {
+      return res.status(404).json({ ok: false, error: 'Berkas Pustaka sudah tidak tersedia.' });
+    }
+    if (finalHost !== 'drive.google.com'
+      && finalHost !== 'drive.usercontent.google.com'
+      && !finalHost.endsWith('.googleusercontent.com')) {
+      throw new Error('Sumber berkas Drive mengarah ke host yang tidak diizinkan.');
+    }
+    if (!hulu.ok && hulu.status !== 206) {
+      return res.status(hulu.status === 404 ? 404 : 502)
+        .json({ ok: false, error: hulu.status === 404 ? 'Berkas Pustaka sudah tidak tersedia.' : 'Berkas Pustaka gagal dimuat.' });
+    }
+    if (!hulu.body) {
+      return res.status(502).json({ ok: false, error: 'Berkas Pustaka kosong.' });
+    }
+
+    res.statusCode = hulu.status;
+    res.setHeader('Content-Type', hulu.headers.get('content-type') || 'application/pdf');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const ukuran = hulu.headers.get('content-length');
+    if (ukuran) res.setHeader('Content-Length', ukuran);
+    const cakupan = hulu.headers.get('content-range');
+    if (cakupan) res.setHeader('Content-Range', cakupan);
+    if (hulu.status === 206) res.setHeader('Accept-Ranges', 'bytes');
+
+    const aliran = Readable.fromWeb(hulu.body);
+    req.on('close', () => aliran.destroy());
+    aliran.on('error', () => {
+      if (!res.headersSent) {
+        res.status(502).json({ ok: false, error: 'Aliran berkas Pustaka terputus.' });
+      } else {
+        res.end();
+      }
+    });
+    return aliran.pipe(res);
+  } catch (error) {
+    clearTimeout(penjaga);
+    return res.status(502).json({ ok: false, error: error.message || 'Gagal memuat berkas Pustaka.' });
+  }
+}
+
 /** Menormalkan tautan Drive lama sebelum UI mengarahkannya ke proxy gambar ini. */
 const DEAD_DRIVE_URL =
   /https:\/\/(?:lh3\.googleusercontent\.com\/d\/|drive\.google\.com\/(?:file\/d\/|thumbnail\?id=|uc\?id=|open\?id=))([A-Za-z0-9_-]{10,})(?:\/view)?(?:[?=&][^\s"'<>\\]*)?/gi;
@@ -209,7 +311,9 @@ function allow(key, rule) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') return serveDriveImage(req, res);
+  if (req.method === 'GET') {
+    return req.query?.pdf ? serveDrivePdf(req, res) : serveDriveImage(req, res);
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }

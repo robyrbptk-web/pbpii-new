@@ -1052,6 +1052,17 @@ check('tebakan kata sandi beruntun dari satu email dibatasi', tembokEmail[gas.RA
 check('sesi email dihitung sebagai identitas kader', gas.chatIdentity_({ token: masukEmail.data.token }).kind, 'kader');
 check('kader non-Google mendapat jatah penuh Tanya PII', gas.chatIdentity_({ token: masukEmail.data.token }).batas, gas.APP.CHAT_DAILY_LIMIT);
 
+// --------------------------------------------- satu form masuk (SSO) semua peran
+
+check('sso tanpa centang Turnstile ditolak', request({ action: 'ssoLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.29' }).code, 'captcha');
+const ssoKader = request({ action: 'ssoLogin', email: 'Siti@Example.com', password: 'sandiku123', ip: '198.51.100.29', ...TOKEN_MANUSIA });
+check('satu form SSO menemukan akun kader lewat email', ssoKader.data.role, 'kader');
+check('sesi SSO kader dikenal sebagai kader', request({ action: 'whoami', token: ssoKader.data.token }).data.role, 'kader');
+const ssoOrg = request({ action: 'ssoLogin', email: 'PK-BARU@Example.com', password: 'rahasia123', ip: '198.51.100.30', ...TOKEN_MANUSIA });
+check('satu form SSO menemukan akun lembaga lewat email', ssoOrg.data.role, 'org');
+check('sesi SSO lembaga dikenal sebagai lembaga', request({ action: 'whoami', token: ssoOrg.data.token }).data.role, 'org');
+check('satu form SSO menolak kata sandi salah diam-diam', request({ action: 'ssoLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.31', ...TOKEN_MANUSIA }).error, 'Email atau kata sandi salah.');
+
 // ------------------------------------------------ Tanya PII pengunjung umum
 
 const ipTamu = '198.51.100.60';
@@ -1186,6 +1197,13 @@ includePustakaCorpus = true;
 check('original PDF links are resolved when the searchable corpus falls back to sheets',
   [daftarPustakaDariSheet.sumber, daftarPustakaDariSheet.docs.find((doc) => doc.id === 'ebook-ta-dib-pii')?.tautan],
   ['sheet', 'https://drive.google.com/file/d/fixture-ebook-original/view']);
+check('berkas asli ikut menandai driveId untuk pembaca PDF',
+  daftarPustakaDariSheet.docs.find((doc) => doc.id === 'ebook-ta-dib-pii')?.driveId,
+  'fixture-ebook-original');
+const pdfTanda = request({ action: 'pustakaPdf', token: 'ses-rozak', doc: 'ebook-ta-dib-pii' });
+check('sesi kader boleh mengambil penanda berkas asli', [pdfTanda.ok, pdfTanda.data?.driveId], [true, 'fixture-ebook-original']);
+check('pustakaPdf tanpa sesi ditolak', request({ action: 'pustakaPdf', doc: 'ebook-ta-dib-pii' }).ok, false);
+check('pustakaPdf untuk dokumen tak dikenal ditolak', request({ action: 'pustakaPdf', token: 'ses-rozak', doc: 'tiada-berkas' }).ok, false);
 check('korpus sheet mengembalikan rentang halaman', korpusSheet.chunks[0].h, [120, 124]);
 check('korpus sheet menyimpan nama bab', korpusSheet.chunks[0].b, 'BAB III ORIENTASI TA’DIB › Ketentuan Mengenai Waktu Turba');
 check('baris warutan tetap punya halaman yang masuk akal',

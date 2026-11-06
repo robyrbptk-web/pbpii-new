@@ -57,6 +57,12 @@
 
   const penanda = () => muat(KUNCI.lanjut, {});
 
+  /** Sesi mengikuti pola situs: kader dari akun.js, pengurus dari sesi login. */
+  const sesiToken = () => (window.PBPIIAkun && window.PBPIIAkun.sessionToken && window.PBPIIAkun.sessionToken())
+    || localStorage.getItem('pbpii_admin_token')
+    || localStorage.getItem('pbpii_org_token')
+    || '';
+
   async function minta(path, params) {
     const url = new URL(path, window.location.origin);
     Object.entries(params || {}).forEach(([kunci, nilai]) => {
@@ -545,6 +551,7 @@
       url: detail.pdf.alamat,
       rangeChunkSize: 262_144,
       disableAutoFetch: true,
+      httpHeaders: detail.pdf.header || undefined,
     });
     pdf.tugas.onProgress = (info) => {
       // Setelah halaman pertama tampil, potongan berikutnya mengalir sesuai
@@ -753,7 +760,7 @@
   }
 
   /** Buka berkas PDF apa adanya: tata letak, gambar, dan huruf asli buku. */
-  async function bukaPdf(detail, mulai) {
+  async function bukaPdf(detail, mulai, mundur) {
     aturMode(true);
     if (berkasEl) berkasEl.hidden = true;
     state.bagian = [];
@@ -792,6 +799,20 @@
         }
       }
     }
+    if (mundur) {
+      // Berkas organisasi tidak punya mode teks di pembaca ini: kegagalan PDF
+      // diserahkan ke pembaca teks berkas milik halaman Pustaka.
+      tutupPdf();
+      aturMode(false);
+      if (reader) {
+        reader.classList.remove('is-open');
+        reader.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('perp-membaca');
+      }
+      state.buku = null;
+      mundur(pesan);
+      return;
+    }
     await keTeks(pesan);
   }
 
@@ -808,14 +829,13 @@
     if (pesan) bodyEl.prepend(baris(pesan, 'perp-warna'));
   }
 
-  async function buka(buku, opsi = {}) {
-    if (!reader) return;
+  function bukaPanggung(judul, keterangan) {
     bodyEl.replaceChildren(baris('Membuka buku…', 'perp-petit'));
     reader.classList.add('is-open');
     reader.setAttribute('aria-hidden', 'false');
     document.body.classList.add('perp-membaca');
-    if (judulEl) judulEl.textContent = buku.judul;
-    if (metaEl) metaEl.textContent = 'Mengambil daftar berkas buku…';
+    if (judulEl) judulEl.textContent = judul;
+    if (metaEl) metaEl.textContent = keterangan || 'Mengambil daftar berkas buku…';
     if (sumberEl) sumberEl.hidden = true;
     if (berkasEl) berkasEl.hidden = true;
     if (modeEl) modeEl.hidden = true;
@@ -823,44 +843,14 @@
     state.bagian = [];
     state.totalHal = 0;
     state.hal = 1;
+  }
 
+  async function buka(buku, opsi = {}) {
+    if (!reader) return;
+    bukaPanggung(buku.judul);
     try {
       const detail = await minta(`${AKAR}/baca/${encodeURIComponent(buku.id)}`);
-      state.buku = detail;
-      const tersimpan = penanda()[buku.id] || {};
-      state.berkas = opsi.berkas || tersimpan.berkas || detail.berkas[0].nama;
-
-      if (berkasEl) {
-        berkasEl.replaceChildren();
-        for (const berkas of detail.berkas) {
-          const pilihan = document.createElement('option');
-          pilihan.value = berkas.nama;
-          pilihan.textContent = berkas.label || 'Bagian buku';
-          berkasEl.appendChild(pilihan);
-        }
-        berkasEl.value = state.berkas;
-        berkasEl.hidden = detail.berkas.length < 2;
-      }
-      if (sumberEl) {
-        sumberEl.href = detail.alamat;
-        sumberEl.hidden = false;
-      }
-
-      const adaAsli = detail.cara === 'pdf' && !!detail.pdf;
-      if (modeEl) modeEl.hidden = !adaAsli;
-      // Halaman asli diunduh potong demi potong, jadi pengguna yang meminta
-      // hemat kuota dibuka dalam mode teks lebih dulu dan tetap bisa beralih.
-      const jalur = navigator.connection || {};
-      const hemat = jalur.saveData === true || /^(slow-)?2g$/.test(String(jalur.effectiveType || ''));
-      const mode = adaAsli ? opsi.mode || tersimpan.mode || (hemat ? 'teks' : 'asli') : 'teks';
-      // Ditandai lebih dulu supaya A−/A+ selama berkas diunduh sudah
-      // mengatur skala halaman, bukan ukuran huruf.
-      state.mode = mode;
-      if (mode === 'asli') {
-        await bukaPdf(detail, Number(opsi.halaman) || Number(tersimpan.halaman) || 1);
-      } else {
-        await keTeks();
-      }
+      await bukaDetail(detail, opsi);
     } catch (error) {
       state.buku = null;
       aturMode(false);
@@ -871,6 +861,48 @@
         sumberEl.href = alamat;
         sumberEl.hidden = false;
       }
+    }
+  }
+
+  /** Rincian buku dari sumber mana pun dibuka dengan alur yang sama. */
+  async function bukaDetail(detail, opsi = {}) {
+    state.buku = detail;
+    const tersimpan = penanda()[detail.id] || {};
+    const daftarBerkas = Array.isArray(detail.berkas) ? detail.berkas : [];
+    state.berkas = opsi.berkas || tersimpan.berkas || (daftarBerkas[0] && daftarBerkas[0].nama) || '';
+
+    if (berkasEl) {
+      berkasEl.replaceChildren();
+      for (const berkas of daftarBerkas) {
+        const pilihan = document.createElement('option');
+        pilihan.value = berkas.nama;
+        pilihan.textContent = berkas.label || 'Bagian buku';
+        berkasEl.appendChild(pilihan);
+      }
+      berkasEl.value = state.berkas;
+      berkasEl.hidden = daftarBerkas.length < 2;
+    }
+    if (sumberEl) {
+      sumberEl.href = detail.alamat || '#';
+      sumberEl.hidden = !detail.alamat;
+    }
+
+    const adaAsli = detail.cara === 'pdf' && !!detail.pdf;
+    if (modeEl) modeEl.hidden = !adaAsli || !!detail.hanyaAsli;
+    // Halaman asli diunduh potong demi potong, jadi pengguna yang meminta
+    // hemat kuota dibuka dalam mode teks lebih dulu dan tetap bisa beralih.
+    const jalur = navigator.connection || {};
+    const hemat = jalur.saveData === true || /^(slow-)?2g$/.test(String(jalur.effectiveType || ''));
+    const mode = adaAsli && !detail.hanyaAsli
+      ? opsi.mode || tersimpan.mode || (hemat ? 'teks' : 'asli')
+      : (adaAsli ? 'asli' : 'teks');
+    // Ditandai lebih dulu supaya A−/A+ selama berkas diunduh sudah
+    // mengatur skala halaman, bukan ukuran huruf.
+    state.mode = mode;
+    if (mode === 'asli') {
+      await bukaPdf(detail, Number(opsi.halaman) || Number(tersimpan.halaman) || 1, detail.mundur);
+    } else {
+      await keTeks();
     }
   }
 
@@ -886,6 +918,37 @@
     state.buku = null;
     gambarRak();
   }
+
+  /**
+   * Buka berkas asli Pustaka organisasi dengan pembaca buku yang sama dengan
+   * Perpustakaan. Berkas mengalir lewat /api/pii bersama header sesi, jadi
+   * hanya akun yang berhak yang bisa membukanya. Bila berkas asli gagal,
+   * pemanggil dikabari lewat opsi.mundur agar bisa membuka pembaca teksnya.
+   */
+  window.perpusBukaBerkas = async (doc, opsi = {}) => {
+    if (!reader) return false;
+    const driveId = String(doc.driveId || '');
+    if (!driveId) return false;
+    bukaPanggung(String(doc.judul || 'Berkas Pustaka'), 'Membuka berkas asli…');
+    const detail = {
+      id: `berkas:${String(doc.id || driveId)}`,
+      judul: String(doc.judul || 'Berkas Pustaka'),
+      penulis: 'Arsip Pustaka PB PII',
+      alamat: '',
+      cara: 'pdf',
+      hanyaAsli: true,
+      berkas: [],
+      pdf: {
+        alamat: `/api/pii?pdf=${encodeURIComponent(driveId)}&doc=${encodeURIComponent(doc.id || '')}`,
+        header: { 'X-PII-Sesi': sesiToken() },
+      },
+      mundur: (pesan) => {
+        if (typeof opsi.mundur === 'function') opsi.mundur(String(pesan || ''));
+      },
+    };
+    await bukaDetail(detail, opsi);
+    return true;
+  };
 
   // --------------------------------------------------------------------- events
 

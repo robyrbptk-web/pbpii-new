@@ -12,6 +12,11 @@
   },
   "rewrites": [
     {
+      "source": "/",
+      "has": [{ "type": "host", "value": "sso.pbpii-new.vercel.app" }],
+      "destination": "/sso.html"
+    },
+    {
       "source": "/api/adsblol/mil",
       "destination": "/api/_gw?r=adsblol/mil"
     },

@@ -15,48 +15,67 @@
   <link rel="stylesheet" href="captcha.css">
   <style>
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;min-height:100dvh;background:linear-gradient(145deg,#eaf1f7,#fff 58%,#f2f6f9);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:#182638;padding:max(24px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left))}
-    .sso-wrap{max-width:880px;margin:0 auto;display:grid;gap:22px}
-    .sso-brand{text-align:center;margin:6px 0 2px}
-    .sso-brand img{width:78px;height:78px;object-fit:contain;padding:8px;border:1px solid #e0e7ef;border-radius:22px;background:#fff;box-shadow:0 8px 22px rgb(16 43 73 / 8%)}
-    .sso-brand h1{font-size:19px;line-height:1.35;margin:12px 0 0;color:#102b49}
+    body{margin:0;min-height:100vh;min-height:100dvh;background:radial-gradient(1100px 520px at 85% -8%,#dcecf9 0%,transparent 62%),radial-gradient(900px 480px at -12% 108%,#e3eef7 0%,transparent 58%),linear-gradient(160deg,#eef4f9,#ffffff 52%,#f3f7fa);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:#182638;padding:max(26px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(26px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));display:grid;place-items:start center}
+    .sso-wrap{width:100%;max-width:430px;display:grid;gap:18px;animation:naik .5s cubic-bezier(.22,.9,.32,1) both}
+    @keyframes naik{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+    .sso-brand{text-align:center;margin:2px 0 0}
+    .sso-brand img{width:76px;height:76px;object-fit:contain;padding:9px;border:1px solid #e0e7ef;border-radius:22px;background:#fff;box-shadow:0 10px 26px rgb(16 43 73 / 9%)}
+    .sso-brand h1{font-size:18px;line-height:1.35;margin:13px 0 0;color:#102b49;letter-spacing:.2px}
     .sso-brand p{font-size:12.5px;color:#637184;margin:6px 0 0;letter-spacing:.4px}
-    .sesi-aktif{display:none;justify-content:center;gap:10px;flex-wrap:wrap}
+    .sesi-aktif{display:none;justify-content:center;gap:8px;flex-wrap:wrap}
     .sesi-aktif.isi{display:flex}
-    .sesi-item{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid #d9e4ef;border-radius:999px;background:#fff;font-size:12.5px;font-weight:700;color:#102b49;box-shadow:0 4px 14px rgb(16 43 73 / 6%)}
+    .sesi-item{display:inline-flex;align-items:center;gap:8px;padding:8px 13px;border:1px solid #d9e4ef;border-radius:999px;background:#fff;font-size:12px;font-weight:700;color:#102b49;box-shadow:0 4px 14px rgb(16 43 73 / 6%)}
     .sesi-item a{color:#176da8;text-decoration:none}
-    .sso-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-    .sso-card{background:#fff;border:1px solid #e3eaf1;border-radius:22px;padding:28px;box-shadow:0 22px 64px rgb(16 43 73 / 9%)}
+    .sso-card{background:#fff;border:1px solid #e3eaf1;border-radius:24px;padding:28px 26px 22px;box-shadow:0 24px 68px rgb(16 43 73 / 10%)}
     .sso-card .eyebrow{color:#176da8;font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;margin:0}
-    .sso-card h2{font-size:22px;letter-spacing:-.5px;margin:8px 0 4px;color:#102b49}
-    .sso-card .intro{font-size:13.5px;color:#637184;margin:0 0 18px;line-height:1.5}
-    .sso-card .account-slot{margin:0 0 14px}
-    .sso-go{width:100%;border:0;background:linear-gradient(115deg,#102b49,#176da8);color:#fff;padding:13px 15px;border-radius:12px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 9px 22px rgb(16 43 73 / 18%);transition:transform .15s,box-shadow .15s}
-    .sso-go:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgb(16 43 73 / 22%)}
-    .sso-go.ghost{background:#fff;color:#176da8;border:1.5px solid #c9dcef;box-shadow:none}
-    .sso-go.ghost:hover{background:#f2f8fd}
-    .sso-field{margin:0 0 13px}
+    .sso-card h2{font-size:23px;letter-spacing:-.5px;margin:8px 0 4px;color:#102b49}
+    .sso-card .intro{font-size:13.5px;color:#637184;margin:0 0 20px;line-height:1.55}
+    .sso-field{margin:0 0 14px}
     .sso-field label{display:block;font-size:12.5px;font-weight:750;color:#102b49;margin:0 0 6px}
-    .sso-field input{width:100%;padding:12px 13px;border:1px solid #d5e0eb;border-radius:12px;font:inherit;font-size:14px;outline:none;min-height:46px}
-    .sso-field input:focus{border-color:#176da8;box-shadow:0 0 0 3px #176da81b}
+    .sso-field input{width:100%;padding:12px 13px;border:1px solid #d5e0eb;border-radius:12px;font:inherit;font-size:14px;outline:none;min-height:48px;background:#fbfdff;transition:border-color .15s,box-shadow .15s}
+    .sso-field input:focus{border-color:#176da8;background:#fff;box-shadow:0 0 0 3px #176da81b}
     .pass-wrap{position:relative}
-    .pass-wrap input{padding-right:86px}
-    .pass-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:#176da8;font-weight:700;font-size:12px;min-width:56px;min-height:42px;cursor:pointer}
+    .pass-wrap input{padding-right:88px}
+    .pass-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:#176da8;font-weight:700;font-size:12px;min-width:58px;min-height:42px;cursor:pointer}
     .sso-card .captcha{margin:4px 0 14px}
-    .sso-msg{display:none;margin:12px 0 0;padding:11px;border-radius:10px;font-size:12.5px;overflow-wrap:anywhere}
+    .sso-msg{display:none;margin:12px 0 0;padding:11px 13px;border-radius:10px;font-size:12.5px;overflow-wrap:anywhere;line-height:1.5}
     .sso-msg.error{display:block;background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
     .sso-msg.success{display:block;background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
+    .sso-go{width:100%;border:0;background:linear-gradient(115deg,#102b49,#176da8);color:#fff;padding:14px 15px;border-radius:12px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;min-height:48px;box-shadow:0 9px 22px rgb(16 43 73 / 18%);transition:transform .15s,box-shadow .15s}
+    .sso-go:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgb(16 43 73 / 22%)}
+    .sso-go:disabled{opacity:.65;cursor:progress;transform:none}
+    .sso-go.ghost{background:#fff;color:#176da8;border:1.5px solid #c9dcef;box-shadow:none}
+    .sso-go.ghost:hover{background:#f2f8fd}
+    .sso-atau{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:#8b96a3;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}
+    .sso-atau::before,.sso-atau::after{content:"";flex:1;height:1px;background:#e3eaf1}
     .sso-links{display:flex;justify-content:space-between;gap:10px;margin-top:16px;font-size:12.5px;font-weight:700;flex-wrap:wrap}
     .sso-links a{color:#176da8;text-decoration:none}
+    .sso-links a:hover{text-decoration:underline}
     .sso-admin{text-align:center;margin-top:2px}
     .sso-admin a{color:#637184;font-size:12.5px;font-weight:700;text-decoration:none}
     .sso-admin a:hover{color:#176da8}
     .sso-admin b{color:#102b49}
     .sso-foot{text-align:center;color:#8b96a3;font-size:11.5px;margin:0}
-    @media (max-width:720px){
-      .sso-grid{grid-template-columns:1fr}
-      .sso-card{padding:22px 18px}
-      .sso-brand h1{font-size:17px}
+    @media (max-width:460px){
+      .sso-card{padding:24px 18px 20px}
+      .sso-brand img{width:66px;height:66px}
+      .sso-brand h1{font-size:16.5px}
+    }
+    /* Layar pendek (ponsel landscape, jendela kecil): kartu harus muat tanpa
+       membuat orang men-scroll sebelum melihat tombol Masuk. */
+    @media (max-height:700px){
+      body{padding-top:max(14px,env(safe-area-inset-top))}
+      .sso-wrap{gap:12px}
+      .sso-brand img{width:56px;height:56px;padding:7px;border-radius:17px}
+      .sso-brand h1{font-size:15px;margin-top:9px}
+      .sso-brand p{font-size:11.5px;margin-top:4px}
+      .sso-card{padding:20px 20px 16px;border-radius:20px}
+      .sso-card h2{font-size:20px;margin:6px 0 3px}
+      .sso-card .intro{font-size:12.5px;margin-bottom:15px}
+      .sso-atau{margin:14px 0 12px}
+    }
+    @media (max-height:700px) and (max-width:460px){
+      .sso-card{padding:18px 16px 14px}
     }
   </style>
 </head>
@@ -70,37 +89,30 @@
 
     <div class="sesi-aktif" id="sesiAktif" aria-live="polite"></div>
 
-    <div class="sso-grid">
-      <section class="sso-card" aria-labelledby="judulKader">
-        <p class="eyebrow">Kader PII</p>
-        <h2 id="judulKader">Masuk sebagai kader</h2>
-        <p class="intro">Suka dan komentari acara, ikut Feed kader, baca Pustaka, dan perbesar jatah Tanya PII. Tersedia lewat Google, email, atau daftar akun baru.</p>
-        <div class="account-slot" data-account aria-label="Akun kader PII"></div>
-        <button class="sso-go" type="button" id="bukaKader">Masuk / Daftar Kader</button>
-      </section>
-
-      <section class="sso-card" aria-labelledby="judulLembaga">
-        <p class="eyebrow">Lembaga PII</p>
-        <h2 id="judulLembaga">Masuk akun lembaga</h2>
-        <p class="intro">Untuk pengurus PW, PD, dan PK: kelola kegiatan, formulir, surat, dan jejaring lembaga.</p>
-        <form id="loginForm" novalidate>
-          <div class="sso-field"><label for="loginEmail">Email lembaga</label><input id="loginEmail" type="email" autocomplete="username" required></div>
-          <div class="sso-field"><label for="loginPassword">Kata sandi</label>
-            <div class="pass-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pass-toggle" id="togglePass">Lihat</button></div>
-          </div>
-          <div class="captcha" id="loginCaptcha"></div>
-          <button class="sso-go" type="submit" id="loginBtn">Masuk Lembaga</button>
-          <div class="sso-msg" id="loginMessage" role="status" aria-live="polite"></div>
-        </form>
-        <div class="sso-links">
-          <a href="/daftar.html">Daftar akun lembaga</a>
-          <a href="/">← Halaman utama</a>
+    <section class="sso-card" aria-labelledby="judulMasuk">
+      <p class="eyebrow">Masuk PII</p>
+      <h2 id="judulMasuk">Satu akun, semua layanan</h2>
+      <p class="intro">Email kader dan lembaga dikenali otomatis. Setelah masuk, Anda langsung diarahkan ke beranda yang sesuai.</p>
+      <form id="loginForm" novalidate>
+        <div class="sso-field"><label for="loginEmail">Email</label><input id="loginEmail" type="email" autocomplete="username" inputmode="email" required></div>
+        <div class="sso-field"><label for="loginPassword">Kata sandi</label>
+          <div class="pass-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pass-toggle" id="togglePass">Lihat</button></div>
         </div>
-      </section>
-    </div>
+        <div class="captcha" id="loginCaptcha"></div>
+        <button class="sso-go" type="submit" id="loginBtn">Masuk</button>
+        <div class="sso-msg" id="loginMessage" role="status" aria-live="polite"></div>
+      </form>
+      <div class="sso-atau">atau</div>
+      <button class="sso-go ghost" type="button" id="bukaKader">Masuk / daftar dengan Google</button>
+      <div class="sso-links">
+        <a href="/daftar.html">Daftar akun lembaga</a>
+        <a href="/">← Halaman utama</a>
+      </div>
+    </section>
 
     <p class="sso-admin">Pengelola situs? <a href="/login.html">Masuk sebagai admin</a></p>
     <p class="sso-foot">PB PII · #PIILevelUp</p>
+    <div data-account hidden></div>
   </main>
 
   <script src="captcha.js"></script>
@@ -132,8 +144,7 @@
       sesiAktif.innerHTML = tautan.map((item) => '<span class="sesi-item">' + item + '</span>').join('');
     }
 
-    // Login kader lewat panel akun.js. Bila panel kader dibuka di halaman ini dan
-    // sesi kader muncul, antar dia ke Beranda aplikasi; sesi kader yang sudah ada sejak awal
+    // Login Google kader lewat panel akun.js. Sesi kader yang sudah ada sejak awal
     // tidak boleh melempar orang keluar dari halaman — ia mungkin ingin masuk
     // sebagai lembaga.
     if (window.PBPIIAkun) {
@@ -150,11 +161,13 @@
       });
       document.getElementById('bukaKader').addEventListener('click', () => {
         if (window.PBPIIAkun.account().role === 'kader') window.location.href = '/app';
-        else { panelDibuka = true; window.PBPIIAkun.openPanel(); }
+        else { panelDibuka = true; window.PBPIIAkun.openPanel(null, 'google'); }
       });
+    } else {
+      document.getElementById('bukaKader').hidden = true;
     }
 
-    // ------------------------------------------------------------- login lembaga
+    // ------------------------------------------------------------- satu form SSO
     document.getElementById('togglePass').addEventListener('click', () => {
       const input = document.getElementById('loginPassword');
       const tampil = input.type === 'password';
@@ -179,7 +192,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'orgLogin',
+            action: 'ssoLogin',
             email: document.getElementById('loginEmail').value.trim(),
             password: document.getElementById('loginPassword').value,
             ...(verifikasi ? verifikasi.fields() : {})
@@ -193,10 +206,16 @@
         }
         const data = result.data;
         if (!data || !data.token) throw new Error('Server tidak mengembalikan token sesi.');
-        localStorage.setItem('pbpii_org_token', data.token);
-        localStorage.setItem('pbpii_org_name', (data.org && data.org.name) || '');
-        tampilPesan(message, 'Masuk berhasil. Membuka dasbor lembaga…', 'success');
-        setTimeout(() => { window.location.href = '/lembaga.html'; }, 700);
+        if (data.role === 'kader') {
+          localStorage.setItem('pbpii_kader_token', data.token);
+          tampilPesan(message, 'Masuk berhasil. Membuka Beranda kader…', 'success');
+          setTimeout(() => { window.location.href = '/app'; }, 700);
+        } else {
+          localStorage.setItem('pbpii_org_token', data.token);
+          localStorage.setItem('pbpii_org_name', (data.org && data.org.name) || '');
+          tampilPesan(message, 'Masuk berhasil. Membuka dasbor lembaga…', 'success');
+          setTimeout(() => { window.location.href = '/lembaga.html'; }, 700);
+        }
       } catch (error) {
         tampilPesan(message, error.message || 'Tidak dapat terhubung ke server.', 'error');
         // Token verifikasi sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
@@ -206,7 +225,7 @@
         }
       } finally {
         button.disabled = false;
-        button.textContent = 'Masuk Lembaga';
+        button.textContent = 'Masuk';
       }
     });
 
