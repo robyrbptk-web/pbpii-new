@@ -90,7 +90,7 @@
     .item[data-status="draft"]{border-left:3px solid #e9c45b}
     .item[data-status="published"]{border-left:3px solid #4aa96c}
     .item .meta-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-    .page-actions{display:flex;flex-wrap:wrap;gap:10px}
+    .pustaka-kategori{width:auto;flex:1 1 168px;max-width:220px;min-height:40px;padding:9px 11px;font-size:12px;font-weight:700}    .page-actions{display:flex;flex-wrap:wrap;gap:10px}
     .session-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;color:var(--muted);font-size:11px}
     .session-line .dot{width:7px;height:7px;border-radius:50%;background:#4aa96c}
     .message{position:fixed;z-index:60;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));width:min(94vw,520px);margin:0;box-shadow:0 16px 44px #0f241733;opacity:0;transform:translate(-50%,14px);pointer-events:none;transition:opacity .2s ease,transform .2s ease}
@@ -291,7 +291,7 @@
       <button class="tab" data-page="lembaga"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.5 20V6.5h9V20M13.5 20V10H20v10M7 9.5h1.5M7 13h1.5M7 16.5h1.5M16 13h1.5M16 16.5h1.5"/></svg></span><span>Lembaga</span></button>
       <button class="tab" data-page="settings"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg></span><span>Pengaturan</span></button>
       <button class="tab" data-page="gallery"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg></span><span>Galeri</span></button>
-      <a class="tab" href="/pustaka"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span><span>Pustaka</span></a>
+      <button class="tab" data-page="pustaka" type="button"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg></span><span>Pustaka</span></button>
       <button class="tab" data-page="resmi"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 20 7v6c0 4.2-3.2 6.7-8 8.5-4.8-1.8-8-4.3-8-8.5V7z"/><path d="m9 12 2 2 4-4"/></svg></span><span>Data resmi</span></button>
       <div class="side-bottom"></div>
     </aside>
@@ -556,6 +556,29 @@
             <div class="btn-row"><button type="submit" class="btn primary">Simpan keterangan</button><button type="button" class="btn secondary" id="cancelFakta">Bersihkan form</button></div>
           </form>
         </div>
+      </section>
+
+      <section id="page-pustaka" class="hidden">
+        <div class="panel">
+          <div class="list-head">
+            <h2>Pusat pengetahuan Pustaka <span class="badge" id="pustakaCount">0</span></h2>
+            <button class="btn secondary" id="refreshPustaka" type="button">↻ Muat ulang</button>
+          </div>
+          <p class="panel-intro">Inilah isi pustaka yang dipakai Tanya PII saat menjawab kader. Kategori menentukan tempat sebuah berkas di rak Pustaka, dan berkas yang disembunyikan tidak lagi tampil di daftar pembaca maupun dikutip jawaban AI.</p>
+          <div class="stats" id="pustakaStats"></div>
+          <div class="toolbar">
+            <div class="search"><input id="pustakaCariBerkas" type="search" placeholder="Cari judul atau kategori berkas..." aria-label="Cari berkas pustaka"></div>
+            <div class="chips" id="pustakaFilter" role="group" aria-label="Saring berkas pustaka">
+              <button class="chip active" data-filter="all" type="button">Semua</button>
+              <button class="chip" data-filter="tersembunyi" type="button">Tersembunyi</button>
+              <button class="chip" data-filter="sebagian" type="button">Indeks belum penuh</button>
+            </div>
+          </div>
+          <div class="item-list" id="pustakaBerkasList"><div class="empty">Memuat data…</div></div>
+          <p class="hint" id="pustakaIndeks"></p>
+          <div class="btn-row"><a class="btn secondary" href="/pustaka" target="_blank" rel="noopener">Lihat tampilan pembaca Pustaka</a></div>
+        </div>
+        <datalist id="pustakaKategori"></datalist>
       </section>
     </main>
   </div>
@@ -865,6 +888,7 @@
       );
       if (name === 'lembaga') loadOrgs();
       if (name === 'resmi') loadFakta();
+      if (name === 'pustaka') loadPustaka();
       window.scrollTo({top:0, behavior:'smooth'});
     }
 
@@ -1491,6 +1515,154 @@
       finally {
         button.disabled = false;
         button.textContent = 'Tarik data resmi';
+      }
+    });
+
+    /* ------------------------------------------------------------------- Pustaka
+     * Pusat pengetahuan: apa yang benar-benar sudah terindeks dari Berkas PII
+     * berikut penataan kategori dan visibilitasnya. Berkas yang disembunyikan di
+     * sini hilang dari rak pembaca dan tidak lagi dikutip jawaban Tanya PII.
+     */
+    let pustakaDocs = [];
+    let pustakaInfo = {};
+    let pustakaFilter = 'all';
+    let pustakaKata = '';
+
+    function penandaIndeks(indeks) {
+      if (indeks === 'siap') return '<span class="badge published">TERINDEKS PENUH</span>';
+      if (indeks === 'sebagian') return '<span class="badge draft">SEBAGIAN</span>';
+      return '<span class="badge rejected">BELUM TERBACA</span>';
+    }
+
+    function saringPustaka() {
+      const kata = pustakaKata.toLowerCase();
+      return pustakaDocs.filter(item => {
+        if (pustakaFilter === 'tersembunyi' && item.visibel) return false;
+        if (pustakaFilter === 'sebagian' && item.indeks === 'siap') return false;
+        if (!kata) return true;
+        return [item.judul, item.kategori, item.ringkas].join(' ').toLowerCase().includes(kata);
+      });
+    }
+
+    function renderPustaka() {
+      const daftar = saringPustaka();
+      const belum = pustakaDocs.filter(item => item.indeks !== 'siap').length;
+      $('pustakaCount').textContent = pustakaDocs.length;
+      $('pustakaStats').innerHTML = [
+        ['Berkas terdaftar', pustakaInfo.berkas || 0],
+        ['Kutipan terindeks', pustakaInfo.potong || 0],
+        ['Kategori', (pustakaInfo.kategori || []).length]
+      ].map(row => '<div class="stat"><span>' + row[0] + '</span><strong>' + row[1] + '</strong></div>').join('');
+
+      document.querySelectorAll('#pustakaFilter .chip').forEach(chip => {
+        const jenis = chip.dataset.filter;
+        if (jenis === 'tersembunyi') chip.textContent = 'Tersembunyi (' + (pustakaInfo.tersembunyi || 0) + ')';
+        if (jenis === 'sebagian') chip.textContent = 'Indeks belum penuh (' + belum + ')';
+      });
+
+      $('pustakaKategori').innerHTML = (pustakaInfo.kategori || []).map(item =>
+        '<option value="' + escapeHTML(item.nama) + '"></option>'
+      ).join('');
+
+      $('pustakaBerkasList').innerHTML = daftar.length ? daftar.map(item => {
+        const kutipan = item.potong + ' kutipan terindeks' +
+          (item.tercatat && item.tercatat !== item.potong ? ' dari ' + item.tercatat : '');
+        const rincian = [
+          item.halaman ? item.halaman + ' halaman' : '',
+          item.byte ? (item.byte / 1048576).toFixed(1) + ' MB' : '',
+          item.versi, item.tanggal
+        ].filter(Boolean).join(' · ');
+        return '<div class="item" data-status="' + (item.visibel ? 'published' : 'draft') + '">' +
+          '<div class="item-main"><h3>' + escapeHTML(item.judul) + '</h3>' +
+          (item.ringkas ? '<p>' + escapeHTML(item.ringkas) + '</p>' : '') +
+          '<p class="meta-line">' + penandaIndeks(item.indeks) +
+          '<span class="badge">' + escapeHTML(kutipan) + '</span>' +
+          (item.visibel ? '' : '<span class="badge rejected">TIDAK TAMPIL</span>') +
+          (rincian ? ' · ' + escapeHTML(rincian) : '') + '</p></div><div class="item-actions">' +
+          '<input class="pustaka-kategori" list="pustakaKategori" value="' + escapeHTML(item.kategori) +
+          '" data-pustaka-kategori="' + escapeHTML(item.id) + '" maxlength="40" aria-label="Kategori berkas ' +
+          escapeHTML(item.judul) + '">' +
+          '<button class="btn ' + (item.visibel ? 'secondary' : 'primary') + '" data-pustaka-visibel="' +
+          escapeHTML(item.id) + '">' + (item.visibel ? 'Sembunyikan' : 'Tampilkan') + '</button></div></div>';
+      }).join('') : '<div class="empty">' + (pustakaDocs.length
+        ? 'Tidak ada berkas yang cocok dengan penyaringan ini.'
+        : 'Belum ada Berkas Pustaka yang tercatat di indeks.') + '</div>';
+
+      const sumber = pustakaInfo.sumber === 'drive' ? 'berkas indeks di Drive' : 'lembar indeks Pustaka';
+      $('pustakaIndeks').textContent = 'Indeks dibaca dari ' + sumber +
+        (pustakaInfo.dibuat ? ' · terakhir disusun ' + jamIndeks(pustakaInfo.dibuat) : '') +
+        (pustakaInfo.tersembunyi ? ' · ' + pustakaInfo.tersembunyi + ' berkas sedang disembunyikan' : '');
+    }
+
+    function jamIndeks(nilai) {
+      const tanggal = new Date(nilai);
+      return Number.isNaN(tanggal.getTime()) ? String(nilai)
+        : tanggal.toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+    }
+
+    async function loadPustaka() {
+      if (!pustakaDocs.length) $('pustakaBerkasList').innerHTML = '<div class="empty">Memuat data…</div>';
+      try {
+        const data = await api('pustakaAdminList');
+        pustakaDocs = data.docs || [];
+        pustakaInfo = data;
+        renderPustaka();
+      } catch (e) {
+        $('pustakaBerkasList').innerHTML = '<div class="empty">' + escapeHTML(e.message) + '</div>';
+      }
+    }
+
+    $('pustakaFilter').addEventListener('click', event => {
+      const chip = event.target.closest('[data-filter]');
+      if (!chip) return;
+      pustakaFilter = chip.dataset.filter;
+      document.querySelectorAll('#pustakaFilter .chip').forEach(el => el.classList.toggle('active', el === chip));
+      renderPustaka();
+    });
+
+    $('pustakaCariBerkas').addEventListener('input', event => {
+      pustakaKata = event.target.value.trim();
+      renderPustaka();
+    });
+
+    $('refreshPustaka').addEventListener('click', () => loadPustaka());
+
+    $('pustakaBerkasList').addEventListener('change', async event => {
+      const input = event.target.closest('[data-pustaka-kategori]');
+      if (!input) return;
+      const item = pustakaDocs.find(doc => doc.id === input.dataset.pustakaKategori);
+      const nama = input.value.trim();
+      if (!item || !nama || nama === item.kategori) {
+        if (item) input.value = item.kategori;
+        return;
+      }
+      input.disabled = true;
+      try {
+        await api('pustakaUbahBerkas', {id: item.id, kategori: nama});
+        await loadPustaka();
+        notify('Kategori “' + item.judul + '” sekarang ' + nama + '.');
+      } catch (e) {
+        notify(e.message, 'err');
+        input.value = item.kategori;
+        input.disabled = false;
+      }
+    });
+
+    $('pustakaBerkasList').addEventListener('click', async event => {
+      const button = event.target.closest('[data-pustaka-visibel]');
+      if (!button) return;
+      const item = pustakaDocs.find(doc => doc.id === button.dataset.pustakaVisibel);
+      if (!item) return;
+      button.disabled = true;
+      try {
+        await api('pustakaUbahBerkas', {id: item.id, visibel: !item.visibel});
+        await loadPustaka();
+        notify(item.visibel
+          ? 'Berkas disembunyikan: tidak lagi tampil di rak Pustaka atau dikutip Tanya PII.'
+          : 'Berkas ditampilkan kembali di rak Pustaka dan jawaban Tanya PII.');
+      } catch (e) {
+        notify(e.message, 'err');
+        button.disabled = false;
       }
     });
 

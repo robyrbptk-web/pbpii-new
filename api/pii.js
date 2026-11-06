@@ -23,6 +23,7 @@ const RULES = {
 const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
   'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus', 'pustakaPdf', 'pustakaBlok',
+  'pustakaAdminList',
   'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList',
   'threadList', 'threadIsi', 'notifList'
 ]);

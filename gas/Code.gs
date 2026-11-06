@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-06.11';
+const BACKEND_VERSION = '2026-11-06.12';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -4428,6 +4428,91 @@ function pustakaDaftar_(peran) {
 }
 
 /**
+ * Pusat pengetahuan Pustaka untuk admin. Bedanya dengan pustakaList: daftar ini
+ * selalu korpus penuh (berkas yang sedang disembunyikan pun harus tetap
+ * kelihatan), dan tiap berkas membawa keadaan indeksnya sendiri — potongan
+ * yang benar-benar terindeks dibandingkan jumlah yang tercatat saat impor.
+ * Tanpa angka itu admin tidak bisa tahu berkas mana yang cuma jadi sampul.
+ */
+function pustakaPusat_(korpus) {
+  const terindeks = {};
+  (korpus.chunks || []).forEach(function (potong) {
+    terindeks[potong.d] = (terindeks[potong.d] || 0) + 1;
+  });
+
+  const docs = (korpus.docs || []).map(function (doc) {
+    const tercatat = Number(doc.potong) || 0;
+    const nyata = terindeks[doc.id] || 0;
+    const keluar = {
+      id: doc.id,
+      judul: cleanText_(doc.judul),
+      kategori: cleanText_(doc.kategori) || 'Umum',
+      ringkas: cleanText_(doc.ringkas),
+      halaman: Number(doc.halaman) || 0,
+      byte: Number(doc.byte) || 0,
+      versi: cleanText_(doc.versi),
+      tanggal: cleanText_(doc.tanggal),
+      visibel: doc.visibel !== false,
+      tercatat: tercatat,
+      potong: nyata
+    };
+    keluar.indeks = nyata === 0 ? 'kosong' : (tercatat && nyata < tercatat ? 'sebagian' : 'siap');
+    return keluar;
+  }).sort(function (a, b) {
+    return String(a.judul).localeCompare(String(b.judul), 'id');
+  });
+
+  const ringkas = {};
+  docs.forEach(function (doc) { ringkas[doc.kategori] = (ringkas[doc.kategori] || 0) + 1; });
+
+  return {
+    tersedia: true,
+    sumber: korpus.sumber || '',
+    dibuat: korpus.dibuat,
+    berkas: docs.length,
+    potong: (korpus.chunks || []).length,
+    tanpaIndeks: docs.filter(function (doc) { return doc.indeks === 'kosong'; }).length,
+    tersembunyi: docs.filter(function (doc) { return !doc.visibel; }).length,
+    kategori: Object.keys(ringkas).sort().map(function (nama) {
+      return { nama: nama, jumlah: ringkas[nama] };
+    }),
+    docs: docs
+  };
+}
+
+/**
+ * Admin mengubah kategori dan visibilitas satu Berkas Pustaka. Tulisan masuk ke
+ * sheet PustakaBerkas — sumber yang sama yang dipakai saat impor — supaya
+ * perubahannya langsung menyaring daftar pembaca dan kutipan Tanya PII.
+ */
+function pustakaUbahBerkas_(body) {
+  const id = cleanText_(body.id).slice(0, 60);
+  if (!id) throw new Error('Berkas pustaka tidak ditemukan.');
+
+  const sheet = sheet_(APP.SHEET_PUSTAKA_BERKAS);
+  const baris = findRow_(APP.SHEET_PUSTAKA_BERKAS, id);
+  if (!baris) throw new Error('Berkas belum tercatat di indeks pustaka, jadi tidak bisa diubah.');
+
+  const ubah = {};
+  if (body.kategori !== undefined && body.kategori !== null) {
+    const nama = cleanText_(body.kategori).slice(0, 40);
+    if (!nama) throw new Error('Kategori tidak boleh kosong.');
+    ubah.kategori = nama;
+  }
+  if (body.visibel !== undefined && body.visibel !== null) {
+    ubah.visibel = String(Boolean(body.visibel));
+  }
+  if (!Object.keys(ubah).length) throw new Error('Tidak ada perubahan yang dikirim.');
+
+  setCells_(sheet, baris._row, ubah);
+  return {
+    id: id,
+    kategori: cleanText_(ubah.kategori === undefined ? baris.kategori : ubah.kategori),
+    visibel: ubah.visibel === undefined ? String(baris.visibel).toLowerCase() !== 'false' : Boolean(body.visibel)
+  };
+}
+
+/**
  * Penanda berkas asli di Drive untuk satu dokumen korpus. Dipakai proksi
  * Vercel untuk memastikan permintaan unduh PDF benar-benar datang dari sesi
  * yang berhak, tanpa pernah mengirim alamat Drive ke peramban.
@@ -4587,6 +4672,18 @@ function pustakaAksi_(action, body) {
       ringkas[doc.kategori] = (ringkas[doc.kategori] || 0) + 1;
     });
     return { tersedia: true, berkas: (korpus.docs || []).length, potong: (korpus.chunks || []).length, dibuat: korpus.dibuat, kategori: ringkas };
+  }
+
+  // Pusat pengetahuan di dasbor admin: keadaan indeks per berkas, lalu ubah
+  // kategori atau visibilitasnya. Keduanya khusus admin, seperti status.
+  if (action === 'pustakaAdminList') {
+    if (peran !== 'admin') throw new Error('Hanya admin PB PII yang boleh membuka pusat pengetahuan pustaka.');
+    return pustakaPusat_(korpus);
+  }
+
+  if (action === 'pustakaUbahBerkas') {
+    if (peran !== 'admin') throw new Error('Hanya admin PB PII yang boleh mengubah Berkas Pustaka.');
+    return pustakaUbahBerkas_(body);
   }
 
   throw new Error('Aksi pustaka tidak dikenal.');

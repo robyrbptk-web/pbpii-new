@@ -1260,6 +1260,30 @@ check('berkas di luar korpus ditolak', request({ action: 'pustakaBaca', token: '
 check('status pustaka khusus admin', request({ action: 'pustakaStatus', token: 'ses-rozak' }).ok, false);
 check('aksi pustaka tidak dikenal tetap tertahan', request({ action: 'pustakaBukan' }).code === 'aksi', false);
 
+/* Pusat pengetahuan Pustaka di dasbor admin: keadaan indeks per berkas. */
+const pusat = request({ action: 'pustakaAdminList', token: 'ses-admin' });
+check('pusat pengetahuan hanya untuk admin', request({ action: 'pustakaAdminList', token: 'ses-rozak' }).ok, false);
+check('pusat pengetahuan melaporkan sumber indeks', [pusat.data.sumber, pusat.data.berkas, pusat.data.potong], ['drive', 4, 5]);
+check('tiap berkas membawa keadaan indeksnya', pusat.data.docs.every((doc) => ['siap', 'sebagian', 'kosong'].includes(doc.indeks)), true);
+check('pusat pengetahuan tetap menampilkan berkas tersembunyi',
+  pusat.data.docs.some((doc) => doc.id === 'pku-rancangan-internal' && doc.visibel === false), true);
+check('jumlah berkas tersembunyi dilaporkan', pusat.data.tersembunyi, 1);
+check('semua berkas fixture sudah terindeks penuh', pusat.data.tanpaIndeks, 0);
+check('kategori dilaporkan beserta jumlah berkasnya',
+  pusat.data.kategori.find((item) => item.nama === 'Kaderisasi').jumlah, 1);
+
+const ubahBerkas = request({ action: 'pustakaUbahBerkas', token: 'ses-admin', id: 'uji-impor', kategori: 'Kaderisasi', visibel: true });
+check('admin mengubah kategori dan visibilitas berkas', [ubahBerkas.data.kategori, ubahBerkas.data.visibel], ['Kaderisasi', true]);
+check('perubahan tertulis ke lembar berkas', (() => {
+  const baris = rowsOf('PustakaBerkas').find((row) => row.id === 'uji-impor');
+  return [baris.kategori, baris.visibel];
+})(), ['Kaderisasi', 'true']);
+check('mengubah berkas butuh sesi admin', request({ action: 'pustakaUbahBerkas', token: 'ses-rozak', id: 'uji-impor', visibel: false }).ok, false);
+check('kategori kosong ditolak', request({ action: 'pustakaUbahBerkas', token: 'ses-admin', id: 'uji-impor', kategori: '   ' }).ok, false);
+check('berkas tanpa baris indeks tidak bisa diubah',
+  /belum tercatat/.test(request({ action: 'pustakaUbahBerkas', token: 'ses-admin', id: 'pku-rancangan-internal', kategori: 'X' }).error), true);
+check('perubahan tanpa isi ditolak', request({ action: 'pustakaUbahBerkas', token: 'ses-admin', id: 'uji-impor' }).ok, false);
+
 const sehatPustaka = request({ action: 'health' }).data;
 check('health melaporkan korpus pustaka', sehatPustaka.pustaka, { tersedia: true, sumber: 'drive', berkas: 4, potong: 5 });
 
