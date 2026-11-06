@@ -76,3 +76,19 @@
   .wp-kaya table{display:block;overflow-x:auto;white-space:nowrap}
   .wp-kaya td,.wp-kaya th{white-space:normal;min-width:110px}
 }
+
+/* Gerak editor: tombol toolbar dan tab hanya bertransisi warna/garis, jadi
+   posisi kursor RichEditor tidak pernah ikut bergerak. */
+.wp-media,
+.wp-btn,
+.wp-tabs button {
+  transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wp-media,
+  .wp-btn,
+  .wp-tabs button {
+    transition: none;
+  }
+}

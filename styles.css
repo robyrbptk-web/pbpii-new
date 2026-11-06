@@ -9,6 +9,11 @@
   --line: #e0e7ef;
   --soft: #f5f8fb;
   --radius: 18px;
+  /* Token gerak: dipakai bagian "gerak & poles" di akhir berkas. */
+  --ease: cubic-bezier(.22, .68, .35, 1);
+  --laju-1: 150ms;
+  --laju-2: 240ms;
+  --laju-3: 380ms;
   font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
   color: var(--ink);
   background: #fff;
@@ -9166,11 +9171,123 @@ body.feed-zoomed {
   }
 }
 
+/* --------------------------------------------------------- gerak & poles */
+
+/* Permukaan yang dulu berubah seketika saat disentuh kini bertransisi halus.
+   Sengaja hanya warna, latar, garis, bayangan, dan opacity — tidak ada
+   transform, padding, atau margin — supaya posisi yang diukur skrip
+   (perpustakaan.js, tanya.js, ibadah.js) tidak pernah ikut bergerak. */
+a,
+button,
+.text-link,
+.pillar-card,
+.gallery-item,
+.footer-links a,
+.admin-link,
+.nav-more,
+.reader-bar button,
+.account-slot .account-button,
+.account-menu-item,
+.account-signout,
+.globe-fallback-actions button,
+.globe-help button,
+.location-detect,
+.acara-calendar,
+.tanya-stop,
+.tanya-act.is-unduh,
+.tanya-sumber-buka,
+.tanya-sumber-web li a,
+.tanya-riwayat-act.is-bahaya,
+.tanya-sorot-bentang,
+.profil-angka-item,
+.profil-kabar-taut,
+.feed-author-taut,
+.feed-menu-pop button,
+.feed-event {
+  transition: background-color var(--laju-1) var(--ease),
+    border-color var(--laju-1) var(--ease),
+    color var(--laju-1) var(--ease),
+    box-shadow var(--laju-2) var(--ease),
+    opacity var(--laju-2) var(--ease);
+}
+
+/* Umpan tekan: redup sejenak, tanpa mengubah ukuran tombol. */
+.button:active,
+.install-app:active,
+.nav-masuk:active,
+.nav-more:active,
+.tanya-submit:active,
+.tanya-stop:active,
+.reader-bar button:active,
+.feed-actions > button:active,
+.feed-like:active,
+.acara-like:active,
+.acara-share:active,
+.profil-ikuti:active,
+.account-menu-item:active,
+.globe-icon-btn:active {
+  opacity: .8;
+}
+
+@keyframes muncul {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Kartu hasil pencarian, kabar baru, dan muat berikutnya muncul diam-diam.
+   Hanya kelas yang disisipkan skrip setelah data datang; kartu halaman utama
+   (.article-card, .pillar-card, .teaser-card, .gallery-item) sudah diatur
+   kelas .reveal oleh site.js, jadi tidak boleh dianimasikan dua kali.
+   `backwards` dipakai supaya setelah animasi selesai gaya alami (termasuk
+   translateY pada :hover) kembali berlaku dan tidak tertimpa animasi. */
+.feed-card,
+.acara-card,
+.perp-card {
+  animation: muncul var(--laju-3) var(--ease) backwards;
+}
+
+/* Zoom halus pada pratinjau galeri. */
+.gallery-item img {
+  transition: transform var(--laju-3) var(--ease);
+}
+
+/* Menu akun dan kartu aksi umpan dulu muncul mendadak (display:none lalu
+   ada, atau node baru disisipkan). Animasi masuk yang singkat membuat arah
+   kemunculannya terbaca. */
+.account-slot.is-open .account-menu,
+.feed-menu-pop {
+  animation: muncul var(--laju-2) var(--ease) backwards;
+}
+
+/* Utas komentar dibuka lewat atribut hidden sehingga tidak kena transisi.
+   Dipakai fade tanpa geser: feed.js dan acara.js menghitung posisi
+   scrollIntoView tepat setelah panel terbuka, jadi posisinya tidak boleh
+   pernah berpindah selama animasi. .acara-thread sudah punya thread-open
+   sendiri dan tidak ditimpa di sini. */
+@keyframes munculDiam {
+  from {
+    opacity: 0;
+  }
+}
+
+.feed-thread:not([hidden]) {
+  animation: munculDiam var(--laju-2) var(--ease) backwards;
+}
+
+.feed-comment,
+.acara-comment {
+  animation: munculDiam var(--laju-2) var(--ease) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     scroll-behavior: auto !important;
     transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-delay: 0ms !important;
   }
 }

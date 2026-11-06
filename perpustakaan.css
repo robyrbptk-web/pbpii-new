@@ -891,10 +891,28 @@ body.perp-membaca {
   }
 }
 
+/* Pustaka: tombol alat pembaca, tombol muat berikutnya, dan tautan judul
+   dulu bertukar warna seketika. Hanya warna/garis/latar yang dianimasikan
+   supaya halaman PDF yang diukur skrip tidak pernah bergeser. */
+.perp-alat,
+.perp-more,
+.perp-lanjut,
+.perp-judul {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .perp-reader,
   .perp-card,
   .perp-maju span {
     transition: none;
+  }
+
+  .perp-alat,
+  .perp-more,
+  .perp-lanjut,
+  .perp-judul {
+    transition: none;
+    animation: none;
   }
 }

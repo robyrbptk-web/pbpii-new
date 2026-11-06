@@ -1574,6 +1574,15 @@
   color: #1b3a26;
 }
 
+/* Tombol pemilih kota, navigator ayat, dan penutup pembaca: warna dan garis
+   kini berpindah halus. Ukuran elemen tetap supaya kompas dan pembaca ayat
+   yang diukur ibadah.js tidak bergeser. */
+.city-results button,
+.reader-pager button:not(:disabled),
+.qp-close {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
 @keyframes qp-pulse {
   50% {
     box-shadow: 0 0 0 10px rgb(242 193 78 / 0%);
@@ -1650,7 +1659,10 @@
   .tasbih-count,
   #qiblaRose,
   .quran-player,
-  .quran-sheet-audio {
+  .quran-sheet-audio,
+  .city-results button,
+  .reader-pager button,
+  .qp-close {
     transition: none;
   }
 

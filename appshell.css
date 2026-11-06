@@ -18,6 +18,10 @@
   --app-line: #dce5ee;
   --app-ink: #17232f;
   --app-muted: #62717f;
+  /* Token gerak dipakai bersama seluruh kerangka aplikasi. */
+  --app-ease: cubic-bezier(.22, .68, .35, 1);
+  --app-laju: 160ms;
+  --app-laju-slow: 340ms;
 }
 
 /* Dipasang sebelum mode diketahui supaya landing page tidak pernah berkedip
@@ -137,10 +141,15 @@ body.aplikasi .scroll-progress {
   border-radius: 11px;
   background: rgba(255, 255, 255, .14);
   color: #fff;
+  transition: background-color var(--app-laju) var(--app-ease);
 }
 
 .app-header .pbpii-notif:hover {
   background: rgba(255, 255, 255, .24);
+}
+
+.app-header .pbpii-notif:active {
+  background: rgba(255, 255, 255, .32);
 }
 
 /* Chip akun warisan (styles.css) dirancang untuk kop putih. Di dalam header
@@ -154,10 +163,15 @@ body.aplikasi .scroll-progress {
   border-radius: 999px;
   background: rgba(255, 255, 255, .14);
   min-width: 0;
+  transition: background-color var(--app-laju) var(--app-ease);
 }
 
 .app-header .account-slot:hover {
   background: rgba(255, 255, 255, .24);
+}
+
+.app-header .account-slot:active {
+  background: rgba(255, 255, 255, .32);
 }
 
 .app-header .account-avatar {
@@ -251,11 +265,20 @@ body.aplikasi nav.app-side {
   font-weight: 700;
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--app-laju) var(--app-ease),
+    color var(--app-laju) var(--app-ease),
+    box-shadow var(--app-laju-slow) var(--app-ease);
 }
 
 .app-taut:hover {
   background: #eef4f9;
   color: var(--app-navy);
+}
+
+.app-taut:active,
+.app-bar a:active,
+.app-bar button:active {
+  background: #e2edf5;
 }
 
 .app-taut.is-active {
@@ -352,6 +375,18 @@ body.aplikasi nav.app-bar {
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  transition: background-color var(--app-laju) var(--app-ease),
+    color var(--app-laju) var(--app-ease),
+    box-shadow var(--app-laju-slow) var(--app-ease);
+}
+
+.app-sel:hover {
+  background: #eef4f9;
+  color: var(--app-navy);
+}
+
+.app-sel:active {
+  background: #e2edf5;
 }
 
 .app-sel svg {
@@ -414,6 +449,30 @@ body.aplikasi nav.app-bar {
   display: none;
 }
 
+/* Sheet "Lainnya" dan tirainya dikendalikan atribut hidden, jadi tidak bisa
+   dibanjiri transisi. Kunci animasi dipakai saat atribut lepas sehingga
+   panel naik dan layar redup sepersekian detik, bukan muncul mendadak. */
+.app-lainnya-sheet:not([hidden]) {
+  animation: appSheetNaik var(--app-laju-slow) var(--app-ease) backwards;
+}
+
+.app-backdrop:not([hidden]) {
+  animation: appTirai var(--app-laju-slow) var(--app-ease) backwards;
+}
+
+@keyframes appSheetNaik {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes appTirai {
+  from {
+    opacity: 0;
+  }
+}
+
 .app-backdrop {
   position: fixed;
   inset: 0;
@@ -435,6 +494,28 @@ body.aplikasi nav.app-bar {
   border-radius: 15px;
   background: #fff;
   box-shadow: 0 6px 20px rgba(14, 43, 73, .05);
+  animation: appMuncul var(--app-laju-slow) var(--app-ease) backwards;
+}
+
+/* Kartu susulan datang sedikit terlambat supaya isi yang baru terisi terasa
+   mengalir, bukan serentak. */
+.app-wrap > .app-card:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.app-wrap > .app-card:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.app-wrap > .app-card:nth-child(n+4) {
+  animation-delay: 130ms;
+}
+
+@keyframes appMuncul {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .app-card-head {
@@ -500,12 +581,21 @@ body.aplikasi nav.app-bar {
   font-size: 11px;
   font-weight: 750;
   text-align: center;
+  transition: background-color var(--app-laju) var(--app-ease),
+    border-color var(--app-laju) var(--app-ease),
+    color var(--app-laju) var(--app-ease),
+    box-shadow var(--app-laju-slow) var(--app-ease);
 }
 
 .app-tile:hover {
   border-color: #b9d5ea;
   background: #f1f8fd;
   color: var(--app-navy);
+  box-shadow: 0 6px 16px rgba(14, 43, 73, .07);
+}
+
+.app-tile:active {
+  background: #e6f1f9;
 }
 
 .app-tile svg {
@@ -600,6 +690,17 @@ body.aplikasi nav.app-bar {
   font-size: 12px;
   font-weight: 750;
   cursor: pointer;
+  transition: background-color var(--app-laju) var(--app-ease),
+    box-shadow var(--app-laju-slow) var(--app-ease);
+}
+
+.app-pulihkan:hover {
+  background: #14395c;
+  box-shadow: 0 6px 16px rgba(14, 43, 73, .18);
+}
+
+.app-pulihkan:active {
+  background: var(--app-navy-deep);
 }
 
 /* Baris yang bisa ditekan (kabar, agenda, artikel, notifikasi). */
@@ -612,10 +713,15 @@ button.app-baris {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--app-laju) var(--app-ease);
 }
 
 button.app-baris:hover {
   background: #f5fafd;
+}
+
+button.app-baris:active {
+  background: #e9f3f9;
 }
 
 .app-baris .app-unread {
@@ -711,7 +817,12 @@ body.aplikasi .article-reader {
   .app-tile,
   .app-baris,
   .app-taut,
-  .app-sel {
+  .app-sel,
+  .app-card,
+  .app-pulihkan,
+  .app-lainnya-sheet,
+  .app-backdrop {
     transition: none;
+    animation: none;
   }
 }
