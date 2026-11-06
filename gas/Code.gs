@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-06.12';
+const BACKEND_VERSION = '2026-11-06.13';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -788,6 +788,112 @@ function health_() {
 }
 
 /**
+ * Nama lembar dalam bahasa pengurus. health_() memakai nama teknis karena ia
+ * dibaca mesin pemantau; dasbor admin tidak boleh menampilkan 'PustakaBerkas'
+ * atau menyuruh siapa pun menjalankan menu backend.
+ */
+const KESEHATAN_LABEL = {
+  Articles: 'artikel dan sambutan',
+  Settings: 'pengaturan situs',
+  Gallery: 'foto galeri',
+  Orgs: 'lembaga dan wilayah',
+  Activities: 'kegiatan',
+  Forms: 'formulir kegiatan',
+  Participants: 'pendaftar kegiatan',
+  Letters: 'surat antar tingkatan',
+  Sessions: 'sesi masuk',
+  Chat: 'percakapan Tanya PII',
+  Standards: 'standar keaktifan',
+  Kaders: 'akun kader',
+  Reactions: 'tanda suka',
+  Comments: 'komentar',
+  PustakaBerkas: 'berkas pustaka',
+  PustakaPotongan: 'potongan teks pustaka',
+  Posts: 'kabar kader',
+  PostMedia: 'lampiran kabar',
+  Follows: 'jaringan kader',
+  Bookmarks: 'penanda kabar',
+  Stories: 'cerita 24 jam',
+  Threads: 'riwayat percakapan',
+  Fakta: 'data resmi',
+  Notifikasi: 'kabar pemberitahuan'
+};
+
+/** Angka yang ditampilkan lebih dulu di dasbor; sisanya hanya diperiksa bila hilang. */
+const KESEHATAN_SOROTAN = [
+  APP.SHEET_ARTICLES, APP.SHEET_KADERS, APP.SHEET_ORGS,
+  APP.SHEET_ACTIVITIES, APP.SHEET_GALLERY, APP.SHEET_FACTA, APP.SHEET_PUSTAKA_BERKAS
+];
+
+/**
+ * Pemeriksaan kesehatan untuk pengelola: sama telitinya dengan health_() tetapi
+ * setiap temuan dirangkai sebagai kalimat yang bisa dibaca dan ditindak orang,
+ * tanpa ID spreadsheet, nama properti rahasia, maupun arahan teknis.
+ */
+function kesehatanSistem_() {
+  const properties = PropertiesService.getScriptProperties();
+  const spreadsheetId = properties.getProperty(APP.PROP_SPREADSHEET_ID) || '';
+  const masalah = [];
+  const angka = [];
+  let spreadsheet = null;
+
+  if (!spreadsheetId) {
+    masalah.push('Basis data PB PII belum tersambung ke layanan ini.');
+  } else {
+    try {
+      spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    } catch (error) {
+      masalah.push('Basis data PB PII tidak dapat dibuka dari layanan ini.');
+    }
+  }
+
+  if (spreadsheet) {
+    const hitung = {};
+    SHEET_SCHEMA.forEach(function (entry) {
+      const nama = entry[0];
+      const lembar = spreadsheet.getSheetByName(nama);
+      if (!lembar) {
+        masalah.push((KESEHATAN_LABEL[nama] || nama) + ' belum tersedia di basis data.');
+        return;
+      }
+      hitung[nama] = Math.max(0, lembar.getLastRow() - 1);
+    });
+    KESEHATAN_SOROTAN.forEach(function (nama) {
+      if (hitung[nama] === undefined) return;
+      angka.push({ label: KESEHATAN_LABEL[nama] || nama, jumlah: hitung[nama] });
+    });
+  }
+
+  if (!adminPasswordReady_()) {
+    masalah.push('Kata sandi pengelola belum tersimpan, jadi dasbor ini tidak dapat dibuka lagi.');
+  }
+
+  // Foto kegiatan dan artikel disimpan di Drive, jadi izinnya ikut diperiksa.
+  if (!driveKesiapan_().media) {
+    masalah.push('Penyimpanan berkas belum mengizinkan unggah foto dari dasbor.');
+  }
+
+  const pengaturan = spreadsheet ? settingsMap_() : {};
+  if (!String(pengaturan.turnstileSiteKey || '').trim() ||
+      !String(pengaturan.turnstileSecret || '').trim()) {
+    masalah.push('Verifikasi manusia pada formulir masuk belum dipasang penuh di tab Pengaturan.');
+  }
+
+  const korpus = spreadsheet ? pustakaKorpus_() : { tersedia: false };
+  if (!korpus.tersedia) {
+    masalah.push('Berkas organisasi belum terbaca, jadi Tanya PII tidak dapat merujuknya.');
+  }
+
+  return {
+    siap: masalah.length === 0,
+    versi: BACKEND_VERSION,
+    diperiksa: new Date().toISOString(),
+    angka: angka,
+    masalah: masalah
+  };
+}
+
+/**
  * API untuk konten publik, login/logout, dan operasi dashboard admin.
  */
 function doPost(event) {
@@ -888,6 +994,8 @@ function adminAction_(action, body) {
   switch (action) {
     case 'adminData':
       return adminData_();
+    case 'kesehatanSistem':
+      return kesehatanSistem_();
     case 'saveSettings':
       return saveSettings_(body.settings || {});
     case 'saveArticle':

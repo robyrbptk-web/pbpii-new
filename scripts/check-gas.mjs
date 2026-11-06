@@ -2578,6 +2578,32 @@ for (let i = 0; i < gas.RATE_RULES['notif-baca'].limit + 2; i += 1) {
 check('membuka kotak kabar dibatasi per alamat IP',
   [kotakLolos, kotakTerbatas], [gas.RATE_RULES['notif-baca'].limit, 2]);
 
+const gagalKesehatan = request({ action: 'kesehatanSistem', token: 'ses-bukan-admin' });
+check('pemeriksaan kesehatan khusus pengelola', [gagalKesehatan.ok, /sesi berakhir/i.test(gagalKesehatan.error || '')], [false, true]);
+
+const kesehatan = request({ action: 'kesehatanSistem', token: 'ses-admin' }).data;
+const teksKesehatan = JSON.stringify(kesehatan);
+check('temuan kesehatan memakai kalimat pengurus, bukan istilah teknis',
+  [/SPREADSHEET_ID/i, /Apps Script/i, /Vercel/i, /setup\(\)/i, /PB PII >/i, /proxy/i].map((pola) => pola.test(teksKesehatan)),
+  [false, false, false, false, false, false]);
+check('pemeriksaan kesehatan tidak pernah membuka ID basis data',
+  ['spreadsheetId' in kesehatan, teksKesehatan.includes(String(properti[gas.APP.PROP_SPREADSHEET_ID] || '∅'))],
+  [false, false]);
+check('angka kesehatan memakai label yang dikenali pengurus',
+  kesehatan.angka.map((item) => item.label).slice(0, 3),
+  ['artikel dan sambutan', 'akun kader', 'lembaga dan wilayah']);
+check('jumlah berkas pustaka terbaca dari lembar indeks',
+  kesehatan.angka.find((item) => item.label === 'berkas pustaka').jumlah, rowsOf('PustakaBerkas').length);
+check('verifikasi manusia yang terpasang tidak dilaporkan sebagai masalah',
+  kesehatan.masalah.some((item) => /verifikasi manusia/i.test(item)), false);
+
+aturSetting('turnstileSiteKey', '');
+const kesehatanTanpaKunci = request({ action: 'kesehatanSistem', token: 'ses-admin' }).data;
+aturSetting('turnstileSiteKey', 'site-key-abc');
+check('verifikasi manusia yang belum lengkap dilaporkan untuk ditindak',
+  [kesehatanTanpaKunci.siap, kesehatanTanpaKunci.masalah.some((item) => /verifikasi manusia.*belum dipasang/i.test(item))],
+  [false, true]);
+
 const failed = checks.filter((item) => !item.ok);
 checks.forEach((item) => {
   const mark = item.ok ? 'OK  ' : 'GAG ';

@@ -90,7 +90,14 @@
     .item[data-status="draft"]{border-left:3px solid #e9c45b}
     .item[data-status="published"]{border-left:3px solid #4aa96c}
     .item .meta-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-    .pustaka-kategori{width:auto;flex:1 1 168px;max-width:220px;min-height:40px;padding:9px 11px;font-size:12px;font-weight:700}    .page-actions{display:flex;flex-wrap:wrap;gap:10px}
+    .pustaka-kategori{width:auto;flex:1 1 168px;max-width:220px;min-height:40px;padding:9px 11px;font-size:12px;font-weight:700}
+    .page-actions{display:flex;flex-wrap:wrap;gap:10px}
+    .kesehatan-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px;padding:12px 15px;border-radius:11px;font-size:13px;font-weight:700}
+    .kesehatan-status.ok{background:#eaf7ed;color:#17622d;border:1px solid #cce8d2}
+    .kesehatan-status.err{background:#fff0f0;color:#a51e27;border:1px solid #f0d0d3}
+    .kesehatan-list{margin:0 0 16px;padding-left:20px;display:grid;gap:7px;color:#a51e27;font-size:13px;line-height:1.5}
+    .kesehatan-waktu{margin:0}
+    .kesehatan .stats{margin-bottom:16px}
     .session-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;color:var(--muted);font-size:11px}
     .session-line .dot{width:7px;height:7px;border-radius:50%;background:#4aa96c}
     .message{position:fixed;z-index:60;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));width:min(94vw,520px);margin:0;box-shadow:0 16px 44px #0f241733;opacity:0;transform:translate(-50%,14px);pointer-events:none;transition:opacity .2s ease,transform .2s ease}
@@ -311,6 +318,16 @@
           <div class="stat"><span>Total artikel</span><strong id="totalArticles">0</strong></div>
           <div class="stat"><span>Sudah terbit</span><strong id="publishedArticles">0</strong></div>
           <div class="stat"><span>Foto galeri</span><strong id="totalGallery">0</strong></div>
+        </div>
+        <div class="panel kesehatan hidden" id="kesehatanPanel">
+          <div class="list-head">
+            <h2>Kesehatan sistem</h2>
+            <button class="btn secondary hidden" type="button" id="kesehatanKePengaturan" data-goto="settings">Periksa pengaturan →</button>
+          </div>
+          <p class="kesehatan-status" id="kesehatanStatus"></p>
+          <div class="stats" id="kesehatanAngka"></div>
+          <ul class="kesehatan-list hidden" id="kesehatanMasalah"></ul>
+          <p class="hint kesehatan-waktu" id="kesehatanWaktu"></p>
         </div>
         <div class="panel">
           <div class="list-head"><h2>Artikel terbaru</h2><button class="btn secondary" data-goto="articles">Kelola artikel →</button></div>
@@ -1372,17 +1389,40 @@
       finally { button.disabled = false; }
     });
 
-    $('checkBackend').addEventListener('click', async event => {
-      const button = event.currentTarget;
+    $('checkBackend').addEventListener('click', async () => {
+      const button = $('checkBackend');
       button.disabled = true;
       button.textContent = 'Memeriksa…';
+      const panel = $('kesehatanPanel');
+      const status = $('kesehatanStatus');
+      panel.classList.remove('hidden');
+      status.className = 'kesehatan-status';
+      status.textContent = 'Meriksa basis data, penyimpanan berkas, dan verifikasi masuk…';
       try {
-        const data = await api('public');
-        const published = (data.articles || []).length;
-        const gallery = (data.gallery || []).length;
-        notify('Koneksi data aktif · ' + published + ' artikel terbit · ' + gallery + ' foto galeri.');
+        const data = await api('kesehatanSistem');
+        const masalah = Array.isArray(data.masalah) ? data.masalah : [];
+        status.textContent = data.siap || !masalah.length
+          ? 'Semua sistem siap digunakan.'
+          : masalah.length + ' hal perlu ditindak:';
+        status.className = 'kesehatan-status ' + (data.siap || !masalah.length ? 'ok' : 'err');
+        $('kesehatanAngka').innerHTML = (data.angka || []).map((item) => (
+          '<div class="stat"><span>' + escapeHTML(item.label) + '</span><strong>' +
+          (Number(item.jumlah) || 0).toLocaleString('id-ID') + '</strong></div>'
+        )).join('');
+        const daftar = $('kesehatanMasalah');
+        daftar.innerHTML = masalah.map((item) => '<li>' + escapeHTML(item) + '</li>').join('');
+        daftar.classList.toggle('hidden', !masalah.length);
+        $('kesehatanKePengaturan').classList.toggle('hidden', !masalah.length);
+        $('kesehatanWaktu').textContent = 'Diperiksa ' +
+          new Date(data.diperiksa).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) +
+          ' · layanan versi ' + escapeHTML(data.versi || '');
       } catch (e) {
-        notify(e.message, 'err');
+        status.className = 'kesehatan-status err';
+        status.textContent = e.message;
+        $('kesehatanAngka').innerHTML = '';
+        $('kesehatanMasalah').innerHTML = '';
+        $('kesehatanKePengaturan').classList.add('hidden');
+        $('kesehatanWaktu').textContent = '';
       } finally {
         button.disabled = false;
         button.textContent = 'Periksa koneksi data';
