@@ -312,6 +312,74 @@
     return teks.slice(0, 200);
   }
 
+  // --------------------------------------------------------------- lampiran
+
+  /**
+   * Lampiran pertanyaan: gambar dikirim sebagai data URL (dikecilkan dulu),
+   * PDF dibaca teksnya di perangkat ini lalu ikut dikirim sebagai bagian pesan
+   * — tidak ada berkas yang tersimpan di server mana pun.
+   */
+  const LAMPIRAN_MAKS = 4;
+  const LAMPIRAN_BERKAS_MAKS = 6 * 1024 * 1024;
+  const LAMPIRAN_GAMBAR_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+  const DOKUMEN_TEKS_MAKS = 20000;
+  const DOKUMEN_HALAMAN_MAKS = 12;
+
+  let modulPdfjs = null;
+  const pemuatPdfjs = () => (modulPdfjs || (modulPdfjs = import('/vendor/pdfjs/pdf-5.4.530.min.js')));
+
+  /** Teks PDF dibaca sampai 12 halaman supaya jawaban tidak menunggu berkalang. */
+  async function teksPdf(berkas) {
+    try {
+      const pdfjs = await pemuatPdfjs();
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker-5.4.530.js';
+      }
+      const buffer = await berkas.arrayBuffer();
+      const dokumen = await pdfjs.getDocument({ data: buffer }).promise;
+      let teks = '';
+      const halaman = Math.min(dokumen.numPages, DOKUMEN_HALAMAN_MAKS);
+      for (let nomor = 1; nomor <= halaman; nomor += 1) {
+        const hal = await dokumen.getPage(nomor);
+        const isi = await hal.getTextContent();
+        teks += `${isi.items.map((baris) => baris.str).join(' ')}\n`;
+        if (teks.length > DOKUMEN_TEKS_MAKS) {
+          teks = teks.slice(0, DOKUMEN_TEKS_MAKS);
+          break;
+        }
+      }
+      return teks.replace(/\s+/g, ' ').trim();
+    } catch {
+      return '';
+    }
+  }
+
+  /** Gambar dikecilkan ke 1024px JPEG supaya kirimannya kecil dan cepat dibaca model. */
+  async function kecilkanGambar(berkas) {
+    const url = URL.createObjectURL(berkas);
+    try {
+      const gambar = await new Promise((selesai, gagal) => {
+        const sementara = new Image();
+        sementara.onload = () => selesai(sementara);
+        sementara.onerror = gagal;
+        sementara.src = url;
+      });
+      const skala = Math.min(1, 1024 / Math.max(gambar.naturalWidth, gambar.naturalHeight));
+      const lebar = Math.max(1, Math.round(gambar.naturalWidth * skala));
+      const tinggi = Math.max(1, Math.round(gambar.naturalHeight * skala));
+      const kanvas = document.createElement('canvas');
+      kanvas.width = lebar;
+      kanvas.height = tinggi;
+      const kuas = kanvas.getContext('2d');
+      kuas.fillStyle = '#fff';
+      kuas.fillRect(0, 0, lebar, tinggi);
+      kuas.drawImage(gambar, 0, 0, lebar, tinggi);
+      return { data: kanvas.toDataURL('image/jpeg', 0.82), mime: 'image/jpeg' };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
   // ------------------------------------------------------------------- halaman
 
   function initChat() {
@@ -327,7 +395,18 @@
     const panelBuka = document.querySelector('#tanyaRiwayatBuka');
     const panelDaftar = document.querySelector('#tanyaRiwayatDaftar');
     const panelKosong = document.querySelector('#tanyaRiwayatKosong');
+    const lampirTombol = document.querySelector('#tanyaLampir');
+    const lampirBerkas = document.querySelector('#tanyaBerkas');
+    const lampirStrip = document.querySelector('#tanyaLampiran');
     if (!scroll || !thread || !form) return;
+
+    /**
+     * Kemampuan layanan AI dilaporkan lewat chatStatus: tombol lampir hanya
+     * muncul untuk jenis lampiran yang memang bisa dibaca — kalau status belum
+     * sempat dimuat, PDF tetap boleh karena teksnya dibaca di perangkat ini.
+     */
+    let kapLampiran = { gambar: false, dokumen: true };
+    const lampiran = [];
 
     let threads = muatThreads();
     let aktifId = String(localStorage.getItem(AKTIF_KEY) || '');
@@ -1043,10 +1122,126 @@
       busy = value;
       submit.disabled = value;
       input.disabled = value;
+      if (lampirTombol) lampirTombol.disabled = value;
       form.classList.toggle('is-busy', value);
       const henti = document.querySelector('#tanyaStop');
       if (henti) henti.hidden = !value;
       submit.classList.toggle('is-tertutup', value);
+    }
+
+    /* --------------------------------------------------------- lampiran UI
+
+     * Pratinjau kecil di atas kolom tulis: gambar tampil sebagai miniatur,
+     * PDF sebagai kartu nama berkas. Semuanya bisa dibatalkan satu per satu
+     * sebelum dikirim.
+     */
+    const IKON_DOKUMEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h7L19 9.5V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M13 3.5v6h6"/></svg>';
+
+    function ukuranTeks(byte) {
+      if (byte >= 1024 * 1024) return `${(byte / (1024 * 1024)).toFixed(1)} MB`;
+      return `${Math.max(1, Math.round(byte / 1024))} KB`;
+    }
+
+    function lukisLampiran() {
+      if (!lampirStrip || !lampirTombol) return;
+      lampirStrip.hidden = !lampiran.length;
+      lampirStrip.innerHTML = lampiran.map((item, urut) => {
+        const nama = escapeHTML(item.nama);
+        if (item.jenis === 'gambar') {
+          return `<span class="tanya-lampiran-item is-gambar">
+            <img src="${item.pratinjau}" alt="Pratinjau ${nama}">
+            <button type="button" data-lampir-hapus="${urut}" aria-label="Hapus lampiran ${nama}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+            </button>
+          </span>`;
+        }
+        return `<span class="tanya-lampiran-item is-dokumen">
+          ${IKON_DOKUMEN}
+          <span class="tanya-lampiran-meta"><b>${nama}</b><em>PDF · ${ukuranTeks(item.ukuran)}</em></span>
+          <button type="button" data-lampir-hapus="${urut}" aria-label="Hapus lampiran ${nama}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+          </button>
+        </span>`;
+      }).join('');
+    }
+
+    function pasangLampiran() {
+      if (!lampirTombol || !lampirBerkas) return;
+      lampirTombol.addEventListener('click', () => {
+        if (lampiran.length >= LAMPIRAN_MAKS) {
+          toast(`Paling banyak ${LAMPIRAN_MAKS} lampiran per pertanyaan.`);
+          return;
+        }
+        lampirBerkas.value = '';
+        lampirBerkas.click();
+      });
+      lampirBerkas.addEventListener('change', () => tambahLampiran([...lampirBerkas.files]));
+      lampirStrip?.addEventListener('click', (event) => {
+        const tombol = event.target.closest('[data-lampir-hapus]');
+        if (!tombol) return;
+        const urut = Number(tombol.dataset.lampirHapus);
+        const item = lampiran[urut];
+        if (!item) return;
+        if (item.pratinjau) URL.revokeObjectURL(item.pratinjau);
+        lampiran.splice(urut, 1);
+        lukisLampiran();
+      });
+    }
+
+    async function tambahLampiran(berkas) {
+      for (const satuan of berkas.slice(0, LAMPIRAN_MAKS - lampiran.length)) {
+        if (lampiran.length >= LAMPIRAN_MAKS) break;
+        const jenis = satuan.type === 'application/pdf' ? 'dokumen' : 'gambar';
+        if (jenis === 'dokumen') {
+          if (satuan.size > LAMPIRAN_BERKAS_MAKS) {
+            toast('PDF lebih dari 6 MB tidak bisa dilampirkan.');
+            continue;
+          }
+          lampiran.push({ jenis, nama: satuan.name || 'dokumen.pdf', ukuran: satuan.size, berkas: satuan });
+          continue;
+        }
+        if (!LAMPIRAN_GAMBAR_MIME.includes(satuan.type)) {
+          toast('Hanya PDF, JPG, PNG, atau WebP yang bisa dilampirkan.');
+          continue;
+        }
+        if (!kapLampiran.gambar) {
+          toast('Layanan AI belum bisa membaca gambar saat ini. Coba lampirkan sebagai PDF.');
+          continue;
+        }
+        if (satuan.size > LAMPIRAN_BERKAS_MAKS) {
+          toast('Gambar lebih dari 6 MB tidak bisa dilampirkan.');
+          continue;
+        }
+        try {
+          const kecil = await kecilkanGambar(satuan);
+          const pratinjau = URL.createObjectURL(satuan);
+          lampiran.push({ jenis, nama: satuan.name || 'gambar', ukuran: satuan.size, pratinjau, data: kecil.data, mime: kecil.mime });
+        } catch {
+          toast('Gambar tidak dapat dibaca.');
+        }
+        lukisLampiran();
+      }
+      lukisLampiran();
+      input.focus();
+    }
+
+    /** Lampiran diubah menjadi bagian pesan yang bisa dibaca model. */
+    async function lampiranUntukKirim() {
+      const kiriman = [];
+      for (const item of lampiran) {
+        if (item.jenis === 'gambar') {
+          kiriman.push({ jenis: 'gambar', nama: item.nama, mime: item.mime, data: item.data });
+        } else {
+          kiriman.push({ jenis: 'dokumen', nama: item.nama, isi: await teksPdf(item.berkas) });
+        }
+      }
+      return kiriman;
+    }
+
+    function kosongkanLampiran() {
+      lampiran.forEach((item) => { if (item.pratinjau) URL.revokeObjectURL(item.pratinjau); });
+      lampiran.length = 0;
+      lukisLampiran();
     }
 
     /**
@@ -1064,7 +1259,8 @@
     }
 
     async function send(question) {
-      const text = String(question || '').trim();
+      const text = String(question || '').trim()
+        || (lampiran.length ? 'Tolong baca dan jelaskan lampiran ini.' : '');
       if (!text || busy) return;
       clearTimeout(retryTimer);
 
@@ -1085,12 +1281,14 @@
       stick(true);
       pembatal = typeof AbortController === 'function' ? new AbortController() : null;
       const sebelum = riwayatUntukModel();
+      const kiriman = await lampiranUntukKirim();
 
       try {
         const data = await askServer({
           action: 'chat',
           message: text,
           riwayat: sebelum,
+          lampiran: kiriman.length ? kiriman : undefined,
           token: sessionToken(),
           device: deviceId()
         }, pembatal?.signal);
@@ -1138,6 +1336,7 @@
         save();
         paint();
         showQuota(data);
+        kosongkanLampiran();
       } catch (error) {
         row.remove();
         if (error?.name === 'AbortError') {
@@ -1172,6 +1371,12 @@
     async function loadQuota() {
       try {
         const status = await askServer({ action: 'chatStatus', token: sessionToken(), device: deviceId() });
+        const kemampuan = status?.lampiran;
+        if (kemampuan && typeof kemampuan === 'object') {
+          kapLampiran.gambar = Boolean(kemampuan.gambar);
+          kapLampiran.dokumen = Boolean(kemampuan.dokumen);
+        }
+        if (lampirTombol) lampirTombol.hidden = !(kapLampiran.gambar || kapLampiran.dokumen);
         paintMeter({
           sisa: status.sisa,
           batas: status.batas,
@@ -1258,6 +1463,7 @@
       aktifId = baru.id;
       localStorage.setItem(AKTIF_KEY, aktifId);
       turns = aktif.turns;
+      kosongkanLampiran();
       paint(true);
       intro.hidden = false;
       lukisRiwayat();
@@ -1280,6 +1486,7 @@
       aktifId = tujuan.id;
       localStorage.setItem(AKTIF_KEY, aktifId);
       turns = aktif.turns;
+      kosongkanLampiran();
       paint(true);
       intro.hidden = turns.length > 0;
       lukisRiwayat();
@@ -1402,6 +1609,7 @@
       send(input.value);
     });
     reset?.addEventListener('click', buatPercakapan);
+    pasangLampiran();
 
     document.querySelector('#tanyaStop')?.addEventListener('click', () => pembatal?.abort());
 

@@ -6058,6 +6058,176 @@ body.has-kader-dialog {
   display: none;
 }
 
+/* ------------------------------------------------------------- lampiran
+
+   Pratinjau lampiran menempati jalur sendiri di atas kolom tulis: gambar
+   sebagai miniatur, PDF sebagai kartu nama berkas. Tombol penjepit kertas
+   duduk di sisi kiri dalam kolom, sejajar dengan titik awal teks. */
+.tanya-lampiran {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: min(760px, 100%);
+  margin: 0 auto 8px;
+}
+
+.tanya-lampiran[hidden] {
+  display: none;
+}
+
+.tanya-lampiran-item {
+  position: relative;
+  animation: bubble-in .22s ease both;
+}
+
+.tanya-lampiran-item.is-gambar {
+  width: 64px;
+  height: 64px;
+  border: 1px solid #d9e5f1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 3px 10px rgb(16 43 73 / 8%);
+}
+
+.tanya-lampiran-item.is-gambar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.tanya-lampiran-item.is-dokumen {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #d9e5f1;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgb(16 43 73 / 8%);
+}
+
+.tanya-lampiran-item.is-dokumen > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tanya-lampiran-meta {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.tanya-lampiran-meta b {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: .78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tanya-lampiran-meta em {
+  color: #93a2b3;
+  font-size: .68rem;
+  font-style: normal;
+}
+
+.tanya-lampiran-item button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: #eef4fa;
+  color: #5c7088;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+
+.tanya-lampiran-item.is-gambar button {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  border: 2px solid #fff;
+  background: #16324f;
+  color: #fff;
+}
+
+.tanya-lampiran-item button:hover {
+  background: #fdecec;
+  color: #b3261e;
+}
+
+.tanya-lampiran-item button svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.tanya-lampir {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  margin-bottom: 2px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: none;
+  color: #7e91a6;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease, transform .16s ease;
+}
+
+.tanya-lampir:hover:not(:disabled) {
+  background: #eef4fa;
+  color: var(--blue);
+}
+
+.tanya-lampir:active {
+  transform: scale(.92);
+}
+
+.tanya-lampir:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.tanya-lampir[hidden] {
+  display: none;
+}
+
+.tanya-lampir svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Kolom tulis sedikit menghemat ruang kiri karena tombol lampir sudah ada. */
+.tanya-field:has(.tanya-lampir:not([hidden])) {
+  padding-left: 8px;
+}
+
 /* Pintasan kembali ke jawaban terbaru; hanya muncul saat pembaca menggulir ke atas. */
 .tanya-bawah {
   position: absolute;
@@ -6491,6 +6661,16 @@ body.has-kader-dialog {
 }
 
 @media (min-width: 900px) {
+  /* Laci desktop ala bilah sisi: backdrop lebih tipis supaya percakapan di
+     belakangnya masih terbaca, panel membulat di sudut kanan. */
+  .tanya-riwayat-backdrop {
+    background: rgb(9 30 52 / 28%);
+  }
+
+  .tanya-riwayat.is-open .tanya-riwayat-backdrop {
+    backdrop-filter: blur(3px);
+  }
+
   .tanya-riwayat-panel {
     width: 340px;
     inset: 64px auto 0 0;
@@ -6609,6 +6789,33 @@ body.has-kader-dialog {
   .tanya-baru {
     width: 44px;
     height: 44px;
+  }
+
+  /* Tombol lampir dan aksi riwayat ikut target sentuh 44px; kartu riwayat
+     diberi ruang bantalan lebih supaya ibu jari tidak salah tekan. */
+  .tanya-lampir {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 0;
+  }
+
+  .tanya-lampiran-item.is-gambar {
+    width: 56px;
+    height: 56px;
+  }
+
+  .tanya-lampiran-item button {
+    width: 24px;
+    height: 24px;
+  }
+
+  .tanya-riwayat-act {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tanya-riwayat-pilih {
+    padding: 11px 6px 11px 13px;
   }
 
   .tanya-kontrol {

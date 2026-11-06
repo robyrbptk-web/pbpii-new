@@ -797,10 +797,61 @@ function readBody(req) {
   }
   return new Promise((resolve) => {
     let raw = '';
-    req.on?.('data', (chunk) => { raw += chunk; if (raw.length > 64 * 1024) req.destroy?.(); });
+    req.on?.('data', (chunk) => { raw += chunk; if (raw.length > 6 * 1024 * 1024) req.destroy?.(); });
     req.on?.('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { resolve({}); } });
     req.on?.('error', () => resolve({}));
   });
+}
+
+/* ------------------------------------------------------------------- lampiran
+
+ * Yang sampai ke server bukan berkas mentah: gambar sudah dikecilkan di
+ * perangkat penanya menjadi data URL JPEG, dan PDF hanya dikirim sebagai teks
+ * hasil baca pdf.js. Bentuknya divalidasi ketat di sini sebelum diteruskan.
+ */
+const LAMPIRAN_MAKS = 4;
+const GAMBAR_DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/i;
+const GAMBAR_DATA_MAKS = 1_600_000;
+const DOKUMEN_ISI_MAKS = 20000;
+
+function lampiranBersih(raw) {
+  if (!Array.isArray(raw)) return [];
+  const hasil = [];
+  for (const item of raw.slice(0, LAMPIRAN_MAKS)) {
+    if (!item || typeof item !== 'object') continue;
+    const nama = clean(item.nama).slice(0, 100);
+    if (item.jenis === 'gambar') {
+      const data = String(item.data || '');
+      if (!GAMBAR_DATA_URL.test(data) || data.length > GAMBAR_DATA_MAKS) continue;
+      hasil.push({ jenis: 'gambar', nama: nama || 'gambar', data });
+    } else if (item.jenis === 'dokumen') {
+      const isi = clean(item.isi).slice(0, DOKUMEN_ISI_MAKS);
+      if (!nama && !isi) continue;
+      hasil.push({ jenis: 'dokumen', nama: nama || 'dokumen', isi });
+    }
+  }
+  return hasil;
+}
+
+/** Pesan pengguna berisi lampiran dibentuk ala OpenAI: bagian teks + gambar. */
+function userPesan(question, raw) {
+  const lampiran = lampiranBersih(raw);
+  if (!lampiran.length) return { role: 'user', content: question };
+  const isi = lampiran
+    .filter((item) => item.jenis === 'gambar')
+    .map((item) => ({ type: 'image_url', image_url: { url: item.data } }));
+  const dokumen = lampiran.filter((item) => item.jenis === 'dokumen');
+  if (dokumen.length) {
+    isi.push({
+      type: 'text',
+      text: dokumen.map((item) => (item.isi
+        ? `Dokumen "${item.nama}":\n"""\n${item.isi}\n"""`
+        : `Dokumen "${item.nama}": tidak ada teks terbaca (kemungkinan hasil pindaian tanpa lapisan teks).`))
+        .join('\n\n'),
+    });
+  }
+  isi.push({ type: 'text', text: question });
+  return { role: 'user', content: isi };
 }
 
 function reply(res, status, payload) {
@@ -815,25 +866,30 @@ function reply(res, status, payload) {
 /** Susun daftar kandidat penyedia dari environment; tanpa kunci = Pollinations saja. */
 function providers() {
   const list = [];
-  const add = (label, url, key, model) => {
-    if (url && key) list.push({ label, url, key, model });
+  const add = (label, url, key, model, vision) => {
+    if (url && key) list.push({ label, url, key, model, vision: Boolean(vision) });
   };
 
   const genericKey = clean(process.env.AI_API_KEY);
   const genericUrl = clean(process.env.AI_CHAT_URL);
-  add('AI_CHAT_URL', genericUrl, genericKey, clean(process.env.AI_MODEL) || 'gpt-4o-mini');
+  const genericModel = clean(process.env.AI_MODEL) || 'gpt-4o-mini';
+  add('AI_CHAT_URL', genericUrl, genericKey, genericModel,
+    /openai|gemini|anthropic/i.test(genericUrl)
+    && /vision|gpt-4o|gpt-5|gemini|claude|llama-4|vl/i.test(genericModel));
 
   const gemini = clean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY);
   add('Gemini', gemini ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' : '',
-    gemini, clean(process.env.AI_MODEL) || 'gemini-2.0-flash');
+    gemini, clean(process.env.AI_MODEL) || 'gemini-2.0-flash', true);
 
   const groq = clean(process.env.GROQ_API_KEY);
   add('Groq', groq ? 'https://api.groq.com/openai/v1/chat/completions' : '',
-    groq, clean(process.env.AI_MODEL) || 'llama-3.3-70b-versatile');
+    groq, clean(process.env.AI_MODEL) || 'llama-3.3-70b-versatile',
+    /vision|llama-4/i.test(clean(process.env.AI_MODEL) || ''));
 
   const openai = clean(process.env.OPENAI_API_KEY);
   add('OpenAI', openai ? 'https://api.openai.com/v1/chat/completions' : '',
-    openai, clean(process.env.AI_MODEL) || 'gpt-4o-mini');
+    openai, clean(process.env.AI_MODEL) || 'gpt-4o-mini',
+    /vision|gpt-4o|gpt-4\.1|gpt-5|o[1-9]|chatgpt/i.test(clean(process.env.AI_MODEL) || ''));
 
   return list;
 }
@@ -898,23 +954,32 @@ async function callPollinations(messages) {
   return { reply: text.slice(0, 8000), provider: `Pollinations:${clean(process.env.AI_MODEL) || 'openai'}` };
 }
 
-async function askModel(messages) {
+async function askModel(messages, adaGambar) {
   const errors = [];
-  for (const provider of providers()) {
+  const kandidat = adaGambar ? providers().filter((provider) => provider.vision) : providers();
+  if (adaGambar && !kandidat.length) {
+    throw new Error('Layanan AI yang bisa membaca gambar belum terpasang, jadi gambar tidak dapat dibaca. Kirim pertanyaan tanpa gambar atau hubungi Badan Khusus Inovasi Digital PB PII.');
+  }
+  for (const provider of kandidat) {
     try {
       return await callProvider(provider, messages);
     } catch (error) {
       errors.push(error.message);
     }
   }
-  try {
-    return await callPollinations(messages);
-  } catch (error) {
-    errors.push(error.message);
-    const wrapped = new Error(error.message || 'Layanan AI tidak menjawab tepat waktu.');
-    wrapped.retryAfter = error.retryAfter || 0;
-    throw wrapped;
+  /* Pollinations hanya membaca teks, jadi lampiran bergambar tidak boleh
+     jatuh ke sana dan dijawab seolah-olah gambarnya ikut terbaca. */
+  if (!adaGambar) {
+    try {
+      return await callPollinations(messages);
+    } catch (error) {
+      errors.push(error.message);
+      const wrapped = new Error(error.message || 'Layanan AI tidak menjawab tepat waktu.');
+      wrapped.retryAfter = error.retryAfter || 0;
+      throw wrapped;
+    }
   }
+  throw new Error('Layanan AI tidak menjawab tepat waktu.');
 }
 
 /**
@@ -999,6 +1064,10 @@ export default async function handler(req, res) {
         dipakai,
         sisa: Math.max(0, batas - dipakai),
         sumber: gas ? 'apps-script' : 'lokal',
+        lampiran: {
+          gambar: providers().some((provider) => provider.vision),
+          dokumen: true,
+        },
       },
     });
     return;
@@ -1006,7 +1075,8 @@ export default async function handler(req, res) {
 
   const question = clean(body.message).slice(0, MAX_CHARS);
   const riwayat = riwayatBersih(body.riwayat);
-  if (question.length < 3) {
+  const lampiran = lampiranBersih(body.lampiran);
+  if (question.length < 3 && !lampiran.length) {
     reply(res, 200, { ok: false, error: 'Tulis pertanyaan dengan jelas.' });
     return;
   }
@@ -1095,14 +1165,15 @@ export default async function handler(req, res) {
     systemPrompt(terkait ? 'organisasi' : 'umum'),
     terkait ? sumberBagian(fakta, pustaka, web) : '',
   ].filter(Boolean).join('\n\n');
+  const adaGambar = lampiran.some((item) => item.jenis === 'gambar');
   const messages = [
     { role: 'system', content: sistem },
     ...riwayat,
-    { role: 'user', content: question },
+    userPesan(question, lampiran),
   ];
 
   try {
-    const jawaban = await askModel(messages);
+    const jawaban = await askModel(messages, adaGambar);
     entry.count += 1;
     entry.recent.push(Date.now());
     const catat = await gasRecord(body, ip, question, jawaban);

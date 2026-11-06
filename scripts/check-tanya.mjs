@@ -23,7 +23,8 @@ const modul = new Function('fetch', 'AbortSignal', 'process', 'URL', 'TextDecode
   `${sumber}\nreturn { teksUrl, bukaEntitas, teksBersih, isiTag, tanggalISO, tanggalLabel,`
   + ' sumberResmi, tautanAsli, beritaBing, beritaGoogle, hostname, saringRelevan,'
   + ' skorRelevansi, kataKunci, menyebutOrganisasi, cariWeb, sumberBagian, webSitasi,'
-  + ' wikipediaSearch, tepatWaktu, TINGKAT, SUMBER_RESMI, faktaSitasi, bersihkanPenanda, handler };')(
+  + ' wikipediaSearch, tepatWaktu, TINGKAT, SUMBER_RESMI, faktaSitasi, bersihkanPenanda,'
+  + ' lampiranBersih, userPesan, handler };')(
   (...args) => fetchImpl(...args),
   { timeout: () => ({}) },
   { env: {} },
@@ -405,6 +406,44 @@ const PETA = {
     await modul.tepatWaktu(Date.now() - 1, new Promise(() => {})), []);
   sama('Resmi berhenti mencoba kata kedua tanpa sisa waktu',
     await modul.sumberResmi(['pelajar', 'islam'], Date.now() - 1), []);
+}
+
+/* -------------------------------------------------------------------- lampiran */
+
+{
+  const gambarSah = `data:image/jpeg;base64,${'a'.repeat(40)}=`;
+  const bersih = modul.lampiranBersih([
+    { jenis: 'gambar', nama: 'Foto kegiatan.jpg', data: gambarSah },
+    { jenis: 'gambar', nama: 'Palsu', data: 'https://jahat.example/x.png' },
+    { jenis: 'gambar', nama: 'Asing', data: 'data:image/svg+xml;base64,PHN2Zz4=' },
+    { jenis: 'dokumen', nama: 'PKU PB PII.pdf', isi: 'isi berkas yang terbaca' },
+    { jenis: 'dokumen', nama: '', isi: '' },
+    { jenis: 'lain', nama: 'X' },
+    'bukan objek'
+  ]);
+  sama('Gambar sah lolos, yang palsu atau asing dibuang', bersih.map((i) => i.jenis), ['gambar', 'dokumen']);
+  sama('Nama dirapikan', bersih[0].nama, 'Foto kegiatan.jpg');
+  sama('Dokumen tanpa nama dan isi dibuang', bersih.length, 2);
+  sama('Bukan daftar ditolak', modul.lampiranBersih(null), []);
+  sama('Maksimal empat', modul.lampiranBersih([
+    { jenis: 'dokumen', nama: 'A', isi: '1' }, { jenis: 'dokumen', nama: 'B', isi: '2' },
+    { jenis: 'dokumen', nama: 'C', isi: '3' }, { jenis: 'dokumen', nama: 'D', isi: '4' },
+    { jenis: 'dokumen', nama: 'E', isi: '5' }
+  ]).length, 4);
+
+  const pesan = modul.userPesan('Jelaskan lampirannya.', [
+    { jenis: 'gambar', nama: 'Foto kegiatan.jpg', data: gambarSah },
+    { jenis: 'dokumen', nama: 'PKU PB PII.pdf', isi: 'Teks berkas PKU.' },
+    { jenis: 'dokumen', nama: 'Pindaian.pdf', isi: '' }
+  ]);
+  uji('Pesan bergambar berbentuk bagian-bagian', Array.isArray(pesan.content));
+  sama('Gambar menjadi bagian image_url', pesan.content[0].type, 'image_url');
+  sama('Data URL gambar terbawa utuh', pesan.content[0].image_url.url, gambarSah);
+  uji('Dokumen disebut namanya dalam teks', pesan.content[1].text.includes('PKU PB PII.pdf'));
+  uji('Dokumen terbaca disertakan apa adanya', pesan.content[1].text.includes('Teks berkas PKU.'));
+  uji('Dokumen tanpa teks disebut tidak terbaca', pesan.content[1].text.includes('tidak ada teks terbaca'));
+  uji('Pertanyaan menjadi bagian terakhir', pesan.content[pesan.content.length - 1].text === 'Jelaskan lampirannya.');
+  sama('Tanpa lampiran pesan tetap teks polos', modul.userPesan('Halo', []).content, 'Halo');
 }
 
 console.log(`${lolos} lolos, ${gagal} gagal`);
