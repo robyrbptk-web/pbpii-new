@@ -550,6 +550,24 @@
     return current;
   }
 
+  /** Seberapa jauh rentang sholat berjalan → sholat berikutnya, 0..1.
+      Jendela malam memakai Isya kemarin, jadi bar tidak kembali ke nol
+      tepat setelah tengah malam. */
+  function elapsedFraction(next) {
+    const { hour, minute, second } = clockIn(schedule.tz);
+    const now = hour * 3600 + minute * 60 + second;
+    const target = now + next.remaining;
+    let start = null;
+    for (const key of COUNTED) {
+      const at = minutesOf(schedule.times[key]) * 60;
+      for (const candidate of [at, at - 86400]) {
+        if (candidate < target && (start === null || candidate > start)) start = candidate;
+      }
+    }
+    const span = target - (start ?? target);
+    return start === null || span <= 0 ? 0 : Math.min(1, Math.max(0, (now - start) / span));
+  }
+
   function countdownText(totalSeconds) {
     const seconds = Math.max(0, Math.round(totalSeconds));
     const pad = (value) => String(value).padStart(2, '0');
@@ -631,6 +649,9 @@
 
     const caption = document.querySelector('#nextPrayerCaption');
     if (caption) caption.textContent = next.tomorrow ? 'Menuju sholat besok' : 'Menuju sholat berikutnya';
+
+    const fill = document.querySelector('#nextPrayerFill');
+    if (fill) fill.style.width = `${(elapsedFraction(next) * 100).toFixed(1)}%`;
 
     const { hour, minute } = clockIn(schedule.tz);
     const nowMinutes = hour * 60 + minute;
