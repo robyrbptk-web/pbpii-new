@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-06.10';
+const BACKEND_VERSION = '2026-11-06.11';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -3959,6 +3959,8 @@ function json_(value) {
 
 const PUSAKA_FOLDER_NAME = 'PB PII Pustaka';
 const PUSAKA_KORPUS_NAMA = 'pustaka.json';
+/** Satu tarikan relay berkas asli, dalam byte. Respons Apps Script berupa base64. */
+const PUSAKA_BLOK_MAKS = 1024 * 1024;
 const PUSAKA_PERAN_BOBOT = { tamu: 0, kader: 1, org: 2, admin: 3 };
 const PUSAKA_BATAS_HITS = 12;
 const PUSAKA_BATAS_KONTEKS = 5;
@@ -4456,6 +4458,50 @@ function pustakaPdf_(peran, body) {
   };
 }
 
+/**
+ * Relay isi berkas asli. Berkas Pustaka sengaja TIDAK pernah dibagikan lewat
+ * tautan, jadi proksi situs tidak bisa mengambilnya sendiri; berkas dibaca di
+ * sini dengan kredensial Apps Script, per rentang byte, lalu dikirim base64
+ * ke proksi yang sudah memeriksa sesi pemanggil.
+ */
+function pustakaBlok_(peran, body) {
+  const berkas = pustakaPdf_(peran, body);
+  const ukuran = Number(berkas.ukuran) || 0;
+  if (!ukuran) throw new Error('Berkas Pustaka tidak memiliki ukuran.');
+
+  const mulai = Math.max(0, Math.min(ukuran - 1, Math.floor(Number(body.mulai) || 0)));
+  const minta = Math.max(1, Math.min(PUSAKA_BLOK_MAKS, Math.floor(Number(body.jumlah) || PUSAKA_BLOK_MAKS)));
+  const sampai = Math.min(ukuran - 1, mulai + minta - 1);
+
+  const jawaban = UrlFetchApp.fetch(
+    'https://www.googleapis.com/drive/v3/files/'
+      + encodeURIComponent(berkas.driveId)
+      + '?alt=media&supportsAllDrives=true',
+    {
+      headers: {
+        Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+        Range: 'bytes=' + mulai + '-' + sampai
+      },
+      muteHttpExceptions: true
+    }
+  );
+  const kode = jawaban.getResponseCode();
+  if (kode !== 200 && kode !== 206) {
+    throw new Error('Berkas Pustaka tidak dapat dibaca (' + kode + ').');
+  }
+
+  return {
+    doc: berkas.doc,
+    driveId: berkas.driveId,
+    nama: berkas.nama,
+    judul: berkas.judul,
+    ukuran: ukuran,
+    mulai: mulai,
+    sampai: sampai,
+    data: Utilities.base64Encode(jawaban.getContent())
+  };
+}
+
 function pustakaAksi_(action, body) {
   // Impor memakai kunci sekali pakai dari Script Properties, bukan sesi pengguna.
   if (action === 'pustakaImpor') return pustakaImpor_(body || {});
@@ -4478,6 +4524,7 @@ function pustakaAksi_(action, body) {
   const ip = clientIp_(body);
   if (action === 'pustakaList') return pustakaDaftar_(peran);
   if (action === 'pustakaPdf') return pustakaPdf_(peran, body);
+  if (action === 'pustakaBlok') return pustakaBlok_(peran, body);
 
   const korpus = pustakaTerlihat_(pustakaKorpus_(), peran);
   if (!korpus.tersedia) {

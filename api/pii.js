@@ -8,8 +8,6 @@
  * The proxy still does the things only it can do: cap request size, drop
  * abusive action/IP pairs fast, and forward the real client IP downstream.
  */
-import { Readable } from 'node:stream';
-
 export const DEFAULT_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTlciByFgttDG8CuKkAUWr2j4na-jS-ENq7S3gjiclX1Uw3cSu7Rj0d8VMALt-qh-J_w/exec';
 
 /** Reads are cheap; writes are where spam lives. `limit` requests per `windowMs`. */
@@ -24,7 +22,7 @@ const RULES = {
 
 const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
-  'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus', 'pustakaPdf',
+  'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus', 'pustakaPdf', 'pustakaBlok',
   'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList',
   'threadList', 'threadIsi', 'notifList'
 ]);
@@ -159,10 +157,50 @@ async function serveDriveImage(req, res) {
 
 /**
  * Antaran berkas asli Pustaka ke pdf.js. Peramban hanya tahu id Drive dan id
- * dokumen korpus; keduanya dicocokkan dulu dengan sesi lewat Apps Script
- * (aksi pustakaPdf), jadi berkas tidak pernah tersaji untuk akun tanpa akses.
- * Header Range diteruskan supaya pdf.js hanya menarik bagian yang dibuka.
+ * dokumen korpus; keduanya dicocokkan dulu dengan sesi lewat Apps Script, dan
+ * Apps Script pula yang membaca isinya. Berkas organisasi memang tidak pernah
+ * dibagikan lewat tautan Drive, jadi mengambilnya langsung dari URL unduhan
+ * akan selalu ditolak Google.
+ * Header Range dilayani per blok supaya pdf.js hanya menarik bagian yang dibuka.
  */
+const PUSAKA_BLOK = 1024 * 1024;
+
+/** Satu tarikan blok lewat Apps Script; balasan sudah lolos pemeriksaan sesi. */
+async function pustakaBlok(gasUrl, sesi, docId, driveId, mulai, jumlah, ip) {
+  const jawaban = await fetch(gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'pustakaBlok', token: sesi, doc: docId, mulai, jumlah, ip }),
+    signal: AbortSignal.timeout(30_000)
+  });
+  const body = await jawaban.json().catch(() => null);
+  if (!body?.ok) {
+    const pesan = String(body?.error || '');
+    const ditolak = /ditolak|masuk ulang|khusus akun|tidak ditemukan/i.test(pesan);
+    throw Object.assign(new Error(pesan || 'Pemeriksaan akses Pustaka gagal. Coba lagi sebentar.'), {
+      status: ditolak ? 403 : 502
+    });
+  }
+  const data = body.data || {};
+  if (String(data.driveId || '') !== driveId) {
+    throw Object.assign(new Error('Akses berkas Pustaka ditolak. Silakan masuk ulang.'), { status: 403 });
+  }
+  return {
+    bytes: Buffer.from(String(data.data || ''), 'base64'),
+    ukuran: Number(data.ukuran) || 0,
+    mulai: Number(data.mulai) || 0,
+    sampai: Number(data.sampai) || 0
+  };
+}
+
+/** Rentang yang diminta pdf.js, termasuk bentuk "sisa" seperti bytes=-1024. */
+function bacaRentang(kepala) {
+  const mentah = String(kepala || '').trim();
+  const cocok = /^bytes=(\d*)-(\d*)$/.exec(mentah);
+  if (!cocok || (cocok[1] === '' && cocok[2] === '')) return null;
+  return { awal: cocok[1] === '' ? null : Number(cocok[1]), akhir: cocok[2] === '' ? null : Number(cocok[2]) };
+}
+
 async function serveDrivePdf(req, res) {
   res.setHeader('Cache-Control', 'private, no-store');
   const driveId = String(req.query?.pdf || '');
@@ -171,89 +209,60 @@ async function serveDrivePdf(req, res) {
     return res.status(400).json({ ok: false, error: 'Berkas Pustaka tidak dikenali.' });
   }
   const sesi = String(req.headers['x-pii-sesi'] || '').slice(0, 140);
+  const ip = clientIp(req);
 
-  const decision = allow('pustaka-pdf|' + clientIp(req), RULES.read);
+  const decision = allow('pustaka-pdf|' + ip, RULES.read);
   if (!decision.ok) {
     res.setHeader('Retry-After', String(decision.retryAfter));
     return res.status(429).json({ ok: false, error: 'Terlalu sering memuat berkas. Coba lagi sebentar.' });
   }
 
   const gasUrl = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
-  try {
-    // Sesi diperiksa di Apps Script: balasan berisi driveId milik dokumen itu.
-    const verifikasi = await fetch(gasUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'pustakaPdf', token: sesi, doc: docId, ip: clientIp(req) }),
-      signal: AbortSignal.timeout(15_000)
-    });
-    const body = await verifikasi.json().catch(() => null);
-    if (!body?.ok || String(body.data?.driveId || '') !== driveId) {
-      return res.status(403).json({ ok: false, error: 'Akses berkas Pustaka ditolak. Silakan masuk ulang.' });
-    }
-  } catch (error) {
-    return res.status(502).json({ ok: false, error: 'Pemeriksaan akses Pustaka gagal. Coba lagi sebentar.' });
-  }
-
-  const header = {
-    Accept: 'application/pdf;q=0.9, */*;q=0.5',
-    'Accept-Encoding': 'identity'
-  };
-  const rentang = req.headers?.range || req.headers?.Range;
-  if (typeof rentang === 'string' && /^bytes=\d*-\d*$/.test(rentang) && rentang !== 'bytes=-') {
-    header.Range = rentang;
-  }
-
-  // Batas waktu hanya untuk kedatangan kepala jawaban; aliran isi tidak dipotong.
-  const penanda = new AbortController();
-  const penjaga = setTimeout(() => penanda.abort(), 15_000);
+  const rentang = bacaRentang(req.headers?.range || req.headers?.Range);
 
   try {
-    const hulu = await fetch(
-      'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(driveId) + '&export=download&authuser=0',
-      { redirect: 'follow', headers: header, signal: penanda.signal }
-    );
-    clearTimeout(penjaga);
-
-    const finalHost = new URL(hulu.url).hostname;
-    if (finalHost === 'accounts.google.com') {
-      return res.status(404).json({ ok: false, error: 'Berkas Pustaka sudah tidak tersedia.' });
-    }
-    if (finalHost !== 'drive.google.com'
-      && finalHost !== 'drive.usercontent.google.com'
-      && !finalHost.endsWith('.googleusercontent.com')) {
-      throw new Error('Sumber berkas Drive mengarah ke host yang tidak diizinkan.');
-    }
-    if (!hulu.ok && hulu.status !== 206) {
-      return res.status(hulu.status === 404 ? 404 : 502)
-        .json({ ok: false, error: hulu.status === 404 ? 'Berkas Pustaka sudah tidak tersedia.' : 'Berkas Pustaka gagal dimuat.' });
-    }
-    if (!hulu.body) {
-      return res.status(502).json({ ok: false, error: 'Berkas Pustaka kosong.' });
-    }
-
-    res.statusCode = hulu.status;
-    res.setHeader('Content-Type', hulu.headers.get('content-type') || 'application/pdf');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    const ukuran = hulu.headers.get('content-length');
-    if (ukuran) res.setHeader('Content-Length', ukuran);
-    const cakupan = hulu.headers.get('content-range');
-    if (cakupan) res.setHeader('Content-Range', cakupan);
-    if (hulu.status === 206) res.setHeader('Accept-Ranges', 'bytes');
-
-    const aliran = Readable.fromWeb(hulu.body);
-    req.on('close', () => aliran.destroy());
-    aliran.on('error', () => {
-      if (!res.headersSent) {
-        res.status(502).json({ ok: false, error: 'Aliran berkas Pustaka terputus.' });
-      } else {
-        res.end();
+    if (!rentang) {
+      // Tanpa Range: berkas dialirkan habis per blok.
+      const pembuka = await pustakaBlok(gasUrl, sesi, docId, driveId, 0, 1, ip);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', String(pembuka.ukuran));
+      for (let posisi = 0; posisi < pembuka.ukuran; posisi += PUSAKA_BLOK) {
+        if (req.closed) return;
+        const blok = await pustakaBlok(gasUrl, sesi, docId, driveId, posisi, PUSAKA_BLOK, ip);
+        res.write(blok.bytes);
       }
-    });
-    return aliran.pipe(res);
+      return res.end();
+    }
+
+    let mulai = rentang.awal === null ? 0 : rentang.awal;
+    let akhir = rentang.akhir === null ? null : rentang.akhir;
+    if (rentang.awal === null) {
+      // bytes=-N berarti N byte terakhir: ukurannya dulu yang dibutuhkan.
+      const total = await pustakaBlok(gasUrl, sesi, docId, driveId, 0, 1, ip);
+      mulai = Math.max(0, total.ukuran - (rentang.akhir || 0));
+      akhir = total.ukuran - 1;
+    }
+    const blok = await pustakaBlok(
+      gasUrl, sesi, docId, driveId, mulai, Math.min(PUSAKA_BLOK, (akhir === null ? PUSAKA_BLOK : akhir - mulai + 1)), ip
+    );
+    res.statusCode = 206;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Range', 'bytes ' + blok.mulai + '-' + blok.sampai + '/' + blok.ukuran);
+    res.setHeader('Content-Length', String(blok.bytes.length));
+    return res.end(blok.bytes);
   } catch (error) {
-    clearTimeout(penjaga);
-    return res.status(502).json({ ok: false, error: error.message || 'Gagal memuat berkas Pustaka.' });
+    const status = error.status || 502;
+    return res.status(status).json({
+      ok: false,
+      error: status === 403
+        ? 'Akses berkas Pustaka ditolak. Silakan masuk ulang.'
+        : (error.message || 'Gagal memuat berkas Pustaka.')
+    });
   }
 }
 
