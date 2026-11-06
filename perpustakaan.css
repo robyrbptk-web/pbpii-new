@@ -1,0 +1,900 @@
+/* ---------------------------------------------------------------------------
+   Perpustakaan umum di halaman Pustaka.
+   Dipisahkan dari gaya berkas kebinan PII agar keduanya bisa berubah sendiri:
+   rak, kartu buku, dan pembaca teks dengan tiga suasana baca.
+--------------------------------------------------------------------------- */
+
+.perp-switch {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 18px;
+  padding: 4px;
+  border: 1px solid var(--line, #dfe7ef);
+  border-radius: 14px;
+  background: #f2f6fb;
+}
+
+.perp-switch button {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 8px;
+  background: none;
+  color: #5a7188;
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  cursor: pointer;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+.perp-switch button[aria-selected='true'] {
+  background: #fff;
+  color: var(--navy, #102b49);
+  box-shadow: 0 4px 14px rgba(16, 43, 73, .1);
+}
+
+/* Dua blok dimiliki skrip ini, satu blok dimiliki Pustaka organisasi.
+   display !important menang atas atribut hidden, jadi tidak perlu saling
+   mengirim pesan lewat skrip yang sudah berjalan. */
+body[data-perp-view='perpustakaan'] #pustakaGate,
+body[data-perp-view='perpustakaan'] #pustakaApp {
+  display: none !important;
+}
+
+body[data-perp-view='berkas'] #perpustakaan {
+  display: none !important;
+}
+
+.perp-head h1 {
+  margin: 4px 0 6px;
+  color: var(--navy, #102b49);
+  font-size: clamp(1.35rem, 4.6vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -.03em;
+}
+
+.perp-head > p {
+  margin: 0 0 4px;
+  color: #4c647d;
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.perp-head > p b {
+  color: var(--navy, #102b49);
+}
+
+.perp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.perp-field {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid #cfdcea;
+  border-radius: 14px;
+  padding: 11px 13px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(16, 43, 73, .05);
+}
+
+.perp-field:focus-within {
+  border-color: var(--blue, #1c6bb5);
+  box-shadow: 0 6px 20px rgba(28, 107, 181, .14);
+}
+
+.perp-field svg {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: #7c93aa;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.perp-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--navy, #102b49);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.perp-clear {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d7e2ee;
+  border-radius: 50%;
+  background: #fff;
+  color: #64798f;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.perp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0 4px;
+}
+
+.perp-chip {
+  border: 1px solid #d5e1ee;
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: #fff;
+  color: #3c5d80;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .16s ease, background-color .16s ease, color .16s ease;
+}
+
+.perp-chip:hover {
+  border-color: #b7cfe6;
+  background: #f2f8fe;
+}
+
+.perp-chip[aria-pressed='true'] {
+  border-color: var(--navy, #102b49);
+  background: var(--navy, #102b49);
+  color: #fff;
+}
+
+.perp-status {
+  margin: 12px 0 0;
+  color: #6a8098;
+  font-size: .8rem;
+}
+
+.perp-note {
+  margin: 18px 0 0;
+  border: 1px dashed #cfdcec;
+  border-radius: 14px;
+  padding: 16px;
+  background: #f7fbff;
+  color: #4c647d;
+  font-size: .86rem;
+  line-height: 1.55;
+}
+
+.perp-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.perp-card {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 13px;
+  border: 1px solid var(--line, #dfe7ef);
+  border-radius: 16px;
+  padding: 13px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(16, 43, 73, .05);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.perp-card:hover {
+  border-color: #c3d8e9;
+  box-shadow: 0 12px 28px rgba(16, 43, 73, .1);
+  transform: translateY(-2px);
+}
+
+.perp-sampul {
+  width: 74px;
+  height: 106px;
+  border: 1px solid #e2eaf3;
+  border-radius: 8px;
+  background: #f4f8fc center/cover no-repeat;
+  object-fit: cover;
+}
+
+.perp-karcis {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perp-judul {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--navy, #102b49);
+  font: inherit;
+  font-size: .96rem;
+  font-weight: 800;
+  letter-spacing: -.015em;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.perp-judul:hover {
+  color: var(--blue, #1c6bb5);
+  text-decoration: underline;
+}
+
+.perp-meta {
+  margin: 0;
+  color: #6a8098;
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.perp-baca {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  border: 1px solid var(--blue, #1c6bb5);
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: var(--blue, #1c6bb5);
+  color: #fff;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter .16s ease, transform .16s ease;
+}
+
+.perp-baca:hover {
+  filter: brightness(1.08);
+}
+
+.perp-baca:active {
+  transform: scale(.97);
+}
+
+.perp-lanjut {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #2f7d4f;
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.perp-lanjut:hover {
+  text-decoration: underline;
+}
+
+.perp-foot {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 8px;
+}
+
+.perp-more {
+  border: 1px solid #cfdcea;
+  border-radius: 999px;
+  padding: 11px 22px;
+  background: #fff;
+  color: var(--navy, #102b49);
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.perp-more:hover {
+  border-color: var(--blue, #1c6bb5);
+  color: var(--blue, #1c6bb5);
+}
+
+.perp-sumber {
+  margin: 6px 0 0;
+  color: #8298ae;
+  font-size: .74rem;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------- pembaca buku */
+
+body.perp-membaca {
+  overflow: hidden;
+}
+
+.perp-reader {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+  transform: translateY(100%);
+  transition: transform .24s cubic-bezier(.22, .61, .36, 1), visibility .24s;
+}
+
+.perp-reader.is-open {
+  visibility: visible;
+  transform: none;
+}
+
+.perp-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top) + 8px) 12px 10px;
+  background: linear-gradient(120deg, var(--navy, #102b49), #12456f);
+  color: #fff;
+}
+
+.perp-back {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .24);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.perp-back:active {
+  transform: scale(.94);
+}
+
+.perp-bar-tajuk {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+}
+
+.perp-bar-tajuk b,
+.perp-bar-tajuk small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.perp-bar-tajuk b {
+  font-size: .97rem;
+}
+
+.perp-bar-tajuk small {
+  color: #b9dcf6;
+  font-size: .72rem;
+}
+
+.perp-reader-alat {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.perp-alat {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, .26);
+  border-radius: 999px;
+  padding: 6px 11px;
+  background: rgba(255, 255, 255, .09);
+  color: #fff;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.perp-alat:hover {
+  background: rgba(255, 255, 255, .18);
+}
+
+.perp-alat[hidden] {
+  display: none;
+}
+
+.perp-berkas {
+  flex: 0 0 auto;
+  max-width: 42vw;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, .26);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.perp-berkas option {
+  color: #102b49;
+}
+
+.perp-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 22px 16px calc(env(safe-area-inset-bottom) + 92px);
+  background: #f6f9fc;
+  -webkit-overflow-scrolling: touch;
+}
+
+.perp-halaman {
+  max-width: 68ch;
+  margin: 0 auto;
+  border: 1px solid #e2eaf3;
+  border-radius: 18px;
+  padding: clamp(18px, 5vw, 38px);
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(16, 43, 73, .08);
+}
+
+.perp-halaman p {
+  margin: 0 0 1.15em;
+  color: #22384f;
+  font-size: var(--perp-ukuran, 17.5px);
+  line-height: 1.72;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.perp-halaman + .perp-halaman {
+  margin-top: 14px;
+}
+
+.perp-halaman p:last-child {
+  margin-bottom: 0;
+}
+
+.perp-halaman p.perp-petit {
+  color: #6a8098;
+  font-size: calc(var(--perp-ukuran, 17.5px) - .28rem);
+  line-height: 1.5;
+  text-align: left;
+}
+
+.perp-warna {
+  margin: 0 0 16px;
+  border: 1px solid #f0d9a8;
+  border-radius: 12px;
+  padding: 11px 13px;
+  background: #fff8e9;
+  color: #7a5b16;
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+.perp-kaki {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #e2eaf3;
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px);
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(14px);
+}
+
+.perp-kaki p {
+  margin: 0;
+  color: #5d748c;
+  font-size: .74rem;
+  text-align: center;
+}
+
+.perp-terus {
+  border: 1px solid #cfdcea;
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: #fff;
+  color: var(--navy, #102b49);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.perp-terus[hidden] {
+  display: none;
+}
+
+.perp-maju {
+  grid-column: 1 / -1;
+  height: 3px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6eef6;
+}
+
+.perp-maju span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue, #1c6bb5), #2f7d4f);
+  transition: width .2s ease;
+}
+
+.perp-kaki-baris {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.perp-kaki-tulis {
+  min-width: 132px;
+}
+
+/* Keterangan halaman dipakai sebagai pintu lompat; tampilannya tetap kalem. */
+.perp-reader[data-mode='asli'] #perpReaderInfo {
+  border-bottom: 1px dashed #c4d3e2;
+  cursor: pointer;
+}
+
+.perp-lompat {
+  width: 132px;
+  border: 1px solid #c4d3e2;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: #fff;
+  color: var(--navy, #102b49);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.perp-lompat[hidden] {
+  display: none;
+}
+
+.perp-balik {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #cfdcea;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--navy, #102b49);
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.perp-balik[hidden] {
+  display: none;
+}
+
+.perp-balik:active {
+  transform: scale(.94);
+}
+
+.perp-balik:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+/* ------------------------------------------------- tampilan dokumen asli (PDF) */
+
+.perp-panggung {
+  display: none;
+  flex: 1 1 auto;
+  /* Gulir vertikal selalu dialokasikan: lebarnya tidak berubah saat halaman
+     pertama muncul, jadi buku tidak pernah terpotong di tepi kanan. */
+  overflow-y: scroll;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 12px calc(env(safe-area-inset-bottom) + 96px);
+  background: #e7eff7;
+  scrollbar-width: thin;
+}
+
+.perp-reader[data-mode='asli'] .perp-panggung {
+  display: block;
+}
+
+.perp-reader[data-mode='asli'] .perp-body {
+  display: none;
+}
+
+.perp-sabar {
+  width: min(100%, 1180px);
+  height: 3px;
+  margin: 0 auto 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d3e1ee;
+}
+
+.perp-sabar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue, #1c6bb5), #2f7d4f);
+  transition: width .18s ease;
+}
+
+.perp-sabar.is-penuh {
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+
+.perp-buku {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  width: fit-content;
+  margin: 0 auto;
+  border-radius: 8px;
+  padding: 12px;
+  background: #e6dfd0;
+  box-shadow:
+    0 34px 60px -26px rgba(12, 32, 54, .62),
+    0 6px 18px rgba(12, 32, 54, .2);
+}
+
+.perp-buku[data-letak='satu'] .perp-daun + .perp-daun {
+  display: none;
+}
+
+.perp-daun {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: grid;
+  place-items: start center;
+}
+
+.perp-daun + .perp-daun::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 34px;
+  background: linear-gradient(90deg, rgba(58, 40, 15, .3), rgba(58, 40, 15, 0));
+  pointer-events: none;
+}
+
+.perp-daun canvas {
+  display: block;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(12, 32, 54, .22);
+}
+
+.perp-daun .perp-tunggu {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 220px;
+  border: 1px dashed #c9bfa8;
+  border-radius: 4px;
+  color: #7b6a4d;
+  font-size: .74rem;
+}
+
+.perp-nomor {
+  position: absolute;
+  right: 6px;
+  bottom: -20px;
+  color: #788ca1;
+  font-size: .66rem;
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------- kop pembaca lainnya */
+
+.perp-mode {
+  flex: 0 0 auto;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .26);
+  border-radius: 999px;
+}
+
+.perp-mode[hidden] {
+  display: none;
+}
+
+.perp-mode-tombol {
+  border: 0;
+  padding: 7px 13px;
+  background: transparent;
+  color: #cfe4f7;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.perp-mode-tombol[aria-pressed='true'] {
+  background: rgba(255, 255, 255, .92);
+  color: var(--navy, #102b49);
+}
+
+/* Suasana baca: kertas dan tintanya yang berganti, kop aplikasi tetap biru. */
+.perp-reader[data-tema='krem'] .perp-body {
+  background: #ece2cf;
+}
+
+.perp-reader[data-tema='krem'] .perp-halaman {
+  border-color: #e3d6bd;
+  background: #fbf3e4;
+}
+
+.perp-reader[data-tema='krem'] .perp-halaman p {
+  color: #3a2f1f;
+}
+
+/* Halaman hasil pindai dijaga warna aslinya: hanya dipanaskan/diperlembut,
+   tidak pernah dibalik (invert) agar gambar dan foto buku tetap benar. */
+.perp-reader[data-tema='krem'] .perp-panggung {
+  background: #e3d7c2;
+}
+
+.perp-reader[data-tema='krem'] .perp-buku {
+  background: #d5c8ad;
+}
+
+.perp-reader[data-tema='krem'] .perp-daun canvas {
+  filter: sepia(.26) saturate(.86) brightness(1.02);
+}
+
+.perp-reader[data-tema='krem'] .perp-sabar {
+  background: #d3c3a4;
+}
+
+.perp-reader[data-tema='malam'] .perp-panggung {
+  background: #0b1a2a;
+}
+
+.perp-reader[data-tema='malam'] .perp-buku {
+  background: #1b2b3c;
+  box-shadow: 0 34px 60px -26px rgba(0, 0, 0, .78), 0 6px 18px rgba(0, 0, 0, .34);
+}
+
+.perp-reader[data-tema='malam'] .perp-daun canvas {
+  filter: brightness(.84) contrast(.95);
+}
+
+.perp-reader[data-tema='malam'] .perp-daun .perp-tunggu {
+  border-color: #35495f;
+  color: #90a8bf;
+}
+
+.perp-reader[data-tema='malam'] .perp-nomor {
+  color: #90a8bf;
+}
+
+.perp-reader[data-tema='malam'] .perp-sabar {
+  background: #16293d;
+}
+
+.perp-reader[data-tema='malam'] .perp-body {
+  background: #0b1a2a;
+}
+
+.perp-reader[data-tema='malam'] .perp-halaman {
+  border-color: #1d3a56;
+  background: #10243a;
+}
+
+.perp-reader[data-tema='malam'] .perp-halaman p {
+  color: #d8e6f2;
+}
+
+.perp-reader[data-tema='malam'] .perp-halaman p.perp-petit {
+  color: #8ea6bd;
+}
+
+.perp-reader[data-tema='malam'] .perp-kaki {
+  border-top-color: #1c3a56;
+  background: rgba(9, 22, 36, .95);
+}
+
+.perp-reader[data-tema='malam'] .perp-balik {
+  border-color: #24405c;
+  background: #14293f;
+  color: #d8e6f2;
+}
+
+.perp-reader[data-tema='malam'] .perp-kaki p {
+  color: #9db4c9;
+}
+
+.perp-reader[data-tema='malam'] .perp-terus {
+  border-color: #24405c;
+  background: #14293f;
+  color: #d8e6f2;
+}
+
+.perp-reader[data-tema='malam'] .perp-maju {
+  background: #16293d;
+}
+
+.perp-reader[data-tema='malam'] .perp-warna {
+  border-color: #4a3c1c;
+  background: #241d0e;
+  color: #e3c876;
+}
+
+@media (min-width: 640px) {
+  .perp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .perp-body {
+    padding: 30px 24px calc(env(safe-area-inset-bottom) + 100px);
+  }
+
+  .perp-panggung {
+    padding: 26px 22px calc(env(safe-area-inset-bottom) + 104px);
+  }
+
+  .perp-buku {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 1000px) {
+  .perp-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .perp-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .perp-sampul {
+    width: 100%;
+    height: 190px;
+  }
+
+  .perp-head h1 {
+    font-size: 2.1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .perp-reader,
+  .perp-card,
+  .perp-maju span {
+    transition: none;
+  }
+}

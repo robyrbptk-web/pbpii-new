@@ -100,6 +100,22 @@
       "destination": "/api/_gw?r=openai/hud-summary"
     },
     {
+      "source": "/api/pustaka/cari",
+      "destination": "/api/_gw?r=pustaka/cari"
+    },
+    {
+      "source": "/api/pustaka/baca/:id",
+      "destination": "/api/_gw?r=pustaka/baca/:id"
+    },
+    {
+      "source": "/api/pustaka/teks/:id",
+      "destination": "/api/_gw?r=pustaka/teks/:id"
+    },
+    {
+      "source": "/api/pustaka/berkas/:id",
+      "destination": "/api/_gw?r=pustaka/berkas/:id"
+    },
+    {
       "source": "/api/radio/stations",
       "destination": "/api/_gw?r=radio/stations"
     },
@@ -347,6 +363,10 @@
     {
       "source": "/appshell.js",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }]
+    },
+    {
+      "source": "/vendor/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, immutable" }]
     }
   ]
 }

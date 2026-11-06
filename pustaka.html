@@ -3,17 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Pustaka PII — koleksi berkas Pelajar Islam Indonesia (Ta'dib, silabus LBT/LAT/Mentra, PPO, PKU, kodifikasi Muktamar dan Rapimnas) yang bisa dicari langsung dari isi teksnya.">
+  <meta name="description" content="Pustaka PII — berkas kebinan Pelajar Islam Indonesia (Ta'dib, silabus LBT/LAT/Mentra, PPO, PKU, kodifikasi Muktamar dan Rapimnas) yang dicari langsung dari isi teksnya, dilengkapi perpustakaan ebook gratis untuk dibaca di ponsel maupun desktop.">
   <meta name="theme-color" content="#0c2948">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Pustaka PII">
-  <title>Pustaka Organisasi — PB PII</title>
+  <title>Pustaka PII — Berkas Organisasi &amp; Perpustakaan</title>
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/perpustakaan.css">
   <style>
     /* ---------- Pustaka Organisasi: halaman khusus akun ---------- */
 
@@ -1085,6 +1086,37 @@
   </div>
 
   <main class="pustaka-stage">
+    <!-- Dua isi satu alamat: berkas kebinan PII untuk akun, perpustakaan untuk semua orang. -->
+    <div class="perp-switch" id="perpSwitch" role="tablist" aria-label="Bagian Pustaka">
+      <button type="button" role="tab" data-perp-view="berkas" aria-selected="false">Berkas PII</button>
+      <button type="button" role="tab" data-perp-view="perpustakaan" aria-selected="false">Perpustakaan</button>
+    </div>
+
+    <section class="perp" id="perpustakaan">
+      <div class="perp-head">
+        <p class="eyebrow">PERPUSTAKAAN</p>
+        <h1>Baca ebook gratis, langsung di layar</h1>
+        <p>Rak bacaan umum dari <b>Internet Archive</b>: sastra Indonesia, keislaman, sejarah, dan karya klasik dunia yang bebas dibaca. Tanpa masuk, tanpa aplikasi tambahan.</p>
+        <form class="perp-row" id="perpForm" autocomplete="off">
+          <label class="perp-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4.4 4.4"/></svg>
+            <input id="perpQuery" type="search" name="q" maxlength="120"
+              placeholder="Cari judul, penulis, atau topik"
+              enterkeyhint="search" aria-label="Cari buku di perpustakaan">
+          </label>
+          <button class="perp-clear" id="perpClear" type="button" aria-label="Bersihkan kata kunci" hidden>×</button>
+        </form>
+        <div class="perp-chips" id="perpRak" role="group" aria-label="Pilih rak bacaan"></div>
+        <p class="perp-status" id="perpStatus" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="perp-grid" id="perpHasil"></div>
+      <p class="perp-note" id="perpKosong" hidden></p>
+      <div class="perp-foot">
+        <button class="perp-more" id="perpMore" type="button" hidden>Muat judul lain ↓</button>
+      </div>
+    </section>
+
     <!-- Pengunjung tanpa akun tidak diberi pesan kesalahan: yang muncul ajakan masuk. -->
     <section class="pustaka-gate" id="pustakaGate" hidden>
       <img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
@@ -1159,6 +1191,48 @@
     <footer class="pustaka-reader-kaki">
       <p id="pustakaReaderInfo" role="status" aria-live="polite"></p>
       <button class="pustaka-reader-more" id="pustakaReaderMore" type="button" hidden>Muat bagian berikutnya ↓</button>
+    </footer>
+  </div>
+
+  <div class="perp-reader" id="perpReader" role="dialog" aria-modal="true" aria-label="Pembaca buku perpustakaan" aria-hidden="true" data-tema="siang" data-mode="teks">
+    <header class="perp-bar">
+      <button class="perp-back" id="perpReaderClose" type="button" aria-label="Kembali ke rak perpustakaan">←</button>
+      <div class="perp-bar-tajuk">
+        <b id="perpReaderJudul">—</b>
+        <small id="perpReaderMeta">Memilih buku</small>
+      </div>
+      <select class="perp-berkas" id="perpReaderBab" aria-label="Pilih bab" hidden></select>
+      <select class="perp-berkas" id="perpReaderBerkas" aria-label="Pilih bagian buku" hidden></select>
+      <div class="perp-mode" id="perpReaderMode" role="group" aria-label="Cara baca" hidden>
+        <button type="button" class="perp-mode-tombol" data-mode="asli" aria-pressed="true">Asli</button>
+        <button type="button" class="perp-mode-tombol" data-mode="teks" aria-pressed="false">Teks</button>
+      </div>
+      <div class="perp-reader-alat">
+        <button class="perp-alat" id="perpReaderKecil" type="button" aria-label="Perkecil">A−</button>
+        <button class="perp-alat" id="perpReaderBesar" type="button" aria-label="Perbesar">A+</button>
+        <button class="perp-alat" id="perpReaderTema" type="button">Krem</button>
+        <a class="perp-alat" id="perpReaderSumber" href="#" target="_blank" rel="noopener" hidden>Buka di Internet Archive ↗</a>
+      </div>
+    </header>
+    <div class="perp-panggung" id="perpReaderPanggung">
+      <div class="perp-sabar" id="perpUnduhan" aria-hidden="true"><span style="width:0"></span></div>
+      <div class="perp-buku" id="perpReaderBuku" data-letak="satu">
+        <div class="perp-daun"></div>
+        <div class="perp-daun"></div>
+      </div>
+    </div>
+    <div class="perp-body" id="perpReaderBody"></div>
+    <footer class="perp-kaki">
+      <div class="perp-kaki-baris">
+        <button class="perp-balik" id="perpReaderSebelum" type="button" aria-label="Halaman sebelumnya" hidden>&lsaquo;</button>
+        <div class="perp-kaki-tulis">
+          <p id="perpReaderInfo" role="status" aria-live="polite"></p>
+          <input class="perp-lompat" id="perpReaderLompat" type="number" min="1" step="1" inputmode="numeric" aria-label="Lompat ke halaman" hidden>
+        </div>
+        <button class="perp-balik" id="perpReaderBerikut" type="button" aria-label="Halaman berikutnya" hidden>&rsaquo;</button>
+        <button class="perp-terus" id="perpReaderNext" type="button" hidden>Muat bagian berikutnya ↓</button>
+      </div>
+      <div class="perp-maju" id="perpMaju" aria-hidden="true"><span style="width:0"></span></div>
     </footer>
   </div>
 
@@ -2260,6 +2334,7 @@
       else pasang();
     })();
   </script>
+  <script src="/perpustakaan.js" defer></script>
   <script src="/site.js" defer></script>
 </body>
 </html>

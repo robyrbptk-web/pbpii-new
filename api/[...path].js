@@ -40,6 +40,10 @@ import openaiHudSummary from '../proxies/openai/hud-summary.js';
 import opensky from '../proxies/opensky.js';
 import openskyTrack from '../proxies/opensky-track.js';
 import overpass from '../proxies/overpass.js';
+import pustakaBaca from '../proxies/pustaka/baca/[id].js';
+import pustakaBerkas from '../proxies/pustaka/berkas/[id].js';
+import pustakaCari from '../proxies/pustaka/cari.js';
+import pustakaTeks from '../proxies/pustaka/teks/[id].js';
 import radioClick from '../proxies/radio/click/[id].js';
 import radioStations from '../proxies/radio/stations.js';
 import regionalBrief from '../proxies/regional-brief.js';
@@ -86,6 +90,10 @@ const ROUTES = [
   ['opensky', opensky],
   ['opensky-track', openskyTrack],
   ['overpass', overpass],
+  ['pustaka/cari', pustakaCari],
+  ['pustaka/baca/:id', pustakaBaca],
+  ['pustaka/teks/:id', pustakaTeks],
+  ['pustaka/berkas/:id', pustakaBerkas],
   ['radio/stations', radioStations],
   ['radio/click/:id', radioClick],
   ['regional-brief', regionalBrief],
