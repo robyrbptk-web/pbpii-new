@@ -958,7 +958,7 @@ async function askModel(messages, adaGambar) {
   const errors = [];
   const kandidat = adaGambar ? providers().filter((provider) => provider.vision) : providers();
   if (adaGambar && !kandidat.length) {
-    throw new Error('Layanan AI yang bisa membaca gambar belum terpasang, jadi gambar tidak dapat dibaca. Kirim pertanyaan tanpa gambar atau hubungi Badan Khusus Inovasi Digital PB PII.');
+    throw new Error('Belum bisa membaca gambar pada percakapan ini. Silakan tulis pertanyaan atau kutipannya dalam bentuk teks, ya.');
   }
   for (const provider of kandidat) {
     try {

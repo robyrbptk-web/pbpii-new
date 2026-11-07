@@ -1260,12 +1260,12 @@
           lampiran.push({ jenis, nama: satuan.name || 'dokumen.pdf', ukuran: satuan.size, berkas: satuan });
           continue;
         }
-        if (!LAMPIRAN_GAMBAR_MIME.includes(satuan.type)) {
-          toast('Hanya PDF, JPG, PNG, atau WebP yang bisa dilampirkan.');
+        if (!kapLampiran.gambar) {
+          toast('Gambar belum bisa dibaca di sini. Silakan lampirkan PDF-nya, ya.');
           continue;
         }
-        if (!kapLampiran.gambar) {
-          toast('Layanan AI belum bisa membaca gambar saat ini. Coba lampirkan sebagai PDF.');
+        if (!LAMPIRAN_GAMBAR_MIME.includes(satuan.type)) {
+          toast('Gambar yang bisa dibaca baru JPG, PNG, atau WebP.');
           continue;
         }
         if (satuan.size > LAMPIRAN_BERKAS_MAKS) {
@@ -1436,7 +1436,15 @@
           kapLampiran.gambar = Boolean(kemampuan.gambar);
           kapLampiran.dokumen = Boolean(kemampuan.dokumen);
         }
-        if (lampirTombol) lampirTombol.hidden = !(kapLampiran.gambar || kapLampiran.dokumen);
+        if (lampirTombol) {
+          lampirTombol.hidden = !(kapLampiran.gambar || kapLampiran.dokumen);
+          const label = kapLampiran.gambar ? 'Lampirkan PDF atau gambar' : 'Lampirkan PDF';
+          lampirTombol.setAttribute('aria-label', label);
+          lampirTombol.title = label;
+          if (lampirBerkas) lampirBerkas.accept = kapLampiran.gambar
+            ? ['application/pdf'].concat(LAMPIRAN_GAMBAR_MIME).join(',')
+            : 'application/pdf';
+        }
         paintMeter({
           sisa: status.sisa,
           batas: status.batas,

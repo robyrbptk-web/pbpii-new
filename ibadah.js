@@ -2019,7 +2019,7 @@
         </button>`).join('');
     };
 
-    async function show(next) {
+    async function show(next, arah = '') {
       const max = books[book]?.max;
       number = Math.min(Math.max(1, next), max || Number.MAX_SAFE_INTEGER);
       storageSet(STORE.hadith, JSON.stringify({ book, number, books }));
@@ -2031,7 +2031,7 @@
       if (refEl) refEl.textContent = `${books[book]?.name || ''} · hadis No. ${number}${max ? ` dari ${rupiah(max)}` : ''}`;
 
       try {
-        const body = await getJson(`${IBADAH_API}/hadith?b=${encodeURIComponent(book)}&n=${number}`);
+        const body = await getJson(`${IBADAH_API}/hadith?b=${encodeURIComponent(book)}&n=${number}${arah ? `&arah=${arah}` : ''}`);
         const data = body.data || {};
         books = data.books || books;
         paintBooks();
@@ -2044,6 +2044,10 @@
     }
 
     function render(data) {
+      // Proksi bisa melompat ke nomor terdekat yang terjemahannya ada; tombol
+      // maju/mundur harus berjalan dari hadis yang sedang tampil, bukan dari
+      // nomor kosong yang tadi diminta.
+      if (Number.isFinite(Number(data.number))) number = Number(data.number);
       if (arabicEl) {
         arabicEl.textContent = data.arabic || '';
         // Beberapa nomor tidak punya berkas Arab di sumbernya; jangan tinggalkan ruang kosong.
@@ -2053,7 +2057,19 @@
       if (refEl) {
         refEl.textContent = `${data.bookName || books[book]?.name || ''} · hadis No. ${data.number}${data.max ? ` dari ${rupiah(data.max)}` : ''}`;
       }
-      if (noteEl) noteEl.textContent = '';
+      if (noteEl) {
+        const diminta = Number(data.diminta);
+        noteEl.textContent = Number.isFinite(diminta) && diminta !== Number(data.number)
+          ? `Terjemahan Indonesia No. ${rupiah(diminta)} belum ada, jadi ditampilkan hadis terdekat.`
+          : 'Terjemahan dari kumpulan hadis terbuka; sanad lengkapnya ada di kitab aslinya.';
+      }
+      const nomor = Number(data.number);
+      const pertama = Number(data.pertama);
+      const terakhir = Number(data.terakhir);
+      const prevEl = document.querySelector('#hadithPrev');
+      const nextEl = document.querySelector('#hadithNext');
+      if (prevEl) prevEl.disabled = Number.isFinite(pertama) && nomor <= pertama;
+      if (nextEl) nextEl.disabled = Number.isFinite(terakhir) && nomor >= terakhir;
       booksEl.querySelectorAll('button').forEach((button) => {
         const active = button.dataset.book === book;
         button.classList.toggle('is-active', active);
@@ -2068,8 +2084,8 @@
       book = button.dataset.book;
       show(1);
     });
-    document.querySelector('#hadithPrev')?.addEventListener('click', () => show(number - 1));
-    document.querySelector('#hadithNext')?.addEventListener('click', () => show(number + 1));
+    document.querySelector('#hadithPrev')?.addEventListener('click', () => show(number - 1, 'mundur'));
+    document.querySelector('#hadithNext')?.addEventListener('click', () => show(number + 1, 'maju'));
     document.querySelector('#hadithRandom')?.addEventListener('click', () => {
       const max = books[book]?.max || 7563;
       show(1 + Math.floor(Math.random() * max));
