@@ -920,6 +920,10 @@
 }
 
 .quran-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
   max-width: 780px;
   margin-bottom: 22px;
 }
@@ -1233,6 +1237,16 @@
   font-size: var(--quran-translation-size, .93rem);
 }
 
+/* Cara baca Latin ditaruh di antara mushaf dan terjemahan, persis urutan
+   yang dipakai buku panduan sholat: Arab — Latin — arti. */
+.ayah-latin {
+  margin: 9px 0 0;
+  color: #1d5f96;
+  font-size: calc(var(--quran-translation-size, .93rem) * .95);
+  font-style: italic;
+  line-height: 1.8;
+}
+
 .ayah-tafsir {
   margin-top: 10px;
   color: #5b4a2e;
@@ -1424,6 +1438,44 @@
 
 .quran-text-adjust:active {
   transform: scale(.94);
+}
+
+/* Tombol Latin tinggal di dua tempat: bilah halaman yang terang dan baris
+   alat sheet yang gelap, jadi warna aktifnya didefinisikan dua kali. */
+.quran-latin-toggle {
+  flex: 0 0 auto;
+  padding: 8px 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.quran-latin-toggle.is-aktif {
+  border-color: var(--ib-blue);
+  background: var(--ib-blue);
+  color: #fff;
+}
+
+.quran-sheet-tools .quran-latin-toggle {
+  height: 40px;
+  padding: 0 12px;
+  border-color: rgb(255 255 255 / 22%);
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+}
+
+.quran-sheet-tools .quran-latin-toggle.is-aktif {
+  border-color: #fff;
+  background: #fff;
+  color: var(--navy);
 }
 
 .quran-sheet-audio svg {

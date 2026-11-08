@@ -22,6 +22,7 @@
     surah: 'pbpii:ibadah-surah',
     page: 'pbpii:ibadah-page',
     fontScale: 'pbpii:ibadah-quran-font-scale',
+    latin: 'pbpii:ibadah-quran-latin',
     position: 'pbpii:ibadah-position',
     tasbih: 'pbpii:ibadah-tasbih',
     hadith: 'pbpii:ibadah-hadith',
@@ -1551,6 +1552,65 @@
     /** Layar kecil memakai sheet penuh; pembaca inline tetap dipakai di desktop. */
     const compactScreen = () => window.matchMedia('(max-width: 1024px)').matches;
 
+    /* ------------------------------------------------------------------ latin
+       Transliterasi Latin per ayat sudah menyala ketika surat pertama dibuka;
+       yang hanya butuh Arab dan terjemahan bisa mematikannya dan pilihannya
+       tersimpan di perangkat. Sumbernya proxy server dengan simpanan 30 hari. */
+    let latinOn = storageGet(STORE.latin, '1') !== '0';
+    let latinSurah = 0;
+    /** Nomor ayat → teks Latin untuk surat yang sedang dipegang. */
+    let latinRows = new Map();
+
+    const latinUntuk = (nomor) => (
+      latinOn && latinSurah === Number(reader?.number) ? latinRows.get(Number(nomor)) || '' : ''
+    );
+
+    function pakaiLatin(surah, rows) {
+      latinSurah = surah;
+      latinRows = new Map(rows.map((row) => [Number(row.n), String(row.latin || '')]));
+      if (latinOn) renderReader();
+    }
+
+    async function tarikLatin(surah) {
+      if (!surah || latinSurah === surah) return;
+      const cacheKey = `latin:${surah}`;
+      const cached = cacheRead(cacheKey);
+      if (cached) {
+        pakaiLatin(surah, cached);
+        return;
+      }
+      try {
+        const body = await getJson(`${IBADAH_API}/latin?surah=${surah}`);
+        const rows = Array.isArray(body?.data?.ayat) ? body.data.ayat : [];
+        if (!rows.length) throw new Error('transliterasi kosong');
+        quranCacheWrite(cacheKey, rows);
+        pakaiLatin(surah, rows);
+      } catch {
+        /* Sumber Latin sedang tidak jawab: bacaan Arab dan terjemahan tetap utuh. */
+      }
+    }
+
+    function lukisTombolLatin() {
+      document.querySelectorAll('[data-latin-toggle]').forEach((button) => {
+        button.setAttribute('aria-pressed', latinOn ? 'true' : 'false');
+        button.classList.toggle('is-aktif', latinOn);
+      });
+    }
+
+    document.querySelectorAll('[data-latin-toggle]').forEach((button) => {
+      button.addEventListener('click', () => {
+        latinOn = !latinOn;
+        storageSet(STORE.latin, latinOn ? '1' : '0');
+        lukisTombolLatin();
+        if (!latinOn || latinSurah === Number(reader?.number)) {
+          renderReader();
+          return;
+        }
+        tarikLatin(Number(reader?.number));
+      });
+    });
+    lukisTombolLatin();
+
     function openSheet() {
       if (!sheet || sheetOpen) return;
       sheetOpener = document.activeElement;
@@ -1800,6 +1860,7 @@
 
     function renderAyah(ayah, surahLatin = '') {
       const tafsir = cleanText(ayah?.tafsir?.kemenag?.short || '');
+      const latin = cleanText(latinUntuk(ayah?.ayah_number));
       const nomor = String(ayah?.ayah_number ?? '');
       const surat = String(ayah?.surah_number ?? '');
       return `
@@ -1809,6 +1870,7 @@
             ${ayah?.audio_url ? `<button class="ayah-play" type="button" data-audio="${escapeHTML(ayah.audio_url)}" data-ayah="${escapeHTML(nomor)}" data-label="Ayat ${escapeHTML(nomor)} · ${escapeHTML(surahLatin)}" aria-label="Putar ayat ${escapeHTML(nomor)}" aria-pressed="false"><span aria-hidden="true">▶</span> Putar</button>` : ''}
           </div>
           <p class="ayah-arab" dir="rtl" lang="ar">${escapeHTML(ayah?.arab || '')}<span class="ayah-medallion" aria-hidden="true">${toArabicNumber(Number(nomor) || nomor)}</span></p>
+          ${latin ? `<p class="ayah-latin" lang="id">${escapeHTML(latin)}</p>` : ''}
           <p class="ayah-text">${escapeHTML(ayah?.translation || '')}</p>
           ${tafsir ? `<details class="ayah-tafsir"><summary>Tafsir ringkas</summary><p>${escapeHTML(tafsir)}</p></details>` : ''}
         </article>`;
@@ -1816,6 +1878,9 @@
 
     function renderReader() {
       if (!reader) return;
+      // Latin diminta bersamaan dengan ayatnya; pakaiLatin menggambar ulang
+      // sekali saja begitu jawabannya tiba, dan tidak pernah memutar ulang.
+      if (latinOn) tarikLatin(Number(reader.number));
       const data = reader.data || {};
       const ayahs = Array.isArray(data.ayahs) ? data.ayahs : [];
       const meta = [data.revelation, `${Number(data.number_of_ayahs) || ayahs.length} ayat`, data.translation].filter(Boolean).join(' · ');

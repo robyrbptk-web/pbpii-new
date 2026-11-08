@@ -22,6 +22,7 @@ import celestrak from '../proxies/celestrak.js';
 import celestrakGroup from '../proxies/celestrak/[group].js';
 import ibadahHadith from '../proxies/ibadah/hadith.js';
 import ibadahHijriah from '../proxies/ibadah/hijriah.js';
+import ibadahLatin from '../proxies/ibadah/latin.js';
 import ibadahMasjid from '../proxies/ibadah/masjid.js';
 import ibadahZakat from '../proxies/ibadah/zakat.js';
 import firms from '../proxies/firms.js';
@@ -75,6 +76,7 @@ const ROUTES = [
   ['geocode/json', geocodeJson],
   ['ibadah/hadith', ibadahHadith],
   ['ibadah/hijriah', ibadahHijriah],
+  ['ibadah/latin', ibadahLatin],
   ['ibadah/masjid', ibadahMasjid],
   ['ibadah/zakat', ibadahZakat],
   ['indonesia/hospitals', indonesiaHospitals],

@@ -70,6 +70,10 @@
       "destination": "/api/_gw?r=ibadah/hijriah"
     },
     {
+      "source": "/api/ibadah/latin",
+      "destination": "/api/_gw?r=ibadah/latin"
+    },
+    {
       "source": "/api/ibadah/masjid",
       "destination": "/api/_gw?r=ibadah/masjid"
     },

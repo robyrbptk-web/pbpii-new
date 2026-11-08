@@ -233,9 +233,12 @@
 
     <section id="quran" class="section quran-section" role="tabpanel" aria-labelledby="ibTabQuran" hidden>
       <div class="quran-bar">
-        <p class="eyebrow">AL-QUR'AN</p>
-        <h2>114 surat, teks, terjemahan, dan tafsir ringkas.</h2>
-        <p>Baca per ayat, putar murattal satu surat penuh, atau buka tafsir Kemenag.</p>
+        <div>
+          <p class="eyebrow">AL-QUR'AN</p>
+          <h2>114 surat, teks, transliterasi, terjemahan, dan tafsir ringkas.</h2>
+          <p>Baca per ayat, putar murattal satu surat penuh, atau buka tafsir Kemenag.</p>
+        </div>
+        <button class="quran-latin-toggle" type="button" data-latin-toggle aria-pressed="true" title="Tampilkan atau sembunyikan cara baca Latin tiap ayat">Latin</button>
       </div>
 
       <div class="quran-layout">
@@ -372,6 +375,7 @@
         <small id="quranSheetMeta">Pilih surat</small>
       </div>
       <div class="quran-sheet-tools" role="group" aria-label="Pengaturan bacaan">
+        <button class="quran-latin-toggle" type="button" data-latin-toggle aria-pressed="true" title="Cara baca Latin tiap ayat" aria-label="Tampilkan atau sembunyikan transliterasi Latin">Latin</button>
         <button class="quran-text-adjust" type="button" data-font-adjust="-0.1" aria-label="Perkecil ukuran teks" title="Perkecil ukuran teks">A−</button>
         <button class="quran-text-adjust" type="button" data-font-adjust="0.1" aria-label="Perbesar ukuran teks" title="Perbesar ukuran teks">A+</button>
         <button class="quran-sheet-audio" id="quranSheetAudio" type="button" data-audio="" data-label="Murattal" aria-pressed="false" aria-label="Putar murattal surat penuh">
