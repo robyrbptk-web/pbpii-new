@@ -1397,7 +1397,7 @@
       const status = $('kesehatanStatus');
       panel.classList.remove('hidden');
       status.className = 'kesehatan-status';
-      status.textContent = 'Meriksa basis data, penyimpanan berkas, dan verifikasi masuk…';
+      status.textContent = 'Memeriksa basis data, penyimpanan berkas, dan verifikasi masuk…';
       try {
         const data = await api('kesehatanSistem');
         const masalah = Array.isArray(data.masalah) ? data.masalah : [];

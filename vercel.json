@@ -10,17 +10,15 @@
       "maxDuration": 60
     }
   },
-  "rewrites": [
-    {
-      "source": "/",
-      "has": [{ "type": "host", "value": "sso.pbpii-new.vercel.app" }],
-      "destination": "/sso.html"
-    },
+  "redirects": [
     {
       "source": "/",
       "has": [{ "type": "host", "value": "sso.pbpii.or.id" }],
-      "destination": "/sso.html"
-    },
+      "destination": "/sso.html",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
     {
       "source": "/api/adsblol/mil",
       "destination": "/api/_gw?r=adsblol/mil"
