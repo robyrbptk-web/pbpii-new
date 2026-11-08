@@ -1037,7 +1037,7 @@
   }
 
   const compass = {
-    on: false, started: false, heading: 0, smoothed: null, signalledAt: 0,
+    on: false, listening: false, started: false, heading: 0, smoothed: null, signalledAt: 0,
     vibrated: false, absolute: false, relativeWarned: false, manualShown: false,
   };
 
@@ -1083,6 +1083,14 @@
     if (message) setQiblaAccuracy(message);
   }
 
+  /** Sensor yang terlambat bicara membuat penunjuk manual tidak diperlukan lagi. */
+  function hideManual() {
+    if (!compass.manualShown) return;
+    compass.manualShown = false;
+    const row = document.querySelector('#qiblaManualRow');
+    if (row) row.hidden = true;
+  }
+
   function paintQibla() {
     const rose = document.querySelector('#qiblaRose');
     const mark = document.querySelector('#qiblaMark');
@@ -1117,7 +1125,7 @@
   }
 
   function onOrientation(event, isAbsolute) {
-    if (!compass.on) return;
+    if (!compass.listening) return;
     // Data absolut selalu lebih benar: abaikan kejadian relatif dari sistem yang sama.
     if (compass.absolute && !isAbsolute) return;
 
@@ -1137,6 +1145,12 @@
     }
     if (raw === null) return;
 
+    if (!compass.on) {
+      // Sinyal yang datang belakangan tetap dipakai: jarum hidup lagi dan
+      // penunjuk manual yang tadi muncul sebagai penutup disimpan kembali.
+      compass.on = true;
+      hideManual();
+    }
     compass.absolute = absolute;
     compass.signalledAt = Date.now();
 
@@ -1161,6 +1175,7 @@
 
   function stopCompass(message) {
     compass.on = false;
+    compass.listening = false;
     compass.smoothed = null;
     window.removeEventListener('deviceorientationabsolute', handleAbsolute, true);
     window.removeEventListener('deviceorientation', handleRelative, true);
@@ -1173,15 +1188,20 @@
     window.addEventListener('deviceorientationabsolute', handleAbsolute, true);
     window.addEventListener('deviceorientation', handleRelative, true);
     compass.on = true;
+    compass.listening = true;
     compass.signalledAt = Date.now();
     paintQibla();
 
     setTimeout(() => {
-      if (!compass.on) return;
+      if (!compass.listening) return;
       if (Date.now() - compass.signalledAt < 4500) return;
-      stopCompass('');
+      // Pendengaran dibiarkan terpasang: sebagian ponsel baru mengirim arah
+      // beberapa saat setelah halaman terbuka, dan jarum harus menyala sendiri
+      // saat itu terjadi, bukan terkunci mati pada tampilan diam.
+      compass.on = false;
+      paintQibla();
       if (hasTouchSensor) {
-        revealManual('Sensor arah tidak mengirim data dari peramban ini. Geser utara sampai huruf U menunjuk utara sejati.');
+        revealManual('Sensor arah belum mengirim data. Geser utara sampai huruf U menunjuk utara sejati.');
       } else {
         setQiblaAccuracy('Laptop tidak punya kompas. Buka halaman ini di ponsel supaya jarum ikut berputar.');
       }
@@ -1217,6 +1237,18 @@
   function initCompass() {
     buildDial();
 
+    // Geseran utara dipasangkan lebih dulu: dua jalur di bawah justru menampilkannya
+    // sebagai satu-satunya pegangan, jadi menyerah sebelum memasangnya membuat
+    // kendali yang muncul di layar tidak berbuat apa pun.
+    const manual = document.querySelector('#qiblaManual');
+    manual?.addEventListener('input', () => {
+      // Memilih utara manual berarti melepaskan sensor: tanpa ini sinyal yang
+      // datang belakangan akan menimpa pengaturan yang baru saja dipilih.
+      if (compass.listening) stopCompass('');
+      setQiblaAccuracy(`Utara diatur ke ${Number(manual.value)}°. Putar badan sampai cincin emas berada di ujung atas.`);
+      paintQibla();
+    });
+
     if (typeof DeviceOrientationEvent === 'undefined') {
       revealManual('Perangkat ini tidak punya sensor kompas. Geser utara sampai huruf U menunjuk utara sejati.');
       return;
@@ -1225,13 +1257,6 @@
       revealManual('Kompas butuh koneksi aman. Buka halaman ini lewat https untuk mengaktifkan sensor arah.');
       return;
     }
-
-    const manual = document.querySelector('#qiblaManual');
-    manual?.addEventListener('input', () => {
-      if (compass.on) stopCompass('');
-      setQiblaAccuracy(`Utara diatur ke ${Number(manual.value)}°. Putar badan sampai cincin emas berada di ujung atas.`);
-      paintQibla();
-    });
 
     const start = () => {
       if (compass.started) return;
