@@ -569,17 +569,46 @@ body.is-locked {
   overscroll-behavior: contain;
 }
 
+/* Sampul dan gambar isi artikel tidak pernah dipotong: elemennya yang mengikuti
+   rasio asli foto, bukan bingkainya. Foto potret dibatasi tingginya supaya
+   judul tetap dekat, foto landskap dibiarkan melebar penuh. */
 .reader-cover {
   display: block;
   width: 100%;
-  max-height: 46vh;
-  object-fit: cover;
+  height: auto;
+  max-height: none;
+  background: #eef3f8;
 }
 
-.reader-article {
-  max-width: 720px;
+.reader-cover.is-potret {
+  width: auto;
+  max-width: 100%;
+  max-height: 70vh;
   margin: 0 auto;
-  padding: 30px 22px calc(70px + env(safe-area-inset-bottom));
+}
+
+/* Wadah selebar 1120px, kolom teks 676px di tengahnya. Gambar beresolusi besar
+   dipindah oleh app.js ke jalur "full" sehingga membentang sampai wadah. Lebar
+   jalur memakai kontainer, bukan `vw`, agar garis gulir tidak memotongnya. */
+.reader-article {
+  display: grid;
+  grid-template-columns:
+    [full-start] minmax(22px, 1fr)
+    [text-start] minmax(0, 676px)
+    [text-end] minmax(22px, 1fr)
+    [full-end];
+  max-width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 30px 0 calc(70px + env(safe-area-inset-bottom));
+}
+
+.reader-article > * {
+  grid-column: text;
+  min-width: 0;
+}
+
+.reader-article > .is-lebar {
+  grid-column: full;
 }
 
 .reader-article h2 {
@@ -623,6 +652,26 @@ body.is-locked {
   height: auto;
   margin: 22px auto;
   border-radius: 12px;
+}
+
+/* Isi gambar dibaca utuh: yang potret dibatasi tingginya, yang resolusi aslinya
+   besar mengisi lebar jalur "full". Tidak ada `max-height` pada gambar melebar
+   karena memotong tinggi berarti merentangkan rasio aslinya. */
+.reader-article img.is-potret {
+  width: auto;
+  max-width: 100%;
+  max-height: 78vh;
+}
+
+.reader-article .is-lebar img {
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Setiap gambar dapat dibuka selebar layar, jadi kursornya zoom-in. */
+.reader-scroll img {
+  cursor: zoom-in;
 }
 
 .reader-article a {
@@ -7328,9 +7377,10 @@ body.has-kader-dialog {
     font-size: .8rem;
   }
 
-  /* Sampul dipangkas supaya judul tetap terbaca di layar pendek. */
-  .reader-cover {
-    max-height: 32vh;
+  /* Layar pendek: hanya sampul potret yang diperpendek. Membatasi tinggi
+     sembarang sampul membuat rasio aslinya melenceng, jadi tidak dipakai. */
+  .reader-cover.is-potret {
+    max-height: 46vh;
   }
 
   .reader-article {
@@ -9141,7 +9191,10 @@ footer {
 
 .feed-lightbox img {
   max-width: 100%;
-  max-height: 100%;
+  /* `max-height: 100%` tidak pernah mengikat di kisi ini, jadi batasnya
+     dihitung dari tinggi layar dikurangi isi padding wadah (18px x 2).
+     Tanpa itu, foto landskap lebar bisa menjulang lewat bawah layar. */
+  max-height: calc(100dvh - 36px);
   border-radius: 12px;
   object-fit: contain;
 }

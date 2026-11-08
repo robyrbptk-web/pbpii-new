@@ -166,6 +166,26 @@ function articleParagraphs(content) {
     .join('');
 }
 
+/**
+ * Gambar artikel datang dengan ukuran apa pun. Yang potret dibatasi tingginya
+ * supaya judul tidak terdorong jauh ke bawah; yang resolusi aslinya besar
+ * dikeluarkan dari kolom teks agar isinya terbaca. Tidak ada gambar yang
+ * dipotong — ukuran element dibuat mengikuti rasio asli, bukan rasio bingkai.
+ */
+function cocokkanGambarArtikel(image) {
+  const lebar = image.naturalWidth || 0;
+  const tinggi = image.naturalHeight || 0;
+  if (!lebar || !tinggi) return;
+  const potret = tinggi / lebar > 1.15;
+  image.classList.toggle('is-potret', potret);
+  if (potret || lebar < 900) return;
+  const kolom = image.closest('.reader-article');
+  if (!kolom) return;
+  let anak = image;
+  while (anak.parentElement && anak.parentElement !== kolom) anak = anak.parentElement;
+  anak.classList.add('is-lebar');
+}
+
 function articleContentHtml(content) {
   const raw = String(content || '');
   if (!/<\s*[a-z/][^>]*>/i.test(raw)) return articleParagraphs(raw);
@@ -324,6 +344,10 @@ function readerDialog() {
         <button class="reader-expand" type="button" aria-pressed="false">⤢ Layar penuh</button>
       </header>
       <div class="reader-scroll"></div>
+    </div>
+    <div class="reader-zoom feed-lightbox" id="readerZoom" hidden aria-hidden="true">
+      <button class="feed-lightbox-close" type="button" aria-label="Tutup gambar"></button>
+      <img alt="">
     </div>`;
   document.body.appendChild(dialog);
 
@@ -332,6 +356,7 @@ function readerDialog() {
   const shutdown = () => {
     if (dialog.open) dialog.close();
     document.body.classList.remove('is-locked');
+    tutupZoom();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     restoreArticleMetadata();
     const url = new URL(location.href);
@@ -367,11 +392,38 @@ function readerDialog() {
   dialog.addEventListener('click', (event) => {
     if (event.target === dialog) shutdown();
   });
+
+  const zoom = dialog.querySelector('#readerZoom');
+  const gambarZoom = zoom.querySelector('img');
+  const tutupZoom = () => {
+    if (zoom.hidden) return;
+    zoom.hidden = true;
+    zoom.setAttribute('aria-hidden', 'true');
+    gambarZoom.removeAttribute('src');
+  };
+
+  /* Setiap gambar dibaca pada layar penuh, apa pun resolusi aslinya, jadi foto
+     besar tidak perlu ditebak isinya dari kolom teks yang sempit. */
+  dialog.querySelector('.reader-scroll').addEventListener('click', (event) => {
+    const image = event.target.closest('img');
+    if (!image || !image.getAttribute('src')) return;
+    gambarZoom.alt = image.alt || '';
+    gambarZoom.src = image.currentSrc || image.src;
+    zoom.hidden = false;
+    zoom.setAttribute('aria-hidden', 'false');
+  });
+  zoom.addEventListener('click', (event) => {
+    if (event.target === zoom || event.target.matches('.feed-lightbox-close')) tutupZoom();
+  });
+
   dialog.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      shutdown();
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    if (!zoom.hidden) {
+      tutupZoom();
+      return;
     }
+    shutdown();
   });
   return dialog;
 }
@@ -413,11 +465,13 @@ function openReader(index, directLink = false) {
       ${articleContentHtml(article.content || article.excerpt || '')}
       <p class="reader-byline">${escapeHTML(article.author || 'Redaksi PB PII')}</p>
     </div>`;
+  /* Rantai percobaan URL Drive sudah terpasang pada tiap <img> — penangan
+     kesalahan di bawah ini tidak boleh melompat ke logo sebelum rantai itu
+     habis. Yang disesuaikan di sini hanya cara gambar ditampilkan. Penangan
+     `load` dibiarkan aktif karena cadangan Drive bisa berganti ukuran. */
   scroll.querySelectorAll('img').forEach((image) => {
-    image.addEventListener('error', () => {
-      image.onerror = null;
-      image.src = LOGO_URL;
-    }, { once: true });
+    image.addEventListener('load', () => cocokkanGambarArtikel(image));
+    if (image.complete && image.naturalWidth) cocokkanGambarArtikel(image);
   });
   if (dialog.open) dialog.close();
   dialog.showModal();

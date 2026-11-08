@@ -95,6 +95,30 @@ async function readLimitedBody(response, limit) {
   return Buffer.concat(chunks, size);
 }
 
+/**
+ * Bentuk berskala Google untuk berkas besar. Bila host atau isinya janggal
+ * (berkas pribadi dialihkan ke halaman masuk, balasan hanya halaman HTML),
+ * null dikembalikan dan pemanggil memakai berkas asli.
+ */
+async function cobaGambarBerskala(id) {
+  try {
+    const upstream = await fetch(
+      'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w1600',
+      { redirect: 'follow', signal: AbortSignal.timeout(12_000) }
+    );
+    if (!upstream.ok) return null;
+    const host = new URL(upstream.url).hostname;
+    const dibolehkan = host === 'drive.google.com'
+      || host === 'drive.usercontent.google.com'
+      || host.endsWith('.googleusercontent.com');
+    if (!dibolehkan) return null;
+    const bytes = await readLimitedBody(upstream, MAX_IMAGE_BYTES);
+    return imageMime(bytes) && bytes.length > 1024 ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+
 async function serveDriveImage(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const id = String(req.query?.imageId || '');
@@ -137,8 +161,16 @@ async function serveDriveImage(req, res) {
     if (!mime) {
       return res.status(502).json({ ok: false, error: 'Berkas Drive bukan gambar yang didukung.' });
     }
+    /* Foto kamera zaman ini mudah melewati 4 MB. Bentuk berskala Google diminta
+       lebih dulu supaya pembaca artikel selalu menerima berkas ringan apa pun
+       ukuran aslinya; kalau bentuk itu gagal, berkas asli yang dikirim. Menampilkan
+       gambar utuh lebih penting daripada menghemat bandwidth. */
     if (bytes.length > MAX_IMAGE_BYTES) {
-      return res.status(413).json({ ok: false, error: 'Ukuran gambar Drive melebihi batas.' });
+      const berskala = await cobaGambarBerskala(id);
+      if (berskala) {
+        bytes = berskala;
+        mime = imageMime(bytes);
+      }
     }
 
     res.setHeader('Content-Type', mime);
