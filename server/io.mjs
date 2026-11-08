@@ -7,8 +7,11 @@
 // mengubah ribuan baris menjadi async.
 import { Worker } from 'node:worker_threads';
 
+// Worker eval selalu diperlakukan sebagai CommonJS. Vercel menjalankan Node
+// dengan --no-experimental-detect-module, jadi bentuk ESM di sini mati sebelum
+// sempat mengabari utusan dan Atomics.wait menunggu sampai fungsi kedaluwarsa.
 const KODE = `
-import { parentPort, workerData } from 'node:worker_threads';
+const { workerData } = require('node:worker_threads');
 const st = new Int32Array(workerData.status);
 const pm = new Uint8Array(workerData.permintaan);
 const jb = new Uint8Array(workerData.jawaban);
@@ -17,6 +20,7 @@ const decoder = new TextDecoder();
 
 // Indeks: 0 = keadaan, 1 = panjang permintaan, 2 = panjang jawaban,
 // 3 = galat, 4 = batas waktu permintaan, 5 = nomor permintaan.
+(async () => {
 for (;;) {
   if (Atomics.load(st, 0) === 1) {
     const panjang = Atomics.load(st, 1);
@@ -24,7 +28,6 @@ for (;;) {
     let keluar;
     let galat = 0;
     try {
-      const mulai = Date.now();
       const sinyal = AbortSignal.timeout(Math.max(1000, permintaan.tenggang || 25000));
       const badan = permintaan.badanB64
         ? new Uint8Array(Buffer.from(permintaan.badanB64, 'base64'))
@@ -43,9 +46,6 @@ for (;;) {
         headers: Object.fromEntries(r.headers.entries ? r.headers.entries() : []),
         ...isi,
       });
-      if (Date.now() - mulai > (permintaan.tenggang || 25000) - 500) {
-        galat = 0;
-      }
     } catch (e) {
       galat = 1;
       keluar = JSON.stringify({ pesan: String((e && e.message) || e) });
@@ -67,6 +67,7 @@ for (;;) {
   }
   Atomics.wait(st, 0, 0, 2);
 }
+})();
 `;
 
 const BATAS = 24 << 20;
@@ -88,7 +89,17 @@ function pasang() {
   });
   w.on('error', (e) => {
     console.error('worker io mati:', e && e.message);
-    process.exitCode = 1;
+    // Utusan yang sedang membeku harus dibangunkan dengan galat ini; tanpa itu
+    // ia menunggu sampai batas waktu fungsi padahal penyebabnya sudah jelas.
+    if (st && jb) {
+      const bytes = encoder.encode(JSON.stringify({ pesan: 'Worker I/O: ' + String((e && e.message) || e) }));
+      jb.set(bytes);
+      Atomics.store(st, 2, bytes.length);
+      Atomics.store(st, 3, 1);
+      Atomics.store(st, 0, 2);
+      Atomics.notify(st, 0);
+    }
+    mulai = null;
   });
   w.unref();
   mulai = w;

@@ -17,7 +17,7 @@
 
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
-import { db, simpan } from '../server/supa.mjs';
+import { db, dasar, kepalaDasar } from '../server/supa.mjs';
 
 for (const nama of ['.env.local', '.env']) {
   if (!existsSync(nama)) continue;
@@ -111,7 +111,15 @@ const server = createServer(async (req, res) => {
       if (bytes.subarray(0, 5).toString('latin1') !== '%PDF-') throw new Error('Isi bukan PDF.');
 
       const nama = String(cocok.berkas);
-      simpan('POST', 'pustaka', id, { mime: 'application/pdf', badanB64: bytes.toString('base64'), tenggang: 120000 });
+      // Unggah lewat fetch biasa, bukan kanal I/O sinkron: base64 buku 14 MB
+      // lebih besar daripada kanal permintaan yang dipakai backend.
+      const unggah = await fetch(`${dasar()}/storage/v1/object/pustaka/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: { ...kepalaDasar(), 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+        body: bytes,
+        signal: AbortSignal.timeout(180000),
+      });
+      if (!unggah.ok) throw new Error(`unggah ${unggah.status}: ${(await unggah.text()).slice(0, 160)}`);
       db('berkas', {
         metode: 'POST',
         badan: { id, emberas: 'pustaka', nama, mime: 'application/pdf', publik: false, byte: bytes.length, sampah: false },

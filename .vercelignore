@@ -1,0 +1,9 @@
+# Berkas lokal yang tidak pernah ikut diunggah: hasil kerja sementara dan
+# ekspor migrasi. Keduanya sudah di .gitignore, jadi deployment dari Git memang
+# tidak memuatnya; daftar ini menjaga unggahan CLI tetap sama.
+scratch/
+tmp-migrasi/
+.env
+.env.*
+.vercel/
+node_modules/
