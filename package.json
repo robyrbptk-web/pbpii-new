@@ -16,5 +16,8 @@
   },
   "devDependencies": {
     "vercel": "^65.9.0"
+  },
+  "dependencies": {
+    "@vercel/functions": "^3.11.0"
   }
 }

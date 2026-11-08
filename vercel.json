@@ -10,14 +10,10 @@
       "maxDuration": 60
     }
   },
-  "redirects": [
-    {
-      "source": "/",
-      "has": [{ "type": "host", "value": "sso.pbpii.or.id" }],
-      "destination": "/sso.html",
-      "permanent": false
-    }
-  ],
+  "proxy": {
+    "entrypoint": "proxy.js",
+    "matcher": "/"
+  },
   "rewrites": [
     {
       "source": "/api/adsblol/mil",
