@@ -1,3 +1,3 @@
-import { masjidHandler } from '../../lib/masjidOverpass.js';
+import { masjidHandler } from '../../lib/masjidNearby.js';
 
 export default masjidHandler;

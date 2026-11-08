@@ -431,7 +431,7 @@ Proxy yang tersedia:
 | `/api/ibadah/hadith?b=&n=` | fawazahmed0/hadith-api di jsDelivr (kutub sittah, Arab + terjemahan Indonesia) | tidak perlu |
 | `/api/ibadah/hijriah?t=&b=` | Aladhan API, metode 20 (Kemenag RI); tanpa parameter = bulan berjalan | tidak perlu |
 | `/api/ibadah/zakat` | harga emas/perak dunia (gold-api.com) + kurs USD/IDR (open.er-api.com) | tidak perlu |
-| `/api/ibadah/masjid?lat=&lon=&radius=` | mirror Overpass API (OSM), giliran otomatis | tidak perlu |
+| `/api/ibadah/masjid?lat=&lon=&radius=` | Overpass (OSM), cadangan Wikidata SPARQL | tidak perlu |
 | `/api/cctv/sources` | Dishub DKI Jakarta + ATCS Bandung/Tasikmalaya/Kab. Bandung | tidak perlu |
 | `/api/cctv/health` | hasil pencocokan registry di `/api/cctv/sources` | tidak perlu |
 | `/api/cctv/frame/:id` | citra statis kamera yang memilikinya | tidak perlu |
@@ -592,12 +592,17 @@ membebani sumber mana pun.
   gold-api.com, dikurskan ke rupiah lewat open.er-api.com, dibagi 31,1034768 g/oz
   untuk mendapat harga per gram, lalu dijadikan nisab 85 g emas / 595 g perak
   (BAZNAS dan Permenag 31/2019). Kadar 2,5% dihitung di browser; cache 30 menit.
-- **Masjid terdekat** (`lib/masjidOverpass.js`): kueri Overpass disusun di server dari
-  angka hasil validasi — browser tidak pernah mengirim teks kueri — dengan mirror yang
-  dirotasi sampai ada yang menjawab dan radius dibatasi 500 m–20 km. Daftar dipangkas
-  ke 25 baris terdekat, di-cache 24 jam di server dan di perangkat, sehingga ketika
-  mirror sedang penuh (`502 at capacity`) pengunjung tetap melihat daftar terakhir dan
-  pesannya tetap wajar dalam bahasa Indonesia.
+- **Masjid terdekat** (`lib/masjidNearby.js`): sumber utamanya OpenStreetMap lewat
+  Overpass (`lib/masjidOverpass.js`) karena isinya paling lengkap; bila keempat mirror
+  publiknya gagal — dari beberapa jaringan mirror itu tidak bisa dijangkau sama sekali,
+  dan tanpa cadangan pengunjungnya hanya melihat "data masjid sedang tidak tersedia" —
+  pencarian diulang ke Wikidata SPARQL (`lib/masjidWikidata.js`). Teks kueri disusun di
+  server dari angka hasil validasi, jadi browser tidak pernah mengirim kueri; radius
+  dibatasi 500 m–20 km, hasil dari sumber mana pun disaring lagi dengan jarak lurut
+  belahan bumi dan dipangkas ke 25 baris terdekat, lalu di-cache 24 jam di server dan di
+  perangkat. Wikidata hanya memuat rumah ibadah yang punya entri sendiri, jadi kalau
+  sampai memakai cadangan ini musala kampung sering belum muncul — daftar kosong berarti
+  "belum tercatat", bukan fitur rusak.
 
 Satu catatan untuk semua proksi baru: `vercel.json` menurunkan rute bertingkat menjadi
 `/api/_gw?r=<path>`, jadi parameter kueri yang benar-benar bernama `r` akan menimpa rute

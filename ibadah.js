@@ -473,7 +473,10 @@
   }
 
   async function getJson(url) {
-    const response = await fetch(url, { signal: AbortSignal.timeout(20000), headers: { Accept: 'application/json' } });
+    // fetch melempar TypeError/AbortError berbahasa Inggris saat jaringan putus;
+    // pesan mentah itu tidak boleh sampai ke pengunjung.
+    const response = await fetch(url, { signal: AbortSignal.timeout(20000), headers: { Accept: 'application/json' } })
+      .catch(() => { throw new Error('Tidak bisa terhubung ke server. Periksa koneksi internet Anda, lalu coba lagi.'); });
     const body = await response.json().catch(() => null);
     if (!response.ok || !body?.success) {
       throw new Error(body?.error || `Permintaan gagal (HTTP ${response.status}).`);
@@ -2246,7 +2249,7 @@
         cacheWrite(key, data);
         statusEl.textContent = data.mosques.length
           ? `${data.mosques.length} tempat ibadah dalam ${radius / 1000} km dari ${at.label}.`
-          : statusEl.textContent;
+          : `Belum ada yang tercatat dalam ${radius / 1000} km dari ${at.label}. Coba perlebar jaraknya.`;
       } catch (error) {
         if (!cached?.mosques?.length) {
           listEl.innerHTML = '';
@@ -2351,7 +2354,11 @@
         cursor = { year: data.year, month: data.month };
         if (!loadedCurrent) loadedCurrent = { ...cursor };
         paint(data);
-        if (statusEl && query) statusEl.textContent = '';
+        // Baris keterangan hanya untuk bulan berjalan; bulan lain tetap tampil gridnya
+        // tanpa mengaku memuat tanggal hari ini.
+        if (statusEl && (data.year !== loadedCurrent.year || data.month !== loadedCurrent.month)) {
+          statusEl.textContent = '';
+        }
       } catch (error) {
         if (statusEl) statusEl.textContent = error.message;
         if (labelEl) labelEl.textContent = 'Kalender belum tampil';
