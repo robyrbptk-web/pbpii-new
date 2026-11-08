@@ -6,6 +6,9 @@
   --green: #14763f;
   --ink: #182638;
   --muted: #637184;
+  /* Tinggi bar navigasi mobile + sedikit ruang napas; satu-satunya angka yang
+       dipakai semua penyangga bawah supaya isinya tidak ditumpuk berkali-kali. */
+  --bar-reserve: 76px;
   --line: #e0e7ef;
   --soft: #f5f8fb;
   --radius: 18px;
@@ -711,6 +714,11 @@ body.is-locked {
   background: #fff;
   object-fit: cover;
   box-shadow: 0 16px 50px #102b4912;
+}
+
+/* Foto sambutan memakai bingkai yang memotong; logo tidak boleh dipotong. */
+.greeting-photo img[src*="logo-pii"] {
+  object-fit: contain;
 }
 
 .greeting-copy {
@@ -2035,6 +2043,12 @@ nav .nav-masuk:hover {
   color: var(--navy);
 }
 
+/* Sudah punya sesi: chip akun di header adalah pintasannya, jadi tombol
+   "Masuk" tidak boleh lagi berdiri di sampingnya. */
+body.ada-sesi .nav-masuk {
+  display: none;
+}
+
 /* "Lainnya" hanya dipakai di bar bawah ponsel; di layar lebar semua menu sudah tampil. */
 .nav-more {
   display: none;
@@ -2171,7 +2185,7 @@ nav .nav-masuk:hover {
 
 .section {
   padding-top: clamp(64px, 7vw, 96px);
-  padding-bottom: clamp(64px, 7vw, 96px);
+  padding-bottom: clamp(40px, 5vw, 68px);
 }
 
 .section-heading {
@@ -2263,7 +2277,7 @@ footer {
   }
 
   body {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--bar-reserve) + env(safe-area-inset-bottom));
     background: #fff;
   }
 
@@ -2399,7 +2413,7 @@ footer {
   /* Sheet terbuka di atas bar navigasi supaya bar tetap bisa dipakai. */
   .nav-sheet-panel {
     right: 0;
-    bottom: calc(66px + env(safe-area-inset-bottom));
+    bottom: calc(var(--bar-reserve) - 10px + env(safe-area-inset-bottom));
     left: 0;
     max-height: min(58dvh, 420px);
     border-radius: 20px 20px 4px 4px;
@@ -2812,7 +2826,7 @@ body.peta-page {
   }
 
   .globe-shell {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--bar-reserve) + env(safe-area-inset-bottom));
   }
 
   .globe-toolbar span {
@@ -2849,7 +2863,7 @@ body.peta-page.globe-compact {
 @media (max-width: 680px) {
   /* Pita tab bawah tetap dipegang padding, bukan menimpa isi globe. */
   body.peta-page.globe-compact {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--bar-reserve) + env(safe-area-inset-bottom));
   }
 }
 
@@ -3304,7 +3318,9 @@ nav a[aria-current='page']::after {
   .section,
   .teaser,
   .qibla-section {
-    padding-bottom: calc(28px + env(safe-area-inset-bottom) / 2);
+    /* Penyangga bar sudah ditanggung body (--bar-reserve); di sini hanya sisa
+       napas kecil supaya teks terakhir tidak lengket ke batas bawah. */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom) / 2);
   }
 }
 
@@ -4766,6 +4782,7 @@ body.has-kader-dialog {
   position: relative;
   width: 66px;
   height: 66px;
+  object-fit: contain;
   border-radius: 20px;
   padding: 9px;
   background: #fff;
@@ -6428,6 +6445,52 @@ body.has-kader-dialog {
 
 .tanya-riwayat.is-open .tanya-riwayat-panel {
   transform: none;
+}
+
+/* Layar lebar: riwayat menjadi rail kiri yang selalu tampil, bukan dialog
+   yang perlu dibuka. Ponsel dan tablet tetap memakai slide-over. Di dalam
+   AppLayout kerangka aplikasi (sidebar + bar) yang mengatur layar, jadi
+   halaman ini tidak ikut diubah menjadi grid. */
+@media (min-width: 1025px) {
+  body.tanya-page:not(.aplikasi) {
+    display: grid;
+    grid-template-columns: 272px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  body.tanya-page:not(.aplikasi) > .site-header,
+  body.tanya-page:not(.aplikasi) > .nav-sheet {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  body.tanya-page:not(.aplikasi) > main {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  body.tanya-page:not(.aplikasi) .tanya-riwayat {
+    position: relative;
+    visibility: visible;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  body.tanya-page:not(.aplikasi) .tanya-riwayat-backdrop,
+  body.tanya-page:not(.aplikasi) .tanya-riwayat-buka,
+  body.tanya-page:not(.aplikasi) .tanya-riwayat-kepala button {
+    display: none;
+  }
+
+  body.tanya-page:not(.aplikasi) .tanya-riwayat-panel {
+    position: relative;
+    inset: auto;
+    width: auto;
+    height: 100%;
+    box-shadow: none;
+    transform: none;
+  }
 }
 
 .tanya-riwayat-kepala {

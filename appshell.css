@@ -42,7 +42,8 @@ html.aplikasi-mencek body::after {
   position: fixed;
   inset: 0;
   background: var(--app-canvas) url("/assets/logo-pii.webp") no-repeat center;
-  background-size: 58px 58px;
+  /* Logo aslinya 5:6; kotak 58x58 memipihkannya jadi gepeng saat halaman dicek. */
+  background-size: 58px auto;
   animation: appNadi 1.4s ease-in-out infinite;
 }
 
@@ -786,21 +787,17 @@ button.app-baris:active {
 /* ---------- halaman fitur di dalam AppLayout ---------- */
 
 /* Ruang Ibadah & Tanya PII punya tinggi terkunci; kurangi jatah header
-   dan bar aplikasi supaya komposer serta baris terakhir tidak terpotong. */
+   dan bar aplikasi supaya komposer serta baris terakhir tidak terpotong.
+   Padding bawah body.aplikasi sudah menghitung bar satu kali, jadi di sini
+   tidak ada margin tambahan — kalau ada, isinya mengambang 150px di atas bar. */
 body.aplikasi.ibadah-page .ibadah-app {
-  height: calc(100dvh - var(--app-head) - var(--app-bar) - 12px);
-  margin-bottom: calc(var(--app-bar) + 6px);
+  height: calc(100dvh - var(--app-head) - var(--app-bar) - 30px);
 }
 
 body.aplikasi.tanya-page {
   height: calc(100dvh - var(--app-head) - var(--app-bar) - var(--tanya-keyboard, 0px));
   min-height: 0;
   padding-bottom: calc(var(--app-bar) + 4px);
-}
-
-body.aplikasi .tanya-hero,
-body.aplikasi .page-hero {
-  display: none;
 }
 
 body.aplikasi .article-reader {

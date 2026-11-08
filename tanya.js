@@ -400,6 +400,11 @@
     const panelBuka = document.querySelector('#tanyaRiwayatBuka');
     const panelDaftar = document.querySelector('#tanyaRiwayatDaftar');
     const panelKosong = document.querySelector('#tanyaRiwayatKosong');
+    /* Di layar lebar riwayat menjadi rail permanen, bukan dialog yang dibuka-tutup.
+       Di dalam AppLayout kerangka aplikasi yang mengatur layar, jadi rail hanya
+       berlaku untuk wajah publik — harus sama persis dengan syarat CSS-nya. */
+    const mediaRail = window.matchMedia('(min-width: 1025px)');
+    const railAktif = () => mediaRail.matches && !document.body.classList.contains('aplikasi');
     const lampirTombol = document.querySelector('#tanyaLampir');
     const lampirBerkas = document.querySelector('#tanyaBerkas');
     const lampirStrip = document.querySelector('#tanyaLampiran');
@@ -1501,6 +1506,8 @@
     function bukaPanel() {
       if (!panel) return;
       lukisRiwayat();
+      tarikRiwayat();
+      if (railAktif()) return;
       panel.classList.add('is-open');
       panel.setAttribute('aria-hidden', 'false');
       panelBuka?.setAttribute('aria-expanded', 'true');
@@ -1508,16 +1515,36 @@
       panel.querySelector('.tanya-riwayat-panel')?.focus?.();
       /* Daftar ditarik ulang setiap panel dibuka: percakapan dari perangkat lain
          muncul di sini tanpa perlu memuat ulang halaman. */
-      tarikRiwayat();
     }
 
     function tutupRiwayat() {
-      if (!panel) return;
+      if (!panel || railAktif()) return;
       panel.classList.remove('is-open');
       panel.setAttribute('aria-hidden', 'true');
       panelBuka?.setAttribute('aria-expanded', 'false');
       panelBuka?.classList.remove('is-aktif');
     }
+
+    /** Rail desktop selalu tampil dan bukan dialog; ponsel memakai slide-over. */
+    function sinkronRail() {
+      if (!panel) return;
+      const isi = panel.querySelector('.tanya-riwayat-panel');
+      if (railAktif()) {
+        panel.classList.add('is-open');
+        panel.setAttribute('aria-hidden', 'false');
+        panelBuka?.setAttribute('aria-expanded', 'true');
+        panelBuka?.classList.add('is-aktif');
+        isi?.setAttribute('aria-modal', 'false');
+      } else {
+        const terbuka = panel.classList.contains('is-open');
+        if (!terbuka) panel.setAttribute('aria-hidden', 'true');
+        isi?.setAttribute('aria-modal', 'true');
+      }
+    }
+    mediaRail.addEventListener('change', sinkronRail);
+    /* Kerangka aplikasi dipasang setelah halaman ini siap, dan rail ikut lepas
+       ketika kelas `aplikasi` menempel — kelas itu satu-satunya sinyalnya. */
+    new MutationObserver(sinkronRail).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
     /** Lembaran baru; percakapan yang sedang berjalan tidak dibuang, hanya ditinggalkan. */
     function buatPercakapan() {
@@ -1640,6 +1667,7 @@
     panel?.querySelector('.tanya-riwayat-backdrop')?.addEventListener('click', tutupRiwayat);
     panel?.querySelector('#tanyaRiwayatTutup')?.addEventListener('click', tutupRiwayat);
     panel?.querySelector('#tanyaRiwayatBaru')?.addEventListener('click', () => { buatPercakapan(); tutupRiwayat(); });
+    sinkronRail();
     panelDaftar?.addEventListener('click', (event) => {
       const alat = event.target.closest('[data-riw]');
       if (alat) {

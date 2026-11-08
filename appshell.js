@@ -482,14 +482,21 @@
     teguran.append(isiTeguran);
     wadah.append(teguran);
 
-    const pintasan = elemen('section', 'app-card');
+    // Hierarki navigasi: sidebar memuat semua menu, bar bawah empat aksi cepat,
+    // dan ubin ini hanya jalan pintas ke menu yang TIDAK ada di bar. Tanpa
+    // penyaringan ini, satu halaman menampilkan menu yang sama tiga kali.
+    const diBar = namaDiBar();
+    const perlengkapan = ['beranda', 'notifikasi', 'profil', 'peta', 'pengurus', 'lembaga'];
+    const pintasan = kartu('Jalan pintas');
     const kisi = elemen('div', 'app-tiles');
-    menuBoleh(peran()).filter((item) => item.id !== 'beranda').forEach((item) => {
-      const ubin = elemen('a', 'app-tile');
-      ubin.href = item.href;
-      ubin.append(ikon(item.id), elemen('span', null, item.label));
-      kisi.append(ubin);
-    });
+    menuBoleh(peran())
+      .filter((item) => !diBar.includes(item.id) && !perlengkapan.includes(item.id))
+      .forEach((item) => {
+        const ubin = elemen('a', 'app-tile');
+        ubin.href = item.href;
+        ubin.append(ikon(item.id), elemen('span', null, item.label));
+        kisi.append(ubin);
+      });
     pintasan.append(kisi);
     wadah.append(pintasan);
 
