@@ -9,7 +9,10 @@
     "check:backend": "node scripts/check-backend.mjs",
     "check:gas": "node scripts/check-gas.mjs",
     "check:tanya": "node scripts/check-tanya.mjs",
-    "check:images": "node scripts/check-image-proxy.mjs"
+    "check:images": "node scripts/check-image-proxy.mjs",
+    "check:paritas": "node scripts/uji-paritas.mjs",
+    "bikin:meta": "node scripts/bikin-meta.mjs",
+    "bikin:inti": "node scripts/bikin-inti.mjs"
   },
   "devDependencies": {
     "vercel": "^65.9.0"

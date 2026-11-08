@@ -11,6 +11,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const AKAR = path.resolve(import.meta.dirname, '..');
 const ENV_LOKAL = path.join(AKAR, '.env.local');
@@ -64,33 +65,39 @@ async function tulisEnv(nama, nilai) {
 const perintah = process.argv[2];
 const argumen = process.argv.slice(3).join(' ');
 
-try {
-  if (perintah === 'query') {
-    console.log(JSON.stringify(await jalan(argumen), null, 2));
-  } else if (perintah === 'file') {
-    const sql = fs.readFileSync(path.resolve(AKAR, argumen), 'utf8');
-    const hasil = await jalan(sql);
-    console.log(JSON.stringify(hasil === undefined ? 'ok' : hasil).slice(0, 2000));
-  } else if (perintah === 'keys') {
-    const daftar = await api(`/projects/${REF}/api-keys`);
-    for (const kunci of daftar) {
-      const nilai = kunci.value || '';
-      if (!nilai) continue;
-      const nama = kunci.name === 'service_role' ? 'SUPABASE_SERVICE_ROLE_KEY'
-        : kunci.name === 'anon' ? 'SUPABASE_ANON_KEY' : null;
-      if (!nama) continue;
-      await tulisEnv(nama, nilai);
-      console.log(`${nama}: ${nilai.slice(0, 8)}… (${nilai.length} karakter)`);
+// Skrip lain mengimpor `jalan` dari berkas ini; antarmuka baris perintah hanya
+// jalan kalau berkas ini yang dijalankan langsung.
+const Dijalankan = !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (Dijalankan) {
+  try {
+    if (perintah === 'query') {
+      console.log(JSON.stringify(await jalan(argumen), null, 2));
+    } else if (perintah === 'file') {
+      const sql = fs.readFileSync(path.resolve(AKAR, argumen), 'utf8');
+      const hasil = await jalan(sql);
+      console.log(JSON.stringify(hasil === undefined ? 'ok' : hasil).slice(0, 2000));
+    } else if (perintah === 'keys') {
+      const daftar = await api(`/projects/${REF}/api-keys`);
+      for (const kunci of daftar) {
+        const nilai = kunci.value || '';
+        if (!nilai) continue;
+        const nama = kunci.name === 'service_role' ? 'SUPABASE_SERVICE_ROLE_KEY'
+          : kunci.name === 'anon' ? 'SUPABASE_ANON_KEY' : null;
+        if (!nama) continue;
+        await tulisEnv(nama, nilai);
+        console.log(`${nama}: ${nilai.slice(0, 8)}… (${nilai.length} karakter)`);
+      }
+      await tulisEnv('SUPABASE_URL', `https://${REF}.supabase.co`);
+      console.log('SUPABASE_URL tersimpan');
+    } else if (perintah === 'health') {
+      const proyek = await api(`/projects/${REF}`);
+      console.log(JSON.stringify({ ref: proyek.ref, name: proyek.name, region: proyek.region, status: proyek.status }, null, 2));
+    } else {
+      console.log('pakai: query | file <path> | keys | health');
     }
-    await tulisEnv('SUPABASE_URL', `https://${REF}.supabase.co`);
-    console.log('SUPABASE_URL tersimpan');
-  } else if (perintah === 'health') {
-    const proyek = await api(`/projects/${REF}`);
-    console.log(JSON.stringify({ ref: proyek.ref, name: proyek.name, region: proyek.region, status: proyek.status }, null, 2));
-  } else {
-    console.log('pakai: query | file <path> | keys | health');
+  } catch (err) {
+    console.error('GAGAL:', err.message);
+    process.exitCode = 1;
   }
-} catch (err) {
-  console.error('GAGAL:', err.message);
-  process.exitCode = 1;
 }

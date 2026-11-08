@@ -73,7 +73,16 @@ const rewrites = (config.rewrites || []).map((rule) => ({
   source: rule.source,
   pattern: compileSource(rule.source),
   destination: rule.destination,
+  has: rule.has || [],
 }));
+
+/** Vercel only applies a rewrite when every `has` condition matches the request. */
+function hasCocok(rule, req) {
+  return rule.has.every((syarat) => {
+    if (syarat.type !== 'host') return false;
+    return String(req.headers.host || '').split(':')[0] === syarat.value;
+  });
+}
 
 const headerRules = (config.headers || []).map((rule) => ({
   pattern: compileSource(rule.source),
@@ -221,7 +230,7 @@ function serveStatic(req, res, pathname) {
   let target = pathname;
   for (const rewrite of rewrites) {
     const match = rewrite.pattern.exec(pathname);
-    if (!match) continue;
+    if (!match || !hasCocok(rewrite, req)) continue;
     target = fillParams(rewrite.destination, match.groups || {});
     if (target.startsWith('/api/')) return false;
     break;

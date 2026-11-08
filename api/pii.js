@@ -47,6 +47,39 @@ const MAX_DRIVE_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 const hits = new Map();
 
+/**
+ * Backend pilihan. 'gas' (bawaan) meneruskan ke Web App Apps Script;
+ * 'supabase' menjalankan logika yang sama di dalam fungsi ini, lewat lapisan
+ * server/masuk.mjs, dengan Supabase sebagai penyimpanan. Bentuk balasannya
+ * identik karena keduanya adalah gas/Code.gs yang sama.
+ */
+function pakaiSupabase() {
+  return String(process.env.PBPII_BACKEND || 'gas').toLowerCase() === 'supabase';
+}
+
+let inti = null;
+async function aksiSupabase(badan) {
+  if (!inti) inti = import('../server/masuk.mjs');
+  const { jalankan } = await inti;
+  return jalankan(badan);
+}
+
+/** Kirim satu aksi danembalikan sampul {ok,data} yang sudah diurai. */
+async function kirimAksi(badan, gasUrl) {
+  if (pakaiSupabase()) return aksiSupabase(badan);
+  const upstream = await fetch(gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(badan)
+  });
+  const raw = await upstream.text();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error('Respons Apps Script bukan JSON. Periksa URL deployment dan izin Web App.');
+  }
+}
+
 function imageMime(bytes) {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
   if (bytes.length >= 8 && bytes[0] === 0x89 && bytes.toString('ascii', 1, 4) === 'PNG') return 'image/png';
@@ -119,6 +152,36 @@ async function cobaGambarBerskala(id) {
   }
 }
 
+/**
+ * Berkas yang sudah dipindahkan ke Storage dilayani dari sana. Baris lama yang
+ * belum tersalin tetap diambil dari Drive, jadi salinan bisa berjalan bertahap
+ * tanpa membuat gambar yang sudah tayang tiba-tiba hilang.
+ */
+async function berkasStorage(id) {
+  if (!pakaiSupabase()) return null;
+  const modul = await import('../server/gas.mjs');
+  const baris = modul.berkasRow(id);
+  if (!baris) return null;
+  try {
+    const hasil = modul.simpan('GET', baris.emberas, baris.id);
+    const bytes = Buffer.from(String(hasil.b64 || ''), 'base64');
+    return bytes.length ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+
+function sajikanGambar(res, bytes) {
+  const mime = imageMime(bytes);
+  if (!mime) return res.status(502).json({ ok: false, error: 'Berkas bukan gambar yang didukung.' });
+  res.setHeader('Content-Type', mime);
+  res.setHeader('Content-Length', String(bytes.length));
+  res.setHeader('Content-Disposition', 'inline');
+  res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=21600, stale-while-revalidate=3600');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  return res.end(bytes);
+}
+
 async function serveDriveImage(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const id = String(req.query?.imageId || '');
@@ -132,6 +195,8 @@ async function serveDriveImage(req, res) {
   }
 
   try {
+    const tersimpan = await berkasStorage(id);
+    if (tersimpan) return sajikanGambar(res, tersimpan, id);
     const upstream = await fetch(
       'https://drive.usercontent.google.com/download?id=' + encodeURIComponent(id) + '&export=view&authuser=0',
       { redirect: 'follow', signal: AbortSignal.timeout(15_000) }
@@ -198,15 +263,9 @@ async function serveDriveImage(req, res) {
  */
 const PUSAKA_BLOK = 1024 * 1024;
 
-/** Satu tarikan blok lewat Apps Script; balasan sudah lolos pemeriksaan sesi. */
+/** Satu tarikan blok lewat backend; balasan sudah lolos pemeriksaan sesi. */
 async function pustakaBlok(gasUrl, sesi, docId, driveId, mulai, jumlah, ip) {
-  const jawaban = await fetch(gasUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'pustakaBlok', token: sesi, doc: docId, mulai, jumlah, ip }),
-    signal: AbortSignal.timeout(30_000)
-  });
-  const body = await jawaban.json().catch(() => null);
+  const body = await kirimAksi({ action: 'pustakaBlok', token: sesi, doc: docId, mulai, jumlah, ip }, gasUrl);
   if (!body?.ok) {
     const pesan = String(body?.error || '');
     const ditolak = /ditolak|masuk ulang|khusus akun|tidak ditemukan/i.test(pesan);
@@ -392,19 +451,8 @@ export default async function handler(req, res) {
 
   const url = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
   try {
-    const upstream = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      // Apps Script never sees the visitor's IP, so the durable limiter needs it here.
-      body: JSON.stringify({ ...body, ip })
-    });
-    const raw = await upstream.text();
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error('Respons Apps Script bukan JSON. Periksa URL deployment dan izin Web App.');
-    }
+    // Apps Script never sees the visitor's IP, so the durable limiter needs it here.
+    const data = await kirimAksi({ ...body, ip }, url);
     return res.status(200).json(rewriteDriveImages(data));
   } catch (e) {
     return res.status(502).json({ ok: false, error: e.message || 'Gagal menghubungi Apps Script.' });
