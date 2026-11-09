@@ -39,6 +39,9 @@
     .hint.warn{color:#8a5a00}
     .preview{margin-top:7px;padding:12px 14px;border:1px dashed #c9d7e4;border-radius:10px;background:#f8fbfd;font-size:12.5px;color:#42546a}
     .preview b{color:var(--navy)}
+    .consent{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid #d5e0eb;border-radius:10px;background:#f8fbfd;font-size:12.5px;line-height:1.55;color:#42546a}
+    .consent input{width:18px;height:18px;min-height:0;flex:none;margin-top:2px;padding:0;accent-color:var(--navy)}
+    .consent a{color:var(--blue);font-weight:700}
     button.primary{width:100%;border:0;background:var(--navy);color:#fff;padding:14px;border-radius:11px;font:inherit;font-weight:800;margin-top:22px;cursor:pointer;transition:background .2s,transform .2s}
     button.primary:hover{background:var(--blue);transform:translateY(-1px)}
     button.primary:disabled{opacity:.6;cursor:wait;transform:none}
@@ -99,6 +102,12 @@
           <div class="field"><label class="lbl" for="phone">Nomor WhatsApp</label><input id="phone" inputmode="tel" placeholder="08xx"></div>
           <div class="field"><label class="lbl" for="skUrl">Tautan SK / surat tugas</label><input id="skUrl" type="url" placeholder="https://drive.google.com/..."><div class="hint">Opsional, memudahkan verifikasi.</div></div>
           <div class="field full"><label class="lbl" for="note">Catatan untuk verifikator</label><textarea id="note" maxlength="500" placeholder="Contoh: SK periode 2025–2029, kontak sekretaris."></textarea></div>
+          <div class="field full">
+            <label class="consent" for="consent">
+              <input id="consent" type="checkbox" required>
+              <span>Saya telah membaca dan menyetujui <a href="/privasi.html" target="_blank" rel="noopener">Kebijakan Privasi</a> SuperApp PB PII, termasuk pemrosesan data pribadi untuk keperluan keanggotaan dan verifikasi lembaga.</span>
+            </label>
+          </div>
           <div class="field full"><label class="lbl">Verifikasi keamanan</label><div id="captchaBox"></div><div class="hint">Dipakai untuk menahan pendaftaran ganda dari bot.</div></div>
         </div>
 
@@ -425,6 +434,7 @@
       if (password.length < 8) return showMessage('Kata sandi minimal 8 karakter.', 'err');
       if (password !== $('password2').value) return showMessage('Kata sandi dan ulangannya tidak sama.', 'err');
       if (verifikasi && !verifikasi.valid()) return showMessage('Centang kotak verifikasi keamanan dulu, lalu kirim.', 'err');
+      if (!$('consent').checked) return showMessage('Setujui Kebijakan Privasi terlebih dahulu sebelum mengirim pendaftaran.', 'err');
 
       const payload = {
         action: 'orgRegister',

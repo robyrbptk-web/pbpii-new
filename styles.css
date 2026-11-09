@@ -4451,6 +4451,34 @@ body.ada-sesi [data-requires='kader'] {
   font-size: .78rem;
 }
 
+.kader-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fbfd;
+  color: #46586d;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
+.kader-consent input {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  flex: none;
+  margin: 1px 0 0;
+  padding: 0;
+  accent-color: var(--navy);
+}
+
+.kader-consent a {
+  color: var(--blue);
+  font-weight: 700;
+}
+
 .kader-notice {
   color: #a51e27;
   font-size: .76rem;

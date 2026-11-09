@@ -314,6 +314,10 @@
               </span>
             </label>
             <div class="kader-captcha" data-captcha-slot="daftar"></div>
+            <label class="kader-consent">
+              <input type="checkbox" name="consent" required>
+              <span>Saya menyetujui <a href="/privasi.html" target="_blank" rel="noopener">Kebijakan Privasi</a> SuperApp PB PII.</span>
+            </label>
             <p class="kader-hint">Simpan kata sandi Anda dengan baik. Bila lupa, pemulihan dilakukan lewat pengurus PB PII.</p>
             <button class="kader-go" type="submit">Buat akun kader</button>
             <p class="kader-alt">Sudah punya akun? <button class="kader-link" type="button" data-tab="email">Masuk</button></p>
@@ -361,6 +365,7 @@
       if (name.length < 3) { setNotice('Tulis nama minimal 3 karakter.'); return; }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setNotice('Alamat email belum benar.'); return; }
       if (password.length < 8) { setNotice('Kata sandi minimal 8 karakter.'); return; }
+      if (!data.get('consent')) { setNotice('Setujui Kebijakan Privasi sebelum membuat akun.'); return; }
       kirim(event.target, () => api({
         action: 'kaderRegister', name, email, password,
         ...(verifikasi.daftar?.fields?.() || {})
