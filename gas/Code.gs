@@ -10,7 +10,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-06.13';
+const BACKEND_VERSION = '2026-11-09.1';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -492,9 +492,9 @@ function setup() {
   if (diperbaiki.length) laporan.push('Kolom dilengkapi: ' + diperbaiki.join(', ') + '.');
   if (faktaDitanam) {
     laporan.push('Fakta awal ditanam ke sheet Fakta: ' + faktaDitanam +
-      ' keterangan. Sunting di sana setiap kali kepengurusan berganti.');
+      ' keterangan. Nilainya mengikuti Pengaturan situs dan artikel terbit.');
   }
-  laporan.push('Pacu harian penarikan data resmi pbpii.or.id: ' + pacuFakta + '.');
+  laporan.push('Pacu harian penyelarasan data resmi pbpii.or.id: ' + pacuFakta + '.');
   if (bersih) {
     laporan.push('Sisa feed yang kabarnya sudah dihapus dibersihkan: ' + sisa.komentar + ' komentar, ' +
       sisa.reaksi + ' suka, ' + sisa.markah + ' penanda, ' + sisa.berkas + ' berkas Drive, ' +
@@ -1702,6 +1702,10 @@ function saveSettings_(values) {
       sheet.appendRow([key, value]);
     }
   });
+
+  // Keterangan identitas di sheet Fakta adalah cermin pengaturan ini, jadi
+  // perubahan slogan atau kepengurusan langsung sampai ke Tanya PII.
+  faktaCerminSettings_(settingsMap_());
 
   return adminSettings_();
 }
@@ -5005,53 +5009,32 @@ function faktaDaftar_() {
 
 /**
  * Baris pertama sheet Fakta diambil dari data yang sudah ada di Settings, supaya
- * pertanyaan kepengurusan langsung terjawab setelah setup() tanpa admin harus
- * mengetik ulang. Hanya berjalan bila sheet masih kosong; tidak pernah menimpa.
+ * pertanyaan kepengurusan dan slogan langsung terjawab setelah setup() tanpa
+ * admin harus mengetik ulang. Hanya berjalan bila sheet masih kosong; tidak
+ * pernah menimpa. Beraut 'sinkron' karena nilainya cermin pengaturan situs —
+ * begitu pengurus mengubah Settings, cerminnya ikut diperbarui, bukan tertinggal.
  */
 function faktaTanam_() {
   if (faktaBaris_().length) return 0;
-  const pengaturan = {};
+  let pengaturan;
   try {
-    rows_(APP.SHEET_SETTINGS).forEach(function (row) {
-      pengaturan[String(row.key)] = cleanText_(row.value);
-    });
+    pengaturan = settingsMap_();
   } catch (error) {
     return 0;
   }
 
   const hari = todayKey_();
-  const calon = [];
-  const ketua = pengaturan.chairmanName;
-  if (ketua) {
-    const peran = pengaturan.chairmanRole || '';
-    // Peran hanya dipakai bila ia menambah informasi; banyak pengurus menulis
-    // "Ketua Umum PB PII" di kolom peran sehingga kalimatnya jadi berulang.
-    const berguna = peran && peran.toLowerCase().indexOf('ketua umum') < 0;
-    const dasar = 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah ' + ketua +
-      (berguna ? ' (' + peran + ')' : '');
-    calon.push({
-      topik: 'kepengurusan ketua umum',
-      pernyataan: dasar + (/\.$/.test(dasar) ? '' : '.'),
-      sumber: 'Pengurus Besar Pelajar Islam Indonesia'
-    });
-  }
+  const calon = faktaIdentitas_(pengaturan);
   if (pengaturan.heroText) {
     calon.push({
       topik: 'sejarah berdiri',
       pernyataan: 'Pelajar Islam Indonesia berdiri pada 4 Mei 1947 dan merupakan organisasi pelajar Islam tertua di Indonesia.',
+      inti: '4 Mei 1947',
       sumber: 'Buku Panduan Kelembagaan PII',
-      terbit: '1947-05-04', sejak: '1947-05-04'
-    });
-  }
-  const alamat = /Jl\.[^·;\n]{3,80}/i.exec([
-    pengaturan.footerText, pengaturan.aboutText, pengaturan.heroText, pengaturan.siteName
-  ].filter(Boolean).join(' · '));
-  if (alamat) {
-    calon.push({
-      topik: 'kantor sekretariat pb pii alamat',
-      pernyataan: 'Sekretariat Pengurus Besar Pelajar Islam Indonesia beralamat di ' +
-        cleanText_(alamat[0]) + '.',
-      sumber: 'Kontak Pengurus Besar PII'
+      tautan: '',
+      terbit: '1947-05-04',
+      sejak: '1947-05-04',
+      status: 'terkonfirmasi'
     });
   }
 
@@ -5062,34 +5045,35 @@ function faktaTanam_() {
       topik: data.topik,
       pernyataan: data.pernyataan,
       sumber: data.sumber,
-      tautan: '',
+      tautan: data.tautan,
       terbit: data.terbit || '',
       berlakuSejak: sejak,
       berlakuSampai: '',
       status: 'terkonfirmasi'
-    }, 'admin');
+    }, 'sinkron');
   });
   return calon.length;
 }
 
 /* ------------------------------------------------ sinkronisasi data resmi
 
-   Situs resmi PB PII adalah sumber pertama untuk keterangan yang berubah waktu.
-   Job harian menarik laman/berita dari API WordPress situs tersebut, mengambil
-   kalimat kunci, dan menulisnya ke sheet Fakta sebagai baris beraut 'sinkron'
-   supaya jalur tanya-pertanyaan tidak bergantung pada penelusuran web. */
+   Sumber resminya adalah aplikasi ini sendiri. Sejak SuperApp menggantikan
+   WordPress, keterangan organisasi hidup di sheet Settings dan artikel terbit;
+   REST API lama sudah tidak melayani, jadi job harian membaca keduanya langsung
+   dan menulis hasilnya ke sheet Fakta sebagai baris beraut 'sinkron'. Tanpa
+   panggilan keluar, penyelarasan tidak bisa gagal karena situs sendiri sedang
+   tidak terjangkau dari tempat job berjalan.
 
-const FAKTA_SINKRON_API = 'https://pbpii.or.id/wp-json/wp/v2';
+   Settings dibaca sebagai data berstruktur: nilainya sudah diketahui persis,
+   jadi tidak perlu ditebak dengan pola teks. Artikel dibaca sebagai teks dan
+   hanya menghasilkan kandidat berstatus menunggu — laporan kegiatan bukan
+   keterangan organisasi yang sudah disahkan pengurus. */
+
 const FAKTA_SINKRON_JAM = 3;
-/**
- * Laman (`pages`) adalah konten yang dikelola pengurus, jadi hasilnya boleh
- * langsung berstatus terkonfirmasi. Berita (`posts`) hanya laporan kegiatan:
- * masuk sebagai kandidat yang menunggu pemeriksaan pengurus.
- */
-const FAKTA_SINKRON_JENIS = [
-  { jalur: 'pages', batas: 30, urut: 'modified', status: 'terkonfirmasi' },
-  { jalur: 'posts', batas: 10, urut: 'date', status: 'menunggu' }
-];
+const FAKTA_SINKRON_ARTIKEL = 20;
+const FAKTA_SUMBER_ATUR = 'Pengaturan situs pbpii.or.id';
+const FAKTA_SUMBER_ARTIKEL = 'Artikel resmi pbpii.or.id';
+const FAKTA_LAMAN_UTAMA = 'https://pbpii.or.id/';
 
 /** Nama orang: minimal dua kata berhuruf besar, bukan nama lembaga. */
 function faktaNama_(teks) {
@@ -5116,6 +5100,76 @@ function faktaSurel_(teks) {
 function faktaPeriode_(teks) {
   const cocok = /((?:19|20)\d{2})\s*(?:–|-|—|s\.?d\.?|sampai)\s*((?:19|20)\d{2})/i.exec(String(teks || ''));
   return cocok ? cocok[1] + ' - ' + cocok[2] : '';
+}
+
+/**
+ * Keterangan identitas yang nilainya sudah berstruktur di Settings. Topiknya
+ * memakai kata yang mungkin dipakai penanya — bukan nama kolomnya — supaya
+ * "apa slogan PB PII", "apa tagline PII", dan "apa semboyan PII" menemukan baris
+ * yang sama. Nilainya disalin apa adanya dari pengaturan yang disimpan pengurus,
+ * jadi tidak ada keterangan yang dikarang di sini.
+ */
+function faktaIdentitas_(pengaturan) {
+  const calon = [];
+  const titik = function (teks) { return /[.!?]$/.test(teks) ? teks : teks + '.'; };
+  const tulis = function (topik, pernyataan, inti) {
+    const isi = cleanText_(pernyataan).slice(0, 600);
+    if (!isi) return;
+    calon.push({
+      topik: topik,
+      pernyataan: isi,
+      inti: cleanText_(inti),
+      sumber: FAKTA_SUMBER_ATUR,
+      tautan: FAKTA_LAMAN_UTAMA,
+      terbit: '',
+      status: 'terkonfirmasi'
+    });
+  };
+
+  const slogan = cleanText_(pengaturan.tagline).slice(0, 120);
+  if (slogan) {
+    tulis('slogan tagline semboyan pb pii', titik('Slogan PB PII adalah ' + slogan), slogan);
+  }
+
+  const nama = cleanText_(pengaturan.siteName).slice(0, 120);
+  // Nama pendek seperti "PB PII" tidak menambah keterangan apa pun bagi penanya.
+  if (nama.length > 14) {
+    tulis('nama resmi organisasi pb pii', titik('Nama resmi organisasi PB PII adalah ' + nama), nama);
+  }
+
+  const ketua = cleanText_(pengaturan.chairmanName).slice(0, 60);
+  if (ketua) {
+    const peran = cleanText_(pengaturan.chairmanRole);
+    // Peran hanya dipakai bila ia menambah informasi; banyak pengurus menulis
+    // "Ketua Umum PB PII" di kolom peran sehingga kalimatnya jadi berulang.
+    const berguna = peran && peran.toLowerCase().indexOf('ketua umum') < 0;
+    tulis('kepengurusan ketua umum',
+      titik('Ketua Umum Pengurus Besar Pelajar Islam Indonesia adalah ' + ketua +
+        (berguna ? ' (' + peran + ')' : '')), ketua);
+  }
+
+  const periode = faktaPeriode_(pengaturan.chairmanRole);
+  if (periode) {
+    tulis('periode kepengurusan pb pii',
+      'Kepengurusan Pengurus Besar Pelajar Islam Indonesia berjalan untuk Periode ' + periode + '.',
+      periode);
+  }
+
+  const alamat = faktaAlamat_(/Jl\.[^·;\n]{3,80}/i.exec([
+    pengaturan.footerText, pengaturan.aboutText, pengaturan.heroText, pengaturan.siteName
+  ].filter(Boolean).join(' · ')) || '');
+  if (alamat) {
+    tulis('kantor sekretariat pb pii alamat',
+      titik('Sekretariat Pengurus Besar Pelajar Islam Indonesia beralamat di ' + alamat), alamat);
+  }
+
+  const surel = faktaSurel_(pengaturan.contactEmail);
+  if (surel) {
+    tulis('email sekretariat pb pii',
+      'Surel resmi Pengurus Besar Pelajar Islam Indonesia adalah ' + surel + '.', surel);
+  }
+
+  return calon;
 }
 
 /**
@@ -5175,40 +5229,37 @@ function faktaTeksHtml_(html) {
     .trim();
 }
 
-/** Daftar laman/berita beserta isi teksnya dari API WordPress situs resmi. */
-function faktaLamanResmi_(jenis) {
-  const url = FAKTA_SINKRON_API + '/' + jenis.jalur +
-    '?_fields=link,title,date,modified,content&per_page=' + jenis.batas +
-    '&orderby=' + jenis.urut + '&order=desc';
-  let jawaban;
+/**
+ * Artikel terbit aplikasi ini, dibaca langsung dari lembarnya. Tautannya memakai
+ * alamat baca yang benar-benar dipakai situs (?artikel=slug) supaya sumber yang
+ * disebut jawaban Tanya PII bisa dibuka pembaca, bukan alamat WordPress lama.
+ */
+function faktaArtikelResmi_() {
+  let baris;
   try {
-    jawaban = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    baris = rows_(APP.SHEET_ARTICLES);
   } catch (error) {
     return [];
   }
-  if (Number(jawaban.getResponseCode()) !== 200) return [];
-
-  let isi;
-  try {
-    isi = JSON.parse(jawaban.getContentText('UTF-8'));
-  } catch (error) {
-    return [];
-  }
-  if (!Array.isArray(isi)) return [];
-
-  return isi.map(function (halaman) {
-    return {
-      tautan: cleanText_(halaman.link),
-      judul: faktaTeksHtml_(halaman.title && halaman.title.rendered),
-      tanggal: faktaTanggal_(halaman.modified || halaman.date),
-      teks: faktaTeksHtml_(halaman.content && halaman.content.rendered)
-    };
-  }).filter(function (halaman) {
-    return /^https:\/\/pbpii\.or\.id\//i.test(halaman.tautan) && halaman.teks.length > 40;
-  });
+  return baris
+    .filter(function (item) { return String(item.status).toLowerCase() === 'published'; })
+    .sort(function (a, b) {
+      return String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt));
+    })
+    .slice(0, FAKTA_SINKRON_ARTIKEL)
+    .map(function (item) {
+      const slug = cleanText_(item.slug);
+      return {
+        tautan: slug ? FAKTA_LAMAN_UTAMA + '?artikel=' + encodeURIComponent(slug) : FAKTA_LAMAN_UTAMA,
+        judul: cleanText_(item.title),
+        tanggal: faktaTanggal_(item.updatedAt || item.createdAt),
+        teks: faktaTeksHtml_([item.title, item.excerpt, item.content].filter(Boolean).join('. '))
+      };
+    })
+    .filter(function (halaman) { return halaman.teks.length > 40; });
 }
 
-/** Pernyataan yang bisa ditarik dari satu laman; laman tanpa pola tidak ditulis. */
+/** Pernyataan yang bisa ditarik dari satu artikel; tanpa pola tidak ditulis. */
 function faktaCalonDari_(halaman, status) {
   const calon = [];
   FAKTA_POLA.forEach(function (aturan) {
@@ -5220,7 +5271,7 @@ function faktaCalonDari_(halaman, status) {
       topik: aturan.topik,
       pernyataan: aturan.kalimat(nilai),
       inti: nilai,
-      sumber: 'Laman resmi pbpii.or.id',
+      sumber: FAKTA_SUMBER_ARTIKEL,
       tautan: halaman.tautan,
       terbit: halaman.tanggal,
       status: status
@@ -5258,24 +5309,8 @@ function faktaKemarin_(hari) {
   return Utilities.formatDate(kemarin, timeZone_(), 'yyyy-MM-dd');
 }
 
-/**
- * Satu kali penarikan: tulis baris baru, tandai baris lama yang tergantikan
- * sebagai usang (tidak pernah dihapus supaya riwayat tetap terbaca), dan jangan
- * pernah menyentuh baris yang dikelola pengurus. Bila situs resmi dan isian
- * admin berbeda, perbedaan itu dilaporkan untuk ditinjau, bukan diputuskan sendiri.
- */
-function faktaSinkron(paksa) {
-  const pengaturan = settingsMap_();
-  if (String(pengaturan.faktaSinkronAktif || 'true') === 'false') {
-    return { aktif: false, alasan: 'Penarikan otomatis data resmi dimatikan dari dasbor.' };
-  }
-
-  const hari = todayKey_();
-  // Trigger menerima objek peristiwa, jadi hanya nilai true yang memaksa jalan.
-  if (paksa !== true && faktaTerakhirSinkron_() === hari) {
-    return { aktif: true, lewat: true, alasan: 'Data resmi sudah ditarik hari ini.' };
-  }
-
+/** Baris yang masih hidup, dipisah antara yang dikelola pengurus dan yang mesin. */
+function faktaKonteks_(hari) {
   const manusia = {};
   const mesin = {};
   faktaBaris_().forEach(function (item) {
@@ -5287,84 +5322,157 @@ function faktaSinkron(paksa) {
       manusia[topik] = item;
     }
   });
+  return { manusia: manusia, mesin: mesin, hari: hari };
+}
 
-  const hasil = { aktif: true, baru: 0, diganti: 0, sama: 0, tinjauan: [] };
-  const dilihat = {};
-  FAKTA_SINKRON_JENIS.forEach(function (jenis) {
-    faktaLamanResmi_(jenis).forEach(function (halaman) {
-      faktaCalonDari_(halaman, jenis.status).forEach(function (calon) {
-        /* Laman sudah diurutkan dari yang paling baru, jadi topik yang sama
-           cukup diambil dari terbitan terbaru dan tidak ditimpa yang lebih lama. */
-        if (dilihat[calon.topik]) return;
-        dilihat[calon.topik] = true;
-
-        const kelola = manusia[calon.topik];
-        if (kelola) {
-          /* Pengurus yang memegang baris ini, jadi nilainya tidak ditimpa.
-             Kalau keterangan yang dikelola sudah memuat nilai dari situs,
-             keduanya sepakat dan tidak ada yang perlu dilaporkan. */
-          const kelolaTeks = cleanText_(kelola.pernyataan).toLowerCase();
-          if (kelolaTeks === calon.pernyataan.toLowerCase() ||
-              kelolaTeks.indexOf(String(calon.inti).toLowerCase()) >= 0) {
-            hasil.sama += 1;
-          } else {
-            hasil.tinjauan.push({
-              topik: calon.topik,
-              dikelola: kelolaTeks.slice(0, 200),
-              situs: calon.pernyataan.slice(0, 200),
-              tautan: calon.tautan
-            });
-          }
-          return;
-        }
-
-        const lama = mesin[calon.topik];
-        if (lama && cleanText_(lama.pernyataan) === calon.pernyataan) {
-          hasil.sama += 1;
-          return;
-        }
-        if (lama) {
-          faktaTulis_({
-            id: String(lama.id || ''),
-            topik: cleanText_(lama.topik),
-            pernyataan: cleanText_(lama.pernyataan),
-            sumber: cleanText_(lama.sumber),
-            tautan: cleanText_(lama.tautan),
-            terbit: faktaTanggal_(lama.terbit),
-            berlakuSejak: faktaTanggal_(lama.berlakuSejak) || hari,
-            berlakuSampai: faktaKemarin_(hari),
-            status: 'usang'
-          }, 'sinkron');
-          hasil.diganti += 1;
-        } else {
-          hasil.baru += 1;
-        }
-
-        faktaTulis_({
-          id: faktaIdBaru_('fakta-' + slugify_(calon.topik) + '-' + hari.replace(/-/g, '')),
-          topik: calon.topik,
-          pernyataan: calon.pernyataan,
-          sumber: calon.sumber,
-          tautan: calon.tautan,
-          terbit: calon.terbit,
-          berlakuSejak: calon.terbit || hari,
-          berlakuSampai: '',
-          status: calon.status
-        }, 'sinkron');
+/**
+ * Terapkan satu kandidat. Baris pengurus tidak pernah ditimpa: bila berbeda,
+ * selisihnya dilaporkan untuk ditinjau, bukan diputuskan sendiri. Baris mesin
+ * yang tergantikan ditandai usang — tidak pernah dihapus — supaya riwayat
+ * keterangannya tetap terbaca.
+ */
+function faktaTerapkan_(calon, konteks, hasil) {
+  const hari = konteks.hari;
+  const kelola = konteks.manusia[calon.topik];
+  if (kelola) {
+    const kelolaTeks = cleanText_(kelola.pernyataan).toLowerCase();
+    const inti = cleanText_(calon.inti).toLowerCase();
+    if (kelolaTeks === cleanText_(calon.pernyataan).toLowerCase() ||
+        (inti && kelolaTeks.indexOf(inti) >= 0)) {
+      hasil.sama += 1;
+    } else {
+      hasil.tinjauan.push({
+        topik: calon.topik,
+        dikelola: kelolaTeks.slice(0, 200),
+        situs: cleanText_(calon.pernyataan).slice(0, 200),
+        tautan: calon.tautan
       });
+    }
+    return;
+  }
+
+  const lama = konteks.mesin[calon.topik];
+  if (lama && cleanText_(lama.pernyataan) === cleanText_(calon.pernyataan)) {
+    hasil.sama += 1;
+    return;
+  }
+  /* Artikel baru mengusulkan. Laporan kegiatan yang belum diperiksa pengurus
+     tidak boleh memensiunkan keterangan yang sudah terkonfirmasi — selisihnya
+     dilaporkan supaya pengurus yang memutuskan, bukan mesin. */
+  if (lama && cleanText_(calon.status) !== 'terkonfirmasi' &&
+      cleanText_(lama.status || 'terkonfirmasi') === 'terkonfirmasi') {
+    hasil.tinjauan.push({
+      topik: calon.topik,
+      dikelola: cleanText_(lama.pernyataan).toLowerCase().slice(0, 200),
+      situs: cleanText_(calon.pernyataan).slice(0, 200),
+      tautan: calon.tautan
     });
+    return;
+  }
+  if (lama) {
+    faktaTulis_({
+      id: String(lama.id || ''),
+      topik: cleanText_(lama.topik),
+      pernyataan: cleanText_(lama.pernyataan),
+      sumber: cleanText_(lama.sumber),
+      tautan: cleanText_(lama.tautan),
+      terbit: faktaTanggal_(lama.terbit),
+      berlakuSejak: faktaTanggal_(lama.berlakuSejak) || hari,
+      berlakuSampai: faktaKemarin_(hari),
+      status: 'usang'
+    }, 'sinkron');
+    hasil.diganti += 1;
+  } else {
+    hasil.baru += 1;
+  }
+
+  faktaTulis_({
+    id: faktaIdBaru_('fakta-' + slugify_(calon.topik) + '-' + hari.replace(/-/g, '')),
+    topik: calon.topik,
+    pernyataan: calon.pernyataan,
+    sumber: calon.sumber,
+    tautan: calon.tautan,
+    terbit: calon.terbit,
+    berlakuSejak: calon.terbit || hari,
+    berlakuSampai: '',
+    status: calon.status
+  }, 'sinkron');
+}
+
+/** Selisih dengan keterangan yang dikelola pengurus masuk kotak kabar admin. */
+function faktaTinjauanKabar_(hasil, hari) {
+  if (!hasil.tinjauan.length) return;
+  notifKirim_(NOTIF_KOTAK_ADMIN, {
+    jenis: 'fakta',
+    judul: hasil.tinjauan.length + ' keterangan resmi perlu ditinjau',
+    isi: hasil.tinjauan.map(function (item) { return item.topik; }).join(', '),
+    tautan: 'admin.html?halaman=resmi'
+  }, 'notif-fakta-' + hari);
+}
+
+/** Hasil satu putaran penyelarasan, tanpa keterangan aktifnya. */
+function faktaHasilBaru_() {
+  return { baru: 0, diganti: 0, sama: 0, tinjauan: [] };
+}
+
+/**
+ * Cermin keterangan identitas dari Settings. Dipanggil setiap kali pengurus
+ * menyimpan pengaturan, supaya slogan atau ketua umum yang baru langsung dipakai
+ * Tanya PII tanpa menunggu job pagi. Topiknya satu per satu, jadi pengaturan yang
+ * tidak berubah tidak menghasilkan tulisan apa pun.
+ */
+function faktaCerminSettings_(pengaturan) {
+  const hari = todayKey_();
+  const hasil = faktaHasilBaru_();
+  const konteks = faktaKonteks_(hari);
+  const dilihat = {};
+  faktaIdentitas_(pengaturan).forEach(function (calon) {
+    if (dilihat[calon.topik]) return;
+    dilihat[calon.topik] = true;
+    faktaTerapkan_(calon, konteks, hasil);
+  });
+  faktaTinjauanKabar_(hasil, hari);
+  return hasil;
+}
+
+/**
+ * Satu kali penyelarasan: keterangan identitas dari Settings disalin lebih dulu
+ * karena itulah isian pengurus yang paling berwenang, lalu artikel terbit dibaca
+ * sebagai kandidat yang menunggu pemeriksaan. Tidak ada panggilan keluar, jadi
+ * job ini tetap jalan walaupun situs sedang tidak terjangkau dari luar.
+ */
+function faktaSinkron(paksa) {
+  const pengaturan = settingsMap_();
+  if (String(pengaturan.faktaSinkronAktif || 'true') === 'false') {
+    return { aktif: false, alasan: 'Penyelarasan otomatis data resmi dimatikan dari dasbor.' };
+  }
+
+  const hari = todayKey_();
+  // Trigger menerima objek peristiwa, jadi hanya nilai true yang memaksa jalan.
+  if (paksa !== true && faktaTerakhirSinkron_() === hari) {
+    return { aktif: true, lewat: true, alasan: 'Data resmi sudah diselaraskan hari ini.' };
+  }
+
+  const hasil = faktaHasilBaru_();
+  hasil.aktif = true;
+  const konteks = faktaKonteks_(hari);
+  const dilihat = {};
+  const calon = faktaIdentitas_(pengaturan);
+  faktaArtikelResmi_().forEach(function (halaman) {
+    faktaCalonDari_(halaman, 'menunggu').forEach(function (item) { calon.push(item); });
+  });
+
+  calon.forEach(function (item) {
+    /* Artikel sudah diurutkan dari yang terbaru, jadi topik yang sama cukup
+       diambil dari sumber paling berwenang dan tidak ditimpa yang lebih lama. */
+    if (dilihat[item.topik]) return;
+    dilihat[item.topik] = true;
+    faktaTerapkan_(item, konteks, hasil);
   });
 
   Logger.log('faktaSinkron ' + hari + ': baru ' + hasil.baru + ', diganti ' + hasil.diganti +
     ', sama ' + hasil.sama + ', perlu ditinjau ' + hasil.tinjauan.length);
-  if (hasil.tinjauan.length) {
-    notifKirim_(NOTIF_KOTAK_ADMIN, {
-      jenis: 'fakta',
-      judul: hasil.tinjauan.length + ' keterangan resmi perlu ditinjau',
-      isi: hasil.tinjauan.map(function (item) { return item.topik; }).join(', '),
-      tautan: 'admin.html?halaman=resmi'
-    }, 'notif-fakta-' + hari);
-  }
+  faktaTinjauanKabar_(hasil, hari);
   if (!hasil.baru && !hasil.diganti && !hasil.tinjauan.length) hasil.lewat = true;
   return hasil;
 }

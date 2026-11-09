@@ -64,13 +64,18 @@ async function aksiSupabase(badan) {
   return jalankan(badan);
 }
 
-/** Kirim satu aksi danembalikan sampul {ok,data} yang sudah diurai. */
-async function kirimAksi(badan, gasUrl) {
+/**
+ * Kirim satu aksi danembalikan sampul {ok,data} yang sudah diurai. Dipakai juga
+ * oleh api/chat.js supaya rujukan dan kuota Tanya PII membaca backend yang sama
+ * dengan sisa aplikasi — bukan lembar lama yang sudah tidak ditulis lagi.
+ */
+export async function kirimAksi(badan, gasUrl, tenggatMs) {
   if (pakaiSupabase()) return aksiSupabase(badan);
   const upstream = await fetch(gasUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(badan)
+    body: JSON.stringify(badan),
+    signal: tenggatMs ? AbortSignal.timeout(tenggatMs) : undefined
   });
   const raw = await upstream.text();
   try {

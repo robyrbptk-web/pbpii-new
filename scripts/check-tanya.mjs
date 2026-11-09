@@ -4,8 +4,8 @@
  *   npm run check:tanya
  *
  * `api/chat.js` dimuat apa adanya (impor baris pertamanya dilepas) lalu
- * `fetch`-nya diganti tiruan yang mengembalikan umpan RSS/WordPress. Yang
- * diperiksa adalah aturan yang membuatnya aman untuk pembaca: laman resmi
+ * `fetch`-nya diganti tiruan yang mengembalikan umpan RSS dan artikel backend.
+ * Yang diperiksa adalah aturan yang membuatnya aman untuk pembaca: laman resmi
  * mendahului berita, berita mendahului sumber umum, yang terbaru lebih dulu,
  * tautan bukan-HTTPS dan tautan Google News yang tidak terbuka dibuang, dan
  * hasil web tidak pernah menyamar sebagai berkas resmi.
@@ -19,17 +19,28 @@ const sumber = readFileSync(new URL('../api/chat.js', import.meta.url), 'utf8')
 /** Semua permintaan jaringan modul lewat satu corong yang bisa diganti per tes. */
 let fetchImpl = async () => { throw new Error('tes ini tidak boleh memanggil internet'); };
 
+/* Rujukan resmi dan kuota dibaca dari backend aplikasi, bukan dari CMS lama.
+   Tiruan ini meniru jalur Apps Script pada api/pii.js: satu POST, satu sampul. */
+const URL_BACKEND_UJI = 'https://script.google.com/macros/s/uji-tanya/exec';
+const kirimAksiUji = async (badan, url) => {
+  const respons = await fetchImpl(url, { method: 'POST', body: JSON.stringify(badan) });
+  return JSON.parse(await respons.text());
+};
+
 const modul = new Function('fetch', 'AbortSignal', 'process', 'URL', 'TextDecoder',
+  'kirimAksi', 'DEFAULT_GAS_WEB_APP_URL',
   `${sumber}\nreturn { teksUrl, bukaEntitas, teksBersih, isiTag, tanggalISO, tanggalLabel,`
   + ' sumberResmi, tautanAsli, beritaBing, beritaGoogle, hostname, saringRelevan,'
   + ' skorRelevansi, kataKunci, menyebutOrganisasi, cariWeb, sumberBagian, webSitasi,'
-  + ' wikipediaSearch, tepatWaktu, TINGKAT, SUMBER_RESMI, faktaSitasi, bersihkanPenanda,'
+  + ' wikipediaSearch, tepatWaktu, TINGKAT, faktaSitasi, bersihkanPenanda,'
   + ' lampiranBersih, userPesan, handler };')(
   (...args) => fetchImpl(...args),
   { timeout: () => ({}) },
   { env: {} },
   URL,
-  TextDecoder);
+  TextDecoder,
+  kirimAksiUji,
+  URL_BACKEND_UJI);
 
 let lolos = 0;
 let gagal = 0;
@@ -117,21 +128,26 @@ const UMPAN_GOOGLE = `<?xml version="1.0"?><rss version="2.0"><channel>
   </item>
 </channel></rss>`;
 
-const UMPAN_WORDPRESS = JSON.stringify([
-  {
-    link: 'https://pbpii.or.id/sambutan-ketua-umum/',
-    date: '2026-10-20T04:00:00+00:00',
-    modified: '2026-11-01T04:00:00+00:00',
-    title: { rendered: 'Sambutan Ketua Umum PB PII' },
-    content: { rendered: '<p>Kevin Prayoga, S.H. memimpin Pelajar Islam Indonesia periode ini dengan program kaderisasi.</p>' }
-  },
-  {
-    link: 'https://pbpii.or.id/kosong/',
-    date: '2026-09-01T04:00:00+00:00',
-    title: { rendered: 'Posong' },
-    content: { rendered: '<p>terlalu pendek</p>' }
+/* Sampul aksi `public` backend aplikasi: artikel terbit milik pengurus sendiri. */
+const UMPAN_ARTIKEL = JSON.stringify({
+  ok: true,
+  data: {
+    articles: [
+      {
+        title: 'Sambutan Ketua Umum PB PII',
+        slug: 'sambutan-ketua-umum',
+        excerpt: '',
+        content: '<p>Kevin Prayoga, S.H. memimpin Pelajar Islam Indonesia periode ini dengan program kaderisasi.</p>',
+        createdAt: '2026-10-20T04:00:00+00:00',
+        updatedAt: '2026-11-01T04:00:00+00:00'
+      },
+      {
+        title: 'Posong', slug: 'kosong', content: '<p>terlalu pendek</p>',
+        createdAt: '2026-09-01T04:00:00+00:00'
+      }
+    ]
   }
-]);
+});
 
 const muat = (petakan) => async (url) => {
   const teks = Object.keys(petakan).find((cocok) => String(url).includes(cocok));
@@ -148,7 +164,7 @@ const muat = (petakan) => async (url) => {
 const PETA = {
   'bing.com/news/search': UMPAN_BING,
   'news.google.com/rss/search': UMPAN_GOOGLE,
-  'pbpii.or.id/wp-json/wp/v2/posts': UMPAN_WORDPRESS
+  'script.google.com/macros': UMPAN_ARTIKEL
 };
 
 /* -------------------------------------------------------------- parser bertingkat */
@@ -169,11 +185,12 @@ const PETA = {
     sama('Google memisahkan penerbit dari judul', google[0]?.penerbit, 'Antara News');
     sama('Google tetap menandai berita', google[0]?.tier, 'berita');
 
-    const resmi = await modul.sumberResmi(['kepengurusan', 'pb']);
-    sama('WordPress hanya meluluskan pos berisi', resmi.length, 1);
-    sama('WordPress memakai tautan asli', resmi[0]?.url, 'https://pbpii.or.id/sambutan-ketua-umum/');
-    sama('WordPress memakai tanggal terbit', resmi[0]?.tanggal, '2026-10-20');
-    sama('WordPress menandai resmi', resmi[0]?.tier, 'resmi');
+    const resmi = await modul.sumberResmi();
+    sama('Artikel situs sendiri hanya meluluskan pos berisi', resmi.length, 1);
+    sama('Rujukan resmi memakai alamat baca artikel yang sebenarnya',
+      resmi[0]?.url, 'https://pbpii.or.id/?artikel=sambutan-ketua-umum');
+    sama('Tanggal artikel mengikuti pembaruan terakhir', resmi[0]?.tanggal, '2026-11-01');
+    sama('Artikel pengurus ditandai resmi', resmi[0]?.tier, 'resmi');
     sama('Penerbit resmi = domain', resmi[0]?.penerbit, 'pbpii.or.id');
   } finally {
     fetchImpl = asal;
@@ -345,7 +362,7 @@ const PETA = {
     await new Promise((tunggu) => setTimeout(tunggu, milidetik));
     const isi = String(url).includes('bing.com/news') ? UMPAN_BING
       : String(url).includes('news.google.com/rss') ? UMPAN_GOOGLE
-        : String(url).includes('wp-json') ? UMPAN_WORDPRESS : '{}';
+        : String(url).includes('script.google.com/macros') ? UMPAN_ARTIKEL : '{}';
     return { ok: true, status: 200, text: async () => isi, json: async () => JSON.parse(isi) };
   };
   try {
@@ -358,9 +375,10 @@ const PETA = {
     sama('Tenggat habis → tangan kosong, bukan karangan', mepet, []);
 
     fetchImpl = async (url) => {
-      if (String(url).includes('wp-json')) await new Promise((tunggu) => setTimeout(tunggu, 2600));
+      const resmi = String(url).includes('script.google.com/macros');
+      if (resmi) await new Promise((tunggu) => setTimeout(tunggu, 2600));
       const isi = String(url).includes('bing.com/news') ? UMPAN_BING
-        : String(url).includes('news.google.com/rss') ? UMPAN_GOOGLE : UMPAN_WORDPRESS;
+        : String(url).includes('news.google.com/rss') ? UMPAN_GOOGLE : UMPAN_ARTIKEL;
       return { ok: true, status: 200, text: async () => isi, json: async () => JSON.parse(isi) };
     };
     const sebagian = await modul.cariWeb('siapa ketua umum pb pii sekarang', 1500);
@@ -404,8 +422,8 @@ const PETA = {
   sama('tepatWaktu menjaga yang tepat waktu', await modul.tepatWaktu(Date.now() + 600, cepat), [3]);
   sama('tepatWaktu tidak menunggu kalau tenggat sudah lewat',
     await modul.tepatWaktu(Date.now() - 1, new Promise(() => {})), []);
-  sama('Resmi berhenti mencoba kata kedua tanpa sisa waktu',
-    await modul.sumberResmi(['pelajar', 'islam'], Date.now() - 1), []);
+  sama('Sumber resmi tidak dibaca kalau tenggat sudah habis',
+    await modul.sumberResmi(Date.now() - 1), []);
 }
 
 /* -------------------------------------------------------------------- lampiran */

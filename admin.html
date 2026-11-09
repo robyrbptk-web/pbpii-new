@@ -551,9 +551,9 @@
         <div class="panel">
           <div class="list-head">
             <h2>Data resmi berpanduan waktu <span class="badge" id="faktaCount">0</span></h2>
-            <button class="btn secondary" id="syncFaktaButton" type="button">Tarik data resmi</button>
+            <button class="btn secondary" id="syncFaktaButton" type="button">Selaraskan data resmi</button>
           </div>
-          <p class="hint">Keterangan di bawah ini yang menjawab pertanyaan kepengurusan, alamat sekretariat, dan kontak pada Tanya PII. Nilai dari situs resmi PB PII ditarik otomatis setiap pagi dan hanya menambah baris baru — baris yang Anda kelola di sini tidak pernah ditimpa.</p>
+          <p class="hint">Keterangan di bawah ini yang menjawab pertanyaan slogan, kepengurusan, alamat sekretariat, dan kontak pada Tanya PII. Nilainya mengikuti Pengaturan situs dan artikel terbit: setiap kali Anda menyimpan pengaturan, keterangannya ikut diperbarui saat itu juga, dan tombol di atas menyelaraskan semuanya sekaligus. Baris yang Anda tulis sendiri di sini tidak pernah ditimpa.</p>
           <div class="message" id="faktaLaporan" aria-live="polite"></div>
           <div class="item-list" id="faktaList"><div class="empty">Memuat data…</div></div>
         </div>
@@ -1466,7 +1466,7 @@
           ' · sumber: ' + sumber + escapeHTML(masa) + '</p></div><div class="item-actions">' +
           '<button class="btn secondary" data-fakta-edit="' + escapeHTML(item.id) + '">Sunting</button>' +
           '<button class="btn danger" data-fakta-hapus="' + escapeHTML(item.id) + '">Hapus</button></div></div>';
-      }).join('') || '<div class="empty">Belum ada data resmi. Klik “Tarik data resmi” untuk mengambilnya dari situs PB PII.</div>';
+      }).join('') || '<div class="empty">Belum ada data resmi. Klik “Selaraskan data resmi” untuk mengambilnya dari Pengaturan situs dan artikel terbit.</div>';
     }
 
     function isiFaktaForm(item) {
@@ -1540,21 +1540,21 @@
     $('syncFaktaButton').addEventListener('click', async () => {
       const button = $('syncFaktaButton');
       button.disabled = true;
-      button.textContent = 'Menarik…';
+      button.textContent = 'Menyelaraskan…';
       try {
         const data = await api('faktaSinkron');
         const tinjauan = (data.tinjauan || []).length;
         const laporan = $('faktaLaporan');
-        laporan.textContent = 'Penarikan selesai: ' + (data.baru || 0) + ' baru, ' +
+        laporan.textContent = 'Penyelarasan selesai: ' + (data.baru || 0) + ' baru, ' +
           (data.diganti || 0) + ' diperbarui, ' + (data.sama || 0) + ' tetap sama' +
-          (tinjauan ? ' — ' + tinjauan + ' berbeda dari keterangan yang dikelola pengurus, jadi nilai pengurus dipertahankan dan sudah masuk kotak kabar' : '') +
+          (tinjauan ? ' — ' + tinjauan + ' berbeda dari keterangan yang Anda tulis sendiri, jadi nilai Anda dipertahankan dan sudah masuk kotak kabar' : '') +
           '.';
         laporan.className = 'message show ' + (tinjauan ? 'err' : 'ok');
         await loadFakta();
       } catch (e) { notify(e.message, 'err'); }
       finally {
         button.disabled = false;
-        button.textContent = 'Tarik data resmi';
+        button.textContent = 'Selaraskan data resmi';
       }
     });
 

@@ -190,7 +190,7 @@ const scriptCache = {
 const CacheService = { getScriptCache: () => scriptCache };
 
 /** Titik-titik keluar yang bisa diatur per pemeriksaan. */
-const http = { google: null, turnstile: null, ai: null, resmi: null, calls: [] };
+const http = { google: null, turnstile: null, ai: null, calls: [] };
 const UrlFetchApp = {
   fetch(url, options) {
     http.calls.push({ url: String(url), options });
@@ -200,9 +200,7 @@ const UrlFetchApp = {
       return { getContentText: () => teks, getResponseCode: () => 200 };
     }
     if (String(url).includes('/wp-json/wp/v2/')) {
-      const jalur = String(url).includes('/pages') ? 'pages' : 'posts';
-      const teks = JSON.stringify((http.resmi && http.resmi[jalur]) || []);
-      return { getContentText: () => teks, getResponseCode: () => 200 };
+      throw new Error('REST WordPress lama sudah dimatikan; tidak boleh dipanggil lagi: ' + url);
     }
     const text = String(url).includes('oauth2.googleapis.com/tokeninfo')
       ? JSON.stringify(http.google || { error: 'tokeninfo belum diatur' })
@@ -381,6 +379,8 @@ const exported = [
   'THREAD_TURN_MAX', 'THREAD_KATA_MAX', 'THREAD_SEL_MAKS',
   'faktaCocok_', 'faktaBerlaku_', 'faktaSimpan_', 'faktaDaftar_', 'faktaTanam_', 'FAKTA_HEADERS',
   'faktaSinkron', 'pastikanPacuFakta_', 'faktaTeksHtml_', 'faktaNama_', 'faktaAlamat_',
+  'faktaIdentitas_', 'faktaArtikelResmi_', 'faktaCalonDari_', 'faktaCerminSettings_',
+  'faktaTerapkan_', 'faktaKonteks_',
   'notifKirim_', 'notifTautan_', 'NOTIF_HEADERS', 'NOTIF_KOTAK_ADMIN', 'orgSetStatus_', 'orgRegister_'
 ].join(', ');
 const load = new Function(
@@ -2331,13 +2331,26 @@ aturSetting('chairmanName', 'Kevin Prayoga, S.H.');
 aturSetting('chairmanRole', 'Periode 2026 - 2028');
 aturSetting('heroText', 'Pelajar Islam Indonesia berdiri pada 4 Mei 1947.');
 aturSetting('footerText', 'Pengurus Besar — Pelajar Islam Indonesia · Jl. Menteng Raya No. 58, Jakarta Pusat');
+aturSetting('tagline', 'Kepelajaran • Keislaman • Keindonesiaan');
 const ditanam = gas.faktaTanam_();
-check('sheet fakta kosong ditanami keterangan dari Settings', ditanam, 3);
+check('sheet fakta kosong ditanami keterangan dari Settings', ditanam, 5);
 check('hasil tanaman memakai ketua umum yang sekarang',
   /Kevin Prayoga/.test(String(gas.faktaCocok_('siapa ketua umum pb pii', 4)[0].pernyataan)), true);
 check('alamat sekretariat ikut ditanam',
   /Menteng Raya/.test(String(gas.faktaCocok_('alamat kantor sekretariat pb pii', 4)[0].pernyataan)), true);
+check('slogan ikut ditanam dan menjawab pertanyaan slogan',
+  gas.faktaCocok_('apa slogan pb pii', 4)[0].pernyataan,
+  'Slogan PB PII adalah Kepelajaran • Keislaman • Keindonesiaan.');
+check('kata tagline dan semboyan menemukan baris slogan yang sama',
+  [gas.faktaCocok_('apa tagline pb pii', 4)[0].topik, gas.faktaCocok_('semboyan pb pii', 4)[0].topik],
+  ['slogan tagline semboyan pb pii', 'slogan tagline semboyan pb pii']);
+check('periode kepengurusan ikut ditanam dari kolom peran',
+  /Periode 2026 - 2028/.test(String(gas.faktaCocok_('periode kepengurusan pb pii', 4)[0].pernyataan)), true);
+check('nama pendek pada Settings tidak menjadi keterangan yang sia-sia',
+  gas.faktaDaftar_().some((item) => item.topik === 'nama resmi organisasi pb pii'), false);
 check('tanaman kedua tidak menggandakan baris', gas.faktaTanam_(), 0);
+check('tanaman beraut sinkron supaya cermin pengaturan bisa memperbaruinya',
+  gas.faktaDaftar_().every((item) => item.peran === 'sinkron'), true);
 
 SHEETS.Fakta = [];
 aturSetting('chairmanRole', 'Ketua Umum Pengurus Besar Pelajar Islam Indonesia');
@@ -2350,8 +2363,9 @@ check('nama ketua umum tetap lengkap', /Kevin Prayoga, S\.H\.$/.test(ketuaTanam)
 const tercoerce = gas.faktaDaftar_().find((item) => item.topik === 'sejarah berdiri');
 check('tanggal tanaman sejarah tidak bergeser', tercoerce.berlakuSejak, '1947-05-04');
 const tengahMalam = new Date(hariFakta + 'T00:00:00');
-SHEETS.Fakta[0].berlakuSejak = tengahMalam;
-SHEETS.Fakta[0].terbit = tengahMalam.toISOString();
+const barisKetuaTanam = rowsOf('Fakta').find((item) => item.topik === 'kepengurusan ketua umum');
+barisKetuaTanam.berlakuSejak = tengahMalam;
+barisKetuaTanam.terbit = tengahMalam.toISOString();
 const kembali = gas.faktaCocok_('siapa ketua umum pb pii', 4)[0];
 check('sel tanggal yang diubah Sheets dibaca sebagai hari yang sama', kembali.sejak, hariFakta);
 check('stempel UTC dalam teks dikembalikan ke zona script', kembali.terbit, hariFakta);
@@ -2364,7 +2378,7 @@ check('aksi pustaka lain untuk tamu tetap ditolak', /khusus akun/.test(String(
   request({ action: 'pustakaList', ip: '198.51.100.123' }).error)), true);
 
 /* ------------------------------------------------------------------ #157
-   Penarikan berkala data resmi dari situs pbpii.or.id ke sheet Fakta. */
+   Penyelarasan berkala data resmi dari aplikasi ini sendiri ke sheet Fakta. */
 const kemarinSinkron = new Date(Date.now() - 2 * 86400000).toISOString();
 const surelLama = 'fakta-email-sekretariat-pb-pii-' + hariFakta.replace(/-/g, '');
 const hariSebelumFakta = new Date(Date.parse(hariFakta + 'T12:00:00') - 86400000)
@@ -2373,47 +2387,58 @@ SHEETS.Fakta.push({
   id: surelLama,
   topik: 'email sekretariat pb pii',
   pernyataan: 'Surel resmi Pengurus Besar Pelajar Islam Indonesia adalah lama@pbpii.or.id.',
-  sumber: 'Laman resmi pbpii.or.id', tautan: 'https://pbpii.or.id/lama',
+  sumber: 'Pengaturan situs pbpii.or.id', tautan: 'https://pbpii.or.id/',
   terbit: '', berlakuSejak: kemarinSinkron.slice(0, 10), berlakuSampai: '',
   status: 'terkonfirmasi', diperbarui: kemarinSinkron, peran: 'sinkron'
 });
 
-http.resmi = {
-  pages: [{
-    link: 'https://pbpii.or.id/profil-organisasi/',
-    title: { rendered: 'Profil &nbsp;<b>Organisasi</b>' },
-    date: '2026-01-10T08:00:00',
-    modified: '2026-10-30T08:00:00',
-    content: { rendered: '<p>Ketua Umum PB PII adalah Kevin Prayoga, S.H. (Periode 2026 &ndash; 2028).</p>'
-      + '<p>Sekretariat di Jl. Menteng Raya No. 58, Jakarta Pusat. Surel: sekretariat@pbpii.or.id</p>' }
-  }],
-  posts: [{
-    link: 'https://pbpii.or.id/rapat-terbatas/',
-    title: { rendered: 'Rapat Terbatas' },
-    date: '2026-11-01T08:00:00',
-    content: { rendered: '<p>Rapat membahas agenda kaderisasi dan Ketua Umum adalah Badriah Nur, S.Pd.</p>' }
-  }]
-};
+aturSetting('contactEmail', 'sekretariat@pbpii.or.id');
+
+/* Satu laporan kegiatan yang menyebut ketua, periode, alamat, dan surel. Tiga
+   di antaranya sudah dipegang Settings, jadi hanya periode yang boleh menjadi
+   usulan baru — dan usulan artikel tidak pernah mengesahkan dirinya sendiri. */
+SHEETS.Articles = [{
+  id: 'a-resmi', title: 'Rapat Terbatas PB PII', slug: 'rapat-terbatas', category: 'Berita',
+  excerpt: '', coverImage: '', author: 'PB PII', status: 'published', orgId: '',
+  createdAt: '2026-11-01T08:00:00.000Z', updatedAt: '2026-11-01T08:00:00.000Z',
+  content: '<p>Rapat Terbatas membahas agenda kaderisasi Pengurus Besar Periode 2026 &ndash; 2028.</p>'
+    + '<p>Ketua Umum adalah Badriah Nur, S.Pd.</p>'
+    + '<p>Sekretariat di Jl. Diponegoro No. 12, Jakarta Pusat. Surel: panitia@pbpii.or.id</p>'
+}];
 
 check('html laman dibersihkan sebelum dicari polanya',
   gas.faktaTeksHtml_('<p>A &amp; B</p><script>var x=1<\/script><div>C&nbsp;D</div>'), 'A & B C D');
 check('nama jabatan bukan nama orang', gas.faktaNama_('Ketua Umum PB'), '');
 check('dua kata berhuruf besar diterima sebagai nama', gas.faktaNama_('Kevin Prayoga,'), 'Kevin Prayoga');
 
-const panggilanSebelum = http.calls.filter((call) => /wp-json/.test(call.url)).length;
+const lamanResmi = gas.faktaArtikelResmi_();
+check('artikel terbit dibaca dari lembar aplikasi sendiri', lamanResmi.length, 1);
+check('tautan artikel memakai alamat baca yang benar-benar dipakai situs',
+  lamanResmi[0].tautan, 'https://pbpii.or.id/?artikel=rapat-terbatas');
+check('artikel draf tidak ikut dibaca', (() => {
+  SHEETS.Articles.push({ ...SHEETS.Articles[0], id: 'a-draf', slug: 'draf', status: 'draft' });
+  const jumlah = gas.faktaArtikelResmi_().length;
+  SHEETS.Articles.pop();
+  return jumlah;
+})(), 1);
+check('settings dibaca sebagai nilai berstruktur, bukan ditebak dari teks',
+  gas.faktaIdentitas_({ tagline: 'Uji Slogan', chairmanName: '', chairmanRole: '' })
+    .map((item) => [item.topik, item.pernyataan, item.status]),
+  [['slogan tagline semboyan pb pii', 'Slogan PB PII adalah Uji Slogan.', 'terkonfirmasi']]);
+
+const panggilanSebelum = http.calls.length;
 const sinkronSatu = request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.190' });
-check('penarikan data resmi berjalan dari dasbor', sinkronSatu.ok, true);
-check('penarikan memakai dua jalur konten situs resmi',
-  http.calls.slice(panggilanSebelum).filter((call) => /wp-json/.test(call.url)).length, 2);
+check('penyelarasan data resmi berjalan dari dasbor', sinkronSatu.ok, true);
+check('penyelarasan tidak memanggil keluar sama sekali', http.calls.length, panggilanSebelum);
 check('keterangan baru ditambah, yang tergantikan ditandai usang',
-  [sinkronSatu.data.baru, sinkronSatu.data.diganti, sinkronSatu.data.sama], [1, 1, 2]);
-check('periode kepengurusan ikut tertarik dari laman resmi',
-  gas.faktaDaftar_().some((item) =>
-    item.topik === 'periode kepengurusan pb pii' && item.peran === 'sinkron' && item.berlaku), true);
-check('baris hasil tarikan ditandai sinkron', (() => {
-  const surel = gas.faktaDaftar_().find((item) => item.topik === 'email sekretariat pb pii' && item.status === 'terkonfirmasi');
+  [sinkronSatu.data.baru, sinkronSatu.data.diganti, sinkronSatu.data.sama], [1, 1, 3]);
+check('penyelarasan pertama tidak mengusulkan apa pun untuk ditinjau',
+  sinkronSatu.data.tinjauan.length, 0);
+check('baris hasil penyelarasan ditandai sinkron dan menunjuk pengaturan situs', (() => {
+  const surel = gas.faktaDaftar_().find((item) =>
+    item.topik === 'email sekretariat pb pii' && item.status === 'terkonfirmasi');
   return [surel.peran, surel.sumber, surel.tautan];
-})(), ['sinkron', 'Laman resmi pbpii.or.id', 'https://pbpii.or.id/profil-organisasi/']);
+})(), ['sinkron', 'Pengaturan situs pbpii.or.id', 'https://pbpii.or.id/']);
 check('baris baru tidak menimpa arsip yang id-nya mirip', (() => {
   const baru = gas.faktaDaftar_().find((item) =>
     item.topik === 'email sekretariat pb pii' && item.status === 'terkonfirmasi');
@@ -2427,27 +2452,93 @@ check('keterangan usang tidak lagi menjawab pertanyaan',
   /lama@pbpii/.test(JSON.stringify(gas.faktaCocok_('email sekretariat pb pii', 4))), false);
 check('surel terbaru yang menjawab pertanyaan',
   /sekretariat@pbpii\.or\.id/.test(String(gas.faktaCocok_('email sekretariat pb pii', 4)[0].pernyataan)), true);
-check('berita tidak menyingkirkan laman resmi untuk topik yang sama',
-  /Badriah/.test(JSON.stringify(gas.faktaDaftar_())), false);
-check('baris yang dikelola pengurus tidak pernah disentuh penarik', (() => {
-  const ketua = gas.faktaDaftar_().find((item) => item.topik === 'kepengurusan ketua umum');
-  return [ketua.peran, /Kevin Prayoga/.test(ketua.pernyataan)];
-})(), ['admin', true]);
 
-const panggilanDua = http.calls.filter((call) => /wp-json/.test(call.url)).length;
-check('pacu harian tidak menarik ulang pada hari yang sama', gas.faktaSinkron().lewat, true);
-check('jalur otomatis hemat: tidak ada permintaan ulang',
-  http.calls.filter((call) => /wp-json/.test(call.url)).length, panggilanDua);
-check('penarikan paksa dari dasbor tetap berjalan',
+const periodeUsulan = gas.faktaDaftar_().find((item) => item.topik === 'periode kepengurusan pb pii');
+check('periode yang hanya disebut artikel masuk sebagai usulan menunggu',
+  [periodeUsulan.status, periodeUsulan.peran, periodeUsulan.sumber, periodeUsulan.berlaku],
+  ['menunggu', 'sinkron', 'Artikel resmi pbpii.or.id', false]);
+check('usulan artikel belum boleh menjawab pertanyaan',
+  gas.faktaCocok_('periode kepengurusan pb pii', 4).length, 0);
+check('pengaturan situs mengalahkan artikel untuk topik yang sama',
+  [/Badriah/, /Diponegoro/, /panitia@pbpii/].map((pola) => pola.test(JSON.stringify(gas.faktaDaftar_()))),
+  [false, false, false]);
+check('keterangan ketua umum tetap milik pengurus besar, bukan laporan kegiatan', (() => {
+  const ketua = gas.faktaDaftar_().find((item) =>
+    item.topik === 'kepengurusan ketua umum' && item.status === 'terkonfirmasi');
+  return [ketua.peran, /Kevin Prayoga/.test(ketua.pernyataan)];
+})(), ['sinkron', true]);
+
+const sahPeriode = request({
+  action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.194',
+  fakta: {
+    id: periodeUsulan.id, topik: periodeUsulan.topik, pernyataan: periodeUsulan.pernyataan,
+    sumber: periodeUsulan.sumber, tautan: periodeUsulan.tautan, status: 'terkonfirmasi'
+  }
+});
+check('usulan artikel baru menjawab setelah pengurus mengesahkannya',
+  [sahPeriode.ok, gas.faktaCocok_('periode kepengurusan pb pii', 4)[0].topik],
+  [true, 'periode kepengurusan pb pii']);
+
+/* Usulan yang belum disahkan tidak boleh memensiunkan keterangan yang hidup. */
+const konteksUji = gas.faktaKonteks_(hariFakta);
+const hasilUji = { baru: 0, diganti: 0, sama: 0, tinjauan: [] };
+const barisSebelumUji = rowsOf('Fakta').length;
+gas.faktaTerapkan_({
+  topik: 'email sekretariat pb pii',
+  pernyataan: 'Surel resmi Pengurus Besar Pelajar Islam Indonesia adalah panitia@pbpii.or.id.',
+  inti: 'panitia@pbpii.or.id', sumber: 'Artikel resmi pbpii.or.id',
+  tautan: 'https://pbpii.or.id/?artikel=rapat-terbatas', terbit: hariFakta, status: 'menunggu'
+}, konteksUji, hasilUji);
+check('usulan artikel tidak memensiunkan surel yang sudah terkonfirmasi',
+  [hasilUji.baru, hasilUji.diganti, hasilUji.tinjauan.length, rowsOf('Fakta').length],
+  [0, 0, 1, barisSebelumUji]);
+check('surel terkonfirmasi tetap yang menjawab setelah usulan masuk',
+  /sekretariat@pbpii\.or\.id/.test(String(gas.faktaCocok_('email sekretariat pb pii', 4)[0].pernyataan)), true);
+
+const panggilanDua = http.calls.length;
+check('pacu harian tidak menyelaraskan ulang pada hari yang sama', gas.faktaSinkron().lewat, true);
+check('jalur otomatis hemat: tidak ada permintaan keluar', http.calls.length, panggilanDua);
+check('penyelarasan paksa dari dasbor tetap berjalan',
   request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.191' }).data.sama > 0, true);
 
 aturSetting('faktaSinkronAktif', 'false');
-const panggilanTiga = http.calls.filter((call) => /wp-json/.test(call.url)).length;
+const barisSebelumMati = rowsOf('Fakta').length;
+const panggilanTiga = http.calls.length;
 const mati = request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.192' });
-check('sakelar dasbor menghentikan penarikan otomatis', mati.data.aktif, false);
-check('sakelar mati tidak memanggil situs resmi',
-  http.calls.filter((call) => /wp-json/.test(call.url)).length, panggilanTiga);
+check('sakelar dasbor menghentikan penyelarasan otomatis', mati.data.aktif, false);
+check('sakelar mati tidak menulis baris dan tidak memanggil keluar',
+  [rowsOf('Fakta').length, http.calls.length], [barisSebelumMati, panggilanTiga]);
 aturSetting('faktaSinkronAktif', 'true');
+
+/* Menyimpan pengaturan adalah tindakan langsung pengurus, jadi cerminnya ikut
+   diperbarui saat itu juga — slogan baru tidak perlu menunggu job pagi. */
+const simpanCermin = request({
+  action: 'saveSettings', token: 'ses-admin', ip: '198.51.100.195',
+  settings: { tagline: 'PII Level Up' }
+});
+check('menyimpan pengaturan berhasil', simpanCermin.ok, true);
+check('slogan baru langsung dipakai Tanya PII tanpa menunggu job pagi',
+  gas.faktaCocok_('apa slogan pb pii', 4)[0].pernyataan, 'Slogan PB PII adalah PII Level Up.');
+check('slogan lama diarsipkan, bukan dihapus', (() => {
+  const lama = rowsOf('Fakta').find((item) => /Kepelajaran/.test(String(item.pernyataan)));
+  return [lama.status, lama.berlakuSampai];
+})(), ['usang', hariSebelumFakta]);
+const barisSebelumCermin = rowsOf('Fakta').length;
+request({
+  action: 'saveSettings', token: 'ses-admin', ip: '198.51.100.196',
+  settings: { tagline: 'PII Level Up' }
+});
+check('menyimpan nilai yang sama tidak menulis baris baru', rowsOf('Fakta').length, barisSebelumCermin);
+request({
+  action: 'saveSettings', token: 'ses-admin', ip: '198.51.100.197',
+  settings: { tagline: 'Kepelajaran • Keislaman • Keindonesiaan' }
+});
+check('cermin mengikuti pengaturan yang dikembalikan',
+  gas.faktaCocok_('apa slogan pb pii', 4)[0].pernyataan,
+  'Slogan PB PII adalah Kepelajaran • Keislaman • Keindonesiaan.');
+check('cermin pengaturan tidak mengusulkan artikel untuk ditinjau',
+  request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.214' }).data.notifikasi
+    .filter((item) => item.jenis === 'fakta').length, 0);
 
 const pemicuSebelum = pemicu.length;
 check('pacu dipasang sekali dengan nama fungsi yang benar',
@@ -2502,17 +2593,31 @@ const kotakAdmin = request({ action: 'notifList', token: 'ses-admin', ip: '198.5
 check('tamu tidak dapat membuka kotak kabar',
   request({ action: 'notifList', ip: '198.51.100.216' }).ok, false);
 
-/* Pengurus mengganti alamat sekretariat dengan nilai yang berbeda dari situs;
-   penarikan berikutnya tidak menimpa barisnya tetapi wajib mengabari admin. */
-rowsOf('Fakta').find((item) => item.topik === 'kantor sekretariat pb pii alamat' && item.peran === 'admin')
-  .pernyataan = 'Sekretariat PB PII di Jl. Diponegoro No. 1, Jakarta Pusat.';
+/* Pengurus menyunting alamat sekretariat lewat dasbor dengan nilai yang berbeda
+   dari pengaturan situs; penyelarasan berikutnya tidak menimpa barisnya tetapi
+   wajib mengabari admin. */
+const alamatKelola = gas.faktaDaftar_().find((item) =>
+  item.topik === 'kantor sekretariat pb pii alamat' && item.status === 'terkonfirmasi');
+const suntingAlamat = request({
+  action: 'faktaSimpan', token: 'ses-admin', ip: '198.51.100.198',
+  fakta: {
+    id: alamatKelola.id, topik: alamatKelola.topik,
+    pernyataan: 'Sekretariat PB PII di Jl. Diponegoro No. 1, Jakarta Pusat.',
+    sumber: 'Notulen rapat pengurus', status: 'terkonfirmasi'
+  }
+});
+check('suntingan pengurus menjadikan baris itu miliknya, bukan mesin',
+  [suntingAlamat.ok, gas.faktaDaftar_().find((item) => item.id === alamatKelola.id).peran],
+  [true, 'admin']);
 const tinjauanSinkron = request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.193' });
-check('penarikan melaporkan selisih dengan baris kelolaan pengurus',
+check('penyelarasan melaporkan selisih dengan baris kelolaan pengurus',
   tinjauanSinkron.data.tinjauan.length, 1);
+check('baris kelolaan pengurus tidak ditimpa meskipun berbeda',
+  /Diponegoro No\. 1,/.test(String(gas.faktaCocok_('alamat kantor sekretariat pb pii', 4)[0].pernyataan)), true);
 check('kotak admin berisi kabar bahwa ada data resmi yang perlu ditinjau',
   request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.215' }).data.notifikasi
     .filter((item) => item.jenis === 'fakta').length, 1);
-check('penarikan ulang pada hari yang sama tidak menambah kabar kedua', (() => {
+check('penyelarasan ulang pada hari yang sama tidak menambah kabar kedua', (() => {
   request({ action: 'faktaSinkron', token: 'ses-admin', ip: '198.51.100.193' });
   return request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.215' }).data.notifikasi
     .filter((item) => item.jenis === 'fakta').length;

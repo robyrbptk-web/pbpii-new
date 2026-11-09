@@ -16,7 +16,10 @@
  * backend-nya mendukung; kalau belum, pembatas lunak di memori fungsi ini yang
  * berlaku.
  */
-import { DEFAULT_GAS_WEB_APP_URL } from './pii.js';
+import { DEFAULT_GAS_WEB_APP_URL, kirimAksi } from './pii.js';
+
+/** Backend yang melayani sisa aplikasi; Tanya PII tidak boleh membaca lembar lain. */
+const URL_BACKEND = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
 
 const MAX_CHARS = 900;
 const DAILY_LIMIT = 20;
@@ -443,12 +446,8 @@ async function googleSearch(query) {
  * supaya pembaca tahu kapan sebuah keterangan ditulis.
  */
 
-/** Domain resmi yang digali tanpa kunci — WordPress menyediakan API bacanya. */
-const SUMBER_RESMI = String(process.env.RESMI_DOMAINS || 'pbpii.or.id')
-  .split(',')
-  .map((satuan) => clean(satuan).toLowerCase().replace(/^www\./, ''))
-  .filter((satuan) => /^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+$/.test(satuan))
-  .slice(0, 3);
+/** Situs sendiri: alamat yang dipakai pembaca dan label penerbit rujukan resmi. */
+const SITUS_SENDIRI = 'pbpii.or.id';
 
 async function teksUrl(url, batasMs = 6000) {
   const response = await fetch(url, {
@@ -505,37 +504,34 @@ function tanggalLabel(iso) {
 }
 
 /**
- * Laman resmi organisasi: judul, tautan asli, tanggal, dan isi paragraf awal.
- * Ditanya dengan kata kunci teratas supaya tidak pulang tangan kosong; kalau
- * dua kata terlalu ketat, satu kata masih layak dicoba.
+ * Artikel terbit situs sendiri. Sejak SuperApp menggantikan WordPress, API baca
+ * lama tidak lagi melayani — sumber resmi diambil dari backend aplikasi supaya
+ * tingkat RESMI benar-benar berisi tulisan yang dikelola pengurus.
  */
-async function sumberResmi(kunci, tenggat = Infinity) {
-  const percobaan = [kunci.slice(0, 2).join(' '), kunci[0]].filter(Boolean);
-  const hasil = [];
-  for (const domain of SUMBER_RESMI) {
-    for (const kueri of percobaan) {
-      /* Coba kedua susunan kata hanya yang pertama; kalau waktu tinggal sedikit,
-         apa yang sudah terkumpul lebih berharga daripada menunggu lengkap. */
-      const url = `https://${domain}/wp-json/wp/v2/posts`
-        + `?search=${encodeURIComponent(kueri)}&per_page=3&_fields=link,date,modified,title,content`;
-      const daftar = await fetchJson(url).catch(() => null);
-      if (Array.isArray(daftar) && daftar.length) {
-        daftar.forEach((pos) => {
-          const isi = teksBersih(pos?.content?.rendered).slice(0, 900);
-          const judul = teksBersih(pos?.title?.rendered);
-          const tautan = clean(pos?.link);
-          if (!judul || isi.length < 60 || !/^https:\/\/./.test(tautan)) return;
-          hasil.push({
-            judul, url: tautan, isi, tier: 'resmi', penerbit: domain,
-            tanggal: tanggalISO(pos.date || pos.modified),
-          });
-        });
-      }
-      if (hasil.length || Date.now() > tenggat - 1500) break;
-    }
-    if (Date.now() > tenggat - 1500) break;
-  }
-  return hasil.slice(0, 3);
+async function artikelSitusSendiri() {
+  const hasil = await kirimAksi({ action: 'public' }, URL_BACKEND, 9000).catch(() => null);
+  const daftar = hasil?.ok && Array.isArray(hasil.data?.articles) ? hasil.data.articles : [];
+  return daftar.map((pos) => {
+    const slug = clean(pos.slug);
+    return {
+      judul: clean(pos.title),
+      url: slug ? `https://${SITUS_SENDIRI}/?artikel=${encodeURIComponent(slug)}` : `https://${SITUS_SENDIRI}/`,
+      isi: teksBersih(pos.content || pos.excerpt).slice(0, 900),
+      tier: 'resmi',
+      penerbit: SITUS_SENDIRI,
+      tanggal: tanggalISO(pos.updatedAt || pos.createdAt)
+    };
+  }).filter((item) => item.judul && item.isi.length >= 60);
+}
+
+/**
+ * Rujukan resmi organisasi: artikel terbit yang dikelola pengurus di aplikasi
+ * ini. Relevansinya disaring belakangan oleh saringRelevan bersama berita, jadi
+ * di sini cukup memastikan sumbernya benar-benar milik sendiri dan tepat waktu.
+ */
+async function sumberResmi(tenggat = Infinity) {
+  if (Date.now() > tenggat - 1500) return [];
+  return (await artikelSitusSendiri()).slice(0, 3);
 }
 
 /** Rumah Bing/MSN: tautan ke sini adalah halaman pencarian, bukan beritanya. */
@@ -741,7 +737,7 @@ async function cariWeb(query, tenggatMs = 12000) {
   const kueriTopik = kunci.length ? kunci.slice(0, 5).join(' ') : kalimat;
 
   const [resmi, bing, google] = await Promise.all([
-    pangilan(sumberResmi, kunci, tenggat),
+    pangilan(sumberResmi, tenggat),
     pangilan(beritaBing, kueriTopik),
     pangilan(beritaGoogle, kueriTopik),
   ]);
@@ -755,20 +751,17 @@ async function cariWeb(query, tenggatMs = 12000) {
 }
 
 /**
- * Kutipan diminta ke Apps Script, jadi pembatas per peran ikut berlaku di sana:
- * sesi tanpa akun tidak pernah menerima isi berkas internal. Fakta organisasi
+ * Kutipan diminta ke backend aplikasi, jadi pembatas per peran ikut berlaku di
+ * sana: sesi tanpa akun tidak pernah menerima isi berkas internal. Fakta organisasi
  * tetap ikut terkirim karena isinya keterangan yang sudah publik di situs PB PII.
  */
 async function gasKonteks(body, ip, question) {
-  const url = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'pustakaKonteks', token: body.token, ip, q: question }),
-    signal: AbortSignal.timeout(14000),
-  });
-  const result = await response.json().catch(() => null);
-  if (!response.ok || !result?.ok) {
+  const result = await kirimAksi(
+    { action: 'pustakaKonteks', token: body.token, ip, q: question },
+    URL_BACKEND,
+    14000
+  ).catch(() => null);
+  if (!result?.ok) {
     const message = clean(result?.error);
     if (/pustaka organisasi khusus akun|sesi berakhir|tidak dikenali/i.test(message)) {
       throw new Error('Masuk dengan akun kader atau pengurus yang memiliki akses Pustaka untuk bertanya.');
@@ -1153,19 +1146,14 @@ async function askModel(messages, adaGambar) {
 }
 
 /**
- * Kuota Apps Script dipakai kalau deployment-nya sudah mendukung aksi chat —
- * termasuk untuk tamu, yang dihitung per alamat jaringan.
+ * Kuota backend dipakai kalau deployment-nya sudah mendukung aksi chat —
+ * termasuk untuk tamu, yang dihitung per alamat jaringan. Sesinya harus dibaca
+ * dari backend yang sama dengan tempat pengguna masuk, kalau tidak token yang
+ * sah dianggap tidak dikenali dan jatah hariannya tidak pernah terhitung.
  */
 async function gasCall(payload, timeoutMs = 12000) {
-  const url = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    const result = await response.json().catch(() => null);
+    const result = await kirimAksi(payload, URL_BACKEND, timeoutMs);
     if (!result?.ok) return null;
     if (/sesi berakhir|tidak dikenali/i.test(String(result.error || ''))) return null;
     return result.data;
