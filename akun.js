@@ -19,6 +19,14 @@
   const GIS_SRC = 'https://accounts.google.com/gsi/client';
   const listeners = new Set();
 
+  /* Ikon garis mengikuti bahasa ikon rel aplikasi, supaya menu akun tidak
+     terasa seperti potongan dari halaman lain. */
+  const IKON_MENU = {
+    profil: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.7-3.6 3.2-5.6 7-5.6s6.3 2 7 5.6"/></svg>',
+    atur: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3.2v2.1M12 18.7v2.1M4.6 7.8l1.8 1M17.6 15.2l1.8 1M4.6 16.2l1.8-1M17.6 8.8l1.8-1"/></svg>',
+    keluar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4.5H6.8A1.8 1.8 0 0 0 5 6.3v11.4a1.8 1.8 0 0 0 1.8 1.8H14"/><path d="M17 8.5 20.5 12 17 15.5M10.5 12h10"/></svg>'
+  };
+
   let account = { role: 'tamu', name: '' };
   let clientId = '';
   let emailAuth = false;
@@ -518,13 +526,14 @@
         /* Halaman profil hanya punya arti untuk akun kader; pengurus dan
            lembaga masuk lewat dasbor masing-masing. */
         const profilSaya = account.role === 'kader'
-          ? '<a class="account-menu-item" href="/profil.html" data-account-profile>Profil saya</a>'
+          ? `<a class="account-menu-item" href="/profil.html" data-account-profile>${IKON_MENU.profil}Profil saya</a>
+            <a class="account-menu-item" href="/profil.html?ubah=1" data-account-settings>${IKON_MENU.atur}Pengaturan akun</a>`
           : '';
         slot.innerHTML = `${photo}
           <button class="account-name" type="button" data-account-open>${escapeHTML(account.name || (isStaff ? 'Pengurus' : 'Kader'))}</button>
           <span class="account-menu">
             ${profilSaya}
-            <button class="account-menu-item account-signout" type="button" data-account-out>Keluar</button>
+            <button class="account-menu-item account-signout" type="button" data-account-out>${IKON_MENU.keluar}Keluar</button>
           </span>`;
       }
 

@@ -23,6 +23,7 @@
 
   const API = () => (window.PBPII_CONFIG && window.PBPII_CONFIG.apiEndpoint) || '/api/pii';
   const KUNCI_TOKEN = ['pbpii_kader_token', 'pbpii_admin_token', 'pbpii_org_token'];
+  const KUNCI_CIUT = 'pbpii_sisi_ciut';
   const LOGO = '/assets/logo-pii.webp';
   const LOGO_CADANGAN = '/assets/logo-pii.png';
 
@@ -39,7 +40,9 @@
     peta: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/>',
     pengurus: '<path d="M4 13.5h7V4H4zM13 4v9.5h7V4zM4 20h7v-4.5H4zM13 15.5h7V20h-7z"/>',
     lembaga: '<path d="M4.5 20h15M7 20V9.5l5-4 5 4V20"/><path d="M10.5 12.5h3M10.5 16h3"/>',
-    lainnya: '<circle cx="6" cy="7" r="2"/><circle cx="12" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="6" cy="17" r="2"/><circle cx="12" cy="17" r="2"/><circle cx="18" cy="17" r="2"/>'
+    lainnya: '<circle cx="6" cy="7" r="2"/><circle cx="12" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="6" cy="17" r="2"/><circle cx="12" cy="17" r="2"/><circle cx="18" cy="17" r="2"/>',
+    keluar: '<path d="M14.5 8V6.2a2 2 0 0 0-2-2H6.2a2 2 0 0 0-2 2v11.6a2 2 0 0 0 2 2H12.5a2 2 0 0 0 2-2V16"/><path d="M10.5 12h9.5M17.5 9l3 3-3 3"/>',
+    ciut: '<rect x="4" y="4.5" width="16" height="15" rx="2.4"/><path d="M9.5 4.5v15M15.5 9.5 13 12l2.5 2.5"/>'
   };
 
   const MENU = [
@@ -185,6 +188,7 @@
   function tautSisi(item) {
     const node = elemen('a', 'app-taut');
     node.href = item.href;
+    node.title = item.label;
     node.append(ikon(item.id), elemen('span', null, item.label));
     if (item.angka) node.dataset.angka = 'ya';
     if (item.id === tampilan) {
@@ -267,23 +271,33 @@
   }
 
   function namaDiBar() {
-    return ['beranda', peran() === 'kader' ? 'kabar' : 'acara', 'ibadah', 'notifikasi'];
+    return ['beranda', 'acara', 'ibadah', 'notifikasi'];
   }
 
   /** Navigasi sisi dan bar bawah dibangun ulang begitu peran diketahui. */
   function bangunNavigasi() {
     if (!sisi || !bar) return;
     const daftar = menuBoleh(peran());
-    const khusus = ['peta', 'pengurus', 'lembaga', 'profil'];
+    const kelompok = [
+      { label: 'Menu utama', ids: ['beranda', 'kabar', 'acara', 'ibadah', 'tanya', 'pustaka', 'artikel', 'notifikasi'] },
+      { label: 'Jelajah', ids: ['profil', 'peta'] },
+      { label: 'Kelola', ids: ['pengurus', 'lembaga'] }
+    ];
 
     const merek = kepala && kepala.querySelector('.app-brand small');
     if (merek) merek.textContent = peran() === 'kader' ? 'Aplikasi Kader' : 'Aplikasi Pengurus';
 
     sisi.textContent = '';
-    sisi.append(elemen('p', 'app-sisi-label', 'Aplikasi PB PII'));
-    daftar.filter((item) => !khusus.includes(item.id)).forEach((item) => sisi.append(tautSisi(item)));
+    kelompok.forEach((grup) => {
+      const isi = daftar.filter((item) => grup.ids.indexOf(item.id) >= 0);
+      if (!isi.length) return;
+      const bagian = elemen('div', 'app-sisi-grup');
+      bagian.append(elemen('p', 'app-sisi-label', grup.label));
+      isi.forEach((item) => bagian.append(tautSisi(item)));
+      sisi.append(bagian);
+    });
     const ujung = elemen('div', 'app-sisi-bawah');
-    daftar.filter((item) => khusus.includes(item.id)).forEach((item) => ujung.append(tautSisi(item)));
+    ujung.append(tombolCiut());
     ujung.append(tombolKeluar());
     sisi.append(ujung);
 
@@ -294,6 +308,29 @@
       if (item) bar.append(selBar(item));
     });
     bar.append(tombolLainnya());
+  }
+
+  /** Rel samping bisa dipadatkan jadi ikon saja; pilihan diingat per perangkat. */
+  function terapkanCiut(ciut) {
+    document.body.classList.toggle('sisi-ciut', Boolean(ciut));
+    const tombol = sisi && sisi.querySelector('.app-sisi-ciut');
+    if (tombol) {
+      tombol.setAttribute('aria-expanded', String(!ciut));
+      tombol.setAttribute('aria-label', ciut ? 'Bentangkan menu' : 'Ciutkan menu');
+      tombol.title = ciut ? 'Bentangkan menu' : 'Ciutkan menu';
+    }
+    try { localStorage.setItem(KUNCI_CIUT, ciut ? 'ya' : 'tidak'); } catch { /* mode privat */ }
+  }
+
+  function tombolCiut() {
+    const node = elemen('button', 'app-taut app-sisi-ciut');
+    node.type = 'button';
+    node.setAttribute('aria-expanded', 'true');
+    node.setAttribute('aria-label', 'Ciutkan menu');
+    node.title = 'Ciutkan menu';
+    node.append(ikon('ciut'), elemen('span', null, 'Ciutkan menu'));
+    node.addEventListener('click', () => terapkanCiut(!document.body.classList.contains('sisi-ciut')));
+    return node;
   }
 
   /* ------------------------------------------------------------ kerangka */
@@ -662,9 +699,30 @@
 
   /* ------------------------------------------------------------- pengunci */
 
+  /** Label peran menempel di chip akun, supaya nama tidak tampil tanpa konteks. */
+  function hiasAkun() {
+    if (!sesi) return;
+    document.querySelectorAll('.app-header .account-slot').forEach((slot) => {
+      slot.querySelector('.app-header-role')?.remove();
+      const label = elemen('small', 'app-header-role',
+        sesi.role === 'admin' ? 'Pengurus' : sesi.role === 'org' ? 'Lembaga' : 'Kader');
+      const menu = slot.querySelector('.account-menu');
+      if (menu) slot.insertBefore(label, menu);
+      else slot.append(label);
+    });
+  }
+
   function mulai() {
     pasangKerangka();
     bangunNavigasi();
+    hiasAkun();
+    document.body.classList.remove('app-peran-kader', 'app-peran-admin', 'app-peran-org');
+    document.body.classList.add('app-peran-' + (['kader', 'admin', 'org'].indexOf(sesi && sesi.role) >= 0 ? sesi.role : 'kader'));
+    try {
+      terapkanCiut(localStorage.getItem(KUNCI_CIUT) === 'ya');
+    } catch {
+      terapkanCiut(false);
+    }
     hapusSplash();
     if (tampilan === 'artikel') isiArtikel();
     else if (tampilan === 'notifikasi') isiNotifikasi();
@@ -674,6 +732,7 @@
     if (window.PBPIIAkun && window.PBPIIAkun.onChange) {
       window.PBPIIAkun.onChange(() => {
         if (!tokenSaya()) location.replace('/');
+        hiasAkun();
       });
     }
   }

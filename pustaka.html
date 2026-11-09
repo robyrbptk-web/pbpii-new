@@ -189,6 +189,9 @@
 
     .pustaka-scope {
       flex: 0 0 auto;
+      /* Tanpa ini, lebar min-content select (opsi terpanjang) menolak menyusut
+         dan mendorong seluruh bilah pencarian melewati tepi layar ponsel. */
+      min-width: 0;
       max-width: 46%;
       border: 1px solid var(--line);
       border-radius: 13px;
@@ -199,6 +202,10 @@
       font-size: .85rem;
       font-weight: 600;
       cursor: pointer;
+    }
+
+    .pustaka-tools > * {
+      min-width: 0;
     }
 
     .pustaka-chips {

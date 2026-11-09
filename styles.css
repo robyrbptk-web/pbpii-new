@@ -4312,6 +4312,9 @@ nav a[aria-current='page']::after {
 }
 
 .account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   border: 0;
   background: none;
   padding: 8px 10px;
@@ -4326,6 +4329,18 @@ nav a[aria-current='page']::after {
   cursor: pointer;
 }
 
+.account-menu-item svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: .72;
+}
+
 .account-menu-item:hover,
 .account-menu-item:focus-visible {
   background: #eef3fa;
@@ -4333,7 +4348,7 @@ nav a[aria-current='page']::after {
 
 .account-menu .account-signout {
   position: static;
-  display: block;
+  display: flex;
   right: auto;
   top: auto;
   border: 0;
@@ -8253,11 +8268,13 @@ footer {
 }
 
 .feed-head h1 {
-  margin: 6px 0 4px;
-  font-size: clamp(1.32rem, 4.2vw, 1.7rem);
-  line-height: 1.16;
+  margin: 6px 0 2px;
+  font-size: clamp(1.24rem, 3.6vw, 1.52rem);
+  font-weight: 800;
+  line-height: 1.22;
   letter-spacing: -.02em;
   color: var(--navy);
+  max-width: 30ch;
 }
 
 .feed-head p {
@@ -8295,9 +8312,14 @@ footer {
   padding: 0 2px;
   scrollbar-width: none;
   position: sticky;
-  top: 58px;
+  top: 78px;
   z-index: 6;
   border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+body.aplikasi.feed-page .feed-tabs {
+  top: var(--app-head, 56px);
   background: #fff;
 }
 
@@ -8359,11 +8381,10 @@ footer {
 .feed-composer {
   display: grid;
   gap: 12px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  background: none;
-  padding: 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px 16px 12px;
   box-shadow: none;
 }
 
@@ -8593,6 +8614,15 @@ footer {
 .feed-list {
   display: grid;
   gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* Tanpa kabar, kotak putih setinggi garis tidak boleh tertinggal. */
+.feed-list:empty {
+  display: none;
 }
 
 .feed-card {
@@ -9208,6 +9238,63 @@ footer {
   font-size: .9rem;
 }
 
+/* Keadaan kosong selalu menawarkan satu langkah berikutnya, bukan teks lepas. */
+.feed-kosong {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 34px 22px 30px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  text-align: center;
+}
+
+.feed-kosong[hidden] {
+  display: none;
+}
+
+.feed-kosong-ikon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  border-radius: 15px;
+  background: #eef5fb;
+  color: var(--blue);
+}
+
+.feed-kosong-ikon svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feed-kosong b {
+  color: var(--navy);
+  font-size: 1rem;
+}
+
+.feed-kosong p {
+  margin: 0;
+  max-width: 38ch;
+  color: var(--muted);
+  font-size: .88rem;
+  line-height: 1.55;
+}
+
+.feed-kosong .button {
+  margin-top: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: .84rem;
+}
+
 .feed-more,
 #feedMore {
   justify-self: center;
@@ -9285,16 +9372,12 @@ body.feed-zoomed {
 @media (min-width: 681px) {
   .feed-board {
     gap: 18px;
-    padding-top: 30px;
+    padding-top: 26px;
   }
 
   .feed-head {
     grid-template-columns: 1fr auto;
     align-items: end;
-  }
-
-  .feed-tabs {
-    top: 64px;
   }
 
   .feed-card {
@@ -9305,6 +9388,11 @@ body.feed-zoomed {
 @media (max-width: 680px) {
   .feed-board {
     gap: 13px;
+    padding-top: 14px;
+  }
+
+  .feed-tabs {
+    top: 72px;
   }
 
   .feed-card {
@@ -9722,9 +9810,106 @@ button,
   gap: 4px;
 }
 
-/* Sidebar AppLayout memakan 236px mulai 1000px, jadi dua kolom baru dibuka
-   saat sisa ruang masih cukup untuk kartu baca 640px tanpa memepetkannya. */
-@media (min-width: 1180px) {
+.feed-usul + .feed-usul {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* Agenda dan kabar resmi di rel kanan: baris ringkas, bukan kartu bertumpuk. */
+.feed-agenda {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--laju-1) var(--ease);
+}
+
+.feed-agenda:hover {
+  background: var(--soft);
+}
+
+.feed-agenda-tgl {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  padding: 5px 0;
+  border-radius: 9px;
+  background: #eef5fb;
+  color: var(--navy);
+}
+
+.feed-agenda-tgl b {
+  font-size: .9rem;
+  line-height: 1.1;
+}
+
+.feed-agenda-tgl small {
+  color: var(--blue);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.feed-agenda-isi {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.feed-agenda-isi b,
+.feed-agenda-isi small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-agenda-isi b {
+  color: var(--navy);
+  font-size: .82rem;
+}
+
+.feed-agenda-isi small {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.feed-kabar-item {
+  display: grid;
+  gap: 2px;
+  padding: 9px 8px;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--laju-1) var(--ease);
+}
+
+.feed-kabar-item:hover {
+  background: var(--soft);
+}
+
+.feed-kabar-item b {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--navy);
+  font-size: .83rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.feed-kabar-item small {
+  color: var(--muted);
+  font-size: .71rem;
+}
+
+/* Sidebar AppLayout memakan 248px mulai 860px, jadi dua kolom baru dibuka
+   saat sisa ruang masih cukup untuk kartu baca 640px dan rel 300px. */
+@media (min-width: 1260px) {
   .feed-shell {
     grid-template-columns: minmax(0, 640px) 300px;
     justify-content: center;
@@ -9744,12 +9929,12 @@ button,
 
   .feed-side {
     position: sticky;
-    top: 76px;
-    margin-top: 30px;
+    top: calc(var(--app-head, 56px) + 16px);
+    margin-top: 26px;
   }
 }
 
-@media (max-width: 1179px) {
+@media (max-width: 1259px) {
   .feed-rail-open {
     display: inline-flex;
   }
@@ -9768,14 +9953,16 @@ button,
     border-radius: 0;
     border-left: 1px solid var(--line);
     overflow-y: auto;
-    transform: translateX(105%);
+    /* Digeser keluar layar (translateX) membuat kotak tetap terhitung sebagai
+       luapan mendatar walau tak terlihat, jadi rel dibuka dengan fade saja. */
+    opacity: 0;
     visibility: hidden;
-    transition: transform .22s ease, visibility .22s ease;
+    transition: opacity .2s ease, visibility .2s ease;
     box-shadow: -20px 0 48px #0c294826;
   }
 
   .feed-side.is-open {
-    transform: none;
+    opacity: 1;
     visibility: visible;
   }
 

@@ -57,6 +57,13 @@
   const suggestListEl = document.querySelector('#feedSuggestList');
   const suggestEmptyEl = document.querySelector('#feedSuggestEmpty');
   const sideNoteEl = document.querySelector('#feedSideNote');
+  const sideAgendaEl = document.querySelector('#feedSideAgenda');
+  const sideAgendaListEl = document.querySelector('#feedSideAgendaList');
+  const sideKabarEl = document.querySelector('#feedSideKabar');
+  const sideKabarListEl = document.querySelector('#feedSideKabarList');
+  const kosongEl = document.querySelector('#feedKosong');
+  const kosongTeksEl = document.querySelector('#feedKosongTeks');
+  const kosongCtaEl = document.querySelector('#feedKosongCta');
 
   const tokenSaya = () => window.PBPIIAkun?.sessionToken?.() || window.PBPIIAkun?.token?.() || '';
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -81,7 +88,8 @@
     mengikuti: new Set(),
     saya: null,
     cekBaruPada: 0,
-    sisiSedangMuat: false
+    sisiSedangMuat: false,
+    sisiPublik: null
   };
 
   const JENIS_LABEL = {
@@ -390,21 +398,40 @@
     listEl.innerHTML = state.items.map(cardHtml).join('');
     const tersisa = Number(state.sisa) || 0;
     moreEl.hidden = tersisa <= 0;
-    emptyEl.hidden = state.items.length > 0;
-    if (!state.items.length) {
-      emptyEl.textContent = state.tab === 'acara'
-        ? 'Belum ada kegiatan terjadwal yang dapat dibagikan.'
-        : state.tab === 'mengikuti'
-          ? 'Anda belum mengikuti kader mana pun. Ikuti kawan dari kartu kabarnya di tab Terbaru.'
-          : 'Belum ada kabar di feed. Jadilah yang pertama menuliskannya.';
+    paintKosong();
+  }
+
+  /** Keadaan kosong digambar sebagai satu ajakan bertindak, bukan teks lepas. */
+  function paintKosong() {
+    const kosong = state.items.length === 0;
+    emptyEl.hidden = true;
+    if (!kosongEl) {
+      if (kosong) {
+        emptyEl.hidden = false;
+        emptyEl.textContent = 'Belum ada kabar di feed. Jadilah yang pertama menuliskannya.';
+      }
+      return;
     }
+    kosongEl.hidden = !kosong;
+    if (!kosong) return;
+    kosongTeksEl.textContent = state.tab === 'acara'
+      ? 'Belum ada kegiatan terjadwal. Kegiatan yang dibagikan pengurus dan lembaga akan muncul di sini.'
+      : state.tab === 'mengikuti'
+        ? 'Anda belum mengikuti kader mana pun. Jelajahi kabar terbaru, lalu tekan Ikuti pada kader yang ingin Anda baca.'
+        : 'Belum ada kabar di feed. Jadilah yang pertama membagikan gagasan atau kegiatan untuk kawan kader.';
+    kosongCtaEl.textContent = state.tab === 'acara'
+      ? 'Bagikan kegiatan'
+      : state.tab === 'mengikuti'
+        ? 'Lihat kabar terbaru'
+        : 'Tulis kabar pertama';
+    kosongCtaEl.hidden = !adaSesi();
   }
 
   function appendCards(items) {
     listEl.insertAdjacentHTML('beforeend', items.map(cardHtml).join(''));
     state.items = state.items.concat(items);
     moreEl.hidden = (Number(state.sisa) || 0) <= 0;
-    emptyEl.hidden = state.items.length > 0;
+    paintKosong();
   }
 
   const cardFor = (id) => listEl.querySelector(`.feed-card[data-post="${CSS.escape(String(id))}"]`);
@@ -648,8 +675,73 @@
     if (!daftar.length) suggestEmptyEl.textContent = 'Belum ada saran. Cari kawan lewat kotak pencarian.';
   }
 
+  /** Agenda dan artikel resmi memberi konteks organisasi di rel kanan. */
+  function paintSisiOrganisasi(publik) {
+    if (sideAgendaEl && sideAgendaListEl) {
+      const mulaiHariIni = new Date();
+      mulaiHariIni.setHours(0, 0, 0, 0);
+      const agenda = (Array.isArray(publik?.events) ? publik.events : [])
+        .filter((event) => {
+          const waktu = Date.parse(String(event.date || '').slice(0, 10) + 'T00:00:00');
+          return isFinite(waktu) && waktu >= mulaiHariIni.getTime();
+        })
+        .slice(0, 3);
+      sideAgendaListEl.innerHTML = agenda.length
+        ? agenda.map((event) => {
+          const tanggal = new Date(String(event.date || '').slice(0, 10) + 'T00:00:00');
+          const hari = isNaN(tanggal.getTime()) ? '—' : String(tanggal.getDate()).padStart(2, '0');
+          const bulan = isNaN(tanggal.getTime()) ? '' : tanggal.toLocaleDateString('id-ID', { month: 'short' });
+          return `<a class="feed-agenda" href="acara.html?event=${encodeURIComponent(event.id)}">
+            <span class="feed-agenda-tgl"><b>${escapeHTML(hari)}</b><small>${escapeHTML(bulan)}</small></span>
+            <span class="feed-agenda-isi"><b>${escapeHTML(event.title || 'Kegiatan PII')}</b>
+              <small>${escapeHTML(event.location || 'Lokasi menyusul')}</small></span>
+          </a>`;
+        }).join('')
+        : '<p class="feed-side-kosong muted">Belum ada agenda terbit. Kegiatan baru akan muncul di sini.</p>';
+      sideAgendaEl.hidden = false;
+    }
+
+    if (sideKabarEl && sideKabarListEl) {
+      const artikel = (Array.isArray(publik?.articles) ? publik.articles : []).slice(0, 3);
+      sideKabarListEl.innerHTML = artikel.length
+        ? artikel.map((item) => `<a class="feed-kabar-item" href="/app/artikel">
+            <b>${escapeHTML(item.title || 'Artikel PII')}</b>
+            <small>${escapeHTML(item.category || 'Artikel')}${item.createdAt
+              ? ' · ' + escapeHTML(new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }))
+              : ''}</small>
+          </a>`).join('')
+        : '<p class="feed-side-kosong muted">Belum ada artikel terbit. Kabar resmi PB PII akan tampil di sini.</p>';
+      sideKabarEl.hidden = false;
+    }
+  }
+
+  /* Sesi bisa selesai diverifikasi sesudah feed.js terpasang, dan pemberitahuan
+     akun.js untuk hasil itu tidak selalu sampai ke halaman ini. Selama token
+     tersimpan tetapi peran belum terbaca, rel kanan menunggu sebentar lalu
+     dicat ulang — tanpa permintaan tambahan, karena muatSisi memakai cache. */
+  let pengawasSesi = 0;
+
+  function tungguSesi() {
+    if (adaSesi() || !tokenSaya() || pengawasSesi) return;
+    const mulai = Date.now();
+    pengawasSesi = setInterval(() => {
+      if (adaSesi()) {
+        clearInterval(pengawasSesi);
+        pengawasSesi = 0;
+        paintComposer();
+        muatSisi();
+        return;
+      }
+      if (Date.now() - mulai > 15000) {
+        clearInterval(pengawasSesi);
+        pengawasSesi = 0;
+      }
+    }, 250);
+  }
+
   function paintSisi() {
     const sesi = adaSesi();
+    if (!sesi) tungguSesi();
     if (railOpenEl) railOpenEl.hidden = !sesi;
     shellEl?.classList.toggle('is-tanpa-sisi', !sesi);
     if (sideEl) {
@@ -662,26 +754,39 @@
     state.mengikuti.forEach((id) => catIkut(id, true));
     paintSaya();
     paintSaran();
+    /* Sesi baru diketahui setelah whoami menjawab, sedangkan muatSisi sudah
+       dipanggil lebih awal saat akun masih tamu. Pemicu ini memastikan rel
+       kanan tetap terisi walau whoami datang belakangan. */
+    muatSisi();
   }
 
   /* Relasi dimuat sekali saat panel dibutuhkan, bukan setiap kali kartu
      digambar, supaya kuota baca backend tidak habis oleh panel samping. */
   async function muatSisi() {
     if (!adaSesi() || state.sisiSedangMuat) return;
+    if (state.sisiPublik) {
+      paintSisiOrganisasi(state.sisiPublik);
+      return;
+    }
     state.sisiSedangMuat = true;
     try {
       const token = tokenSaya();
-      const [who, jaringan] = await Promise.all([
+      const [who, jaringan, publik] = await Promise.all([
         api({ action: 'whoami', token }),
-        api({ action: 'kaderJaringan', jenis: 'mengikuti', token })
+        api({ action: 'kaderJaringan', jenis: 'mengikuti', token }),
+        api({ action: 'public', token }).catch(() => null)
       ]);
       if (who?.role === 'kader') {
         state.saya = { id: who.id, nama: who.name, picture: who.picture || '' };
       }
       state.mengikuti = new Set((jaringan?.hasil || []).map((kader) => String(kader.id)));
+      state.sisiPublik = publik || {};
       paintSisi();
+      paintSisiOrganisasi(state.sisiPublik);
     } catch {
+      state.sisiPublik = {};
       paintSisi();
+      paintSisiOrganisasi(state.sisiPublik);
     } finally {
       state.sisiSedangMuat = false;
     }
@@ -745,14 +850,22 @@
     }
   }
 
+  /* Tab bisa ditekan lagi sebelum permintaan sebelumnya selesai. Nomor urut
+     memastikan respons tab lama dibuang, bukan menimpa tab yang sedang dibaca
+     atau meninggalkan kerangka muat yang tak pernah terisi. */
+  let urutanMuat = 0;
+
   async function loadFeed({ lebih = false } = {}) {
-    if (state.loading) return;
+    if (lebih && state.loading) return;
+    const nomor = ++urutanMuat;
+    const tab = state.tab;
     state.loading = true;
     stateEl.textContent = lebih ? 'Memuat kabar berikutnya…' : '';
     const mulai = lebih ? state.items.length : 0;
     const token = tokenSaya();
     try {
-      const data = await api({ action: 'feedList', tab: state.tab, mulai, batas: PAGE, token });
+      const data = await api({ action: 'feedList', tab, mulai, batas: PAGE, token });
+      if (nomor !== urutanMuat) return;
       state.tokenMuat = token;
       applyMeta(data);
       if (!lebih) window.PBPIICerita?.pasang(ceritaEl, data);
@@ -769,9 +882,11 @@
         }
       }
     } catch (error) {
+      if (nomor !== urutanMuat) return;
       if (!lebih) {
         state.items = [];
         listEl.innerHTML = '';
+        if (kosongEl) kosongEl.hidden = true;
         emptyEl.hidden = false;
         emptyEl.textContent = 'Feed belum dapat dimuat. Periksa koneksi Anda, lalu muat ulang halaman.';
         countEl.textContent = 'Kabar harian kader';
@@ -779,8 +894,10 @@
         toast(moreEl, error.message);
       }
     } finally {
-      state.loading = false;
-      stateEl.textContent = '';
+      if (nomor === urutanMuat) {
+        state.loading = false;
+        stateEl.textContent = '';
+      }
     }
   }
 
@@ -813,7 +930,7 @@
       ? 'Tulis pengumuman untuk kader…'
       : jenis === 'acara'
         ? 'Tambahkan pesan singkat (boleh dikosongkan)…'
-        : 'Ada kabar apa hari ini, Kawan?';
+        : 'Apa yang ingin kamu bagikan, Kawan?';
   }
 
   function paintPreviews() {
@@ -899,6 +1016,10 @@
     const isi = textEl.value.trim();
     if ((jenis === 'foto' || jenis === 'video') && !state.media.length) {
       note(jenis === 'video' ? 'Pilih video lebih dulu.' : 'Pilih foto lebih dulu.');
+      return;
+    }
+    if (jenis === 'acara' && !eventSelectEl.value) {
+      note('Belum ada kegiatan terjadwal yang bisa dibagikan. Tulis kabar biasa dulu.');
       return;
     }
     if (jenis !== 'acara' && isi.length < 4) {
@@ -1214,6 +1335,8 @@
     state.tab = button.dataset.tab;
     state.editing = '';
     state.open.clear();
+    moreEl.hidden = true;
+    countEl.textContent = 'Memuat kabar…';
     listEl.innerHTML = '<div class="feed-skeleton" aria-hidden="true"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>';
     loadFeed();
   }
@@ -1328,6 +1451,21 @@
 
   document.querySelector('#feedLoginOpen')?.addEventListener('click', async () => {
     await requireLogin('Masuk sebagai kader untuk memakai feed.');
+  });
+
+  /* Ajakan pada keadaan kosong selalu berujung pada tindakan yang benar-benar
+     tersedia: pindah tab, atau membuka komposer dengan jenis yang sesuai. */
+  kosongCtaEl?.addEventListener('click', () => {
+    if (state.tab === 'mengikuti') {
+      tabsEl?.querySelector('[data-tab="terbaru"]')?.click();
+      return;
+    }
+    if (state.tab === 'acara') {
+      kindsEl?.querySelectorAll('button').forEach((node) => node.classList.toggle('is-active', node.dataset.jenis === 'acara'));
+      state.media = [];
+      paintPreviews();
+    }
+    openComposerEl?.click();
   });
 
   textEl?.addEventListener('input', syncComposer);

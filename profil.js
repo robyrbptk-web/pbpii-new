@@ -97,6 +97,10 @@
   };
 
   const tokenSaya = () => window.PBPIIAkun?.sessionToken?.() || window.PBPIIAkun?.token?.() || '';
+
+  /* "Pengaturan akun" di menu header menaut ke sini. Dibaca sekali di awal
+     karena muat() membersihkan query string lewat history.replaceState. */
+  let bukaPengaturan = new URLSearchParams(location.search).get('ubah') === '1';
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const initials = (nama) => String(nama || 'K').trim().charAt(0).toUpperCase() || 'K';
   const angka = (nilai) => (Number(nilai) || 0).toLocaleString('id-ID');
@@ -436,6 +440,10 @@
       el.temuan.innerHTML = '';
       if (data.kemampuan?.mengelola) history.replaceState(null, '', '/profil.html');
       catatProfil();
+      if (bukaPengaturan) {
+        bukaPengaturan = false;
+        if (data.kemampuan?.mengelola) el.ubah?.click();
+      }
     } catch (error) {
       el.kartu.hidden = true;
       el.tabs.hidden = true;

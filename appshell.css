@@ -9,13 +9,15 @@
 :root {
   --app-head: 56px;
   --app-bar: 64px;
-  --app-side: 236px;
+  --app-side: 248px;
+  /* Lebar rel saat menu dipadatkan jadi ikon saja. */
+  --app-side-mini: 84px;
   --app-navy: #0e2b49;
   --app-navy-deep: #0a2340;
   --app-blue: #176da8;
   --app-green: #14763f;
-  --app-canvas: #eef2f6;
-  --app-line: #dce5ee;
+  --app-canvas: #f4f7fa;
+  --app-line: #e3eaf1;
   --app-ink: #17232f;
   --app-muted: #62717f;
   /* Token gerak dipakai bersama seluruh kerangka aplikasi. */
@@ -81,9 +83,10 @@ body.aplikasi .scroll-progress {
   gap: 12px;
   height: var(--app-head);
   padding: 0 clamp(12px, 2.6vw, 22px);
-  background: linear-gradient(100deg, var(--app-navy) 0%, #123c63 58%, var(--app-blue) 100%);
-  color: #fff;
-  box-shadow: 0 2px 14px rgba(10, 35, 64, .28);
+  border-bottom: 1px solid var(--app-line);
+  background: #fff;
+  color: var(--app-navy);
+  box-shadow: 0 1px 2px rgba(14, 43, 73, .04);
 }
 
 .app-brand {
@@ -91,24 +94,25 @@ body.aplikasi .scroll-progress {
   align-items: center;
   gap: 9px;
   min-width: 0;
-  color: #fff;
+  color: var(--app-navy);
 }
 
 .app-brand img {
-  width: 30px;
+  width: 28px;
   height: auto;
 }
 
 .app-brand b {
   display: block;
-  font-size: 14px;
+  color: var(--app-navy);
+  font-size: 14.5px;
   line-height: 1.15;
   letter-spacing: -.2px;
 }
 
 .app-brand small {
   display: block;
-  color: #cfe2f2;
+  color: var(--app-muted);
   font-size: 10.5px;
   font-weight: 650;
   letter-spacing: .04em;
@@ -140,59 +144,111 @@ body.aplikasi .scroll-progress {
   height: 38px;
   border: 0;
   border-radius: 11px;
-  background: rgba(255, 255, 255, .14);
-  color: #fff;
-  transition: background-color var(--app-laju) var(--app-ease);
+  background: #f2f6fa;
+  color: #496075;
+  transition: background-color var(--app-laju) var(--app-ease),
+    color var(--app-laju) var(--app-ease);
 }
 
 .app-header .pbpii-notif:hover {
-  background: rgba(255, 255, 255, .24);
+  background: #e7f0f8;
+  color: var(--app-navy);
 }
 
 .app-header .pbpii-notif:active {
-  background: rgba(255, 255, 255, .32);
+  background: #dbe8f3;
 }
 
-/* Chip akun warisan (styles.css) dirancang untuk kop putih. Di dalam header
-   aplikasi warna itu hilang, jadi dibungkus ulang tanpa mengubah markup
-   maupun logika akun.js. */
+/* Chip akun warisan (styles.css) dirancang untuk kop putih, jadi di header
+   aplikasi cukup ditata ulang sebagai dua baris: nama di atas, peran di bawah.
+   Markup dan logika akun.js tidak disentuh. */
 .app-header .account-slot {
   position: relative;
-  gap: 7px;
-  height: 38px;
-  padding: 0 10px 0 4px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .14);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px 0 5px;
+  border-radius: 12px;
+  background: #f7fafc;
   min-width: 0;
   transition: background-color var(--app-laju) var(--app-ease);
 }
 
 .app-header .account-slot:hover {
-  background: rgba(255, 255, 255, .24);
+  background: #eef4f9;
 }
 
 .app-header .account-slot:active {
-  background: rgba(255, 255, 255, .32);
+  background: #e5eef6;
 }
 
 .app-header .account-avatar {
-  background: #fff;
+  grid-row: span 2;
+  width: 30px;
+  height: 30px;
+  background: #e6eff7;
   color: var(--app-navy);
 }
 
 .app-header .account-name {
-  color: #fff;
-  max-width: 108px;
+  grid-column: 2;
+  align-self: end;
+  color: var(--app-navy);
+  max-width: 148px;
+  font-size: .78rem;
+  line-height: 1.25;
+}
+
+.app-header .app-header-role {
+  grid-column: 2;
+  align-self: start;
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: .01em;
+  white-space: nowrap;
 }
 
 .app-header .account-slot .account-button {
+  grid-column: 1 / -1;
   border-color: transparent;
   background: none;
-  color: #fff;
+  color: var(--app-navy);
 }
 
 .app-header .account-menu {
   color: var(--app-ink);
+}
+
+/* Kop ponsel: nama akun cukup satu baris, label peran disembunyikan supaya
+   logo, nama, lonceng, dan avatar tetap muat tanpa mengecilkan target sentuh. */
+@media (max-width: 560px) {
+  .app-brand small {
+    display: none;
+  }
+
+  .app-header .account-slot {
+    height: 38px;
+    padding-right: 10px;
+  }
+
+  .app-header .account-avatar {
+    grid-row: auto;
+    width: 28px;
+    height: 28px;
+  }
+
+  .app-header .account-name {
+    align-self: center;
+    max-width: 96px;
+  }
+
+  .app-header .app-header-role {
+    display: none;
+  }
 }
 
 .app-wrap {
@@ -210,9 +266,22 @@ body.aplikasi nav.app-side {
   display: none;
 }
 
-@media (min-width: 1000px) {
+/* Rel samping dipakai mulai tablet lebar; di bawah itu bar bawah yang
+   mengambil alih supaya layar ponsel tetap satu kolom. */
+@media (min-width: 860px) {
   body.aplikasi {
     padding-left: var(--app-side);
+    padding-bottom: 28px;
+    transition: padding-left var(--app-laju-slow) var(--app-ease);
+  }
+
+  body.aplikasi.ibadah-page .ibadah-app {
+    height: calc(100dvh - var(--app-head) - 40px);
+  }
+
+  body.aplikasi.tanya-page {
+    height: calc(100dvh - var(--app-head) - 10px);
+    padding-bottom: 8px;
   }
 
   body.aplikasi nav.app-side {
@@ -224,26 +293,86 @@ body.aplikasi nav.app-side {
     width: calc(var(--app-side) - 24px);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     overflow-y: auto;
-    padding: 12px 8px;
+    overflow-x: hidden;
+    padding: 10px 9px;
     border: 1px solid var(--app-line);
-    border-radius: 16px;
+    border-radius: 15px;
     background: #fff;
-    box-shadow: 0 10px 30px rgba(14, 43, 73, .06);
+    box-shadow: 0 8px 26px rgba(14, 43, 73, .05);
+    transition: width var(--app-laju-slow) var(--app-ease);
   }
 
-  body.aplikasi nav.app-bar {
+  /* Bar bawah dan lembarnya khusus ponsel: jangan pernah tampil di layar lebar. */
+  body.aplikasi nav.app-bar,
+  body.aplikasi .app-lainnya-sheet,
+  body.aplikasi .app-backdrop {
+    display: none !important;
+  }
+
+  /* Menu dipadatkan: hanya ikon, label disembunyikan, rel menyusut. */
+  body.aplikasi.sisi-ciut {
+    padding-left: calc(var(--app-side-mini) + 8px);
+  }
+
+  body.aplikasi.sisi-ciut nav.app-side {
+    width: var(--app-side-mini);
+    padding: 10px 6px;
+  }
+
+  .sisi-ciut .app-sisi-grup + .app-sisi-grup {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--app-line);
+  }
+
+  .sisi-ciut .app-sisi-label {
     display: none;
+  }
+
+  .sisi-ciut .app-taut {
+    justify-content: center;
+    padding: 10px 0;
+  }
+
+  .sisi-ciut .app-taut > span {
+    display: none;
+  }
+
+  .sisi-ciut .app-taut.is-active::before {
+    height: 22px;
+  }
+
+  .sisi-ciut .app-taut .app-badge {
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    min-width: 15px;
+    padding: 1px 4px;
+    font-size: 9px;
+  }
+
+  .sisi-ciut .app-sisi-bawah {
+    display: grid;
   }
 }
 
 /* ---------- navigasi ---------- */
 
+.app-sisi-grup {
+  display: grid;
+  gap: 1px;
+}
+
+.app-sisi-grup + .app-sisi-grup {
+  margin-top: 8px;
+}
+
 .app-sisi-label {
-  padding: 4px 12px 8px;
-  color: var(--app-muted);
-  font-size: 10.5px;
+  padding: 6px 12px 5px;
+  color: #8494a4;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -252,40 +381,54 @@ body.aplikasi nav.app-side {
 .app-taut,
 .app-bar a,
 .app-bar button {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 44px;
+  min-height: 42px;
   padding: 8px 12px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 10px;
   background: none;
-  color: #33475c;
+  color: #3a4d61;
   font: inherit;
   font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 650;
   text-align: left;
   cursor: pointer;
   transition: background-color var(--app-laju) var(--app-ease),
-    color var(--app-laju) var(--app-ease),
-    box-shadow var(--app-laju-slow) var(--app-ease);
+    color var(--app-laju) var(--app-ease);
 }
 
 .app-taut:hover {
-  background: #eef4f9;
+  background: #f1f6fa;
   color: var(--app-navy);
 }
 
 .app-taut:active,
 .app-bar a:active,
 .app-bar button:active {
-  background: #e2edf5;
+  background: #e6eff7;
 }
 
 .app-taut.is-active {
-  background: linear-gradient(90deg, #e3eef7, #f4f9fd);
-  color: var(--app-navy);
-  box-shadow: inset 0 0 0 1px #d3e4f1;
+  background: #e9f2fa;
+  color: #0d4f80;
+  font-weight: 750;
+}
+
+/* Penanda halaman aktif: garis biru tipis di tepi kiri, tanpa bingkai penuh
+   supaya rel tetap terbaca sebagai daftar, bukan deretan kartu. */
+.app-taut.is-active::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -9px;
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--app-blue);
+  transform: translateY(-50%);
 }
 
 .app-taut svg,
@@ -313,9 +456,23 @@ body.aplikasi nav.app-side {
 }
 
 .app-sisi-bawah {
+  display: grid;
+  gap: 2px;
   margin-top: auto;
-  padding-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid var(--app-line);
+}
+
+/* Tombol ciut hanya berarti saat rel samping terlihat. */
+body:not(.aplikasi) .app-sisi-ciut,
+.app-sisi-ciut {
+  color: #6b7d8f;
+}
+
+@media (max-width: 859.98px) {
+  .app-sisi-ciut {
+    display: none;
+  }
 }
 
 body.aplikasi nav.app-bar {

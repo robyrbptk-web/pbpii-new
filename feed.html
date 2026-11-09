@@ -60,8 +60,7 @@
       <div class="feed-head">
         <div>
           <p class="eyebrow">FEED KADER</p>
-          <h1>Kabar harian kader dan pengurus PII.</h1>
-          <p class="muted">Kajian, ta'lim, latihan kepemimpinan, dan aksi sosial yang dibagikan kader di seluruh Indonesia.</p>
+          <h1>Ruang berbagi gagasan, aktivitas, dan gerakan kader PII.</h1>
         </div>
         <div class="feed-head-side">
           <span class="pill" id="feedCount">Memuat feed…</span>
@@ -86,7 +85,7 @@
       <div class="feed-start" id="feedStartRow">
         <span class="feed-ava is-small" id="feedStartAva" aria-hidden="true">K</span>
         <button class="feed-start-row" type="button" id="feedOpenComposer">
-          <span>Mulai thread…</span>
+          <span>Apa yang ingin kamu bagikan, Kawan?</span>
         </button>
       </div>
 
@@ -95,7 +94,7 @@
           <span class="feed-ava" id="feedMeAva" aria-hidden="true">K</span>
           <div class="feed-composer-main">
             <label class="sr-only" for="feedText">Tulis kabar untuk kader PII</label>
-            <textarea id="feedText" rows="3" maxlength="1800" placeholder="Ada kabar apa hari ini, Kawan?"></textarea>
+            <textarea id="feedText" rows="3" maxlength="1800" placeholder="Apa yang ingin kamu bagikan, Kawan?"></textarea>
             <div class="feed-composer-meta">
               <span class="feed-kinds" id="feedKinds">
                 <button type="button" class="is-active" data-jenis="teks">Teks</button>
@@ -144,7 +143,15 @@
           <span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span>
         </div>
       </div>
-      <p class="feed-empty muted" id="feedEmpty" hidden></p>
+      <p class="feed-empty" id="feedEmpty" hidden></p>
+      <div class="feed-kosong" id="feedKosong" hidden>
+        <span class="feed-kosong-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="4.4" y="5.4" width="15.2" height="13.2" rx="2.4"/><path d="M7.6 9.6h8.8M7.6 13h6"/></svg>
+        </span>
+        <b>Belum ada kabar di sini</b>
+        <p id="feedKosongTeks">Jadilah yang pertama membagikan gagasan atau kegiatan untuk kawan kader.</p>
+        <button class="button button-solid" type="button" id="feedKosongCta">Tulis kabar pertama</button>
+      </div>
       <button class="button button-ghost" type="button" id="feedMore" hidden>Muat kabar lainnya</button>
       <div class="feed-loadstate" id="feedState" role="status" aria-live="polite"></div>
     </section>
@@ -166,8 +173,18 @@
 
       <section class="feed-usul" id="feedSuggestions" aria-live="polite">
         <p class="feed-side-label">Kader untuk diikuti</p>
-        <p class="feed-side-kosong muted" id="feedSuggestEmpty">Memuat…</p>
+        <p class="feed-side-kosong muted" id="feedSuggestEmpty">Saran kader muncul setelah kabar dimuat.</p>
         <div class="feed-suggest-list" id="feedSuggestList"></div>
+      </section>
+
+      <section class="feed-usul" id="feedSideAgenda" aria-live="polite" hidden>
+        <p class="feed-side-label">Agenda terdekat</p>
+        <div class="feed-suggest-list" id="feedSideAgendaList"></div>
+      </section>
+
+      <section class="feed-usul" id="feedSideKabar" aria-live="polite" hidden>
+        <p class="feed-side-label">Kabar resmi PB PII</p>
+        <div class="feed-suggest-list" id="feedSideKabarList"></div>
       </section>
 
       <p class="feed-side-catat muted" id="feedSideNote" hidden></p>
