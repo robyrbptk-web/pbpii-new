@@ -287,6 +287,14 @@
     toastTimer = setTimeout(() => kotak.classList.remove('is-tampil'), 2100);
   }
 
+  function galatBalasan(result) {
+    const error = new Error(result?.error || 'Tanya PII tidak dapat dihubungi.');
+    error.code = String(result?.code || '');
+    error.retryAfter = Number(result?.retryAfter) || 0;
+    error.batas = Number(result?.batas) || 0;
+    return error;
+  }
+
   async function askServer(payload, signal) {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
@@ -295,14 +303,77 @@
       signal
     });
     const result = await response.json().catch(() => null);
-    if (!result || !result.ok) {
-      const error = new Error(result?.error || 'Tanya PII tidak dapat dihubungi.');
-      error.code = String(result?.code || '');
-      error.retryAfter = Number(result?.retryAfter) || 0;
-      error.batas = Number(result?.batas) || 0;
+    if (!result || !result.ok) throw galatBalasan(result);
+    return result.data;
+  }
+
+  /**
+   * Jawaban bertahap: teks model dikirim sebagai event SSE sehingga kalimat
+   * pertama tampil segera. Gerbang yang memutus aliran (balasan JSON biasa)
+   * tetap dilayani lewat jalur yang sama, jadi layar tidak pernah kosong
+   * hanya karena proxy di depan tidak meneruskan `text/event-stream`.
+   */
+  async function askServerStream(payload, signal, onDelta) {
+    const response = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify({ ...payload, stream: true }),
+      signal
+    });
+    const tipe = String(response.headers.get('content-type') || '');
+    if (!/text\/event-stream/i.test(tipe)) {
+      const result = await response.json().catch(() => null);
+      if (!result || !result.ok) throw galatBalasan(result);
+      if (typeof result.data?.reply === 'string' && result.data.reply) onDelta(result.data.reply);
+      return result.data;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('Aliran jawaban tidak tersedia.');
+    const decoder = new TextDecoder();
+    let sisa = '';
+    let hasil = null;
+    let masalah = null;
+    let teks = '';
+
+    const prosesBlok = (blok) => {
+      let nama = 'message';
+      let isi = '';
+      for (const baris of blok.split('\n')) {
+        if (baris.startsWith('event:')) nama = baris.slice(6).trim();
+        else if (baris.startsWith('data:')) isi += baris.slice(5).trim();
+      }
+      if (!isi) return;
+      let paket = null;
+      try { paket = JSON.parse(isi); } catch { return; }
+      if (nama === 'delta' && typeof paket?.t === 'string') {
+        teks += paket.t;
+        onDelta(paket.t);
+      } else if (nama === 'done') {
+        hasil = paket;
+      } else if (nama === 'error') {
+        masalah = paket;
+      }
+    };
+
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      sisa += decoder.decode(value, { stream: true });
+      const blok = sisa.split('\n\n');
+      sisa = blok.pop() || '';
+      blok.forEach(prosesBlok);
+    }
+    if (sisa.trim()) prosesBlok(sisa);
+
+    if (masalah) {
+      const error = galatBalasan(masalah);
+      error.partial = String(masalah.reply || teks || '');
       throw error;
     }
-    return result.data;
+    if (!hasil) throw new Error('Koneksi ke Tanya PII terputus.');
+    if (!hasil.ok) throw galatBalasan(hasil);
+    return hasil.data;
   }
 
   /**
@@ -1343,21 +1414,42 @@
       setBusy(true);
 
       const row = pending(text);
+      /* Baris "memproses" diganti balon hidup begitu potongan pertama tiba.
+         Selama mengalir teks ditulis apa adanya; markdown utuh baru dipasang
+         lewat paint() setelah jawaban selesai supaya parser tidak dijalankan
+         ulang untuk setiap potongan. */
+      let hidup = null;
+      const tumbuh = (potongan) => {
+        if (!potongan) return;
+        if (!hidup) {
+          row.remove();
+          hidup = document.createElement('div');
+          hidup.className = 'tanya-row is-assistant is-mengalir';
+          hidup.setAttribute('aria-live', 'polite');
+          hidup.innerHTML = `<span class="tanya-avatar" aria-hidden="true"><img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'"></span>
+            <div class="tanya-body"><div class="tanya-msg"><span class="tanya-alir"></span></div></div>`;
+          thread.append(hidup);
+          stick(true);
+        }
+        hidup.querySelector('.tanya-alir').textContent += potongan;
+        stick();
+      };
       stick(true);
       pembatal = typeof AbortController === 'function' ? new AbortController() : null;
       const sebelum = riwayatUntukModel();
       const kiriman = await lampiranUntukKirim();
 
       try {
-        const data = await askServer({
+        const data = await askServerStream({
           action: 'chat',
           message: text,
           riwayat: sebelum,
           lampiran: kiriman.length ? kiriman : undefined,
           token: sessionToken(),
           device: deviceId()
-        }, pembatal?.signal);
+        }, pembatal?.signal, tumbuh);
         row.remove();
+        hidup?.remove();
         const reply = String(data?.reply || '').trim() || 'Layanan AI tidak menghasilkan jawaban.';
         const rujukan = (Array.isArray(data?.rujukan) ? data.rujukan : [])
           .filter((sumber) => sumber?.judul)
@@ -1404,12 +1496,17 @@
         kosongkanLampiran();
       } catch (error) {
         row.remove();
+        hidup?.remove();
         if (error?.name === 'AbortError') {
           turns.pop();
           save();
           paint(true);
           toast('Jawaban dihentikan.');
         } else {
+          /* Teks yang sempat tampil sebelum koneksi putus tetap disimpan:
+             pembaca tidak perlu kehilangan jawaban yang hampir selesai. */
+          const putus = String(error.partial || '').trim();
+          if (putus) turns.push({ role: 'assistant', content: putus });
           /* Pertanyaan yang gagal dijawab tetap tinggal di riwayat; kalau tidak,
              percakapan lanjutannya hilang begitu halaman dibuka ulang. */
           save();

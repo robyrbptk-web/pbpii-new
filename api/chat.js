@@ -863,6 +863,176 @@ function reply(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+/* ------------------------------------------------------------------ streaming
+
+   Browser bisa meminta jawaban bertahap (`stream: true`). Teks model dikirim
+   sebagai SSE supaya kalimat pertama muncul segera, bukan setelah seluruh
+   jawaban selesai. Rujukan, kuota, dan pencatatan Apps Script tetap dikirim
+   utuh pada event "done" di akhir, jadi tidak ada informasi yang hilang.
+   Penanda sitasi ([B12], [RESMI]) disaring saat mengalir agar tidak sempat
+   berkedip di layar. */
+
+function sseMulai(res) {
+  if (res.headersSent) return false;
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders?.();
+  return true;
+}
+
+function sseKirim(res, event, data) {
+  if (res.writableEnded) return;
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+/** Satu delta bisa memuat potongan penanda; tahan sebentar sampai jelas. */
+function penyaringPenanda() {
+  let tunda = '';
+  const buang = (teks) => teks
+    .replace(/[ \t]*\[[BD]\d{1,3}\]/gi, '')
+    .replace(/[ \t]*\[\s*(?:DATA\s+)?RESMI\s*\]/gi, '')
+    .replace(/[ \t]*\[\s*(?:BERITA|UMUM)\s*\]/gi, '');
+  return {
+    tulis(potongan, kirim) {
+      tunda += potongan;
+      const buka = tunda.lastIndexOf('[');
+      let aman = tunda;
+      if (buka >= 0 && tunda.indexOf(']', buka) < 0 && tunda.length - buka < 24) {
+        aman = tunda.slice(0, buka);
+        tunda = tunda.slice(buka);
+      } else {
+        tunda = '';
+      }
+      const bersih = buang(aman);
+      if (bersih) kirim(bersih);
+    },
+    akhiri(kirim) {
+      const sisa = buang(tunda);
+      tunda = '';
+      if (sisa) kirim(sisa);
+    },
+  };
+}
+
+/** Membaca aliran OpenAI-compatible (`data: {...}` per baris). */
+async function bacaAliran(response, onDelta) {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Aliran jawaban tidak tersedia.');
+  const decoder = new TextDecoder();
+  let sisa = '';
+  let teks = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    sisa += decoder.decode(value, { stream: true });
+    const baris = sisa.split('\n');
+    sisa = baris.pop() || '';
+    for (const mentah of baris) {
+      const line = mentah.trim();
+      if (!line.startsWith('data:')) continue;
+      const isi = line.slice(5).trim();
+      if (!isi || isi === '[DONE]') continue;
+      let paket = null;
+      try { paket = JSON.parse(isi); } catch { continue; }
+      const delta = paket?.choices?.[0]?.delta?.content;
+      if (typeof delta === 'string' && delta) {
+        teks += delta;
+        onDelta(delta);
+      }
+    }
+  }
+  return teks;
+}
+
+async function alirkanProvider(provider, messages, onDelta) {
+  const response = await fetch(provider.url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${provider.key}`,
+    },
+    body: JSON.stringify({
+      model: provider.model,
+      temperature: 0.4,
+      max_tokens: 2400,
+      stream: true,
+      messages,
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!response.ok) {
+    throw new Error(`${provider.label} menolak permintaan (kode ${response.status}).`);
+  }
+  const tipe = String(response.headers.get('content-type') || '');
+  /* Sebagian gerbang mengabaikan `stream`; balasan JSON tetap dibaca utuh. */
+  if (/application\/json/i.test(tipe)) {
+    const data = await response.json().catch(() => null);
+    const text = rapikanTeks(data?.choices?.[0]?.message?.content);
+    if (!text) throw new Error(`${provider.label} mengembalikan jawaban kosong.`);
+    onDelta(text);
+    return { reply: text.slice(0, 8000), provider: `${provider.label}:${provider.model}` };
+  }
+  const text = rapikanTeks(await bacaAliran(response, onDelta));
+  if (!text) throw new Error(`${provider.label} mengembalikan jawaban kosong.`);
+  return { reply: text.slice(0, 8000), provider: `${provider.label}:${provider.model}` };
+}
+
+async function alirkanPollinations(messages, onDelta) {
+  const response = await fetch(clean(process.env.AI_CHAT_URL) || POLLINATIONS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: clean(process.env.AI_MODEL) || 'openai',
+      referrer: 'pbpii-new.vercel.app',
+      temperature: 0.4,
+      max_tokens: 1800,
+      stream: true,
+      messages,
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!response.ok) {
+    const raw = await response.text();
+    const wait = String(raw).match(/Retry after (\d+)s/i);
+    const error = new Error('Layanan AI gratis sedang padat.');
+    error.retryAfter = wait ? Number(wait[1]) : (/FREE_LIMIT|429|rate/i.test(raw) ? 30 : 0);
+    throw error;
+  }
+  const tipe = String(response.headers.get('content-type') || '');
+  if (/application\/json/i.test(tipe)) {
+    const data = await response.json().catch(() => null);
+    const text = rapikanTeks(data?.choices?.[0]?.message?.content);
+    if (!text) throw new Error('Layanan AI mengembalikan jawaban kosong.');
+    onDelta(text);
+    return { reply: text.slice(0, 8000), provider: `Pollinations:${clean(process.env.AI_MODEL) || 'openai'}` };
+  }
+  const text = rapikanTeks(await bacaAliran(response, onDelta));
+  if (!text) throw new Error('Layanan AI mengembalikan jawaban kosong.');
+  return { reply: text.slice(0, 8000), provider: `Pollinations:${clean(process.env.AI_MODEL) || 'openai'}` };
+}
+
+async function alirkanModel(messages, adaGambar, onDelta) {
+  const kandidat = adaGambar ? providers().filter((provider) => provider.vision) : providers();
+  /* Setelah ada teks yang tampil, pindah penyedia akan menggandakan kalimat.
+     Kegagalan seperti itu diteruskan apa adanya supaya pembaca tidak melihat
+     jawaban yang diulang dari awal. */
+  let terkirim = 0;
+  const delta = (potongan) => { terkirim += potongan.length; onDelta(potongan); };
+  for (const provider of kandidat) {
+    try {
+      return await alirkanProvider(provider, messages, delta);
+    } catch (error) {
+      if (terkirim) throw error;
+    }
+  }
+  if (!adaGambar) return alirkanPollinations(messages, delta);
+  throw new Error('Layanan AI tidak menjawab tepat waktu.');
+}
+
 /** Susun daftar kandidat penyedia dari environment; tanpa kunci = Pollinations saja. */
 function providers() {
   const list = [];
@@ -1049,6 +1219,19 @@ export default async function handler(req, res) {
   const ip = ipOf(req);
   const device = deviceOf(body, ip);
   const entry = usageFor(device);
+  /* Klien baru meminta jawaban bertahap. Semua balasan aksi chat — termasuk
+     kuota habis dan jawaban identitas — dikirim lewat jalur yang sama agar
+     browser tidak perlu menebak format di tengah percakapan. */
+  const mauStream = body.stream === true;
+  const balas = (payload) => {
+    if (!mauStream) {
+      reply(res, 200, payload);
+      return;
+    }
+    if (!sseMulai(res)) return;
+    sseKirim(res, 'done', payload);
+    if (!res.writableEnded) res.end();
+  };
   const gas = await gasQuota(body, ip);
   const defaultBatas = body.token ? DAILY_LIMIT : GUEST_DAILY_LIMIT;
   const batas = gas && typeof gas.batas === 'number' ? gas.batas : defaultBatas;
@@ -1077,13 +1260,13 @@ export default async function handler(req, res) {
   const riwayat = riwayatBersih(body.riwayat);
   const lampiran = lampiranBersih(body.lampiran);
   if (question.length < 3 && !lampiran.length) {
-    reply(res, 200, { ok: false, error: 'Tulis pertanyaan dengan jelas.' });
+    balas({ ok: false, error: 'Tulis pertanyaan dengan jelas.' });
     return;
   }
 
   const dipakai = gas && typeof gas.dipakai === 'number' ? gas.dipakai : entry.count;
   if (dipakai >= batas) {
-    reply(res, 200, {
+    balas({
       ok: false,
       code: 'quota',
       batas,
@@ -1094,7 +1277,7 @@ export default async function handler(req, res) {
     return;
   }
   if (entry.recent.length >= MINUTE_LIMIT) {
-    reply(res, 200, { ok: false, error: 'Terlalu cepat. Tunggu sebentar sebelum mengirim pertanyaan lagi.', retryAfter: 15 });
+    balas({ ok: false, error: 'Terlalu cepat. Tunggu sebentar sebelum mengirim pertanyaan lagi.', retryAfter: 15 });
     return;
   }
 
@@ -1106,7 +1289,7 @@ export default async function handler(req, res) {
     entry.count += 1;
     entry.recent.push(Date.now());
     const catat = await gasRecord(body, ip, question, { reply: JAWABAN_IDENTITAS, provider: 'identitas' });
-    reply(res, 200, {
+    balas({
       ok: true,
       data: {
         reply: JAWABAN_IDENTITAS,
@@ -1144,7 +1327,7 @@ export default async function handler(req, res) {
        fakta kepengurusan tidak boleh menutup peristiwa yang sedang dicari. */
     if (!pustaka.length && (!fakta.length || butuhBerita(question))) web = await cariWeb(kueri);
     if (!fakta.length && !pustaka.length && !web.length) {
-      reply(res, 200, {
+      balas({
         ok: true,
         data: {
           status: 'no_source',
@@ -1172,19 +1355,65 @@ export default async function handler(req, res) {
     userPesan(question, lampiran),
   ];
 
+  if (!mauStream) {
+    try {
+      const jawaban = await askModel(messages, adaGambar);
+      entry.count += 1;
+      entry.recent.push(Date.now());
+      const catat = await gasRecord(body, ip, question, jawaban);
+      const sisa = catat && typeof catat.dipakai === 'number'
+        ? Math.max(0, (catat.batas || batas) - catat.dipakai)
+        : Math.max(0, batas - dipakai - 1);
+      reply(res, 200, {
+        ok: true,
+        data: {
+          reply: bersihkanPenanda(jawaban.reply),
+          mode: terkait ? 'organisasi' : 'umum',
+          rujukan: pustakaSitasi(pustaka),
+          rujukanWeb: webSitasi(web),
+          fakta: faktaSitasi(fakta),
+          akun: catat?.akun || (gas?.akun || (body.token ? 'akun' : 'tamu')),
+          batas: catat?.batas || batas,
+          sisa,
+        },
+      });
+    } catch (error) {
+      reply(res, 200, {
+        ok: false,
+        error: pesanPembaca(error.message),
+        retryAfter: error.retryAfter || 0,
+      });
+    }
+    return;
+  }
+
+  if (!sseMulai(res)) return;
+  const mode = terkait ? 'organisasi' : 'umum';
+  sseKirim(res, 'meta', { mode, akun: gas?.akun || (body.token ? 'akun' : 'tamu'), batas });
+  const saring = penyaringPenanda();
+  let terkirim = '';
+  const alir = (potongan) => saring.tulis(potongan, (bersih) => {
+    terkirim += bersih;
+    sseKirim(res, 'delta', { t: bersih });
+  });
+  let jawaban = null;
   try {
-    const jawaban = await askModel(messages, adaGambar);
+    jawaban = await alirkanModel(messages, adaGambar, alir);
+    saring.akhiri((bersih) => {
+      terkirim += bersih;
+      sseKirim(res, 'delta', { t: bersih });
+    });
     entry.count += 1;
     entry.recent.push(Date.now());
     const catat = await gasRecord(body, ip, question, jawaban);
     const sisa = catat && typeof catat.dipakai === 'number'
       ? Math.max(0, (catat.batas || batas) - catat.dipakai)
       : Math.max(0, batas - dipakai - 1);
-    reply(res, 200, {
+    sseKirim(res, 'done', {
       ok: true,
       data: {
-        reply: bersihkanPenanda(jawaban.reply),
-        mode: terkait ? 'organisasi' : 'umum',
+        reply: bersihkanPenanda(jawaban.reply) || terkirim,
+        mode,
         rujukan: pustakaSitasi(pustaka),
         rujukanWeb: webSitasi(web),
         fakta: faktaSitasi(fakta),
@@ -1194,10 +1423,13 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    reply(res, 200, {
+    /* Sudah ada teks di layar: jangan dikirim ulang lewat jalur galat. */
+    sseKirim(res, 'error', {
       ok: false,
       error: pesanPembaca(error.message),
       retryAfter: error.retryAfter || 0,
+      reply: terkirim,
     });
   }
+  if (!res.writableEnded) res.end();
 }

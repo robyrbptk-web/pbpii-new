@@ -5770,6 +5770,30 @@ body.has-kader-dialog {
 .tanya-skeleton i:nth-child(2) { width: 70%; animation-delay: .12s; }
 .tanya-skeleton i:nth-child(3) { width: 44%; animation-delay: .24s; }
 
+/* Jawaban bertahap: teks ditulis apa adanya sambil mengalir, dengan kursor
+   tipis di ujungnya sebagai isyarat masih ada kalimat yang menyusul. */
+.tanya-row.is-mengalir .tanya-msg {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tanya-row.is-mengalir .tanya-msg::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 1.02em;
+  margin-left: 3px;
+  border-radius: 2px;
+  vertical-align: -0.16em;
+  background: var(--blue);
+  opacity: .5;
+  animation: tanya-kedip 1s steps(2, start) infinite;
+}
+
+@keyframes tanya-kedip {
+  50% { opacity: 0; }
+}
+
 @keyframes orbit-spin {
   to { transform: rotate(360deg); }
 }
