@@ -97,6 +97,8 @@ function renderFooterLinks(settings) {
     }
   });
 
+  links.push('<a href="privasi.html">Kebijakan Privasi</a>');
+
   $('#footerLinks').innerHTML = links.join('');
 }
 
