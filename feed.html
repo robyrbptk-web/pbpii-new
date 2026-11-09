@@ -55,6 +55,7 @@
   </div>
 
   <main>
+    <div class="feed-shell">
     <section class="feed-board" id="feed">
       <div class="feed-head">
         <div>
@@ -64,9 +65,9 @@
         </div>
         <div class="feed-head-side">
           <span class="pill" id="feedCount">Memuat feed…</span>
-          <button class="button button-solid" type="button" id="feedOpenComposer" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.8 19.2h3.1L18.6 7.4a2.2 2.2 0 0 0-3.1-3.1L4.8 16.1z"/><path d="M14.4 6.1l3.1 3.1"/></svg>
-            Tulis kabar
+          <button class="feed-rail-open" type="button" id="feedOpenRail" aria-controls="feedSide" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2"/><path d="m15.4 15.4 4.2 4.2"/></svg>
+            Cari kader
           </button>
         </div>
       </div>
@@ -78,6 +79,15 @@
         <button type="button" role="tab" aria-selected="false" data-tab="mengikuti" data-requires="kader">Mengikuti</button>
         <button type="button" role="tab" aria-selected="false" data-tab="terbaru">Terbaru</button>
         <button type="button" role="tab" aria-selected="false" data-tab="acara">Acara</button>
+      </div>
+
+      <button class="feed-baru" type="button" id="feedBaru" hidden></button>
+
+      <div class="feed-start" id="feedStartRow">
+        <span class="feed-ava is-small" id="feedStartAva" aria-hidden="true">K</span>
+        <button class="feed-start-row" type="button" id="feedOpenComposer">
+          <span>Mulai thread…</span>
+        </button>
       </div>
 
       <form class="feed-composer" id="feedComposer" hidden autocomplete="off">
@@ -138,6 +148,32 @@
       <button class="button button-ghost" type="button" id="feedMore" hidden>Muat kabar lainnya</button>
       <div class="feed-loadstate" id="feedState" role="status" aria-live="polite"></div>
     </section>
+
+    <aside class="feed-side" id="feedSide" aria-label="Kader dan pencarian">
+      <div class="feed-side-head">
+        <p class="feed-side-title">Kader PII</p>
+        <button class="feed-side-close" type="button" id="feedCloseRail" aria-label="Tutup panel kader">✕</button>
+      </div>
+
+      <form class="feed-cari" id="feedSearchForm" role="search" hidden>
+        <label class="sr-only" for="feedSearch">Cari kader</label>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2"/><path d="m15.4 15.4 4.2 4.2"/></svg>
+        <input id="feedSearch" type="search" autocomplete="off" maxlength="40" placeholder="Cari nama atau @akun kader">
+      </form>
+      <div class="feed-cari-hasil" id="feedSearchResults" hidden></div>
+
+      <div class="feed-saya" id="feedMe" hidden></div>
+
+      <section class="feed-usul" id="feedSuggestions" aria-live="polite">
+        <p class="feed-side-label">Kader untuk diikuti</p>
+        <p class="feed-side-kosong muted" id="feedSuggestEmpty">Memuat…</p>
+        <div class="feed-suggest-list" id="feedSuggestList"></div>
+      </section>
+
+      <p class="feed-side-catat muted" id="feedSideNote" hidden></p>
+    </aside>
+    <button class="feed-side-tutup" type="button" id="feedSideTutup" aria-label="Tutup panel kader" hidden></button>
+    </div>
   </main>
 
   <div class="feed-lightbox" id="feedLightbox" hidden aria-hidden="true">
