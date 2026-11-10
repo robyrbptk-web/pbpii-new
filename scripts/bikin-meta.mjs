@@ -1,18 +1,25 @@
 // Bangkitkan server/meta.mjs dari dua sumber yang sudah ada: SHEET_SCHEMA di
-// gas/Code.gs dan daftar kolom di supabase/migrations/0001_skema_dasar.sql.
-// Kalau ada header sheet yang tidak punya kolom, generator berhenti dengan
-// pesan — jadi pemetaan tidak pernah bisa diam-diam tertinggal.
+// gas/Code.gs dan daftar kolom di seluruh migrasi Supabase (0001 membuka
+// tabelnya, berikutnya menambah kolom). Kalau ada header sheet yang tidak
+// punya kolom, generator berhenti dengan pesan — jadi pemetaan tidak pernah
+// bisa diam-diam tertinggal.
 //
 //   node scripts/bikin-meta.mjs
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { TABEL, GANTI, keSnake } from '../server/peta.mjs';
 
 const AKAR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const gs = readFileSync(join(AKAR, 'gas/Code.gs'), 'utf8');
-const sql = readFileSync(join(AKAR, 'supabase/migrations/0001_skema_dasar.sql'), 'utf8');
+const BERKAS_MIGRASI = readdirSync(join(AKAR, 'supabase', 'migrations'))
+  .filter((nama) => nama.endsWith('.sql'))
+  .sort();
+const migrasi = BERKAS_MIGRASI.map((nama) => ({
+  nama,
+  sql: readFileSync(join(AKAR, 'supabase', 'migrations', nama), 'utf8'),
+}));
 
 function konstanta(nama) {
   const mulai = gs.indexOf(`const ${nama} = {`);
@@ -37,25 +44,43 @@ const APP = konstanta('APP');
 const kolomTabel = {};
 const tipeTabel = {};
 const pkTabel = {};
-const reTabel = /create table if not exists (\w+) \(([\s\S]*?)\n\);/g;
-let t;
-while ((t = reTabel.exec(sql))) {
-  const nama = [];
-  const tipe = {};
-  let pk = null;
-  for (const baris of t[2].split('\n')) {
-    const isi = baris.trim().replace(/,$/, '');
-    if (!isi || /^--/.test(isi)) continue;
-    if (/^(unique|primary key|foreign key|check|constraint)\b/i.test(isi)) continue;
-    const [kolom, ...sisa] = isi.split(/\s+/);
-    if (!/^[a-z_][a-z0-9_]*$/.test(kolom)) continue;
-    nama.push(kolom);
-    tipe[kolom] = sisa.join(' ').toLowerCase();
-    if (/primary key/.test(isi) || /\b(bigserial|serial)\b/.test(isi)) pk = pk || kolom;
+for (const { sql } of migrasi) {
+  const reTabel = /create table if not exists (\w+) \(([\s\S]*?)\n\);/g;
+  let t;
+  while ((t = reTabel.exec(sql))) {
+    const nama = [];
+    const tipe = {};
+    let pk = null;
+    for (const baris of t[2].split('\n')) {
+      const isi = baris.trim().replace(/,$/, '');
+      if (!isi || /^--/.test(isi)) continue;
+      if (/^(unique|primary key|foreign key|check|constraint)\b/i.test(isi)) continue;
+      const [kolom, ...sisa] = isi.split(/\s+/);
+      if (!/^[a-z_][a-z0-9_]*$/.test(kolom)) continue;
+      nama.push(kolom);
+      tipe[kolom] = sisa.join(' ').toLowerCase();
+      if (/primary key/.test(isi) || /\b(bigserial|serial)\b/.test(isi)) pk = pk || kolom;
+    }
+    kolomTabel[t[1]] = nama;
+    tipeTabel[t[1]] = tipe;
+    pkTabel[t[1]] = pk;
   }
-  kolomTabel[t[1]] = nama;
-  tipeTabel[t[1]] = tipe;
-  pkTabel[t[1]] = pk;
+}
+
+/* Kolom yang baru datang dari migrasi setelah 0001. Urutan berkas adalah
+   urutan penerapan, jadi penamaan kolom selalu mengikuti keadaan database. */
+for (const { nama, sql } of migrasi) {
+  const reAlter = /^\s*alter table (\w+) add column (?:if not exists )?(\w+)\s+([a-z][a-z0-9_]*(?:\([0-9,]+\))?)/gim;
+  let a;
+  while ((a = reAlter.exec(sql))) {
+    const [, tabel, kolom, tipe] = a;
+    if (!kolomTabel[tabel]) {
+      console.error(`${nama}: menambah kolom di tabel ${tabel} yang tidak dikenal.`);
+      process.exit(1);
+    }
+    if (!kolomTabel[tabel].includes(kolom)) kolomTabel[tabel].push(kolom);
+    tipeTabel[tabel][kolom] = tipe.toLowerCase();
+  }
 }
 if (Object.values(pkTabel).some((pk) => !pk)) {
   console.error('Ada tabel tanpa kunci utama:', Object.entries(pkTabel).filter(([, pk]) => !pk).map(([n]) => n));

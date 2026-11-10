@@ -44,6 +44,9 @@ export const GANTI = {
   registrationDeadline: 'batas_daftar',
   quota: 'kuota',
   additionalInfo: 'info_tambahan',
+  endDate: 'tanggal_selesai',
+  latitude: 'geolintar',
+  longitude: 'geolongitur',
   eventId: 'target_id',
   profilPada: 'profil_on',
 };

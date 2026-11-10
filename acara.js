@@ -48,6 +48,20 @@
     const date = new Date(`${String(value || '').slice(0, 10)}T00:00:00`);
     return isNaN(date.getTime()) ? '' : date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
+  const tanggalSah = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+  /* Kader melihat kegiatan berjalan sampai hari berapa, bukan hanya hari
+     mulainya; rentang ini yang sama dipakai Peta Kaderisasi. */
+  const rentangLabel = (event) => {
+    const mulai = longDate(event.date);
+    const akhir = tanggalSah(event.endDate) && event.endDate > event.date ? longDate(event.endDate) : '';
+    return akhir ? `${mulai} — ${akhir}` : mulai;
+  };
+  const titikPeta = (event) => {
+    const lintang = Number(event.latitude);
+    const bujur = Number(event.longitude);
+    if (!Number.isFinite(lintang) || !Number.isFinite(bujur)) return '';
+    return `peta.html#kader=1&lat=${lintang.toFixed(5)}&lon=${bujur.toFixed(5)}`;
+  };
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const LOGO = 'assets/logo-pii.webp';
   const driveForms = [
@@ -220,6 +234,10 @@
         ? `<small>${(form.registered || 0).toLocaleString('id-ID')} pendaftar</small>`
         : '';
     const place = [event.location, event.host?.name].filter(Boolean).join(' · ');
+    const peta = titikPeta(event);
+    const rentangChip = tanggalSah(event.endDate) && event.endDate > event.date &&
+      event.endDate.slice(0, 7) === String(event.date).slice(0, 7)
+      ? `–${dayLabel(event.endDate)}` : '';
     const id = escapeHTML(event.id);
     const likes = Number(event.likes) || 0;
     const replies = Number(event.commentCount) || 0;
@@ -229,7 +247,7 @@
       <article class="acara-card${canReveal ? ' reveal' : ''}${event.upcoming ? '' : ' is-past'}" data-event="${id}">
         <div class="acara-cover">
           <img src="${safeImage(event.coverImage)}" alt="${escapeHTML(event.title)}" loading="lazy"${imageAttrs(event.coverImage)} onerror="acaraPhotoFailed(this)">
-          <span class="acara-date"><b>${escapeHTML(dayLabel(event.date))}</b><small>${escapeHTML(monthShort(event.date))}</small></span>
+          <span class="acara-date"><b>${escapeHTML(dayLabel(event.date))}${rentangChip ? `<i>${escapeHTML(rentangChip)}</i>` : ''}</b><small>${escapeHTML(monthShort(event.date))}</small></span>
           ${event.upcoming ? '' : '<span class="acara-tag-lampau">Sudah berlangsung</span>'}
         </div>
         <div class="acara-body">
@@ -242,8 +260,8 @@
             <span class="acara-jenjang">${escapeHTML(event.host?.jenjangLabel || event.host?.jenjang || 'PII')}</span>
           </div>
           <h3>${escapeHTML(event.title)}</h3>
-          <p class="acara-when">${escapeHTML(longDate(event.date))}</p>
-          ${place ? `<p class="acara-where">${escapeHTML(place)}</p>` : ''}
+          <p class="acara-when">${escapeHTML(rentangLabel(event))}</p>
+          ${place || peta ? `<p class="acara-where">${escapeHTML(place)}${peta ? ` <a class="acara-titik" href="${peta}">Lihat di peta</a>` : ''}</p>` : ''}
           ${event.excerpt ? `<p class="acara-desc">${escapeHTML(event.excerpt)}</p>` : ''}
           <div class="acara-actions">
             ${cta}${quota}
@@ -421,7 +439,7 @@
     const link = `${location.origin}${location.pathname}?event=${encodeURIComponent(id)}`;
     const payload = {
       title: event.title,
-      text: `${event.title} — ${event.host?.name || 'PB PII'} (${longDate(event.date)})`,
+      text: `${event.title} — ${event.host?.name || 'PB PII'} (${rentangLabel(event)})`,
       url: link
     };
     if (navigator.share) {
@@ -445,7 +463,13 @@
           toast(button, 'Tanggal acara belum valid untuk ditambahkan ke kalender.');
           return;
         }
-        const end = new Date(start);
+        const end = (() => {
+          if (!tanggalSah(event.endDate) || event.endDate <= event.date) return new Date(start);
+          const [ay, am, ad] = event.endDate.split('-').map(Number);
+          const selesai = new Date(Date.UTC(ay, am - 1, ad));
+          if (selesai.getUTCFullYear() !== ay || selesai.getUTCMonth() !== am - 1 || selesai.getUTCDate() !== ad) return new Date(start);
+          return selesai;
+        })();
         end.setUTCDate(end.getUTCDate() + 1);
         const dateStamp = (value) => value.toISOString().slice(0, 10).replace(/-/g, '');
         const eventUrl = new URL(`acara.html?event=${encodeURIComponent(event.id)}`, location.href).href;

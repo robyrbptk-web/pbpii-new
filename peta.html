@@ -39,6 +39,7 @@
       <p class="nav-sheet-title">Menu lengkap PB PII</p>
       <div class="nav-sheet-grid">
         <a href="peta.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/></svg><span>PII Global View</span></a>
+        <a href="peta.html#kader=1"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s6.4-5.3 6.4-10a6.4 6.4 0 1 0-12.8 0c0 4.7 6.4 10 6.4 10z"/><circle cx="12" cy="10.3" r="2.3"/></svg><span>Peta Kaderisasi</span></a>
         <a href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka organisasi</span></a>
         <a href="feed.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 5.5h14.8v13H4.6z"/><path d="M7.4 9h9M7.4 12.2h9M7.4 15.4h5.4"/></svg><span>Feed kader</span></a>
         <a href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri kegiatan</span></a>
@@ -58,44 +59,65 @@
         <span>Sekretariat PB PII · Jl. Menteng Raya No. 58, Jakarta Pusat · <a href="index.html#data">sumber data terbuka</a></span>
       </div>
       <div class="globe-toolbar-actions">
+        <button type="button" class="globe-tag" id="kaderToggle" aria-expanded="false" aria-controls="kaderPanel">Peta Kaderisasi</button>
         <button type="button" class="globe-icon-btn" id="globeLayersHelp" title="Cara memakai globe" aria-label="Cara memakai globe">?</button>
         <a class="globe-icon-btn" href="/peta/index.html" target="_blank" rel="noopener" title="Layar penuh" aria-label="Buka layar penuh">⛶</a>
       </div>
     </div>
 
     <div class="globe-stage">
-      <iframe
-        id="globeFrame"
-        class="globe-frame"
-        title="PII Global View — globe interaktif PB PII"
-        allow="fullscreen; clipboard-write"
-        referrerpolicy="same-origin"></iframe>
+      <div class="globe-viewport">
+        <iframe
+          id="globeFrame"
+          class="globe-frame"
+          title="PII Global View — globe interaktif PB PII"
+          allow="fullscreen; clipboard-write"
+          referrerpolicy="same-origin"></iframe>
+
+        <div class="globe-fallback" id="globeFallback" hidden>
+          <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.4 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.4-4-9s1.4-6.6 4-9Z"/></svg>
+          <b>Peta 3D belum terbuka</b>
+          <p>Jaringannya sedang lambat. Daftar kegiatan kaderisasi tetap dapat dibaca di samping peta.</p>
+          <div class="globe-fallback-actions">
+            <button type="button" id="globeRetry">Coba lagi</button>
+            <button type="button" data-buka-kader>Lihat kegiatan kaderisasi</button>
+          </div>
+        </div>
+
+        <div class="globe-fallback globe-phone-gate" id="phoneGate" hidden>
+          <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.75" width="10" height="18.5" rx="2.25"/><path d="M11 18.6h2"/></svg>
+          <b>Peta 3D berat untuk ponsel</b>
+          <p>Globe ini memuat citra satelit, penerbangan, dan CCTV langsung, jadi kuotanya besar.</p>
+          <div class="globe-fallback-actions">
+            <button type="button" data-buka-kader>Lihat kegiatan kaderisasi</button>
+            <button type="button" id="phoneGateOpen">Tetap buka peta 3D</button>
+          </div>
+          <small class="phone-gate-hint">Pilihan Anda di perangkat ini kami ingat.</small>
+        </div>
+      </div>
+
+      <aside class="kader-panel" id="kaderPanel" hidden>
+        <header class="kader-head">
+          <span>
+            <b>Peta Kaderisasi</b>
+            <small>Kegiatan yang titiknya sudah diisi panitia. Kader melihat; yang mengubah data hanya pengurus.</small>
+          </span>
+          <button type="button" class="kader-close" id="kaderClose" aria-label="Tutup daftar kaderisasi">&times;</button>
+        </header>
+        <div class="kader-tools">
+          <input id="kaderSearch" type="search" placeholder="Cari kegiatan atau lembaga" autocomplete="off" aria-label="Cari kegiatan kaderisasi">
+          <div class="kader-chips" id="kaderChips"></div>
+          <label class="kader-switch"><input type="checkbox" id="kaderUpcoming" checked><span>Hanya yang akan datang</span></label>
+        </div>
+        <div class="kader-list" id="kaderList" aria-live="polite">
+          <p class="kader-note">Memuat kegiatan…</p>
+        </div>
+      </aside>
     </div>
   </main>
 
-  <!-- Kept outside <main> because `main` carries a transform, which would make a
-       fixed overlay stick to the stage instead of the phone or window viewport. -->
-  <div class="globe-fallback" id="globeFallback" hidden>
-    <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.4 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.4-4-9s1.4-6.6 4-9Z"/></svg>
-    <b>Globe belum dapat dimuat</b>
-    <p>Mesin globe tidak merespons. Biasanya karena koneksi terputus saat memuat aset Cesium.</p>
-    <div class="globe-fallback-actions">
-      <button type="button" id="globeRetry">Muat ulang globe</button>
-      <a href="/peta/" target="_blank" rel="noopener">Buka di layar penuh ↗</a>
-    </div>
-  </div>
-
-  <div class="globe-fallback globe-phone-gate" id="phoneGate" hidden>
-    <svg class="globe-fallback-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.75" width="10" height="18.5" rx="2.25"/><path d="M11 18.6h2"/></svg>
-    <b>PII Global View dirancang untuk PC/laptop</b>
-    <p>Globe ini memuat citra satelit, penerbangan, dan CCTV secara langsung. Layar dan kontrol ponsel membuat fitur tersebut tidak dapat dipakai secara maksimal, dan kuota datanya besar.</p>
-    <div class="globe-fallback-actions">
-      <button type="button" id="phoneGateOpen">Tetap buka globe</button>
-      <a href="index.html">Kembali ke beranda</a>
-    </div>
-    <small class="phone-gate-hint">Pilihan Anda di perangkat ini kami ingat.</small>
-  </div>
-
+  <!-- The orientation card stays fixed to the window; the globe warnings inside
+       the stage must not cover the cadre list sitting beside the map. -->
   <div class="globe-help" id="globeHelp" hidden>
     <b>Cara memakai</b>
     <ul>
@@ -119,6 +141,31 @@
       const CONSENT_KEY = 'pii-globe-phone-consent';
       let started = false;
       let timer = 0;
+      let pantauLanjut = 0;
+
+      /* Mesin globe hanya membaca posisi kamera dari hash ketika ia dimuat,
+         jadi satu lompatan titik berarti memuat ulang iframe dengan hash baru.
+         Halaman itu sendiri tidak ikut berubah. */
+      function bacaHash() {
+        const params = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
+        const mentah = [params.get('lat'), params.get('lon')];
+        /* Number(null) adalah 0, jadi "#kader=1" tanpa koordinat akan menerbangkan
+           kamera ke 0,0 di tengah Atlantik dan semua titik Indonesia hilang. */
+        if (mentah[0] === null || mentah[1] === null) return null;
+        const lat = Number(mentah[0]);
+        const lon = Number(mentah[1]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+        const alt = Number(params.get('alt'));
+        return { lat: lat, lon: lon, alt: Number.isFinite(alt) && alt > 200 ? Math.min(alt, 20000000) : 60000 };
+      }
+      function hashKamera(kamera) {
+        return 'lat=' + cameraFixed(kamera.lat) + '&lon=' + cameraFixed(kamera.lon) + '&alt=' + Math.round(kamera.alt);
+      }
+      const cameraFixed = (nilai) => Number(nilai).toFixed(5);
+      let kamera = bacaHash();
+      /* Yang datang ke Peta Kaderisasi tanpa titik tertentu butuh melihat seluruh
+         Nusantara, bukan nol kamera di luar negeri. */
+      if (!kamera && /kader=1/.test(String(location.hash || ''))) kamera = { lat: -2.5, lon: 118, alt: 4000000 };
 
       /* The globe lays its panels beside the map only on a wide, tall viewport;
          below that it stacks them in flow, which a locked 100dvh frame would clip.
@@ -180,34 +227,53 @@
 
       function pollUntilAlive(deadlineMs) {
         clearInterval(timer);
+        clearInterval(pantauLanjut);
         const until = Date.now() + deadlineMs;
         timer = setInterval(() => {
-          if (globeAlive()) {
-            clearInterval(timer);
-            fallback.hidden = true;
-            dressUp();
-            return;
-          }
+          if (globeAlive()) return hidup();
           if (Date.now() > until) {
             clearInterval(timer);
             fallback.hidden = false;
+            /* Cesium baru melukis kanvas saat tab terlihat, jadi tab di latar
+               belakang selalu "gagal" padahal hanya tertunda. Tetap periksa
+               perlahan supaya pesannya hilang sendiri. */
+            pantauLanjut = setInterval(() => { if (globeAlive()) hidup(); }, 4000);
           }
         }, 1200);
       }
 
+      function hidup() {
+        clearInterval(timer);
+        clearInterval(pantauLanjut);
+        fallback.hidden = true;
+        dressUp();
+      }
+
       function load(first) {
         fallback.hidden = true;
-        frame.src = first ? '/peta/index.html' : '/peta/index.html?retry=' + Date.now();
+        frame.src = '/peta/index.html' + (first ? '' : '?retry=' + Date.now()) +
+          (kamera ? '#' + hashKamera(kamera) : '');
         pollUntilAlive(first ? 30000 : 24000);
       }
 
+      /* Dipakai kaderisasi.js: mengarahkan globe ke titik sebuah kegiatan. */
+      window.PBPIIGlobeBridge = {
+        fly: function (titik) {
+          const alt = Number(titik && titik.alt);
+          kamera = {
+            lat: Number(titik.lat),
+            lon: Number(titik.lon),
+            alt: Number.isFinite(alt) && alt > 200 ? alt : 60000
+          };
+          try { history.replaceState(null, '', '#' + hashKamera(kamera) + '&kader=1'); } catch (error) { /* file:// */ }
+          load(false);
+        },
+        kameraAwal: kamera
+      };
+
       frame.addEventListener('load', () => {
         dressUp();
-        if (globeAlive()) {
-          clearInterval(timer);
-          fallback.hidden = true;
-          return;
-        }
+        if (globeAlive()) { hidup(); return; }
         pollUntilAlive(20000);
       });
 
@@ -221,6 +287,16 @@
         startGlobe();
       });
 
+      /* Daftar kaderisasi hanyalah data, jadi ia selalu dapat dibaca walaupun
+         petanya belum atau tidak bisa dibuka. */
+      document.querySelectorAll('[data-buka-kader]').forEach((tombolKader) => {
+        tombolKader.addEventListener('click', () => {
+          if (!window.PBPIIKader) return;
+          window.PBPIIKader.buka();
+          window.PBPIIKader.ke();
+        });
+      });
+
       function startGlobe() {
         if (started) return;
         started = true;
@@ -229,11 +305,15 @@
       }
 
       applyStageMode();
-      if (isPhone() && !remembered()) phoneGate.hidden = false;
+      /* Yang datang lewat "Peta Kaderisasi" mencari daftarnya, bukan petanya,
+         jadi jangan stop di gerbang ponsel; panelnya sendiri dibuka kaderisasi.js. */
+      const cariKader = /kader=1/.test(String(location.hash || ''));
+      if (isPhone() && !remembered() && !cariKader) phoneGate.hidden = false;
       else startGlobe();
     })();
   </script>
   <script src="akun.js" defer></script>
   <script src="site.js" defer></script>
+  <script src="kaderisasi.js" defer></script>
 </body>
 </html>

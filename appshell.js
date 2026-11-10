@@ -38,6 +38,7 @@
     notifikasi: '<path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.2 7.5-2.2 7.5h16.4S18 14.5 18 8.5Z"/><path d="M13.7 19.5a2 2 0 0 1-3.4 0"/>',
     profil: '<circle cx="12" cy="8" r="3.4"/><path d="M5.4 19.2c.6-3.2 2.8-5.1 6.6-5.1s6 1.9 6.6 5.1"/>',
     peta: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.4 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.4-4-8.5s1.4-6.1 4-8.5Z"/>',
+    kaderisasi: '<path d="M12 20.5s6.4-5.3 6.4-10a6.4 6.4 0 1 0-12.8 0c0 4.7 6.4 10 6.4 10Z"/><circle cx="12" cy="10.3" r="2.3"/>',
     pengurus: '<path d="M4 13.5h7V4H4zM13 4v9.5h7V4zM4 20h7v-4.5H4zM13 15.5h7V20h-7z"/>',
     lembaga: '<path d="M4.5 20h15M7 20V9.5l5-4 5 4V20"/><path d="M10.5 12.5h3M10.5 16h3"/>',
     lainnya: '<circle cx="6" cy="7" r="2"/><circle cx="12" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="6" cy="17" r="2"/><circle cx="12" cy="17" r="2"/><circle cx="18" cy="17" r="2"/>',
@@ -56,6 +57,7 @@
     { id: 'notifikasi', label: 'Notifikasi', href: '/app/notifikasi', angka: true },
     { id: 'profil', label: 'Profil saya', href: '/app/profil', kader: true },
     { id: 'peta', label: 'PII Global View', href: '/peta.html' },
+    { id: 'kaderisasi', label: 'Peta Kaderisasi', href: '/peta.html#kader=1' },
     { id: 'pengurus', label: 'Dasbor Pengurus', href: '/admin.html', pengurus: true },
     { id: 'lembaga', label: 'Dasbor Lembaga', href: '/lembaga.html', lembaga: true }
   ];
@@ -280,7 +282,7 @@
     const daftar = menuBoleh(peran());
     const kelompok = [
       { label: 'Menu utama', ids: ['beranda', 'kabar', 'acara', 'ibadah', 'tanya', 'pustaka', 'artikel', 'notifikasi'] },
-      { label: 'Jelajah', ids: ['profil', 'peta'] },
+      { label: 'Jelajah', ids: ['profil', 'peta', 'kaderisasi'] },
       { label: 'Kelola', ids: ['pengurus', 'lembaga'] }
     ];
 

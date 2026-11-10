@@ -2719,10 +2719,20 @@ body.peta-page {
   background: #06121c;
 }
 
+.globe-viewport {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+/* Peringatan globe hanya menutupi area petanya sendiri. Daftar kaderisasi duduk
+   di samping (atau di bawah) peta, jadi pesan ini tidak boleh merampasnya. */
 .globe-fallback {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 60;
+  z-index: 20;
   display: flex;
   overflow: auto;
   flex-direction: column;
@@ -2932,6 +2942,10 @@ body.peta-page.globe-compact .globe-stage {
   flex: none;
 }
 
+body.peta-page.globe-compact .globe-viewport {
+  flex: none;
+}
+
 body.peta-page.globe-compact .globe-frame {
   flex: none;
   /* 62 header + ±56 toolbar + 76 tab bawah: iframe pas di sela ketiganya. */
@@ -2946,6 +2960,260 @@ body.peta-page.globe-compact .globe-frame {
   .globe-fallback {
     padding: 28px 22px calc(96px + env(safe-area-inset-bottom));
   }
+}
+
+/* Peta Kaderisasi: dasbor baca di samping globe. Kader melihat titik dan
+   rentang tanggal; yang menulis data tetap hanya pengurus di dasbor lembaga. */
+.globe-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 13px;
+  background: rgb(255 255 255 / 7%);
+  color: #eaf5ff;
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease;
+}
+
+.globe-tag:hover {
+  background: rgb(255 255 255 / 16%);
+}
+
+.globe-tag.is-on {
+  border-color: #7fd4ff;
+  background: rgb(127 212 255 / 22%);
+  color: #f2fbff;
+}
+
+.kader-panel {
+  display: flex;
+  flex: 0 0 clamp(280px, 26vw, 380px);
+  min-height: 0;
+  flex-direction: column;
+  border-left: 1px solid rgb(255 255 255 / 12%);
+  background: linear-gradient(180deg, #0b2138, #081a2b);
+  color: #eaf5ff;
+}
+
+.kader-panel[hidden] {
+  display: none;
+}
+
+.kader-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.kader-head b {
+  display: block;
+  font-size: .96rem;
+}
+
+.kader-head small {
+  display: block;
+  margin-top: 4px;
+  color: #a8c6dd;
+  font-size: .74rem;
+  line-height: 1.45;
+}
+
+.kader-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 10px;
+  background: transparent;
+  color: #cfe6f8;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.kader-tools {
+  display: grid;
+  gap: 9px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.kader-tools input[type="search"] {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 11px;
+  background: rgb(255 255 255 / 6%);
+  color: #eaf5ff;
+  font-size: .84rem;
+}
+
+.kader-tools input[type="search"]::placeholder {
+  color: #8fb2cd;
+}
+
+.kader-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kader-chip {
+  padding: 5px 11px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: transparent;
+  color: #cfe6f8;
+  font-size: .74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kader-chip.is-on {
+  border-color: #7fd4ff;
+  background: rgb(127 212 255 / 20%);
+  color: #f2fbff;
+}
+
+.kader-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a8c6dd;
+  font-size: .78rem;
+}
+
+.kader-switch input {
+  accent-color: #38a9e0;
+}
+
+.kader-list {
+  flex: 1;
+  min-height: 0;
+  padding: 12px 16px 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 11px;
+  align-content: start;
+}
+
+.kader-note {
+  color: #a8c6dd;
+  font-size: .8rem;
+  line-height: 1.55;
+}
+
+.kader-item {
+  padding: 12px 13px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 4%);
+  transition: border-color .18s ease, background-color .18s ease;
+}
+
+.kader-item.is-aktif {
+  border-color: #7fd4ff;
+  background: rgb(127 212 255 / 12%);
+}
+
+.kader-item header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.kader-item b {
+  font-size: .88rem;
+  line-height: 1.35;
+}
+
+.kader-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(127 212 255 / 20%);
+  color: #dff4ff;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.kader-when {
+  margin-top: 6px;
+  color: #eaf5ff;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.kader-where {
+  margin-top: 2px;
+  color: #a8c6dd;
+  font-size: .76rem;
+  line-height: 1.45;
+}
+
+.kader-go {
+  margin-top: 10px;
+  padding: 7px 12px;
+  border: 1px solid rgb(127 212 255 / 45%);
+  border-radius: 11px;
+  background: rgb(127 212 255 / 14%);
+  color: #eaf5ff;
+  font-size: .76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kader-go:hover {
+  background: rgb(127 212 255 / 26%);
+}
+
+/* Layar sempit: daftar diletakkan di bawah globe, bukan menutupi petanya. */
+body.peta-page.globe-compact .globe-stage {
+  flex-direction: column;
+}
+
+body.peta-page.globe-compact .kader-panel {
+  flex: none;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  border-left: 0;
+}
+
+body.peta-page.globe-compact .kader-list {
+  max-height: 46vh;
+}
+
+@media (max-width: 680px) {
+  .globe-tag {
+    height: 38px;
+    padding: 0 11px;
+    font-size: .76rem;
+  }
+}
+
+.acara-date i {
+  margin-left: 1px;
+  font-size: 1rem;
+  font-style: normal;
+}
+
+.acara-titik {
+  margin-left: 4px;
+  color: var(--blue);
+  font-size: .78rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* Live data strip fed by the same proxies the globe uses. */

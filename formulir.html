@@ -119,6 +119,18 @@
     let formData = null;
     let verifikasi = null;
 
+    /* Kunci yang sama dipakai semua halaman (lihat akun.js). Panitia mendaftar
+       lewat dashboard, bukan lewat formulirnya sendiri, jadi sesi pengurus ikut
+       dikirim supaya server bisa menjelaskan hal itu. */
+    const sesiAktif = () => {
+      try {
+        return localStorage.getItem('pbpii_kader_token') ||
+          ['pbpii_admin_token', 'pbpii_org_token'].map((key) => localStorage.getItem(key) || '').find(Boolean) || '';
+      } catch (error) {
+        return '';
+      }
+    };
+
     function showError(text) {
       $('errorBox').className = 'msg show err';
       $('errorBox').textContent = text;
@@ -276,6 +288,7 @@
             phone,
             email,
             note: String(answers.note || '').trim(),
+            ...(sesiAktif() ? { token: sesiAktif() } : {}),
             ...(verifikasi ? verifikasi.fields() : {})
           })
         });

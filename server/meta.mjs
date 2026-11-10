@@ -243,7 +243,11 @@ export const META = {
       "endTime",
       "registrationDeadline",
       "quota",
-      "additionalInfo"
+      "additionalInfo",
+      "endDate",
+      "latitude",
+      "longitude",
+      "jenjangKaderisasi"
     ],
     "peta": [
       "id",
@@ -262,7 +266,11 @@ export const META = {
       "jam_selesai",
       "batas_daftar",
       "kuota",
-      "info_tambahan"
+      "info_tambahan",
+      "tanggal_selesai",
+      "geolintar",
+      "geolongitur",
+      "jenjang_kaderisasi"
     ],
     "pk": "id",
     "tipe": [
@@ -282,6 +290,10 @@ export const META = {
       "text not null default ''",
       "timestamptz",
       "integer not null default 0",
+      "text not null default ''",
+      "date",
+      "numeric(9,6)",
+      "numeric(9,6)",
       "text not null default ''"
     ],
     "ambil": [
@@ -302,6 +314,10 @@ export const META = {
       "batas_daftar",
       "kuota",
       "info_tambahan",
+      "tanggal_selesai",
+      "geolintar",
+      "geolongitur",
+      "jenjang_kaderisasi",
       "seq"
     ]
   },

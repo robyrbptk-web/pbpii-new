@@ -18,7 +18,7 @@ const HEADERS = {
   Gallery: ['id', 'title', 'imageUrl', 'caption', 'featured', 'sortOrder', 'createdAt'],
   Settings: ['key', 'value'],
   Orgs: ['id', 'jenjang', 'name', 'province', 'district', 'subdistrict', 'parentId', 'email', 'passwordHash', 'passwordSalt', 'phone', 'skUrl', 'status', 'verifiedBy', 'verifiedAt', 'createdAt', 'updatedAt', 'lastLoginAt', 'note'],
-  Activities: ['id', 'orgId', 'title', 'category', 'date', 'location', 'description', 'participants', 'coverImage', 'status', 'createdAt', 'updatedAt', 'startTime', 'endTime', 'registrationDeadline', 'quota', 'additionalInfo'],
+  Activities: ['id', 'orgId', 'title', 'category', 'date', 'location', 'description', 'participants', 'coverImage', 'status', 'createdAt', 'updatedAt', 'startTime', 'endTime', 'registrationDeadline', 'quota', 'additionalInfo', 'endDate', 'latitude', 'longitude', 'jenjangKaderisasi'],
   Forms: ['id', 'orgId', 'activityId', 'title', 'description', 'status', 'createdAt', 'updatedAt', 'fields'],
   Participants: ['id', 'formId', 'orgId', 'name', 'institution', 'phone', 'email', 'note', 'createdAt', 'answers', 'status', 'updatedAt', 'registrationKey'],
   Letters: ['id', 'fromOrgId', 'toOrgId', 'category', 'subject', 'body', 'status', 'createdAt', 'readAt', 'replyToId', 'threadId', 'attachmentId', 'attachmentName'],
@@ -1169,6 +1169,88 @@ for (let i = 0; i < gas.RATE_RULES['org-upload'].limit + 2; i += 1) {
 }
 check('banjir unggah dibatasi laju per lembaga', unggahLolos, gas.RATE_RULES['org-upload'].limit);
 
+// --------------------------------------------------------- peta kaderisasi
+
+/* Kegiatan kaderisasi membawa rentang tanggal, titik di peta, dan jenjang
+   latihan. Hanya pengurus yang menulisnya; kader dan umum hanya membacanya. */
+const akhirDiklat = gas.monthShift_(month, 1) + '-15';
+const diklat = gas.orgSaveActivity_(
+  { id: 'pk-untan', jenjang: 'PK', name: 'PK Universitas Tanjungpura', status: 'verified' },
+  {
+    title: 'Pendidikan dan Latihan Kadaria', date: future, endDate: akhirDiklat,
+    category: 'Kaderisasi', location: 'Hutan Pendidikan UNTAN',
+    description: 'Latihan bertingkat bagi kader menjelang jenjang ADVAN.',
+    participants: 0, quota: 30, status: 'published',
+    latitude: '-0.251234', longitude: '109.4331112', jenjangKaderisasi: 'advan'
+  });
+const diklatRow = rowsOf('Activities').find((row) => row.id === diklat.id);
+check('rentang, titik, dan jenjang kegiatan kaderisasi tersimpan', [
+  diklatRow.endDate, diklatRow.latitude, diklatRow.longitude, diklatRow.jenjangKaderisasi
+], [akhirDiklat, -0.251234, 109.433111, 'ADVAN']);
+check('koordinat disimpan sebagai angka, bukan teks', [
+  typeof diklatRow.latitude, typeof diklatRow.longitude
+], ['number', 'number']);
+check('jenjang dibakukan menurut daftar Settings', diklatRow.jenjangKaderisasi, 'ADVAN');
+
+const umpanPeta = request({ action: 'public' }).data.events.find((event) => event.id === diklat.id);
+check('peta kader membacanya lewat umpan kegiatan biasa', [
+  umpanPeta.date, umpanPeta.endDate, umpanPeta.latitude, umpanPeta.longitude, umpanPeta.jenjangKaderisasi
+], [future, akhirDiklat, -0.251234, 109.433111, 'ADVAN']);
+const umpanLama = request({ action: 'public' }).data.events.find((event) => event.id === linked.id);
+check('kegiatan lama tetap tayang tanpa rentang maupun titik', [
+  umpanLama.endDate, umpanLama.latitude, umpanLama.longitude, umpanLama.jenjangKaderisasi
+], ['', null, null, '']);
+
+const organisasiKegiatan = { id: 'pk-untan', jenjang: 'PK', name: 'PK Universitas Tanjungpura', status: 'verified' };
+check('tanggal selesai sebelum tanggal mulai ditolak', captureError(() => gas.orgSaveActivity_(organisasiKegiatan, {
+  title: 'Rentang Terbalik', date: future, endDate: gas.monthShift_(month, 1) + '-05', status: 'published'
+})), 'Tanggal selesai tidak boleh mendahului tanggal mulai.');
+check('tanggal selesai dengan format lain ditolak', captureError(() => gas.orgSaveActivity_(organisasiKegiatan, {
+  title: 'Rentang Aneh', date: future, endDate: '15-01-2099', status: 'published'
+})), 'Tanggal selesai kegiatan harus format YYYY-MM-DD.');
+check('lintang tanpa bujur ditolak', captureError(() => gas.orgSaveActivity_(organisasiKegiatan, {
+  title: 'Titik Setengah', date: future, latitude: '-0.25', status: 'published'
+})), 'Isi garis lintang dan bujur bersamaan agar titik kegiatan benar.');
+check('koordinat di luar bumi ditolak', captureError(() => gas.orgSaveActivity_(organisasiKegiatan, {
+  title: 'Titik Mustahil', date: future, latitude: '120', longitude: '200', status: 'published'
+})), 'Garis lintang dan bujur kegiatan tidak valid.');
+check('jenjang di luar daftar PII ditolak', captureError(() => gas.orgSaveActivity_(organisasiKegiatan, {
+  title: 'Jenjang Lama', date: future, jenjangKaderisasi: 'Madya', status: 'published'
+})), 'Jenjang kaderisasi kegiatan tidak dikenali.');
+check('pengurus yang belum terverifikasi tidak bisa membuat kegiatan', captureError(() => gas.orgSaveActivity_(
+  { id: 'pk-poltek', jenjang: 'PK', name: 'PK Poltek Negeri Pontianak', status: 'pending' },
+  { title: 'Diklat Tertunda', date: future, status: 'published' }
+)), 'Akun lembaga belum diverifikasi. Tunggu persetujuan atasan atau hubungi PB PII.');
+check('kader biasa tidak punya aksi untuk mengubah kegiatan',
+  request({ action: 'orgSaveActivity', token: 'ses-rozak', activity: { title: 'Diklat Palsu', date: future } }).ok, false);
+
+/* Peserta yang dihitung panitia berasal dari umum. Akun lembaga dan admin
+   mengelola kegiatan serta membaca daftar pendaftarnya. */
+const pendaftaranUmum = request({
+  action: 'publicRegister', formId: 'form-kadaria', name: 'Peserta Umum',
+  phone: '081233311100', institution: 'SMAN 3', ip: '203.0.113.90', ...TOKEN_MANUSIA
+});
+check('umum tanpa akun tercatat sebagai peserta', pendaftaranUmum.ok, true);
+const pendaftaranKader = request({
+  action: 'publicRegister', formId: 'form-kadaria', token: 'ses-rozak', name: 'Kader Peserta',
+  phone: '081233311101', institution: 'PK UNTAN', ip: '203.0.113.91', ...TOKEN_MANUSIA
+});
+check('kader boleh mendaftar sebagai peserta', pendaftaranKader.ok, true);
+const PENOLAKAN_PENGURUS = 'Pendaftaran peserta terbuka untuk umum. Akun pengurus hanya mengelola kegiatan dan melihat pendaftarnya.';
+check('lembaga tidak bisa mendaftar sebagai peserta di kegiatannya', [
+  request({ action: 'publicRegister', formId: 'form-kadaria', token: 'ses-pd', name: 'PD Peserta', ip: '203.0.113.92', ...TOKEN_MANUSIA }).error,
+  request({ action: 'publicRegister', formId: 'form-kadaria', token: 'ses-poltek', name: 'PK Peserta', ip: '203.0.113.93', ...TOKEN_MANUSIA }).error
+], [PENOLAKAN_PENGURUS, PENOLAKAN_PENGURUS]);
+check('admin pun tidak terdaftar sebagai peserta',
+  request({ action: 'publicRegister', formId: 'form-lk-open', token: 'ses-admin', name: 'Admin Peserta', ip: '203.0.113.94', ...TOKEN_MANUSIA }).error,
+  PENOLAKAN_PENGURUS);
+check('penolakan pengurus tidak menambah peserta', rowsOf('Participants').filter((row) => {
+  return ['form-kadaria', 'form-lk-open'].indexOf(row.formId) >= 0 && row.name === 'PD Peserta';
+}).length, 0);
+check('lembaga tetap bisa melihat daftar pendaftarnya', gas.orgParticipants_(
+  { id: 'pk-untan', jenjang: 'PK', name: 'PK Universitas Tanjungpura', status: 'verified' }, 'form-kadaria'
+).participants.some((row) => row.name === 'Peserta Umum'), true);
+
 // --------------------------------------------- pustaka dan rujukan Tanya PII
 
 const pustakaTamu = request({ action: 'pustakaList' });
@@ -1757,7 +1839,7 @@ const profilRozak = request({ action: 'kaderProfil', token: 'ses-rozak', ip: IP_
 check('kader membaca profilnya sendiri lewat token', profilRozak.data.profil.id, 'kader-rozak');
 check('profil sendiri ditandai boleh dikelola', profilRozak.data.kemampuan.mengelola, true);
 check('profil lama belum punya nama akun', profilRozak.data.profil.username, '');
-check('pilihan jenjang dibaca dari pengaturan', profilRozak.data.jenjang, ['Pelajar', 'Madya', 'Muda', 'Utama']);
+check('pilihan jenjang dibaca dari pengaturan', profilRozak.data.jenjang, ['BATRA', 'INTRA', 'ADVAN']);
 const daftarLembagaRozak = profilRozak.data.lembaga_pilihan || [];
 check('pemilik profil menerima daftar lembaga untuk dipilih',
   Array.isArray(daftarLembagaRozak) && daftarLembagaRozak.length > 0, true);
@@ -1791,7 +1873,7 @@ const isiProfil = {
   username: 'rozak-pii',
   bio: bioPanjang,
   lokasi: 'Pontianak, Kalimantan Barat',
-  jenjang: 'Madya',
+  jenjang: 'ADVAN',
   orgId: 'pk-untan',
   tautan: { instagram: '@rozak.pii', website: 'http://rozak.dev' }
 };
@@ -1830,9 +1912,9 @@ check('nama akun tidak boleh dipakai dua kader',
   request({ action: 'kaderProfilSimpan', token: 'ses-kuota', nama: 'Kader Kuota', username: 'rozak-pii', ip: IP_KUOTA }).error,
   'Nama akun itu sudah dipakai kader lain.');
 check('pengaturan jenjang diikuti saat menyimpan', (() => {
-  aturSetting('kaderJenjang', 'Pelajar, Madya');
-  const ditolak = simpanRozak({ nama: 'Rozak Abdurrahman', jenjang: 'Utama' }).error;
-  aturSetting('kaderJenjang', 'Pelajar, Madya, Muda, Utama');
+  aturSetting('kaderJenjang', 'BATRA, INTRA');
+  const ditolak = simpanRozak({ nama: 'Rozak Abdurrahman', jenjang: 'ADVAN' }).error;
+  aturSetting('kaderJenjang', 'BATRA, INTRA, ADVAN');
   return ditolak;
 })(), 'Jenjang kader tidak dikenali.');
 

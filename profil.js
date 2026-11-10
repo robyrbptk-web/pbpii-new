@@ -69,6 +69,7 @@
     bioHitung: document.querySelector('#dialogBioHitung'),
     lokasi: document.querySelector('#dialogLokasi'),
     jenjang: document.querySelector('#dialogJenjang'),
+    jenjangLama: document.querySelector('#dialogJenjangLama'),
     lembaga: document.querySelector('#dialogLembaga'),
     simpan: document.querySelector('#dialogSimpan'),
     batal: document.querySelector('#dialogBatal'),
@@ -590,6 +591,12 @@
     el.jenjang.innerHTML = '<option value="">Belum dipilih</option>' + jenjangList
       .map((nilai) => `<option value="${escapeHTML(nilai)}">${escapeHTML(nilai)}</option>`).join('');
     el.jenjang.value = jenjangList.includes(profil.jenjang) ? profil.jenjang : '';
+    /* Jenjang lama tidak lagi dipakai di PII, jadi ia sengaja tidak masuk
+       pilihan. Tanpa penanda ini kader mengira nilainya hilang sendiri. */
+    if (el.jenjangLama) {
+      el.jenjangLama.hidden = !profil.jenjang || el.jenjang.value === profil.jenjang;
+      el.jenjangLama.textContent = `Jenjang lama "${profil.jenjang}" tidak dipakai lagi di PII. Pilih BATRA, INTRA, atau ADVAN.`;
+    }
 
     const lembagaList = state.data?.lembaga_pilihan || [];
     el.lembaga.innerHTML = '<option value="">Belum terhubung</option>' + lembagaList

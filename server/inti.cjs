@@ -198,7 +198,8 @@ const ORG_HEADERS = [
 const ACTIVITY_HEADERS = [
   'id', 'orgId', 'title', 'category', 'date', 'location', 'description',
   'participants', 'coverImage', 'status', 'createdAt', 'updatedAt',
-  'startTime', 'endTime', 'registrationDeadline', 'quota', 'additionalInfo'
+  'startTime', 'endTime', 'registrationDeadline', 'quota', 'additionalInfo',
+  'endDate', 'latitude', 'longitude', 'jenjangKaderisasi'
 ];
 const FORM_HEADERS = [
   'id', 'orgId', 'activityId', 'title', 'description', 'status', 'createdAt', 'updatedAt', 'fields'
@@ -385,7 +386,7 @@ const DEFAULT_SETTINGS = [
   ['eventCommentsOpen', 'true'],
   ['feedOpen', 'true'],
   ['faktaSinkronAktif', 'true'],
-  ['kaderJenjang', 'Pelajar|Madya|Muda|Utama']
+  ['kaderJenjang', 'BATRA|INTRA|ADVAN']
 ];
 
 const ALLOWED_SETTINGS = [
@@ -2811,6 +2812,8 @@ function orgData_(org) {
       networkSize: network.length
     },
     activities: ownActivities,
+    // Pilihan jenjang untuk kolom Peta Kaderisasi pada formulir kegiatan.
+    kaderJenjang: kaderJenjangPilihan_(),
     articles: ownArticles,
     networkActivities: networkActivities,
     forms: formsAll,
@@ -3032,6 +3035,59 @@ function normalizeRegistrationAnswers_(form, body) {
   return { values: values, json: json };
 }
 
+/**
+ * Bidang Peta Kaderisasi sebuah kegiatan: rentang tanggal, titik di peta, dan
+ * jenjang latihan yang diincar. Semua boleh kosong — kegiatan biasa tetap
+ * berjalan seperti sebelumnya — tetapi begitu diisi nilainya harus masuk akal
+ * supaya peta tidak menampilkan titik atau rentang yang salah.
+ */
+function petaKaderisasiBidang_(activity, tanggalMulai) {
+  const hasil = { endDate: '', latitude: '', longitude: '', jenjangKaderisasi: '' };
+
+  const endDate = String(activity.endDate || '').trim();
+  if (endDate) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || !isFinite(Date.parse(endDate + 'T00:00:00'))) {
+      throw new Error('Tanggal selesai kegiatan harus format YYYY-MM-DD.');
+    }
+    if (tanggalMulai && endDate < tanggalMulai) {
+      throw new Error('Tanggal selesai tidak boleh mendahului tanggal mulai.');
+    }
+    hasil.endDate = endDate;
+  }
+
+  const lintang = String(activity.latitude === undefined ? '' : activity.latitude).trim();
+  const bujur = String(activity.longitude === undefined ? '' : activity.longitude).trim();
+  if ((lintang && !bujur) || (!lintang && bujur)) {
+    throw new Error('Isi garis lintang dan bujur bersamaan agar titik kegiatan benar.');
+  }
+  if (lintang) {
+    const nilaiLintang = Number(lintang);
+    const nilaiBujur = Number(bujur);
+    if (!Number.isFinite(nilaiLintang) || !Number.isFinite(nilaiBujur)
+      || nilaiLintang < -90 || nilaiLintang > 90
+      || nilaiBujur < -180 || nilaiBujur > 180) {
+      throw new Error('Garis lintang dan bujur kegiatan tidak valid.');
+    }
+    hasil.latitude = Math.round(nilaiLintang * 1e6) / 1e6;
+    hasil.longitude = Math.round(nilaiBujur * 1e6) / 1e6;
+  }
+
+  const jenjang = cleanText_(activity.jenjangKaderisasi).slice(0, 40);
+  if (jenjang) {
+    const pilihan = kaderJenjangPilihan_();
+    let diterima = '';
+    pilihan.forEach(function (nilai) {
+      if (!diterima && String(nilai).toLowerCase() === jenjang.toLowerCase()) diterima = nilai;
+    });
+    if (!diterima) throw new Error('Jenjang kaderisasi kegiatan tidak dikenali.');
+    // Yang disimpan selalu bentuk baku dari Settings supaya peta dapat
+    // mengelompokkan kegiatan per jenjang tanpa menebak ejaan panitia.
+    hasil.jenjangKaderisasi = diterima;
+  }
+
+  return hasil;
+}
+
 function orgSaveActivity_(org, activity) {
   assertVerified_(org);
   const title = cleanText_(activity.title).slice(0, 180);
@@ -3048,6 +3104,7 @@ function orgSaveActivity_(org, activity) {
     throw new Error('Waktu kegiatan harus memakai format HH:MM.');
   }
   if (!activityDeadlineValid_(deadline)) throw new Error('Batas pendaftaran tidak valid.');
+  const peta = petaKaderisasiBidang_(activity, date);
 
   const participants = Number(activity.participants);
   const quota = Number(activity.quota);
@@ -3087,7 +3144,8 @@ function orgSaveActivity_(org, activity) {
     cover, status, existing ? existing.createdAt : now, now,
     startTime, endTime, deadline,
     Number.isFinite(quota) ? Math.max(0, Math.round(quota)) : 0,
-    String(activity.additionalInfo || '').trim().slice(0, 4000)
+    String(activity.additionalInfo || '').trim().slice(0, 4000),
+    peta.endDate, peta.latitude, peta.longitude, peta.jenjangKaderisasi
   ];
 
   if (existing) sheet.getRange(existing._row, 1, 1, row.length).setValues([row]);
@@ -3583,6 +3641,15 @@ function publicForm_(id) {
 
 function publicRegister_(body) {
   throttle_('register', clientIp_(body));
+
+  /* Peserta yang dihitung panitia berasal dari umum. Akun lembaga dan admin
+     mengelola kegiatan serta membaca daftar pendaftarnya, tidak mendaftar ke
+     kegiatannya sendiri. */
+  const sesi = String(body.token || '');
+  if (sesi && (sessionSubject_(sesi, 'org') || sessionSubject_(sesi, 'admin'))) {
+    throw new Error('Pendaftaran peserta terbuka untuk umum. Akun pengurus hanya mengelola kegiatan dan melihat pendaftarnya.');
+  }
+
   assertCaptcha_(body);
 
   const form = findRow_(APP.SHEET_FORMS, String(body.formId || ''));
@@ -3890,6 +3957,14 @@ function eventsFeed_(orgs, activities, forms, participants, actorKey) {
         title: cleanText_(activity.title),
         category: cleanText_(activity.category) || 'Kegiatan',
         date: String(activity.date),
+        // Peta kaderisasi butuh rentang, bukan satu tanggal: kader melihat
+        // kegiatan berjalan sampai hari berapa.
+        endDate: /^\d{4}-\d{2}-\d{2}$/.test(String(activity.endDate || '')) ? String(activity.endDate) : '',
+        latitude: Number.isFinite(Number(activity.latitude)) && activity.latitude !== '' && activity.latitude !== null
+          ? Number(activity.latitude) : null,
+        longitude: Number.isFinite(Number(activity.longitude)) && activity.longitude !== '' && activity.longitude !== null
+          ? Number(activity.longitude) : null,
+        jenjangKaderisasi: cleanText_(activity.jenjangKaderisasi),
         upcoming: String(activity.date) >= today,
         location: cleanText_(activity.location),
         excerpt: description,
@@ -6857,11 +6932,11 @@ const KADER_USERNAME_MAX = 20;
 const KADER_BIO_MAX = 240;
 const KADER_LOKASI_MAX = 60;
 const KADER_NAMA_MAX = 90;
-const KADER_JENJANG_BAKU = 'Pelajar, Madya, Muda, Utama';
+const KADER_JENJANG_BAKU = 'BATRA, INTRA, ADVAN';
 /** Nama yang tidak boleh dipakai sebagai akun agar tidak menabrak halaman situs. */
 const KADER_USERNAME_KHUSUS = [
   'admin', 'api', 'login', 'daftar', 'profil', 'feed', 'umpan', 'pustaka', 'tanya',
-  'ibadah', 'acara', 'formulir', 'peta', 'akun', 'saya', 'pb', 'pii', 'root', 'system'
+  'ibadah', 'acara', 'formulir', 'peta', 'kaderisasi', 'akun', 'saya', 'pb', 'pii', 'root', 'system'
 ];
 /** Tiap tautan sosial dikunci ke layanannya sendiri supaya kolomnya tidak jadi sarang tautan palsu. */
 const KADER_TAUTAN = {
@@ -7585,4 +7660,4 @@ function notifLembaga_(orgId, kabar, id) {
   return notifKirim_('o:' + String(orgId || ''), kabar, id);
 }
 
-module.exports = { doPost, doGet, health_, BACKEND_VERSION, jumlahFungsi: 300 };
+module.exports = { doPost, doGet, health_, BACKEND_VERSION, jumlahFungsi: 301 };
