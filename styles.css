@@ -10414,19 +10414,38 @@ button,
   letter-spacing: .06em;
 }
 
+/* Kartu potret memasang display sendiri, jadi atribut hidden harus disebut
+   ulang; tanpa kedua aturan ini papan inisial ikut termuat di bawah foto dan
+   bingkai menjadi dua kali lebih tinggi dari wajah. */
+.greeting-monogram[hidden],
+.greeting-photo img[hidden] {
+  display: none;
+}
+
 /* Hanya disembunyikan bila skrip sempat menandai dokumen; tanpa skrip,
-   sambutan tetap tampil apa adanya. */
-.greeting-animated .greeting-section > * {
-  opacity: 0;
-  transform: translateY(16px);
+   sambutan tetap tampil apa adanya. Penyembunyian ini berada di dalam pagar
+   preferensi gerak karena pada peramban yang mematikan animasi, isinya akan
+   tertahan transparan selamanya. */
+@media (prefers-reduced-motion: no-preference) {
+  .greeting-animated .greeting-section > * {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  .greeting-animated .greeting-section.is-tampil > * {
+    animation: greetingMuncul .72s cubic-bezier(.22, .61, .36, 1) forwards;
+  }
+
+  .greeting-animated .greeting-section.is-tampil .greeting-copy {
+    animation-delay: .1s;
+  }
 }
 
-.greeting-animated .greeting-section.is-tampil > * {
-  animation: greetingMuncul .72s cubic-bezier(.22, .61, .36, 1) forwards;
-}
-
-.greeting-animated .greeting-section.is-tampil .greeting-copy {
-  animation-delay: .1s;
+@media (prefers-reduced-motion: reduce) {
+  .greeting-ring,
+  .greeting-photo img {
+    animation: none;
+  }
 }
 
 @keyframes greetingMuncul {
