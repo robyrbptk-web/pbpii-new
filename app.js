@@ -79,6 +79,79 @@ function photoFailed(img) {
   img.src = LOGO_URL;
 }
 
+/* Foto sambutan bukan milik lambang organisasi. Selama foto belum diunggah atau
+   sedang gagal dimuat, yang tampil adalah inisial Ketua Umum dalam bingkai,
+   supaya wajah yang dilihat kader tetap wajah manusia. */
+function inisialNama(nama) {
+  const kata = String(nama || '').split(/\s+/).filter((bagian) => /^[A-Za-zÀ-ÿ]{2,}$/.test(bagian));
+  const huruf = kata.slice(0, 2).map((bagian) => bagian.charAt(0).toUpperCase());
+  return huruf.length ? huruf.join('') : 'PII';
+}
+
+function sambutanMonogram(nama) {
+  const gambar = document.getElementById('chairPhoto');
+  const papan = document.getElementById('chairMonogram');
+  if (gambar) {
+    gambar.onerror = null;
+    gambar.hidden = true;
+    gambar.removeAttribute('src');
+  }
+  if (papan) {
+    papan.textContent = inisialNama(nama);
+    papan.hidden = false;
+  }
+}
+
+function sambutanGagal(gambar, nama) {
+  const id = gambar.dataset.drive;
+  const sudah = Number(gambar.dataset.coba || 0);
+  if (id && sudah < DRIVE_URL_FORMS.length) {
+    gambar.dataset.coba = String(sudah + 1);
+    gambar.src = DRIVE_URL_FORMS[sudah](id);
+    return;
+  }
+  try {
+    localStorage.removeItem('pbpii_ketum_foto');
+  } catch (galat) {
+    /* Mode privat: alamat lama memang tidak akan terpakai lagi. */
+  }
+  sambutanMonogram(nama);
+}
+
+/**
+ * Alamat foto diingat di perangkat ini dan dipasang lebih dulu oleh skrip inline
+ * di #sambutan, jadi kunjungan kedua tidak lagi menunjukkan lambang PII sebelum
+ * datanya sampai.
+ */
+function pasangSambutan(gambar, settings) {
+  const papan = document.getElementById('chairMonogram');
+  const alamat = settings.chairmanPhoto ? safeImageUrl(settings.chairmanPhoto) : '';
+  if (!alamat) {
+    sambutanMonogram(settings.chairmanName);
+    return;
+  }
+  gambar.dataset.drive = driveIdFromUrl(settings.chairmanPhoto);
+  gambar.dataset.coba = '0';
+  gambar.onerror = () => sambutanGagal(gambar, settings.chairmanName);
+  gambar.onload = () => {
+    gambar.hidden = false;
+    if (papan) papan.hidden = true;
+  };
+  gambar.src = alamat;
+  gambar.hidden = false;
+  /* Skrip inline bisa selesai sebelum pengait ini terpasang; kalau browser sudah
+     menandai berkasnya cacat, perbaiki sekarang juga tanpa menunggu kejadian error. */
+  if (gambar.complete && !gambar.naturalWidth) {
+    sambutanGagal(gambar, settings.chairmanName);
+    return;
+  }
+  try {
+    localStorage.setItem('pbpii_ketum_foto', alamat);
+  } catch (galat) {
+    /* Penyimpanan penuh atau mode privat: foto tetap tampil, hanya tidak diingat. */
+  }
+}
+
 function renderFooterLinks(settings) {
   const links = [];
   const email = String(settings.contactEmail || '').trim();
@@ -655,10 +728,7 @@ async function init() {
     }
 
     const chairPhoto = $('#chairPhoto');
-    chairPhoto.onerror = () => photoFailed(chairPhoto);
-    chairPhoto.dataset.drive = driveIdFromUrl(settings.chairmanPhoto);
-    chairPhoto.dataset.coba = '0';
-    chairPhoto.src = settings.chairmanPhoto ? safeImageUrl(settings.chairmanPhoto) : LOGO_URL;
+    pasangSambutan(chairPhoto, settings);
 
     const articles = Array.isArray(data.articles) ? data.articles : [];
     publishedArticles = articles;

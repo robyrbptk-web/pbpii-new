@@ -81,7 +81,9 @@
 
     <section id="sambutan" class="greeting-section">
       <div class="greeting-photo" id="chairPhotoWrap">
-        <img id="chairPhoto" src="/assets/logo-pii.webp" alt="Ketua Umum PB PII" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+        <span class="greeting-ring" aria-hidden="true"></span>
+        <img id="chairPhoto" alt="Ketua Umum PB PII" decoding="async" hidden>
+        <b class="greeting-monogram" id="chairMonogram" aria-hidden="true">PII</b>
       </div>
       <div class="greeting-copy">
         <p class="eyebrow">SAMBUTAN KETUA UMUM PB PII</p>
@@ -89,6 +91,46 @@
         <p class="role" id="chairmanRole">Periode 2026 – 2028</p>
         <div id="chairmanGreeting" class="greeting-text">Assalamu’alaikum warahmatullahi wabarakatuh. Zaman terus bergerak dan tantangan pelajar hari ini tidak lagi sama dengan satu atau dua dekade yang lalu. PII harus terus berbenah tanpa kehilangan jati dirinya — naik kelas dalam karakter, intelektualitas, dan kepemimpinan.</div>
       </div>
+      <script>
+        /* Foto Ketua Umum tidak boleh menunggu data. Alamat foto yang dikenal
+           pada kunjungan lalu dipasang di sini, saat dokumen dibaca, sehingga
+           yang pertama muncul adalah orangnya — bukan logo organisasi. Kelas
+           penanda animasi ikut dipasang lebih awal supaya bagian ini tidak
+           pernah sempat tampil sebelum siap. */
+        (function () {
+          var sambutan = document.getElementById('sambutan');
+          document.documentElement.classList.add('greeting-animated');
+          /* Yang menunggu sampai bagian ini tersorot memang lebih manis, tapi
+             keselamatan isinya lebih penting: pemantau bisa tidak pernah
+             memberi tahu (tab di latar, pengamat tua), jadi ada batas waktu
+             yang membuka sambutan dengan sendirinya. */
+          var tampil = function () {
+            if (sambutan) sambutan.classList.add('is-tampil');
+          };
+          if ('IntersectionObserver' in window && sambutan) {
+            var pemantau = new IntersectionObserver(function (entri, observer) {
+              if (entri.some(function (e) { return e.isIntersecting; })) {
+                observer.disconnect();
+                tampil();
+              }
+            }, { rootMargin: '220px' });
+            pemantau.observe(sambutan);
+            setTimeout(tampil, 2600);
+          } else {
+            tampil();
+          }
+          try {
+            var foto = localStorage.getItem('pbpii_ketum_foto');
+            if (!foto) return;
+            var gambar = document.getElementById('chairPhoto');
+            gambar.src = foto;
+            gambar.hidden = false;
+            document.getElementById('chairMonogram').hidden = true;
+          } catch (galat) {
+            /* Penyimpanan privat sedang tidak bisa dipakai; monogram tetap tampil. */
+          }
+        })();
+      </script>
     </section>
 
     <section id="gerakan" class="section">

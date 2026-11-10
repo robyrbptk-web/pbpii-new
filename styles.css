@@ -10276,3 +10276,196 @@ button,
     animation-delay: 0ms !important;
   }
 }
+
+/* ============================================================
+   Sambutan Ketua Umum
+   Kartu potret di kanan, naskah di kiri. Aturan ini datang paling
+   akhir supaya bingkainya tidak lagi dipotong gaya lama dan wajah
+   Ketua Umum tampil utuh di ponsel.
+   ============================================================ */
+.greeting-section {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(240px, .62fr) minmax(0, 1.38fr);
+  align-items: center;
+  gap: clamp(26px, 5vw, 64px);
+  padding: clamp(44px, 6vw, 82px) max(6vw, 20px);
+  background: radial-gradient(125% 135% at 10% 0%, #f5f9fc 0%, #e9f1f7 48%, #dbe8f3 100%);
+  scroll-margin-top: 92px;
+}
+
+#sambutan {
+  scroll-margin-top: 92px;
+}
+
+.greeting-copy {
+  position: relative;
+  max-width: 760px;
+  border-left: 0;
+  padding-left: 0;
+}
+
+/* Tanda kutip pembuka sebagai lambang sambutan, tidak ikut menghalangi baca. */
+.greeting-copy::before {
+  content: "\201C";
+  position: absolute;
+  top: -26px;
+  left: -6px;
+  z-index: 0;
+  color: rgb(23 109 168 / 16%);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(4rem, 9vw, 6.5rem);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.greeting-copy > * {
+  position: relative;
+  z-index: 1;
+}
+
+.greeting-copy h2 {
+  margin-bottom: 4px;
+  color: #0d2c48;
+  font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+  letter-spacing: -.012em;
+}
+
+.greeting-copy .role {
+  margin-bottom: 18px;
+  color: #4a637a;
+  font-size: .88rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.greeting-text {
+  font-size: clamp(1rem, 1.4vw, 1.06rem);
+  line-height: 1.95;
+}
+
+.greeting-photo {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  width: min(320px, 100%);
+  padding: 12px;
+  margin-inline: auto;
+  border-radius: 28px;
+  place-items: center;
+  background: linear-gradient(155deg, #1763a6, #0b2138 58%, #103b60);
+  box-shadow: 0 26px 62px rgb(11 33 52 / 28%);
+}
+
+/* Cincin cahaya yang berputar perlahan: berwibawa, bukan ramai. */
+.greeting-ring {
+  position: absolute;
+  inset: -12px;
+  border-radius: 34px;
+  background: conic-gradient(from 0deg, transparent 0 60%, rgb(127 212 255 / 52%) 72%, transparent 84%);
+  animation: greetingPutar 17s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes greetingPutar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.greeting-photo img,
+.greeting-monogram {
+  position: relative;
+  width: 100%;
+  max-height: none;
+  aspect-ratio: 4 / 5;
+  border: 0;
+  border-radius: 20px;
+}
+
+/* Potret utuh: pemotongan bertumpu pada bagian atas kepala, bukan tengah badan. */
+.greeting-photo img {
+  display: block;
+  object-fit: cover;
+  object-position: center 15%;
+  background: #0b2138;
+  animation: greetingSentosa 22s ease-in-out infinite alternate;
+}
+
+@keyframes greetingSentosa {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.045);
+  }
+}
+
+.greeting-monogram {
+  display: grid;
+  margin: 0;
+  place-items: center;
+  background: linear-gradient(150deg, #1d5688, #0b2138);
+  color: rgb(234 245 255 / 94%);
+  font-size: clamp(2.8rem, 6vw, 4.4rem);
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+/* Hanya disembunyikan bila skrip sempat menandai dokumen; tanpa skrip,
+   sambutan tetap tampil apa adanya. */
+.greeting-animated .greeting-section > * {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.greeting-animated .greeting-section.is-tampil > * {
+  animation: greetingMuncul .72s cubic-bezier(.22, .61, .36, 1) forwards;
+}
+
+.greeting-animated .greeting-section.is-tampil .greeting-copy {
+  animation-delay: .1s;
+}
+
+@keyframes greetingMuncul {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .greeting-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 30px 18px 34px;
+  }
+
+  .greeting-photo {
+    width: min(232px, 62vw);
+    padding: 10px;
+    border-radius: 22px;
+  }
+
+  .greeting-ring {
+    inset: -9px;
+    border-radius: 28px;
+  }
+
+  .greeting-copy::before {
+    top: -14px;
+    left: -2px;
+    font-size: 3.6rem;
+  }
+
+  .greeting-copy .role {
+    margin-bottom: 14px;
+  }
+
+  .greeting-text {
+    font-size: .96rem;
+    line-height: 1.8;
+  }
+}
