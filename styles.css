@@ -2934,7 +2934,9 @@ body.peta-page.globe-compact .globe-shell {
 body.peta-page.globe-compact .globe-toolbar {
   position: sticky;
   top: 62px;
-  z-index: 19;
+  /* Naik satu tingkat di atas pesan globe (20) supaya pintasan "Peta
+     Kaderisasi" tetap dapat diketuk walaupun petanya sendiri sedang gagal. */
+  z-index: 21;
   padding: 6px max(3vw, 12px);
 }
 
