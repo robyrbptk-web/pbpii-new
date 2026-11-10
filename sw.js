@@ -3,7 +3,7 @@
  * under /peta/ always goes to the network; this worker only keeps the shell so
  * the installed app opens instantly and survives a lost connection.
  */
-const CACHE_NAME = 'pbpii-shell-v62';
+const CACHE_NAME = 'pbpii-shell-v63';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -70,7 +70,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       // One missing asset must not abort the whole install.
-      .then((cache) => Promise.allSettled(APP_SHELL.map((url) => cache.add(url))))
+      .then((cache) => Promise.allSettled(APP_SHELL.map(async (url) => {
+        /* Berkas statis boleh dijawab cache HTTP sampai sehari penuh, jadi
+           pratinjau pun harus menembusnya; kalau tidak, salinan lama di
+           perangkat ikut dibekukan ke dalam cache versi baru. */
+        const jawaban = await fetch(new Request(url, { cache: 'reload' }));
+        if (jawaban.ok) await cache.put(url, jawaban);
+      })))
       .then(() => self.skipWaiting())
   );
 });
@@ -113,7 +119,15 @@ async function freshThenCache(request) {
 async function cacheThenRefresh(request) {
   const cache = await caches.open(CACHE_NAME);
   const saved = await cache.match(request, { ignoreSearch: true });
-  const refresh = fetch(request)
+  /* Saat versi cache naik salinan tersimpan belum ada, dan permintaan pengganti
+     itu tidak boleh menjawab dari sendiri: berkas statis dibatasi
+     "stale-while-revalidate=86400", jadi cache HTTP memberikan salinan lama dan
+     salinan usang itu ikut tersimpan di cache baru. Pengunjung kemudian terpaku
+     pada gaya lama selama sehari penuh walaupun markup-nya sudah baru. Karena
+     itu pancingan pertama menembus ke jaringan; sesudah ada salinan, penyegaran
+     berjalan senyap seperti biasa. */
+  const permintaan = saved ? request : new Request(request, { cache: 'reload' });
+  const refresh = fetch(permintaan)
     .then((response) => {
       if (response.ok) cache.put(request, response.clone());
       return response;
