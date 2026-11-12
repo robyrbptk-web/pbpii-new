@@ -519,24 +519,9 @@
     teguran.append(isiTeguran);
     wadah.append(teguran);
 
-    // Hierarki navigasi: sidebar memuat semua menu, bar bawah empat aksi cepat,
-    // dan ubin ini hanya jalan pintas ke menu yang TIDAK ada di bar. Tanpa
-    // penyaringan ini, satu halaman menampilkan menu yang sama tiga kali.
-    const diBar = namaDiBar();
-    const perlengkapan = ['beranda', 'notifikasi', 'profil', 'pengurus', 'lembaga'];
-    const pintasan = kartu('Jalan pintas');
-    const kisi = elemen('div', 'app-tiles');
-    menuBoleh(peran())
-      .filter((item) => !diBar.includes(item.id) && !perlengkapan.includes(item.id))
-      .forEach((item) => {
-        const ubin = elemen('a', 'app-tile');
-        ubin.href = item.href;
-        ubin.append(ikon(item.id), elemen('span', null, item.label));
-        kisi.append(ubin);
-      });
-    pintasan.append(kisi);
-    wadah.append(pintasan);
-
+    // Sidebar sudah memuat seluruh menu, jadi beranda tidak mengulanginya lagi
+    // dengan kartu jalan pintas. Isi beranda fokus pada ringkasan yang berubah:
+    // kabar, aktivitas, agenda, dan artikel.
     const kabar = kartu('Kabar organisasi', '/app/notifikasi', 'Semua kabar');
     wadah.append(kabar);
     muat('notifList', { action: 'notifList' }, kabar, (isi) => {
@@ -557,13 +542,13 @@
 
     const aktivitas = kartu('Aktivitas terbaru', '/app/feed', 'Buka Kabar');
     wadah.append(aktivitas);
-    muat('feedList', { action: 'feedList', tab: 'terbaru', mulai: 0, batas: 4 }, aktivitas, (isi) => {
+    muat('feedList', { action: 'feedList', tab: 'terbaru', mulai: 0, batas: 3 }, aktivitas, (isi) => {
       const daftar = Array.isArray(isi.items) ? isi.items : [];
       if (!daftar.length) {
         aktivitas.append(elemen('p', 'app-kosong', 'Belum ada kabar kader di Feed.'));
         return;
       }
-      daftar.forEach((item) => aktivitas.append(baris({
+      daftar.slice(0, 3).forEach((item) => aktivitas.append(baris({
         judul: (item.author && item.author.name) || 'Kader PII',
         keterangan: String(item.text || '').slice(0, 150) || 'Membagikan kabar kegiatan.',
         waktu: relatif(item.createdAt),
@@ -597,7 +582,7 @@
       })));
     }
 
-    wadah.append(elemen('p', 'app-kredit', 'Dibuat oleh Badan Khusus Inovasi Digital PB PII'));
+    wadah.append(elemen('p', 'app-kredit', 'Badan Khusus Inovasi Digital PB PII'));
   }
 
   /** Gambar Drive hanya bisa diambil lewat proxy; avatar Google boleh langsung. */

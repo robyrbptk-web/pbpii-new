@@ -1,6 +1,6 @@
 /*
- * Globe orthographic SITREP.
- * Diadaptasi dari console SITREP (d3-geo + canvas) agar titik BMKG, MAGMA,
+ * Globe orthographic PII Situation Room.
+ * Diadaptasi dari console PII Situation Room (d3-geo + canvas) agar titik BMKG, MAGMA,
  * SIPONGI, ADS-B, kegiatan PII, dan cuaca tampil pada globe yang sama.
  */
 (() => {
