@@ -268,7 +268,7 @@
     const playing = () => { if (version !== videoVersion) return; clearTimeout(videoTimer); $('videoStatus').textContent = 'Video sedang diputar · kamera publik'; };
     const isImage = /image|jpeg|jpg|snapshot/i.test(camera.feedType || camera.type || '');
     video.hidden = isImage; image.hidden = !isImage;
-    videoTimer = setTimeout(fail, 25000);
+    videoTimer = setTimeout(fail, 45000);
     if (isImage) { image.onload = () => { if (version === videoVersion) { clearTimeout(videoTimer); $('videoStatus').textContent = 'Cuplikan kamera berhasil dimuat.'; } }; image.onerror = fail; image.src = `/api/cctv/frame/${encodeURIComponent(id)}`; return; }
     video.onplaying = playing; video.onerror = fail;
     const url = `/api/cctv/media/${encodeURIComponent(id)}`;
