@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101923">
-  <meta name="description" content="Ruang Situasi PB PII: pantauan berita, cuaca, kebencanaan, pasar, kamera publik, dan kegiatan organisasi di Indonesia.">
-  <title>Ruang Situasi — PB PII</title>
+  <meta name="description" content="PII Situation Room PB PII: pantauan berita, siaran TV, cuaca, kebencanaan, pasar, kamera publik, dan kegiatan organisasi di Indonesia.">
+  <title>PII Situation Room — PB PII</title>
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
@@ -18,21 +18,21 @@
   <a class="skip" href="#panel">Langsung ke informasi</a>
   <header class="room-header">
     <a class="brand" href="/app" aria-label="Kembali ke aplikasi PB PII"><img src="/assets/logo-pii.webp" alt="Logo PII" width="32" height="39"><span><b>PB PII</b><small>Kepelajaran · Keislaman · Keindonesiaan</small></span></a>
-    <div class="room-heading"><span class="eyebrow">PANTAUAN INDONESIA</span><h1>Ruang Situasi<span class="signal" aria-hidden="true"></span></h1></div>
+    <div class="room-heading"><span class="eyebrow">RUANG SITUASI INDONESIA</span><h1>PII Situation Room<span class="signal" aria-hidden="true"></span></h1></div>
     <div class="header-tools"><time id="clock" aria-label="Waktu Indonesia Barat"></time><a class="quiet-link" href="/app">Kembali ke aplikasi <span aria-hidden="true">↗</span></a></div>
   </header>
   <section class="gate" id="gate" aria-live="polite">
-    <span class="eyebrow">INFORMASI UNTUK BERGERAK</span><h2 id="gateTitle">Memeriksa sesi Anda</h2><p id="gateNote">Menghubungkan Ruang Situasi dengan akun PB PII.</p>
+    <span class="eyebrow">INFORMASI UNTUK BERGERAK</span><h2 id="gateTitle">Memeriksa sesi Anda</h2><p id="gateNote">Menghubungkan PII Situation Room dengan akun PB PII.</p>
     <a class="primary" id="loginLink" href="/sso.html?next=%2Fsituasi.html" hidden>Masuk ke akun PII</a><button id="sessionRetry" hidden>Coba lagi</button>
     <noscript>Aktifkan JavaScript untuk membuka peta dan informasi terkini.</noscript>
   </section>
   <main id="room" hidden>
     <nav class="categories" aria-label="Pilih pantauan" id="categories">
-      <button data-kind="berita" aria-pressed="true">Berita</button><button data-kind="tren" aria-pressed="false">Opini &amp; tren</button><button data-kind="pasar" aria-pressed="false">Pasar IDX</button><button data-kind="cctv" aria-pressed="false">CCTV publik</button><button data-kind="cuaca" aria-pressed="false">Cuaca &amp; udara</button><button data-kind="peringatan" aria-pressed="false">Peringatan BMKG</button><button data-kind="gempa" aria-pressed="false">Gempa</button><button data-kind="gunung" aria-pressed="false">Gunung api</button><button data-kind="hotspot" aria-pressed="false">Titik panas</button><button data-kind="pesawat" aria-pressed="false">Penerbangan</button><button data-kind="kegiatan" aria-pressed="false">Kegiatan PII</button>
+      <button data-kind="berita" aria-pressed="true">Berita</button><button data-kind="tren" aria-pressed="false">Opini &amp; tren</button><button data-kind="pasar" aria-pressed="false">Pasar IDX</button><button data-kind="tv" aria-pressed="false">Siaran TV</button><button data-kind="cctv" aria-pressed="false">CCTV publik</button><button data-kind="cuaca" aria-pressed="false">Cuaca &amp; udara</button><button data-kind="peringatan" aria-pressed="false">Peringatan BMKG</button><button data-kind="gempa" aria-pressed="false">Gempa</button><button data-kind="gunung" aria-pressed="false">Gunung api</button><button data-kind="hotspot" aria-pressed="false">Titik panas</button><button data-kind="pesawat" aria-pressed="false">Penerbangan</button><button data-kind="kegiatan" aria-pressed="false">Kegiatan PII</button>
     </nav>
     <div class="workspace">
       <section class="map-panel" aria-label="Peta Indonesia">
-        <div class="map-top"><div><span class="eyebrow">NUSANTARA</span><h2 id="mapTitle">Indonesia, dalam pantauan</h2></div><button id="resetMap" title="Kembalikan peta ke Indonesia">Atur ulang peta</button></div>
+        <div class="map-top"><div><span class="eyebrow">NUSANTARA</span><h2 id="mapTitle">Indonesia, dalam pantauan</h2></div><button id="resetMap" title="Kembalikan peta ke Sekretariat PB PII">Atur ulang peta</button></div>
         <div id="map" role="region" aria-label="Peta interaktif Indonesia" tabindex="0"></div>
         <div class="map-bottom"><span id="mapLegend">Pilih kategori untuk melihat titik di peta.</span><label class="radar-switch"><input type="checkbox" id="radarToggle"> Radar hujan</label></div>
         <p id="radarNote" class="radar-note" hidden role="status"></p>
@@ -47,8 +47,8 @@
         <footer class="source-footer"><b id="source"></b><p id="sourceNote"></p></footer>
       </section>
     </div>
-    <footer class="room-footer"><span>PB PII / RUANG SITUASI</span><p>Data sumber terbuka, bukan pengganti layanan darurat atau informasi resmi pemerintah.</p><details><summary>Tentang cakupan data</summary><p>Waktu pembaruan sumber berbeda-beda. Tren pencarian bukan sentimen media sosial. Penerbangan memiliki cakupan terbatas; titik panas bukan kepastian kebakaran. Umpan AIS, lalu lintas TomTom, dan siaran TV belum tersedia di ruang ini. Peta dasar © Esri dan kontributornya.</p></details><small>© PB PII<br>Dibuat oleh Badan Khusus Inovasi Digital PB PII</small></footer>
+    <footer class="room-footer"><span>PB PII / PII SITUATION ROOM</span><p>Data sumber terbuka, bukan pengganti layanan darurat atau informasi resmi pemerintah.</p><details><summary>Tentang cakupan data</summary><p>Waktu pembaruan sumber berbeda-beda. Tren pencarian bukan sentimen media sosial. Penerbangan memiliki cakupan terbatas; titik panas bukan kepastian kebakaran. Siaran TV diputar langsung dari penyelenggara resmi. Umpan AIS dan lalu lintas TomTom belum tersedia di ruang ini. Peta dasar © Esri, HERE, Garmin, dan kontributor OpenStreetMap; pustaka peta Leaflet dan pemutar hls.js. Data BMKG, MAGMA ESDM, SiPongi, OpenSky, Open-Meteo, Yahoo Finance, dan RainViewer milik sumber masing-masing.</p></details><small>© PB PII<br>Dibuat oleh Badan Khusus Inovasi Digital PB PII</small></footer>
   </main>
-  <dialog id="viewer" aria-labelledby="viewerTitle"><header><div><span class="eyebrow">KAMERA PUBLIK</span><h2 id="viewerTitle"></h2></div><button id="closeViewer" aria-label="Tutup kamera">Tutup ×</button></header><video id="video" controls playsinline muted autoplay></video><img id="cameraImage" alt="Cuplikan kamera publik" hidden><p id="videoStatus" role="status" aria-live="polite"></p><button id="retryVideo">Coba putar lagi</button><p class="viewer-note">Kamera disediakan pengelola setempat. Koneksi dan tayangan dapat berubah sewaktu-waktu.</p></dialog>
+  <dialog id="viewer" aria-labelledby="viewerTitle"><header><div><span class="eyebrow" id="viewerKicker">KAMERA PUBLIK</span><h2 id="viewerTitle"></h2></div><button id="closeViewer" aria-label="Tutup kamera">Tutup ×</button></header><video id="video" controls playsinline muted autoplay></video><img id="cameraImage" alt="Cuplikan kamera publik" hidden><p id="videoStatus" role="status" aria-live="polite"></p><button id="retryVideo">Coba putar lagi</button><p class="viewer-note">Kamera dan siaran disediakan pengelola setempat. Koneksi dan tayangan dapat berubah sewaktu-waktu.</p></dialog>
 </body>
 </html>

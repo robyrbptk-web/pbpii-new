@@ -160,20 +160,12 @@
       "destination": "/api/celestrak?group=:group"
     },
     {
-      "source": "/models/:file",
-      "destination": "/peta/models/:file"
-    },
-    {
-      "source": "/mic.svg",
-      "destination": "/peta/mic.svg"
-    },
-    {
       "source": "/peta",
-      "destination": "/peta/index.html"
+      "destination": "/situasi.html"
     },
     {
       "source": "/peta/",
-      "destination": "/peta/index.html"
+      "destination": "/situasi.html"
     },
     {
       "source": "/app",

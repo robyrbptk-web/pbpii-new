@@ -1,9 +1,9 @@
 /**
- * App-shell cache for the PB PII site. Content from /api/ and the globe bundle
- * under /peta/ always goes to the network; this worker only keeps the shell so
- * the installed app opens instantly and survives a lost connection.
+ * App-shell cache for the PB PII site. Content from /api/ always goes to the
+ * network; this worker only keeps the shell so the installed app opens
+ * instantly and survives a lost connection.
  */
-const CACHE_NAME = 'pbpii-shell-v68';
+const CACHE_NAME = 'pbpii-shell-v69';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -17,7 +17,6 @@ const APP_SHELL = [
   '/app/pustaka',
   '/app/tanya',
   '/ibadah.html',
-  '/peta.html',
   '/situasi',
   '/situasi.html',
   '/tanya.html',
@@ -152,8 +151,6 @@ self.addEventListener('fetch', (event) => {
   if (requestUrl.pathname.startsWith('/api/')) return;
   // Serving the worker from cache would pin this file to its own old version.
   if (requestUrl.pathname === '/sw.js') return;
-  // The globe ships its own hashed build; caching would pin an old bundle.
-  if (requestUrl.pathname.startsWith('/peta/')) return;
 
   if (event.request.mode === 'navigate') {
     event.respondWith(

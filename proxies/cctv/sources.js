@@ -1,7 +1,7 @@
 /**
- * Camera registry for the PII Global View CCTV layer.
+ * Camera registry for the PII Situation Room CCTV layer.
  *
- * Body shape expected by /peta (src/data/cctv.js): `{ sources: [...] }`.
+ * Body shape expected by the room: `{ sources: [...] }`.
  */
 import { getSources } from '../../lib/cctv.js';
 import { sendJson } from '../../lib/proxy.js';

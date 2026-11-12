@@ -1,5 +1,5 @@
 /**
- * Semua proxy data PB PII dan PII Global View lewat satu fungsi.
+ * Semua proxy data PB PII lewat satu fungsi.
  *
  * Vercel Hobby menolak deployment dengan lebih dari 12 Serverless Functions, dan
  * proyek ini punya 39 proxy — sebelumnya setiap berkas di api/ menjadi satu

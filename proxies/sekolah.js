@@ -1,10 +1,10 @@
 /**
- * National school sample for the PII Global View "Sekolah Indonesia" layer.
+ * National school sample for the PB PII open-data strip.
  *
  * api-sekolah ignores `page` and forces `limit=10` when `kode_wilayah` is
  * present, while a global query only reaches a few provinces. One 10-row
  * query per province (38 codes) is the only way to plot schools across the
- * archipelago, so this fan-out mirrors the globe's dev proxy.
+ * archipelago, so this fan-out mirrors the original dev proxy.
  */
 import { createTtlCache, sendJson } from '../lib/proxy.js';
 

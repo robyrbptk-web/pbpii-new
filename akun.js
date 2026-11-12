@@ -1,11 +1,11 @@
 /**
  * Akun & hak akses — dimuat di semua halaman publik (beranda, acara, ibadah,
- * tanya, peta, formulir, daftar).
+ * tanya, situasi, formulir, daftar).
  *
  * Kader masuk lewat Google atau lewat email + kata sandi yang dibuat sendiri.
  * Untuk Google, browser hanya menyerahkan ID token dan server yang
  * memverifikasinya; peran hasil /api/pii action "whoami" dipakai untuk
- * menyembunyikan tautan dashboard dan PII Global View dari yang bukan pengurus.
+ * menyembunyikan tautan dashboard dan PII Situation Room dari yang bukan pengurus.
  * Token disimpan di localStorage sehingga tidak perlu login ulang tiap buka.
  */
 (() => {

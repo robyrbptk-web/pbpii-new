@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Pengurus Besar Pelajar Islam Indonesia",
   "short_name": "PB PII",
-  "description": "Kabar, gagasan, dan kegiatan PB PII, jadwal sholat se-Indonesia, Al-Qur'an, serta peta global.",
+  "description": "Kabar, gagasan, dan kegiatan PB PII, jadwal sholat se-Indonesia, Al-Qur'an, serta pantauan situasi Indonesia.",
   "lang": "id",
   "dir": "ltr",
   "start_url": "/",
@@ -43,10 +43,10 @@
       "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Peta Global",
-      "short_name": "Peta",
-      "description": "Globe interaktif data Indonesia dan dunia.",
-      "url": "/peta.html",
+      "name": "PII Situation Room",
+      "short_name": "Situasi",
+      "description": "Berita, siaran TV, cuaca, kebencanaan, pasar, dan kamera publik Indonesia.",
+      "url": "/situasi.html",
       "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {

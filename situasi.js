@@ -5,15 +5,24 @@
   const token = () => TOKENS.map((key) => localStorage.getItem(key)).find(Boolean) || '';
   const SECTIONS = {
     berita: ['Berita terkini', 'KABAR NUSANTARA'], tren: ['Opini & tren', 'PERCAKAPAN PUBLIK'],
-    pasar: ['Pasar IDX', 'INDEKS & SAHAM'], cctv: ['CCTV Indonesia', 'KAMERA PUBLIK'],
+    pasar: ['Pasar IDX', 'INDEKS & SAHAM'], tv: ['Siaran TV', 'LIVE TELEVISI'],
+    cctv: ['CCTV Indonesia', 'KAMERA PUBLIK'],
     cuaca: ['Cuaca & udara', 'PRAKIRAAN & MODEL'], peringatan: ['Peringatan BMKG', 'NOWCAST CUACA'],
     gempa: ['Gempa terkini', 'PENGAMATAN BMKG'], gunung: ['Aktivitas gunung api', 'MAGMA ESDM'],
     hotspot: ['Titik panas satelit', 'PANTAUAN SIPONGI'], pesawat: ['Penerbangan', 'PENGAMATAN ADS-B'],
     kegiatan: ['Kegiatan PII', 'LOKASI & JADWAL'],
   };
   const COLORS = { cctv: '#85bddd', gempa: '#edb264', gunung: '#e89376', hotspot: '#f29257', pesawat: '#acb8eb', kegiatan: '#91d1b3', peringatan: '#efa167', cuaca: '#85bddd' };
+  // The office is the room's fixed landmark, so the map opens there instead of
+  // somewhere in the Java Sea and every reset returns to the same point.
+  const OFFICE = {
+    lat: -6.1844917, lon: 106.8344897, zoom: 5,
+    name: 'Sekretariat PB PII',
+    address: 'Jl. Menteng Raya No. 58, Kebon Sirih, Menteng, Jakarta Pusat',
+    maps: 'https://www.google.com/maps/search/?api=1&query=-6.1844917,106.8344897',
+  };
   let active = 'berita', authorized = false, sessionVersion = 0, serial = 0, authToken = '';
-  let data = null, shown = 35, map, points, radarLayer, controller, hls, videoTimer, camera, videoVersion = 0;
+  let data = null, shown = 35, map, points, officeLayer, radarLayer, controller, hls, videoTimer, camera, videoVersion = 0;
   const text = (tag, value, className) => { const el = document.createElement(tag); el.textContent = value == null ? '' : String(value); if (className) el.className = className; return el; };
   const num = (value, digits = 1) => Number.isFinite(value) ? value.toLocaleString('id-ID', { maximumFractionDigits: digits }) : '—';
   function date(value, full = false) {
@@ -43,7 +52,7 @@
   function locked(message = 'Masuk dengan akun kader atau pengurus untuk membuka seluruh pantauan.', retry = false) {
     authorized = false; sessionVersion++; serial++; controller?.abort();
     stopVideo(); if ($('viewer').open) $('viewer').close();
-    if (map) { map.remove(); map = null; points = null; radarLayer = null; }
+    if (map) { map.remove(); map = null; points = null; officeLayer = null; radarLayer = null; }
     $('radarToggle').checked = false; $('radarNote').hidden = true;
     data = null; $('results').replaceChildren(); $('source').textContent = ''; $('sourceNote').textContent = '';
     $('room').hidden = true; $('gate').hidden = false;
@@ -69,16 +78,31 @@
   }
   function initMap() {
     if (!window.L) { $('map').textContent = 'Peta belum dapat dimuat. Muat ulang halaman untuk mencoba kembali.'; return; }
-    map = L.map('map', { preferCanvas: true, minZoom: 3, maxZoom: 16, zoomControl: true }).setView([-2.4, 118], 4);
+    map = L.map('map', { preferCanvas: true, minZoom: 3, maxZoom: 16, zoomControl: true }).setView([OFFICE.lat, OFFICE.lon], OFFICE.zoom);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Tiles &copy; Esri — Esri, HERE, Garmin, OpenStreetMap contributors' }).addTo(map);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, pane: 'overlayPane', attribution: '' }).addTo(map);
     points = L.layerGroup().addTo(map);
+    officeLayer = L.layerGroup().addTo(map);
+    L.marker([OFFICE.lat, OFFICE.lon], {
+      icon: L.divIcon({ className: 'office-pin', html: '<span></span>', iconSize: [20, 20], iconAnchor: [10, 10] }),
+      keyboard: true, title: OFFICE.name, alt: OFFICE.name,
+    }).bindPopup(officePopup()).addTo(officeLayer);
+    $('mapLegend').textContent = `${OFFICE.name} — ${OFFICE.address}.`;
     const params = new URLSearchParams(location.hash.slice(1));
     if (params.has('lat') && params.has('lon')) {
       const item = { lat: params.get('lat'), lon: params.get('lon') };
       if (positioned(item)) map.setView([Number(item.lat), Number(item.lon)], 11);
     }
     requestAnimationFrame(() => map?.invalidateSize());
+  }
+  function officePopup() {
+    const box = text('div', '');
+    box.append(text('b', OFFICE.name), text('p', OFFICE.address));
+    box.append(link(OFFICE.maps, 'Buka di Google Maps ↗'));
+    return box;
+  }
+  function resetView() {
+    map?.setView([OFFICE.lat, OFFICE.lon], OFFICE.zoom);
   }
   async function select(kind, updateHash = true) {
     if (!authorized) return;
@@ -127,6 +151,7 @@
     $('results').replaceChildren(); $('more').hidden = true;
     if (active === 'cuaca') { renderWeather(); return; }
     if (active === 'pasar') { renderMarkets(); return; }
+    if (active === 'tv') { renderTv(); return; }
     const items = filtered(data.items);
     $('resultCount').textContent = `${num(items.length, 0)} ${active === 'cctv' ? 'kamera' : active === 'hotspot' ? 'deteksi' : 'informasi'}`;
     drawMap(items);
@@ -188,13 +213,50 @@
         L.circleMarker([Number(item.lat), Number(item.lon)], { radius: active === 'hotspot' ? 3 : active === 'gempa' ? 7 : 5, color: COLORS[active] || '#eeb660', weight: 1, fillColor: COLORS[active] || '#eeb660', fillOpacity: .75 }).bindPopup(popup(item)).addTo(points); count++;
       }
     });
-    $('mapLegend').textContent = count ? `${num(count, 0)} ${active === 'peringatan' ? 'area peringatan yang belum berakhir' : 'titik'} · ${SECTIONS[active][0]}${items.length > drawn.length ? ` · ${num(items.length - drawn.length, 0)} titik lain di daftar` : ''}` : ['berita', 'tren', 'pasar'].includes(active) ? 'Informasi nasional tidak diberi lokasi perkiraan.' : 'Tidak ada koordinat yang tersedia untuk hasil ini.';
+    $('mapLegend').textContent = count ? `${num(count, 0)} ${active === 'peringatan' ? 'area peringatan yang belum berakhir' : 'titik'} · ${SECTIONS[active][0]}${items.length > drawn.length ? ` · ${num(items.length - drawn.length, 0)} titik lain di daftar` : ''}` : ['berita', 'tren', 'pasar'].includes(active) ? `Peta dibuka di ${OFFICE.name}. Informasi nasional tidak diberi lokasi perkiraan.` : 'Tidak ada koordinat yang tersedia untuk hasil ini.';
   }
   function focusItem(item) {
     if (!map) return;
     if (positioned(item)) { map.setView([Number(item.lat), Number(item.lon)], active === 'cctv' ? 14 : 9); L.popup().setLatLng([item.lat, item.lon]).setContent(popup(item)).openOn(map); }
     else if (item.polygons?.length) map.fitBounds(L.latLngBounds(item.polygons.flat()), { maxZoom: 9 });
     if (innerWidth <= 720) $('mapTitle').scrollIntoView({ behavior: 'instant', block: 'start' });
+  }
+  function renderTv() {
+    drawMap([]);
+    const items = filtered(data.items);
+    $('resultCount').textContent = `${items.length} kanal`;
+    $('mapLegend').textContent = 'Siaran TV diputar langsung dari penyelenggara; kanal tidak ditampilkan di peta.';
+    [['Nasional', 'TELEVISI NASIONAL'], ['Internasional', 'TELEVISI INTERNASIONAL']].forEach(([group, label]) => {
+      const daftar = items.filter((item) => (item.group || 'Nasional') === group);
+      if (!daftar.length) return;
+      $('results').append(text('h3', label, 'section-label'));
+      const grid = text('div', '', 'tv-grid');
+      daftar.forEach((item) => {
+        const tile = text('article', '', 'tv-channel');
+        tile.append(text('span', group === 'Nasional' ? 'ID' : 'LIVE', 'tv-badge'), text('h3', item.title));
+        const actions = text('div', '', 'tv-actions');
+        actions.append(action('Tonton langsung', () => playStream(item)));
+        if (item.page) actions.append(link(item.page, 'Situs stasiun ↗'));
+        tile.append(actions);
+        grid.append(tile);
+      });
+      $('results').append(grid);
+    });
+    if (!items.length) $('results').append(text('p', 'Tidak ada kanal yang cocok pada daftar ini.', 'item'));
+  }
+  function playStream(item) {
+    if (!authorized) return;
+    let stream = '';
+    try {
+      const url = new URL(item.url);
+      if (url.protocol === 'https:' && !url.username && !url.password) stream = url.href;
+    } catch { return; }
+    camera = { title: item.title || 'Siaran TV', stream };
+    $('viewerKicker').textContent = 'SIARAN LANGSUNG';
+    $('viewerTitle').textContent = camera.title;
+    $('cameraImage').hidden = true;
+    if (!$('viewer').open) $('viewer').showModal();
+    playCamera();
   }
   function renderMarkets() {
     const grid = text('div', '', 'market-grid'), items = filtered(data.items);
@@ -255,17 +317,34 @@
   }
   function openCamera(item) {
     if (!authorized) return;
-    camera = item; $('viewerTitle').textContent = item.title || item.name || 'CCTV';
+    camera = item;
+    $('viewerKicker').textContent = 'KAMERA PUBLIK';
+    $('viewerTitle').textContent = item.title || item.name || 'CCTV';
     if (!$('viewer').open) $('viewer').showModal(); playCamera();
   }
   function playCamera() {
     stopVideo(); if (!camera || !authorized || !$('viewer').open) return;
+    const version = videoVersion, video = $('video'), image = $('cameraImage');
+    const stream = typeof camera.stream === 'string' ? camera.stream : '';
+    const fail = () => { if (version !== videoVersion) return; clearTimeout(videoTimer); hls?.destroy(); hls = null; video.pause(); video.removeAttribute('src'); video.load(); $('videoStatus').textContent = stream ? 'Siaran belum dapat diputar. Coba lagi atau pilih kanal lain.' : 'Tayangan kamera belum dapat diputar. Coba lagi atau pilih kamera lain.'; $('retryVideo').hidden = false; };
+    const playing = () => { if (version !== videoVersion) return; clearTimeout(videoTimer); $('videoStatus').textContent = stream ? `Siaran ${camera.title || 'TV'} sedang diputar.` : 'Video sedang diputar · kamera publik'; };
+    if (stream) {
+      video.hidden = false; image.hidden = true;
+      $('videoStatus').textContent = 'Menghubungkan ke siaran…'; $('retryVideo').hidden = true;
+      video.onplaying = playing; video.onerror = fail;
+      videoTimer = setTimeout(fail, 30000);
+      if (window.Hls?.isSupported()) {
+        hls = new Hls({ maxBufferLength: 15, maxMaxBufferLength: 30, manifestLoadingMaxRetry: 1, levelLoadingMaxRetry: 1, fragLoadingMaxRetry: 1 });
+        hls.on(Hls.Events.ERROR, (_, detail) => { if (detail.fatal) fail(); });
+        hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => { if (version === videoVersion) $('videoStatus').textContent = 'Tekan tombol putar pada video untuk mulai.'; }); });
+        hls.loadSource(stream); hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) { video.src = stream; video.play().catch(() => { if (version === videoVersion) $('videoStatus').textContent = 'Tekan tombol putar pada video untuk mulai.'; }); }
+      else fail();
+      return;
+    }
     const id = String(camera.id || '');
     if (!/^id-[a-z0-9_-]{2,96}$/i.test(id)) { $('videoStatus').textContent = 'Kamera tidak dapat diputar.'; return; }
-    const version = videoVersion, video = $('video'), image = $('cameraImage');
     $('videoStatus').textContent = 'Menghubungkan ke kamera…'; $('retryVideo').hidden = true;
-    const fail = () => { if (version !== videoVersion) return; clearTimeout(videoTimer); hls?.destroy(); hls = null; video.pause(); video.removeAttribute('src'); video.load(); $('videoStatus').textContent = 'Tayangan kamera belum dapat diputar. Coba lagi atau pilih kamera lain.'; $('retryVideo').hidden = false; };
-    const playing = () => { if (version !== videoVersion) return; clearTimeout(videoTimer); $('videoStatus').textContent = 'Video sedang diputar · kamera publik'; };
     const isImage = /image|jpeg|jpg|snapshot/i.test(camera.feedType || camera.type || '');
     video.hidden = isImage; image.hidden = !isImage;
     videoTimer = setTimeout(fail, 45000);
@@ -286,7 +365,7 @@
   $('city').addEventListener('change', load);
   $('search').addEventListener('input', () => { shown = 35; render(); });
   $('more').addEventListener('click', () => { shown += 35; render(); });
-  $('resetMap').addEventListener('click', () => map?.setView([-2.4, 118], 4));
+  $('resetMap').addEventListener('click', resetView);
   $('radarToggle').addEventListener('change', toggleRadar);
   $('closeViewer').addEventListener('click', () => $('viewer').close());
   $('viewer').addEventListener('close', stopVideo);

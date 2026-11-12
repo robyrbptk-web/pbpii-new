@@ -9373,11 +9373,16 @@ body.aplikasi.feed-page .feed-tabs {
 .feed-thread {
   border-top: 0;
   padding-top: 0;
+  /* Panel utas adalah butir kisi di kolom kabar. Tanpa min-width: 0 ukuran
+     min-content baris balasan bisa melebarkan panel melewati kartu, lalu
+     isinya terpotong di tepi kanan layar ponsel. */
+  min-width: 0;
 }
 
 .feed-thread-inner {
   display: grid;
   gap: 12px;
+  min-width: 0;
   border-radius: 14px;
   background: var(--soft);
   padding: 12px;
@@ -9409,8 +9414,13 @@ body.aplikasi.feed-page .feed-tabs {
 
 .feed-comment {
   display: grid;
-  grid-template-columns: 30px 1fr;
+  grid-template-columns: 30px minmax(0, 1fr);
   gap: 9px;
+  min-width: 0;
+}
+
+.feed-comment > div {
+  min-width: 0;
 }
 
 .feed-comment.is-reply {
@@ -9470,7 +9480,10 @@ body.aplikasi.feed-page .feed-tabs {
 }
 
 .feed-reply input {
-  flex: 1 1 auto;
+  /* Basis 0 + width 0: kolom isian mengambil sisa ruang, tetapi lebar bawaan
+     <input> tidak lagi ikut menentukan lebar minimum baris balasan. */
+  flex: 1 1 0;
+  width: 0;
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 999px;
