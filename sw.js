@@ -3,7 +3,7 @@
  * network; this worker only keeps the shell so the installed app opens
  * instantly and survives a lost connection.
  */
-const CACHE_NAME = 'pbpii-shell-v69';
+const CACHE_NAME = 'pbpii-shell-v71';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -48,6 +48,11 @@ const APP_SHELL = [
   '/tanya.js',
   '/situasi.css',
   '/situasi.js',
+  '/situasi-globe.js',
+  '/assets/geo/world110.geo.json',
+  '/assets/geo/idn.geo.json',
+  '/assets/geo/idn-prov.geo.json',
+  '/vendor/d3/d3.min.js',
   '/vendor/leaflet/leaflet.css',
   '/vendor/leaflet/leaflet.js',
   '/vendor/hls/hls.min.js',

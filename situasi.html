@@ -3,52 +3,184 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#101923">
-  <meta name="description" content="PII Situation Room PB PII: pantauan berita, siaran TV, cuaca, kebencanaan, pasar, kamera publik, dan kegiatan organisasi di Indonesia.">
+  <meta name="theme-color" content="#05080a">
+  <meta name="description" content="PII Situation Room PB PII: console pantauan berita, pasar, opini publik, CCTV publik, cuaca, kebencanaan, dan siaran TV Indonesia.">
   <title>PII Situation Room — PB PII</title>
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/situasi.css">
   <script defer src="/vendor/leaflet/leaflet.js"></script>
+  <script defer src="/vendor/d3/d3.min.js"></script>
   <script defer src="/vendor/hls/hls.min.js"></script>
+  <script defer src="/situasi-globe.js"></script>
   <script defer src="/situasi.js"></script>
 </head>
 <body>
-  <a class="skip" href="#panel">Langsung ke informasi</a>
-  <header class="room-header">
-    <a class="brand" href="/app" aria-label="Kembali ke aplikasi PB PII"><img src="/assets/logo-pii.webp" alt="Logo PII" width="32" height="39"><span><b>PB PII</b><small>Kepelajaran · Keislaman · Keindonesiaan</small></span></a>
-    <div class="room-heading"><span class="eyebrow">RUANG SITUASI INDONESIA</span><h1>PII Situation Room<span class="signal" aria-hidden="true"></span></h1></div>
-    <div class="header-tools"><time id="clock" aria-label="Waktu Indonesia Barat"></time><a class="quiet-link" href="/app">Kembali ke aplikasi <span aria-hidden="true">↗</span></a></div>
+  <a class="skip" href="#room">Langsung ke console</a>
+
+  <header class="console-top">
+    <div class="brand">
+      <img src="/assets/logo-pii.webp" alt="Logo PII" width="24" height="29">
+      <span class="brand-word">SITREP</span><span class="brand-slash">/</span>
+      <span class="brand-org">PII</span>
+      <span class="brand-sub">Ruang Situasi Indonesia</span>
+    </div>
+    <div class="top-mid">
+      <span class="chip-live"><i aria-hidden="true"></i> LIVE</span>
+      <span class="top-sync" id="syncState">menghubungkan…</span>
+    </div>
+    <div class="top-tools">
+      <time id="clock" aria-label="Waktu Indonesia Barat"></time>
+      <button class="tbtn" type="button" id="refreshAll" title="Segarkan semua panel">SYNC ↻</button>
+      <a class="tbtn quiet" href="/app">Aplikasi ↗</a>
+    </div>
   </header>
+
+  <div class="ticker" aria-hidden="true">
+    <span class="ticker-tag"><b>BREAKING</b><span>FETCH</span></span>
+    <div class="ticker-vp"><div class="ticker-rail" id="tickerTrack"><span class="tk">Menghubungkan ke wire…</span></div></div>
+  </div>
+
   <section class="gate" id="gate" aria-live="polite">
-    <span class="eyebrow">INFORMASI UNTUK BERGERAK</span><h2 id="gateTitle">Memeriksa sesi Anda</h2><p id="gateNote">Menghubungkan PII Situation Room dengan akun PB PII.</p>
-    <a class="primary" id="loginLink" href="/sso.html?next=%2Fsituasi.html" hidden>Masuk ke akun PII</a><button id="sessionRetry" hidden>Coba lagi</button>
-    <noscript>Aktifkan JavaScript untuk membuka peta dan informasi terkini.</noscript>
+    <span class="eyebrow">INFORMASI UNTUK BERGERAK</span>
+    <h1 id="gateTitle">Memeriksa sesi Anda</h1>
+    <p id="gateNote">Menghubungkan PII Situation Room dengan akun PB PII.</p>
+    <a class="primary" id="loginLink" href="/sso.html?next=%2Fsituasi.html" hidden>Masuk ke akun PII</a>
+    <button id="sessionRetry" hidden>Coba lagi</button>
+    <noscript>Aktifkan JavaScript untuk membuka console dan informasi terkini.</noscript>
   </section>
-  <main id="room" hidden>
-    <nav class="categories" aria-label="Pilih pantauan" id="categories">
-      <button data-kind="berita" aria-pressed="true">Berita</button><button data-kind="tren" aria-pressed="false">Opini &amp; tren</button><button data-kind="pasar" aria-pressed="false">Pasar IDX</button><button data-kind="tv" aria-pressed="false">Siaran TV</button><button data-kind="cctv" aria-pressed="false">CCTV publik</button><button data-kind="cuaca" aria-pressed="false">Cuaca &amp; udara</button><button data-kind="peringatan" aria-pressed="false">Peringatan BMKG</button><button data-kind="gempa" aria-pressed="false">Gempa</button><button data-kind="gunung" aria-pressed="false">Gunung api</button><button data-kind="hotspot" aria-pressed="false">Titik panas</button><button data-kind="pesawat" aria-pressed="false">Penerbangan</button><button data-kind="kegiatan" aria-pressed="false">Kegiatan PII</button>
-    </nav>
-    <div class="workspace">
-      <section class="map-panel" aria-label="Peta Indonesia">
-        <div class="map-top"><div><span class="eyebrow">NUSANTARA</span><h2 id="mapTitle">Indonesia, dalam pantauan</h2></div><button id="resetMap" title="Kembalikan peta ke Sekretariat PB PII">Atur ulang peta</button></div>
-        <div id="map" role="region" aria-label="Peta interaktif Indonesia" tabindex="0"></div>
-        <div class="map-bottom"><span id="mapLegend">Pilih kategori untuk melihat titik di peta.</span><label class="radar-switch"><input type="checkbox" id="radarToggle"> Radar hujan</label></div>
-        <p id="radarNote" class="radar-note" hidden role="status"></p>
-      </section>
-      <section class="information" id="panel" tabindex="-1" aria-labelledby="panelTitle">
-        <header class="panel-header"><div><span class="eyebrow" id="panelKicker">KABAR NUSANTARA</span><h2 id="panelTitle">Berita terkini</h2></div><button id="refresh" aria-label="Segarkan informasi">Segarkan <span aria-hidden="true">↻</span></button></header>
-        <div class="filters"><label class="search-label"><span class="sr-only">Cari pada informasi yang dimuat</span><input id="search" type="search" placeholder="Cari pada pantauan ini…" maxlength="100"></label><label id="cityLabel" hidden><span class="sr-only">Kota prakiraan cuaca</span><select id="city"><option value="jakarta">Jakarta</option><option value="bandung">Bandung</option><option value="medan">Medan</option><option value="surabaya">Surabaya</option><option value="pontianak">Pontianak</option><option value="makassar">Makassar</option><option value="denpasar">Denpasar</option><option value="jayapura">Jayapura</option></select></label></div>
-        <div class="source-line"><span id="resultCount"></span><span id="updated"></span></div>
-        <p class="status" id="status" role="status" aria-live="polite"></p>
-        <div id="results" class="results"></div>
-        <button class="more" id="more" hidden>Muat lebih banyak</button>
-        <footer class="source-footer"><b id="source"></b><p id="sourceNote"></p></footer>
+
+  <main class="console" id="room" hidden>
+    <div class="col col-left">
+      <section class="pane pane-situasi" aria-label="Situasi Indonesia">
+        <div class="ph"><span class="ph-k">[01]</span><h2 class="ph-t">Situasi</h2>
+          <div class="view-switch" role="group" aria-label="Mode tampilan situasi">
+            <button type="button" data-view="globe" aria-pressed="true">Globe</button>
+            <button type="button" data-view="map" aria-pressed="false">Peta</button>
+          </div>
+          <span class="ph-m" id="sitMeta">sync —</span>
+        </div>
+        <div class="pb sit-body">
+          <div class="sit-mapwrap" id="sitMapWrap">
+            <canvas id="sit-globe" role="img" tabindex="0" aria-label="Globe orthografis dunia dengan titik kejadian live. Seret untuk memutar, gulir atau cubit untuk memperbesar, dan klik titik untuk detail."></canvas>
+            <div id="map" role="region" aria-label="Peta interaktif Indonesia" tabindex="0" hidden></div>
+            <div class="sit-kpi">
+              <div class="sit-kpi-main"><b id="sitCount">—</b><span>titik</span></div>
+              <small id="sitCountLbl">menunggu data</small>
+            </div>
+            <div class="sit-sync"><span id="sitSync">live</span><time id="sitSyncTime">—</time></div>
+            <div class="sit-tag" id="mapLegend">Globe insiden Indonesia</div>
+            <div class="sit-corners" aria-hidden="true"><i class="ctl"></i><i class="ctr"></i><i class="cbl"></i><i class="cbr"></i></div>
+            <p id="radarNote" class="radar-note" hidden role="status"></p>
+            <button class="globe-reset" id="globeReset" type="button" title="Kembali ke tampilan Indonesia" aria-label="Kembalikan globe ke tampilan Indonesia">⌖ Indonesia</button>
+            <div class="globe-tip" id="globeTip" role="status" hidden></div>
+          </div>
+          <div class="layerbar" id="layerChips" role="group" aria-label="Lapisan peta">
+            <button type="button" data-layer="gempa" aria-pressed="true">Gempa</button>
+            <button type="button" data-layer="peringatan" aria-pressed="false">Peringatan</button>
+            <button type="button" data-layer="gunung" aria-pressed="false">Gunung api</button>
+            <button type="button" data-layer="hotspot" aria-pressed="false">Titik panas</button>
+            <button type="button" data-layer="pesawat" aria-pressed="false">Penerbangan</button>
+            <button type="button" data-layer="cuaca" aria-pressed="false">Cuaca</button>
+            <button type="button" data-layer="kegiatan" aria-pressed="false">Kegiatan PII</button>
+            <label class="city-pick" id="cityLabel" hidden>Kota
+              <select id="city">
+                <option value="jakarta">Jakarta</option><option value="bandung">Bandung</option>
+                <option value="medan">Medan</option><option value="surabaya">Surabaya</option>
+                <option value="pontianak">Pontianak</option><option value="makassar">Makassar</option>
+                <option value="denpasar">Denpasar</option><option value="jayapura">Jayapura</option>
+              </select>
+            </label>
+          </div>
+          <div class="cl-h">Klaster aktif <span id="clusterCount"></span></div>
+          <div class="cl-list" id="clusterList"></div>
+        </div>
       </section>
     </div>
-    <footer class="room-footer"><span>PB PII / PII SITUATION ROOM</span><p>Data sumber terbuka, bukan pengganti layanan darurat atau informasi resmi pemerintah.</p><details><summary>Tentang cakupan data</summary><p>Waktu pembaruan sumber berbeda-beda. Tren pencarian bukan sentimen media sosial. Penerbangan memiliki cakupan terbatas; titik panas bukan kepastian kebakaran. Siaran TV diputar langsung dari penyelenggara resmi. Umpan AIS dan lalu lintas TomTom belum tersedia di ruang ini. Peta dasar © Esri, HERE, Garmin, dan kontributor OpenStreetMap; pustaka peta Leaflet dan pemutar hls.js. Data BMKG, MAGMA ESDM, SiPongi, OpenSky, Open-Meteo, Yahoo Finance, dan RainViewer milik sumber masing-masing.</p></details><small>© PB PII<br>Dibuat oleh Badan Khusus Inovasi Digital PB PII</small></footer>
+
+    <div class="col col-mid">
+      <section class="pane pane-market" aria-label="Pasar saham Indonesia">
+        <div class="ph"><span class="ph-k">[02]</span><h2 class="ph-t">Market · IDX</h2><span class="ph-m" id="mktMeta">—</span></div>
+        <div class="pb mkt-body">
+          <div class="stk-ihsg">
+            <span class="stk-k">IHSG</span>
+            <div class="stk-hd"><b class="stk-p" id="ihsgPrice">—</b><span class="stk-d" id="ihsgDelta">—</span></div>
+            <svg class="spark" id="ihsgSpark" viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <div class="stk-chips" id="stkChips"><p class="empty">Menghubungkan ke pasar…</p></div>
+        </div>
+      </section>
+
+      <section class="pane pane-social" aria-label="Opini dan tren publik">
+        <div class="ph"><span class="ph-k">[03]</span><h2 class="ph-t">Opini &amp; Tren</h2><span class="ph-m" id="socMeta">—</span></div>
+        <div class="pb">
+          <div class="pane-tools">
+            <input class="inp" id="socialSearch" type="search" placeholder="Cari opini atau tren…" aria-label="Cari opini atau tren" autocomplete="off" maxlength="80">
+            <div class="soc-tabs" role="tablist" aria-label="Sumber opini dan tren">
+              <button type="button" role="tab" data-soc="tren" aria-selected="true">Tren</button>
+              <button type="button" role="tab" data-soc="opini" aria-selected="false">Opini</button>
+            </div>
+          </div>
+          <div id="socialList" class="feed"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col col-right">
+      <section class="pane pane-news" aria-label="Wire berita">
+        <div class="ph"><span class="ph-k">[04]</span><h2 class="ph-t">News Wire</h2><span class="ph-m" id="newsMeta">Memuat…</span></div>
+        <div class="pb">
+          <div class="pane-tools">
+            <input class="inp" id="newsSearch" type="search" placeholder="Saring berita…" aria-label="Saring berita" autocomplete="off" maxlength="80">
+          </div>
+          <div class="catbar" id="newsSources" role="group" aria-label="Sumber berita"></div>
+          <article id="newsLead" class="lead" aria-busy="true"></article>
+          <div id="newsList" class="feed" aria-busy="true"></div>
+        </div>
+      </section>
+
+      <section class="pane pane-cctv" aria-label="CCTV regional">
+        <div class="ph"><span class="ph-k">[05]</span><h2 class="ph-t">CCTV · Regional</h2><span class="ph-m" id="cctvMeta">—</span></div>
+        <div class="pb">
+          <div class="pane-tools">
+            <input class="inp" id="cctvSearch" type="search" placeholder="Cari kamera…" aria-label="Cari kamera" autocomplete="off" maxlength="80">
+          </div>
+          <div class="catbar" id="cctvCities" role="tablist" aria-label="Wilayah kamera"></div>
+          <div class="camgrid" id="camGrid"><p class="empty">Menghubungkan ke katalog kamera…</p></div>
+        </div>
+      </section>
+    </div>
   </main>
-  <dialog id="viewer" aria-labelledby="viewerTitle"><header><div><span class="eyebrow" id="viewerKicker">KAMERA PUBLIK</span><h2 id="viewerTitle"></h2></div><button id="closeViewer" aria-label="Tutup kamera">Tutup ×</button></header><video id="video" controls playsinline muted autoplay></video><img id="cameraImage" alt="Cuplikan kamera publik" hidden><p id="videoStatus" role="status" aria-live="polite"></p><button id="retryVideo">Coba putar lagi</button><p class="viewer-note">Kamera dan siaran disediakan pengelola setempat. Koneksi dan tayangan dapat berubah sewaktu-waktu.</p></dialog>
+
+  <div class="geobar" id="geobar" hidden>
+    <span class="geo-left"><i class="geo-led" aria-hidden="true"></i> IDN <span class="geo-live">live</span></span>
+    <div class="geo-stats" id="geoStats"><span class="geo-item"><span class="geo-l">Sinkronisasi…</span></span></div>
+    <div class="geo-actions">
+      <button class="geo-btn" type="button" id="btnTv"><span>▣</span> Live TV <em>SIGINT</em></button>
+      <button class="geo-btn" type="button" id="btnRadar" aria-pressed="false"><span>◉</span> Radar <em>RAIN</em></button>
+    </div>
+  </div>
+
+  <dialog id="tvDialog" aria-labelledby="tvTitle">
+    <header>
+      <div><span class="eyebrow">SIARAN LANGSUNG</span><h2 id="tvTitle">Live TV</h2></div>
+      <button type="button" id="closeTv">Tutup ×</button>
+    </header>
+    <div class="tv-grid" id="tvGrid"><p class="empty">Memuat daftar kanal…</p></div>
+    <p class="fine">Siaran diputar langsung dari penyelenggara resmi. Ketersediaan dan jadwal ditentukan masing-masing stasiun; pemutaran memakai kuota data.</p>
+  </dialog>
+
+  <dialog id="viewer" aria-labelledby="viewerTitle">
+    <header>
+      <div><span class="eyebrow" id="viewerKicker">KAMERA PUBLIK</span><h2 id="viewerTitle"></h2></div>
+      <button type="button" id="closeViewer" aria-label="Tutup kamera">Tutup ×</button>
+    </header>
+    <video id="video" controls playsinline muted autoplay></video>
+    <img id="cameraImage" alt="Cuplikan kamera publik" hidden>
+    <p id="videoStatus" role="status" aria-live="polite"></p>
+    <button type="button" id="retryVideo">Coba putar lagi</button>
+    <p class="fine">Kamera dan siaran disediakan pengelola setempat. Koneksi dan tayangan dapat berubah sewaktu-waktu.</p>
+  </dialog>
 </body>
 </html>
