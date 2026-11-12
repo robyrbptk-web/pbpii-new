@@ -13,15 +13,17 @@
   <link rel="icon" href="/assets/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
+  <link rel="preload" as="image" href="/assets/ketua-umum-2026.jpg" fetchpriority="high">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/appshell.css">
   <script src="/appshell.js" data-halaman="beranda"></script>
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="./">
+    <a class="brand" href="./" aria-label="PB PII — Pengurus Besar Pelajar Islam Indonesia">
       <img src="/assets/logo-pii.webp" alt="Logo Pelajar Islam Indonesia" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
-      <span><b id="siteName">PB PII</b><small id="siteTagline">Pelajar Islam Indonesia</small></span>
+      <span class="brand-copy"><b id="siteName">PB PII</b><small id="siteTagline">Pelajar Islam Indonesia</small></span>
+      <b class="brand-short" aria-hidden="true">PB PII</b>
     </a>
     <nav id="nav" aria-label="Navigasi utama">
       <a href="./" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.5h5V20"/></svg><span>Beranda</span></a>
@@ -83,7 +85,7 @@
       <div class="greeting-photo" id="chairPhotoWrap">
         <span class="greeting-ring" aria-hidden="true"></span>
         <img id="chairPhoto" alt="Ketua Umum PB PII" decoding="async" hidden>
-        <b class="greeting-monogram" id="chairMonogram" aria-hidden="true">PII</b>
+        <b class="greeting-monogram" id="chairMonogram" aria-hidden="true">KP</b>
       </div>
       <div class="greeting-copy">
         <p class="eyebrow">SAMBUTAN KETUA UMUM PB PII</p>
@@ -120,12 +122,38 @@
             tampil();
           }
           try {
-            var foto = localStorage.getItem('pbpii_ketum_foto');
-            if (!foto) return;
+            var nama = localStorage.getItem('pbpii_ketum_nama') || '';
+            var papan = document.getElementById('chairMonogram');
+            var huruf = nama.split(/\s+/)
+              .filter(function (kata) { return /^[A-Za-zÀ-ÿ]{2,}$/.test(kata); })
+              .slice(0, 2)
+              .map(function (kata) { return kata.charAt(0).toUpperCase(); })
+              .join('');
+            if (papan && huruf) papan.textContent = huruf;
+
+            /* Foto resmi ikut dikirim bersama halaman, jadi kunjungan pertama
+               tidak perlu menunggu data pengaturan untuk melihat wajah Ketua
+               Umum. Alamat dari pengaturan menggantikannya begitu termuat. */
             var gambar = document.getElementById('chairPhoto');
-            gambar.src = foto;
-            gambar.hidden = false;
-            document.getElementById('chairMonogram').hidden = true;
+            gambar.onload = function () {
+              gambar.hidden = false;
+              if (papan) papan.hidden = true;
+            };
+            gambar.onerror = function () {
+              gambar.hidden = true;
+              gambar.removeAttribute('src');
+              if (papan) papan.hidden = false;
+            };
+            /* Versi lama sempat mengingat lambang organisasi di kunci ini.
+               Alamat itu tidak boleh dipakai lagi, kalau tidak yang muncul
+               pertama justru logo PII, bukan wajah Ketua Umum. */
+            var tersimpan = '';
+            try { tersimpan = localStorage.getItem('pbpii_ketum_foto') || ''; } catch (e) {}
+            if (/logo-pii|logo\.(?:png|webp|svg)/i.test(tersimpan)) {
+              tersimpan = '';
+              try { localStorage.removeItem('pbpii_ketum_foto'); } catch (e) {}
+            }
+            gambar.src = tersimpan || '/assets/ketua-umum-2026.jpg';
           } catch (galat) {
             /* Penyimpanan privat sedang tidak bisa dipakai; monogram tetap tampil. */
           }

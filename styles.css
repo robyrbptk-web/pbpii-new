@@ -997,7 +997,10 @@ footer > small {
     flex: 0 0 auto;
   }
 
-  nav {
+  /* Hanya menu kop yang menempel di bawah header. Tautan pengelola pada
+     footer bukan menu kop: tanpa batasan ini bar putihnya ikut melayang di
+     tengah halaman. */
+  .site-header nav {
     position: absolute;
     top: calc(100% + 1px);
     right: 0;
@@ -1011,7 +1014,7 @@ footer > small {
     box-shadow: 0 14px 20px #102b4910;
   }
 
-  nav.open {
+  .site-header nav.open {
     display: flex;
     flex-direction: column;
   }
@@ -10486,5 +10489,113 @@ button,
   .greeting-text {
     font-size: .96rem;
     line-height: 1.8;
+  }
+}
+
+/* ============================================================
+   Bar atas ringkas & sambutan yang berwibawa
+   Nama resmi lengkap memakan empat sampai enam baris di ponsel,
+   sehingga bilah atas tumbuh setinggi 161px dan menutupi potret
+   Ketua Umum. Di layar kecil yang tampil cukup logo + "PB PII";
+   nama resmi tetap utuh di layar lebar dan pada menu lengkap.
+   ============================================================ */
+.brand-short {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .site-header {
+    min-height: 62px;
+    gap: 8px;
+    padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+  }
+
+  .site-header .brand-copy {
+    display: none;
+  }
+
+  .brand-short {
+    display: block;
+    color: var(--navy);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+
+  .greeting-section {
+    scroll-margin-top: 84px;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Tanpa nama brand yang panjang, tombol akun cukup ikon; labelnya
+     tetap terbaca pembaca layar lewat aria-label tombol. */
+  .account-slot .account-label {
+    display: none;
+  }
+
+  .account-slot .account-button {
+    padding: 0 7px;
+  }
+}
+
+/* Aksen tipis di bawah nama: tenang, bukan hiasan yang ramai. */
+.greeting-copy h2::after {
+  content: "";
+  display: block;
+  width: 64px;
+  height: 3px;
+  margin-top: 12px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #1763a6, rgb(23 99 166 / 0%));
+}
+
+.greeting-photo::after {
+  content: "";
+  position: absolute;
+  inset: 11px;
+  border-radius: 17px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 16%);
+  pointer-events: none;
+}
+
+.greeting-photo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 34%, rgb(255 255 255 / 24%) 48%, transparent 62%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .greeting-animated .greeting-section.is-tampil .greeting-photo {
+    animation: greetingFoto .9s cubic-bezier(.22, .61, .36, 1) both;
+  }
+
+  .greeting-animated .greeting-section.is-tampil .greeting-photo::before {
+    animation: greetingKilau 1.6s ease-out .3s 1 both;
+  }
+}
+
+@keyframes greetingFoto {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes greetingKilau {
+  to {
+    transform: translateX(130%);
   }
 }

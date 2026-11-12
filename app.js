@@ -110,6 +110,13 @@ function sambutanGagal(gambar, nama) {
     gambar.src = DRIVE_URL_FORMS[sudah](id);
     return;
   }
+  /* Foto resmi yang ikut dikirim bersama halaman menjadi jaring terakhir
+     sebelum inisial: wajah Ketua Umum tetap tampil walau Drive menolak. */
+  if (gambar.dataset.cadangan !== '1') {
+    gambar.dataset.cadangan = '1';
+    gambar.src = '/assets/ketua-umum-2026.jpg';
+    return;
+  }
   try {
     localStorage.removeItem('pbpii_ketum_foto');
   } catch (galat) {
@@ -126,7 +133,15 @@ function sambutanGagal(gambar, nama) {
 function pasangSambutan(gambar, settings) {
   const papan = document.getElementById('chairMonogram');
   const alamat = settings.chairmanPhoto ? safeImageUrl(settings.chairmanPhoto) : '';
-  if (!alamat) {
+  try {
+    localStorage.setItem('pbpii_ketum_nama', String(settings.chairmanName || ''));
+  } catch (galat) {
+    /* Inisial saja yang tidak diingat; sambutan tetap tampil. */
+  }
+  /* Lambang organisasi bukan foto: kalau alamat pengaturan kosong atau tidak
+     bisa dipakai, sambutan memakai inisial supaya yang pertama tampil tetap
+     wajah manusia, bukan logo PII. */
+  if (!alamat || alamat === LOGO_URL) {
     sambutanMonogram(settings.chairmanName);
     return;
   }
