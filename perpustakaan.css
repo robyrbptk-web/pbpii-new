@@ -178,6 +178,7 @@ body[data-perp-view='berkas'] #perpustakaan {
 
 .perp-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 14px;
 }
@@ -185,6 +186,7 @@ body[data-perp-view='berkas'] #perpustakaan {
 .perp-card {
   display: grid;
   grid-template-columns: 74px minmax(0, 1fr);
+  min-width: 0;
   gap: 13px;
   border: 1px solid var(--line, #dfe7ef);
   border-radius: 16px;
@@ -227,6 +229,7 @@ body[data-perp-view='berkas'] #perpustakaan {
   letter-spacing: -.015em;
   line-height: 1.35;
   text-align: left;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
@@ -240,6 +243,7 @@ body[data-perp-view='berkas'] #perpustakaan {
   color: #6a8098;
   font-size: .78rem;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .perp-baca {

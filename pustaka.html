@@ -264,11 +264,13 @@
 
     .pustaka-list {
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 11px;
     }
 
     .pustaka-card {
       display: grid;
+      min-width: 0;
       gap: 7px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -304,6 +306,7 @@
       font-weight: 800;
       letter-spacing: -.015em;
       text-align: left;
+      overflow-wrap: anywhere;
       cursor: pointer;
     }
 
@@ -334,6 +337,7 @@
       margin: 0;
       color: #4b5c71;
       font-size: .87rem;
+      overflow-wrap: anywhere;
     }
 
     .pustaka-cuplikan {
@@ -343,12 +347,14 @@
       color: #3f5169;
       font-size: .88rem;
       line-height: 1.6;
+      overflow-wrap: anywhere;
     }
 
     .pustaka-meta {
       margin: 0;
       color: var(--muted);
       font-size: .75rem;
+      overflow-wrap: anywhere;
     }
 
     .pustaka-actions {
