@@ -58,6 +58,7 @@ import tomtomStatus from '../proxies/tomtom/status.js';
 import volcanoes from '../proxies/volcanoes.js';
 import weatherEffects from '../proxies/weather-effects.js';
 import wilayah from '../proxies/wilayah.js';
+import situasi from '../proxies/situasi.js';
 
 /** Pola `:nama` ditafsirkan sama seperti Vercel pada nama berkas `[nama].js`. */
 const ROUTES = [
@@ -109,6 +110,7 @@ const ROUTES = [
   ['volcanoes', volcanoes],
   ['weather-effects', weatherEffects],
   ['wilayah', wilayah],
+  ['situasi', situasi],
 ];
 
 /**

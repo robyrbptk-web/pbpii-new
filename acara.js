@@ -50,7 +50,7 @@
   };
   const tanggalSah = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
   /* Kader melihat kegiatan berjalan sampai hari berapa, bukan hanya hari
-     mulainya; rentang ini yang sama dipakai Peta Kaderisasi. */
+     mulainya; rentang ini yang sama dipakai Ruang Situasi. */
   const rentangLabel = (event) => {
     const mulai = longDate(event.date);
     const akhir = tanggalSah(event.endDate) && event.endDate > event.date ? longDate(event.endDate) : '';
@@ -60,7 +60,7 @@
     const lintang = Number(event.latitude);
     const bujur = Number(event.longitude);
     if (!Number.isFinite(lintang) || !Number.isFinite(bujur)) return '';
-    return `peta.html#kader=1&lat=${lintang.toFixed(5)}&lon=${bujur.toFixed(5)}`;
+    return `/situasi.html#kegiatan&lat=${lintang.toFixed(5)}&lon=${bujur.toFixed(5)}`;
   };
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const LOGO = 'assets/logo-pii.webp';

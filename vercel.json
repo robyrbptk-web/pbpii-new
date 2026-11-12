@@ -16,6 +16,10 @@
   },
   "rewrites": [
     {
+      "source": "/situasi",
+      "destination": "/situasi.html"
+    },
+    {
       "source": "/api/adsblol/mil",
       "destination": "/api/_gw?r=adsblol/mil"
     },

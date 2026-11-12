@@ -15,18 +15,21 @@ export default async function handler(req, res) {
   }
   try {
     const sources = await getSources();
-    const updatedAt = Date.now();
     const cameras = sources.map((source) => {
       const feedType = normalizeFeedType(source.feedType || 'image');
-      const hasUrl = typeof source.url === 'string' && !!source.url.trim();
+      const verification = source.verification || { status: 'unchecked', checkedAt: null, verifiedAt: null };
+      const verified = verification.status === 'verified';
       return {
         id: source.id,
-        status: hasUrl ? 'ok' : 'degraded',
-        sourceKind: hasUrl ? feedType : 'registry',
+        status: verified ? 'ok' : 'degraded',
+        sourceKind: feedType,
         label: source.provider || source.city || '',
-        message: hasUrl ? 'SIAP' : 'TANPA STREAM',
+        message: verified ? 'SAMPEL HLS TERVERIFIKASI' : verification.status === 'failed' ? 'SAMPEL GAGAL' : 'BELUM DIUJI',
         feedType,
-        updatedAt,
+        // This is the actual observation time, not the time health was read.
+        updatedAt: verification.checkedAt ? Date.parse(verification.checkedAt) : null,
+        verifiedAt: verification.verifiedAt,
+        verification,
       };
     });
     sendJson(res, 200, { cameras, count: cameras.length });
