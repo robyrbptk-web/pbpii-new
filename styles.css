@@ -369,6 +369,28 @@ nav a:hover,
   box-shadow: 0 12px 28px #061b3333;
 }
 
+.button-solid {
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  color: #fff;
+  box-shadow: 0 10px 24px rgb(16 43 73 / 22%);
+}
+
+.button-solid:hover {
+  background: linear-gradient(135deg, #0b2340, #135e92);
+  box-shadow: 0 14px 30px rgb(16 43 73 / 30%);
+}
+
+.button-solid:focus-visible {
+  outline: 3px solid rgb(23 109 168 / 35%);
+  outline-offset: 2px;
+}
+
+.button-solid:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+  box-shadow: none;
+}
+
 .stats {
   display: grid;
   max-width: 1120px;
@@ -10627,4 +10649,952 @@ button,
   to {
     transform: translateX(130%);
   }
+}
+
+/* ==========================================================================
+   Feed Kader — polesan wajah aplikasi sosial (Threads/X)
+   Satu alur baca dari atas ke bawah: kepala ringkas, tab menempel, komposer
+   selebar kolom, lalu kartu tanpa kotak pembungkus ganda.
+   ========================================================================== */
+
+.feed-page main {
+  padding-inline: 0;
+}
+
+.feed-board {
+  width: min(680px, 100%);
+  margin: 0 auto;
+  padding: 0 0 40px;
+  display: block;
+}
+
+.feed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 10px;
+}
+
+.feed-head-copy {
+  min-width: 0;
+}
+
+.feed-head h1 {
+  margin: 0;
+  max-width: none;
+  font-size: clamp(1.18rem, 4.5vw, 1.42rem);
+  font-weight: 900;
+  letter-spacing: -.03em;
+  line-height: 1.18;
+}
+
+.feed-head p {
+  margin: 3px 0 0;
+  max-width: none;
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.35;
+}
+
+.feed-head-side {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+/* Angka feed adalah keterangan kecil, bukan lencana di atas latar gelap. */
+#feedCount {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.feed-rail-open {
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  border-color: var(--line);
+  border-radius: 50%;
+  padding: 0;
+  color: var(--navy);
+  background: var(--soft);
+}
+
+.feed-rail-open:hover {
+  border-color: #c9d9e7;
+  background: #eef4f9;
+}
+
+.feed-rail-open svg {
+  width: 17px;
+  height: 17px;
+}
+
+.feed-rail-label {
+  display: none;
+}
+
+/* Tab menempel seperti aplikasi: empat kolom rata, garis bawah tipis. */
+.feed-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  overflow: visible;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.feed-tabs button {
+  flex: none;
+  min-width: 0;
+  padding: 13px 4px;
+  font-size: .84rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.feed-tabs button:hover {
+  background: none;
+  color: var(--navy);
+}
+
+.feed-tabs button.is-active::after {
+  width: 36px;
+  height: 3.5px;
+  border-radius: 999px;
+}
+
+/* Keterangan ranking dibuat tenang supaya tidak bersaing dengan isi. */
+.feed-sort-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfdff;
+  color: #738395;
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+.feed-sort-note svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feed-sort-note[hidden] {
+  display: none !important;
+}
+
+.feed-baru {
+  display: block;
+  margin: 10px auto;
+}
+
+/* Baris mulai menulis selebar layar, seperti pintasan komposer di X. */
+.feed-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+}
+
+.feed-start .feed-ava {
+  width: 38px;
+  height: 38px;
+  font-size: .95rem;
+}
+
+.feed-start-row {
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: 999px;
+  background: #f2f5f8;
+  padding: 12px 16px;
+  color: #6d7d8f;
+  font: 500 .92rem/1.2 inherit;
+  text-align: left;
+}
+
+.feed-start-row:hover {
+  background: #edf2f6;
+  color: #4b5c71;
+}
+
+.feed-start-write {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), #176da8);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(16, 43, 73, .2);
+  transition: transform .16s ease, filter .16s ease;
+}
+
+.feed-start-write:hover {
+  filter: brightness(1.08);
+}
+
+.feed-start-write:active {
+  transform: scale(.95);
+}
+
+.feed-start-write svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feed-start-write[hidden] {
+  display: none !important;
+}
+
+/* Komposer mengambang di dalam kolom, bukan kotak penuh selebar kartu. */
+.feed-composer {
+  margin: 10px 12px 2px;
+  padding: 14px;
+  border-radius: 18px;
+  box-shadow: 0 14px 34px rgba(16, 43, 73, .09);
+}
+
+.feed-composer-top {
+  grid-template-columns: 40px 1fr;
+}
+
+.feed-composer textarea {
+  min-height: 92px;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.feed-composer-tools .feed-composer-batal {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.feed-composer-tools .feed-composer-batal:hover {
+  background: var(--soft);
+  color: var(--navy);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .feed-composer.is-open {
+    animation: feedComposerIn .18s ease both;
+  }
+}
+
+@keyframes feedComposerIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Kartu tanpa bingkai luar: putih penuh dengan garis rambut antar-kabar. */
+.feed-list {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.feed-card {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 11px;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+@media (hover: hover) {
+  .feed-card:hover {
+    background: #fbfdff;
+  }
+}
+
+.feed-col {
+  gap: 8px;
+}
+
+.feed-ava {
+  width: 40px;
+  height: 40px;
+  font-size: 1rem;
+  box-shadow: inset 0 0 0 1px rgba(16, 43, 73, .06);
+}
+
+.feed-author {
+  gap: 8px;
+}
+
+.feed-author-name b {
+  font-size: .95rem;
+  font-weight: 800;
+}
+
+.feed-author-name small {
+  color: #6a7c8d;
+  font-size: .76rem;
+}
+
+.feed-jenis {
+  font-size: .66rem;
+  padding: 3px 7px;
+}
+
+.feed-follow {
+  border-color: var(--line);
+  color: var(--navy);
+  background: #fff;
+  padding: 6px 12px;
+  font-size: .72rem;
+}
+
+.feed-follow.is-on,
+.feed-card.is-following .feed-follow {
+  border-color: var(--line);
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.feed-menu {
+  width: 30px;
+  height: 30px;
+}
+
+.feed-text {
+  font-size: .96rem;
+  line-height: 1.56;
+  letter-spacing: -.004em;
+}
+
+.feed-media {
+  border: 0;
+  border-radius: 16px;
+  background: var(--soft);
+}
+
+.feed-media[data-count='1'] .feed-shot img {
+  aspect-ratio: 4 / 3;
+  max-height: 540px;
+}
+
+.feed-event {
+  border-color: var(--line);
+  border-radius: 16px;
+  background: #f8fbfe;
+}
+
+.feed-origin {
+  border-radius: 14px;
+  border-left-width: 3px;
+}
+
+/* Bar aksi rata seperti X: ikon dan angka tersebar, simpan di ujung kanan. */
+.feed-actions {
+  justify-content: space-between;
+  margin: 0 -6px;
+}
+
+.feed-actions > button {
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 5px;
+  padding: 8px 9px;
+  font-size: .76rem;
+  font-weight: 600;
+}
+
+.feed-actions svg {
+  width: 18px;
+  height: 18px;
+}
+
+.feed-like:hover {
+  background: #fdf0f2;
+  color: #c0334d;
+}
+
+.feed-repost:hover {
+  background: #edf7f1;
+  color: var(--green);
+}
+
+.feed-save {
+  margin-left: 0;
+}
+
+.feed-save:hover {
+  background: var(--sky);
+  color: var(--blue);
+}
+
+.feed-share:hover {
+  background: var(--sky);
+  color: var(--blue);
+}
+
+.feed-thread-inner {
+  border: 1px solid var(--line);
+  background: #f8fbfe;
+}
+
+/* Keadaan kosong, galat, dan tombol muat tetap punya napas di kolom penuh. */
+.feed-login,
+.feed-empty,
+.feed-kosong {
+  margin: 14px 18px;
+}
+
+.feed-more {
+  display: block;
+  margin: 18px auto;
+}
+
+.feed-loadstate {
+  margin: 10px 18px;
+}
+
+.feed-skeleton {
+  gap: 0;
+  background: #fff;
+}
+
+.feed-skeleton .skeleton {
+  height: 132px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Tombol tulis mengambang di ponsel, di atas bar navigasi aplikasi. */
+.feed-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 35;
+  display: none;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), #176da8);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 16px 34px rgba(16, 43, 73, .3);
+}
+
+body.aplikasi .feed-fab {
+  bottom: calc(var(--app-bar) + env(safe-area-inset-bottom) + 14px);
+}
+
+.feed-fab svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feed-fab:active {
+  transform: scale(.94);
+}
+
+body.feed-composing .feed-fab {
+  display: none !important;
+}
+
+@media (max-width: 680px) {
+  .feed-fab:not([hidden]) {
+    display: grid;
+  }
+
+  .feed-head {
+    padding: 12px 14px 8px;
+  }
+
+  .feed-head h1 {
+    font-size: 1.16rem;
+  }
+
+  .feed-head p {
+    font-size: .74rem;
+  }
+
+  #feedCount {
+    display: none;
+  }
+
+  .feed-tabs {
+    padding: 0 6px;
+  }
+
+  .feed-tabs button {
+    padding: 12px 2px;
+    font-size: .8rem;
+  }
+
+  .feed-sort-note {
+    padding: 7px 14px;
+    font-size: .7rem;
+  }
+
+  .feed-start {
+    padding: 10px 14px;
+  }
+
+  .feed-composer {
+    margin: 8px 8px 2px;
+    padding: 12px;
+  }
+
+  .feed-card {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 10px;
+    padding: 13px 14px 8px;
+  }
+
+  .feed-ava {
+    width: 38px;
+    height: 38px;
+    font-size: .95rem;
+  }
+
+  .feed-actions > button {
+    padding: 8px 6px;
+    font-size: .73rem;
+  }
+
+  .feed-login,
+  .feed-empty,
+  .feed-kosong {
+    margin: 12px 14px;
+  }
+
+  .feed-loadstate {
+    margin: 8px 14px;
+  }
+}
+
+@media (min-width: 1260px) {
+  .feed-side {
+    border: 0;
+    box-shadow: 0 1px 2px rgba(16, 43, 73, .04), 0 16px 38px rgba(16, 43, 73, .07);
+  }
+}
+
+/* ==========================================================================
+   Feed Kader — utas penuh, suka kilat, dan sentuhan aplikasi media sosial
+   ========================================================================== */
+
+/* Nama dan lencana jenis berbagi satu baris. Tanpa pembungkus flex, lencana
+   menjadi butir kisi .feed-author-name sehingga melebar selebar kartu. */
+.feed-author-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.feed-author-line .feed-author-taut,
+.feed-author-line > b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-author-line .feed-jenis {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+/* Empat tab rata; saat "Mengikuti" disembunyikan untuk tamu, sisanya tetap
+   membagi lebar secara merata, bukan menyisakan satu kolom kosong. */
+.feed-tabs {
+  display: flex;
+}
+
+.feed-tabs button {
+  flex: 1 1 0;
+}
+
+/* ---------------- tamu: ajakan masuk sebagai satu kartu, bukan kotak putus */
+
+.feed-login {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: linear-gradient(180deg, #f6faff, #eef5fb);
+  color: var(--muted);
+}
+
+.feed-login-ikon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--blue);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.feed-login-ikon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feed-login-copy {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feed-login-copy b {
+  color: var(--navy);
+  font-size: .9rem;
+}
+
+.feed-login-copy small {
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.feed-login .button {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  font-size: .8rem;
+}
+
+.feed-unhide {
+  display: block;
+  margin: 10px auto 18px;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: 700 .78rem/1.2 inherit;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+/* ---------------- suka seketika + ledakan hati ala X */
+
+.feed-card {
+  position: relative;
+}
+
+.feed-heart-burst {
+  position: absolute;
+  z-index: 9;
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  color: #c0334d;
+  pointer-events: none;
+}
+
+.feed-heart-burst svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .feed-heart-burst {
+    animation: feedHati .72s cubic-bezier(.2, .7, .3, 1) forwards;
+  }
+}
+
+@keyframes feedHati {
+  0% { opacity: 0; transform: scale(.3) rotate(-8deg); }
+  30% { opacity: 1; transform: scale(1.25) rotate(4deg); }
+  55% { transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5) translateY(-18px); }
+}
+
+/* ---------------- utas layar penuh di ponsel */
+
+.feed-thread-bar,
+.feed-thread-asal {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  body.feed-thread-open {
+    overflow: hidden;
+  }
+
+  .feed-thread.is-open {
+    position: fixed;
+    z-index: 58;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .feed-thread.is-open .feed-thread-inner {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    padding: 0;
+  }
+
+  .feed-thread.is-open .feed-thread-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    padding: 8px 14px 10px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+
+  .feed-thread-back {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--soft);
+    color: var(--navy);
+    cursor: pointer;
+  }
+
+  .feed-thread-back svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feed-thread-bar b {
+    color: var(--navy);
+    font-size: .98rem;
+  }
+
+  .feed-thread-bar [data-total] {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: .74rem;
+  }
+
+  .feed-thread.is-open .feed-thread-asal {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    flex: 0 0 auto;
+    padding: 12px 16px 14px;
+    border-bottom: 1px solid var(--line);
+    background: #fbfdff;
+  }
+
+  .feed-thread-asal-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .feed-thread-asal-copy b {
+    color: var(--navy);
+    font-size: .9rem;
+  }
+
+  .feed-thread-asal-copy small {
+    color: var(--muted);
+    font-size: .74rem;
+  }
+
+  .feed-thread-asal-copy p {
+    margin: 4px 0 0;
+    font-size: .92rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+
+  .feed-thread-acara {
+    margin-top: 4px;
+    color: var(--blue);
+    font-size: .76rem;
+    font-weight: 700;
+  }
+
+  .feed-thread-thumb {
+    width: min(220px, 100%);
+    margin-top: 8px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--soft);
+    padding: 0;
+    overflow: hidden;
+    cursor: zoom-in;
+  }
+
+  .feed-thread-thumb img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .feed-thread.is-open .feed-comments {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    padding: 14px 16px 20px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .feed-thread.is-open .feed-comments .feed-comment {
+    margin-bottom: 14px;
+  }
+
+  .feed-thread.is-open .feed-reply {
+    flex: 0 0 auto;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: #fff;
+  }
+
+  .feed-thread.is-open .feed-note {
+    margin: 0 14px 10px;
+  }
+
+  .feed-thread.is-open .feed-ava.is-small {
+    width: 34px;
+    height: 34px;
+  }
+
+  /* Tab menempel di bawah kepala halaman. Tinggi kepala diukur skrip karena
+     perangkat berponi menambah safe-area di atas 68px. */
+  .feed-tabs {
+    position: sticky;
+    top: var(--feed-head-h, 68px);
+    z-index: 12;
+    box-shadow: 0 6px 14px rgba(16, 43, 73, .05);
+  }
+
+  body.feed-page.aplikasi .feed-tabs {
+    top: var(--app-head);
+  }
+
+  .feed-login {
+    padding: 12px 14px;
+  }
+
+  .feed-login-copy b {
+    font-size: .86rem;
+  }
+
+  .feed-login-copy small {
+    font-size: .74rem;
+  }
+
+  .feed-login .button {
+    padding: 8px 13px;
+  }
+}
+
+/* ---------------- penampil foto: panah, hitungan, geser */
+
+.feed-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: #ffffff26;
+  color: #fff;
+  font: 700 1.7rem/1 inherit;
+  padding-bottom: 4px;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.feed-lightbox-nav.is-prev {
+  left: 10px;
+}
+
+.feed-lightbox-nav.is-next {
+  right: 10px;
+}
+
+.feed-lightbox-nav:hover {
+  background: #ffffff3d;
+}
+
+.feed-lightbox-count {
+  position: absolute;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  left: 50%;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #061524a6;
+  color: #fff;
+  font: 700 .78rem/1 inherit;
+  transform: translateX(-50%);
 }

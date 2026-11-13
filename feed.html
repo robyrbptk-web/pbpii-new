@@ -58,15 +58,15 @@
     <div class="feed-shell">
     <section class="feed-board" id="feed">
       <div class="feed-head">
-        <div>
-          <p class="eyebrow">FEED KADER</p>
-          <h1>Ruang berbagi gagasan, aktivitas, dan gerakan kader PII.</h1>
+        <div class="feed-head-copy">
+          <h1>Feed Kader</h1>
+          <p>Kabar, gagasan, dan gerakan kader PII.</p>
         </div>
         <div class="feed-head-side">
           <span class="pill" id="feedCount">Memuat feed…</span>
           <button class="feed-rail-open" type="button" id="feedOpenRail" aria-controls="feedSide" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2"/><path d="m15.4 15.4 4.2 4.2"/></svg>
-            Cari kader
+            <span class="feed-rail-label">Cari kader</span>
           </button>
         </div>
       </div>
@@ -80,12 +80,20 @@
         <button type="button" role="tab" aria-selected="false" data-tab="acara">Acara</button>
       </div>
 
+      <p class="feed-sort-note" id="feedSortNote">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="m18.5 15 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>
+        Disusun dari kesegaran, interaksi, dan kader yang Anda ikuti.
+      </p>
+
       <button class="feed-baru" type="button" id="feedBaru" hidden></button>
 
       <div class="feed-start" id="feedStartRow">
         <span class="feed-ava is-small" id="feedStartAva" aria-hidden="true">K</span>
         <button class="feed-start-row" type="button" id="feedOpenComposer">
           <span>Apa yang ingin kamu bagikan, Kawan?</span>
+        </button>
+        <button class="feed-start-write" type="button" id="feedStartWrite" aria-label="Tulis kabar baru">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h4l10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="m14.5 7.5 3 3"/></svg>
         </button>
       </div>
 
@@ -120,6 +128,7 @@
           <input type="file" id="feedPhoto" accept="image/jpeg,image/png,image/webp" multiple hidden>
           <input type="file" id="feedVideo" accept="video/mp4,video/webm" hidden>
           <span class="feed-composer-tools">
+            <button type="button" class="feed-composer-batal" id="feedComposerClose">Batal</button>
             <button type="button" id="feedPickPhoto" title="Tambah foto">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="6" width="16.8" height="12.6" rx="2.2"/><circle cx="8.8" cy="10.4" r="1.6"/><path d="m4.6 17.4 4.4-4.4 3 3 2.6-2.6 4.8 4"/></svg>
               <span>Foto</span>
@@ -133,10 +142,16 @@
         </div>
       </form>
 
-      <p class="feed-login" id="feedLogin" hidden>
-        <button type="button" class="text-link" id="feedLoginOpen">Masuk sebagai kader</button>
-        untuk ikut menulis kabar, menyukai, dan mengomentari feed.
-      </p>
+      <div class="feed-login" id="feedLogin" hidden>
+        <span class="feed-login-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 3.6 4.8 7v5.1c0 4.2 2.9 7.5 7.2 8.9 4.3-1.4 7.2-4.7 7.2-8.9V7z"/><path d="m9.2 12 2 2 3.8-4"/></svg>
+        </span>
+        <div class="feed-login-copy">
+          <b>Ikut bersuara di Feed Kader</b>
+          <small>Masuk untuk menulis kabar, menyukai, dan membalas kawan.</small>
+        </div>
+        <button class="button button-solid" type="button" id="feedLoginOpen">Masuk</button>
+      </div>
 
       <div class="feed-list" id="feedList" aria-live="polite">
         <div class="feed-skeleton" aria-hidden="true">
@@ -153,6 +168,7 @@
         <button class="button button-solid" type="button" id="feedKosongCta">Tulis kabar pertama</button>
       </div>
       <button class="button button-ghost" type="button" id="feedMore" hidden>Muat kabar lainnya</button>
+      <button class="feed-unhide" type="button" id="feedUnhide" hidden></button>
       <div class="feed-loadstate" id="feedState" role="status" aria-live="polite"></div>
     </section>
 
@@ -193,9 +209,16 @@
     </div>
   </main>
 
+  <button class="feed-fab" type="button" id="feedFab" aria-label="Tulis kabar baru" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h4l10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="m14.5 7.5 3 3"/></svg>
+  </button>
+
   <div class="feed-lightbox" id="feedLightbox" hidden aria-hidden="true">
     <button class="feed-lightbox-close" type="button" id="feedLightboxClose" aria-label="Tutup gambar"></button>
+    <button class="feed-lightbox-nav is-prev" type="button" id="feedLightboxPrev" aria-label="Foto sebelumnya">‹</button>
     <img alt="" referrerpolicy="no-referrer">
+    <button class="feed-lightbox-nav is-next" type="button" id="feedLightboxNext" aria-label="Foto berikutnya">›</button>
+    <span class="feed-lightbox-count" id="feedLightboxCount"></span>
   </div>
 
   <footer>
