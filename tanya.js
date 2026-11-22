@@ -22,6 +22,8 @@
   const THREADS_KEY = 'pbpii_tanya_threads';
   const AKTIF_KEY = 'pbpii_tanya_aktif';
   const DEVICE_KEY = 'pbpii_tanya_device';
+  const SIDEBAR_KEY = 'pbpii_tanya_sidebar';
+  const ENTER_KEY = 'pbpii_tanya_enter';
   const MAX_TURNS = 40;
   const MAX_THREADS = 30;
   /** Versi 4: percakapan disimpan sebagai riwayat, bukan satu thread yang ditimpa. */
@@ -466,16 +468,25 @@
     const input = document.querySelector('#tanyaInput');
     const submit = document.querySelector('#tanyaSubmit');
     const quota = document.querySelector('#tanyaQuota');
-    const reset = document.querySelector('#tanyaReset');
     const panel = document.querySelector('#tanyaRiwayat');
     const panelBuka = document.querySelector('#tanyaRiwayatBuka');
     const panelDaftar = document.querySelector('#tanyaRiwayatDaftar');
     const panelKosong = document.querySelector('#tanyaRiwayatKosong');
-    /* Di layar lebar riwayat menjadi rail permanen, bukan dialog yang dibuka-tutup.
-       Di dalam AppLayout kerangka aplikasi yang mengatur layar, jadi rail hanya
-       berlaku untuk wajah publik — harus sama persis dengan syarat CSS-nya. */
-    const mediaRail = window.matchMedia('(min-width: 1025px)');
-    const railAktif = () => mediaRail.matches && !document.body.classList.contains('aplikasi');
+    const cari = document.querySelector('#tanyaCari');
+    const sidebarToggle = document.querySelector('#tanyaSidebarToggle');
+    const pengaturanTombol = document.querySelector('#tanyaPengaturan');
+    const pengaturanPanel = document.querySelector('#tanyaPengaturanPanel');
+    const pengaturanTutup = document.querySelector('#tanyaPengaturanTutup');
+    const enterToggle = document.querySelector('#tanyaEnterKirim');
+    const hapusSemuaTombol = document.querySelector('#tanyaHapusSemua');
+    const judulAtas = document.querySelector('#tanyaJudulAtas');
+    const judulMobile = document.querySelector('#tanyaJudulMobile');
+    /* Di layar lebar riwayat menjadi sidebar permanen, bukan dialog yang
+       dibuka-tutup. Halaman ini membawa kerangkanya sendiri (lihat
+       data-kerangka di tanya.html), jadi tidak ada rail AppLayout yang ikut
+       mengatur lebar layar. Ponsel dan tablet tetap memakai drawer. */
+    const mediaRail = window.matchMedia('(min-width: 1024px)');
+    const railAktif = () => mediaRail.matches;
     const lampirTombol = document.querySelector('#tanyaLampir');
     const lampirBerkas = document.querySelector('#tanyaBerkas');
     const lampirStrip = document.querySelector('#tanyaLampiran');
@@ -760,7 +771,11 @@
       turns.forEach((turn, urut) =>
         bubble(turn.role, turn.content, turn.rujukan, turn.status, turn.rujukanWeb, turn.fakta, urut));
       intro.hidden = turns.length > 0;
-      stick(paksa);
+      /* Layar sambutan yang tinggi tidak boleh langsung digulir ke bawah saat
+         halaman dibuka; pembaca harus melihat judulnya lebih dulu. Utas yang
+         berisi pesan tetap menempel ke jawaban terbaru. */
+      if (turns.length) stick(paksa);
+      else scroll.scrollTop = 0;
       if (typeof aturBawah === 'function') aturBawah();
     }
 
@@ -1057,7 +1072,7 @@
           : 'Percakapan tersimpan di perangkat ini dan tetap ada saat halaman ditutup.';
       }
       const kosong = panel?.querySelector('.tanya-riwayat-kosong');
-      if (kosong) {
+      if (kosong && !String(cari?.value || '').trim()) {
         kosong.textContent = sinkonAwan
           ? 'Belum ada percakapan di akun ini.'
           : 'Belum ada percakapan tersimpan di perangkat ini.';
@@ -1576,8 +1591,20 @@
      */
     function lukisRiwayat() {
       if (!panelDaftar) return;
-      const isi = threads.filter((item) => item.turns.length || item.jumlah);
-      if (panelKosong) panelKosong.hidden = isi.length > 0;
+      const kata = String(cari?.value || '').trim().toLowerCase();
+      const semua = threads.filter((item) => item.turns.length || item.jumlah);
+      const isi = kata
+        ? semua.filter((item) => String(item.judul || 'Percakapan Tanya PII').toLowerCase().includes(kata))
+        : semua;
+      if (panelKosong) {
+        panelKosong.hidden = isi.length > 0;
+        if (!isi.length && kata) panelKosong.textContent = 'Tidak ada percakapan yang cocok.';
+        else if (!isi.length) {
+          panelKosong.textContent = sinkonAwan
+            ? 'Belum ada percakapan di akun ini.'
+            : 'Belum ada percakapan tersimpan di perangkat ini.';
+        }
+      }
       panelDaftar.innerHTML = isi.map((item) => {
         const pertanyaan = item.turns.length
           ? item.turns.filter((turn) => turn.role === 'user').length
@@ -1596,8 +1623,15 @@
             </div>
           </li>`;
       }).join('');
+
+      const judul = turns.length ? (aktif.judul || judulDari(turns.find((turn) => turn.role === 'user')?.content) || 'Tanya PII') : 'Tanya PII';
+      if (judulAtas) judulAtas.textContent = judul;
+      if (judulMobile) judulMobile.textContent = judul;
+
       const terpilih = panelDaftar.querySelector('.is-aktif .tanya-riwayat-judul');
-      if (terpilih) terpilih.scrollIntoView({ block: 'nearest' });
+      if (terpilih && !kata && (railAktif() || panel?.classList.contains('is-open'))) {
+        terpilih.scrollIntoView({ block: 'nearest' });
+      }
     }
 
     function bukaPanel() {
@@ -1606,6 +1640,7 @@
       tarikRiwayat();
       if (railAktif()) return;
       panel.classList.add('is-open');
+      panel.inert = false;
       panel.setAttribute('aria-hidden', 'false');
       panelBuka?.setAttribute('aria-expanded', 'true');
       panelBuka?.classList.add('is-aktif');
@@ -1617,30 +1652,34 @@
     function tutupRiwayat() {
       if (!panel || railAktif()) return;
       panel.classList.remove('is-open');
+      panel.inert = true;
       panel.setAttribute('aria-hidden', 'true');
       panelBuka?.setAttribute('aria-expanded', 'false');
       panelBuka?.classList.remove('is-aktif');
     }
 
-    /** Rail desktop selalu tampil dan bukan dialog; ponsel memakai slide-over. */
+    /** Sidebar desktop selalu tampil dan bukan dialog; ponsel memakai drawer. */
     function sinkronRail() {
       if (!panel) return;
       const isi = panel.querySelector('.tanya-riwayat-panel');
       if (railAktif()) {
+        const dilipat = document.body.classList.contains('tanya-sidebar-tutup');
         panel.classList.add('is-open');
-        panel.setAttribute('aria-hidden', 'false');
+        panel.inert = dilipat;
+        panel.setAttribute('aria-hidden', String(dilipat));
         panelBuka?.setAttribute('aria-expanded', 'true');
         panelBuka?.classList.add('is-aktif');
         isi?.setAttribute('aria-modal', 'false');
       } else {
         const terbuka = panel.classList.contains('is-open');
+        panel.inert = !terbuka;
         if (!terbuka) panel.setAttribute('aria-hidden', 'true');
         isi?.setAttribute('aria-modal', 'true');
       }
     }
     mediaRail.addEventListener('change', sinkronRail);
-    /* Kerangka aplikasi dipasang setelah halaman ini siap, dan rail ikut lepas
-       ketika kelas `aplikasi` menempel — kelas itu satu-satunya sinyalnya. */
+    /* Sidebar bisa dilipat tanpa memuat ulang halaman; aria-hidden dan inert
+       ikut disesuaikan agar isi yang tersembunyi tidak terjangkau Tab. */
     new MutationObserver(sinkronRail).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
     /** Lembaran baru; percakapan yang sedang berjalan tidak dibuang, hanya ditinggalkan. */
@@ -1760,6 +1799,105 @@
       kolom.addEventListener('blur', () => selesai(true));
     }
 
+    /* --------------------------------------------------------- pengaturan UI
+
+     * Pengaturan hanya menyentuh kebiasaan mengetik dan riwayat di perangkat
+     * ini. Tidak ada setelan palsu: dua tombol di bawah benar-benar bekerja,
+     * dan penghapusan riwayat ikut dikirim ke server lewat jalur sinkron yang
+     * sudah ada bila pengguna sedang masuk.
+     */
+    const enterKirim = () => {
+      try { return localStorage.getItem(ENTER_KEY) !== '0'; } catch { return true; }
+    };
+
+    function aturPanelPengaturan(buka) {
+      if (!pengaturanPanel) return;
+      pengaturanPanel.hidden = !buka;
+      pengaturanTombol?.setAttribute('aria-expanded', String(buka));
+      if (buka) {
+        hapusSemuaSiap = false;
+        if (hapusSemuaTombol) {
+          hapusSemuaTombol.textContent = 'Hapus semua riwayat';
+          hapusSemuaTombol.classList.remove('is-yakin');
+        }
+        pengaturanPanel.querySelector('#tanyaPengaturanTutup')?.focus?.();
+      } else if (pengaturanPanel.contains(document.activeElement)) {
+        pengaturanTombol?.focus();
+      }
+    }
+
+    let hapusSemuaSiap = false;
+
+    function hapusSemuaRiwayat() {
+      clearTimeout(retryTimer);
+      const dibuang = threads.filter((item) => item.turns.length || item.jumlah);
+      dibuang.forEach((item) => hapusKeAwan(item.id, item.diubah));
+      const baru = threadBaru();
+      threads = [baru];
+      aktif = baru;
+      aktifId = baru.id;
+      turns = aktif.turns;
+      try { localStorage.setItem(AKTIF_KEY, aktifId); } catch { /* penyimpanan penuh: abaikan */ }
+      simpanThreads(threads);
+      if (cari) cari.value = '';
+      paint(true);
+      intro.hidden = false;
+      lukisRiwayat();
+      aturPanelPengaturan(false);
+      toast(sinkonAwan
+        ? 'Semua percakapan dihapus dari perangkat dan akun ini.'
+        : 'Semua percakapan dihapus dari perangkat ini.');
+      input.focus({ noScroll: true });
+    }
+
+    /* Sidebar bisa dilipat di desktop; pilihannya diingat antar kunjungan.
+       Di ponsel tombol ini tidak tampil karena sidebar sudah berupa drawer. */
+    function aturSidebar(tutup) {
+      document.body.classList.toggle('tanya-sidebar-tutup', tutup);
+      sidebarToggle?.setAttribute('aria-expanded', String(!tutup));
+      sidebarToggle?.setAttribute('aria-label', tutup ? 'Buka sidebar' : 'Tutup sidebar');
+      sidebarToggle?.setAttribute('title', tutup ? 'Buka sidebar' : 'Tutup sidebar');
+      try { localStorage.setItem(SIDEBAR_KEY, tutup ? '1' : '0'); } catch { /* abaikan */ }
+    }
+
+    let sidebarTutup = false;
+    try { sidebarTutup = localStorage.getItem(SIDEBAR_KEY) === '1'; } catch { sidebarTutup = false; }
+    aturSidebar(sidebarTutup);
+
+    sidebarToggle?.addEventListener('click', () => {
+      aturSidebar(!document.body.classList.contains('tanya-sidebar-tutup'));
+    });
+
+    if (enterToggle) enterToggle.checked = enterKirim();
+    enterToggle?.addEventListener('change', () => {
+      try { localStorage.setItem(ENTER_KEY, enterToggle.checked ? '1' : '0'); } catch { /* abaikan */ }
+      toast(enterToggle.checked ? 'Enter mengirim, Shift + Enter membuat baris baru.' : 'Enter membuat baris baru.');
+    });
+
+    pengaturanTombol?.addEventListener('click', () => aturPanelPengaturan(pengaturanPanel?.hidden !== false));
+    pengaturanTutup?.addEventListener('click', () => aturPanelPengaturan(false));
+    hapusSemuaTombol?.addEventListener('click', () => {
+      if (busy) { toast('Tunggu jawaban ini selesai.'); return; }
+      if (!hapusSemuaSiap) {
+        hapusSemuaSiap = true;
+        hapusSemuaTombol.textContent = 'Tekan sekali lagi untuk menghapus semua';
+        hapusSemuaTombol.classList.add('is-yakin');
+        return;
+      }
+      hapusSemuaRiwayat();
+    });
+
+    cari?.addEventListener('input', lukisRiwayat);
+
+    /* Kartu rekomendasi mengirim pertanyaannya langsung, memakai jalur send()
+       yang sama dengan kolom tulis — bukan jawaban contoh yang dipalsukan. */
+    intro.addEventListener('click', (event) => {
+      const kartu = event.target.closest('[data-soal]');
+      if (!kartu) return;
+      if (busy) { toast('Tunggu jawaban ini selesai.'); return; }
+      send(kartu.dataset.soal);
+    });
+
     panelBuka?.addEventListener('click', () => (panel?.classList.contains('is-open') ? tutupRiwayat() : bukaPanel()));
     panel?.querySelector('.tanya-riwayat-backdrop')?.addEventListener('click', tutupRiwayat);
     panel?.querySelector('#tanyaRiwayatTutup')?.addEventListener('click', tutupRiwayat);
@@ -1779,29 +1917,41 @@
       if (pilih) bukaPercakapan(pilih.dataset.pilih);
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') tutupRiwayat();
+      if (event.key === 'Escape') {
+        aturPanelPengaturan(false);
+        tutupRiwayat();
+      }
     });
 
     // Tinggi textarea mengikuti isi; sisanya menggulir di dalam kolom (lihat max-height CSS).
     const grow = () => {
       input.style.height = 'auto';
-      input.style.height = `${Math.min(input.scrollHeight, 110)}px`;
+      input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
     };
 
     input.addEventListener('input', grow);
     input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        send(input.value);
-        return;
+      if (event.key === 'Enter') {
+        /* Ctrl/Cmd + Enter selalu mengirim, seperti aplikasi chat lain.
+           Tanpa modifier, perilakunya mengikuti setelan pengguna. */
+        if (event.ctrlKey || event.metaKey || (!event.shiftKey && enterKirim())) {
+          event.preventDefault();
+          send(input.value);
+          return;
+        }
       }
-      if (event.key === 'Escape') tutupRiwayat();
+      if (event.key === 'Escape') {
+        aturPanelPengaturan(false);
+        tutupRiwayat();
+      }
     });
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       send(input.value);
     });
-    reset?.addEventListener('click', buatPercakapan);
+    document.querySelectorAll('[data-tanya-baru]').forEach((tombol) => {
+      tombol.addEventListener('click', buatPercakapan);
+    });
     pasangLampiran();
 
     document.querySelector('#tanyaStop')?.addEventListener('click', () => pembatal?.abort());

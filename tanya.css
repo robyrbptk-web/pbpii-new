@@ -1,0 +1,2613 @@
+/* ==========================================================================
+   TANYA PII — kerangka aplikasi AI
+   --------------------------------------------------------------------------
+   Berkas ini hanya menata halaman Tanya PII. Gaya jawaban Markdown, tabel,
+   blok kode, rujukan, dan lembar cetak tetap memakai styles.css; di sini yang
+   diatur adalah sidebar riwayat, layar sambutan, percakapan, dan komposer.
+
+   Desktop : sidebar 282px yang bisa dilipat + area baca + komposer 920px.
+   Tablet  : drawer dari kiri, area baca penuh.
+   Ponsel  : header ringkas, drawer, komposer menempel di atas safe area.
+   ========================================================================== */
+
+/* --------------------------------------------------------------- kerangka */
+
+body.tanya-page,
+body.tanya-page:not(.aplikasi) {
+  display: block;
+  height: calc(100dvh - var(--tanya-keyboard, 0px));
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #f5f8fc;
+  overscroll-behavior: none;
+}
+
+/* Bila halaman dibuka lewat AppLayout versi lama (kerangka belum mengenal
+   data-kerangka), kop dan rail ikonnya disembunyikan agar tidak ada dua
+   sidebar. Penjaga sesi tetap berjalan seperti biasa. */
+body.aplikasi.tanya-page {
+  padding: 0;
+}
+
+body.aplikasi.tanya-page > .app-header,
+body.aplikasi.tanya-page > .app-side,
+body.aplikasi.tanya-page > .app-bar,
+body.aplikasi.tanya-page > .app-lainnya-sheet,
+body.aplikasi.tanya-page > .app-backdrop {
+  display: none !important;
+}
+
+body.tanya-page.tanya-keyboard-up {
+  padding-bottom: 0;
+}
+
+.tanya-shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 520px at 72% -12%, rgb(23 109 168 / 7%), transparent 64%),
+    #f6f9fc;
+}
+
+.tanya-main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: #fff;
+}
+
+body.tanya-page button:focus-visible,
+body.tanya-page a:focus-visible,
+body.tanya-page input:focus-visible,
+body.tanya-page textarea:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------ sidebar desktop */
+
+body.tanya-page .tanya-shell .tanya-riwayat {
+  position: relative;
+  z-index: 20;
+  inset: auto;
+  display: block;
+  width: 282px;
+  height: 100%;
+  flex: 0 0 282px;
+  min-width: 0;
+  visibility: visible;
+  border-right: 1px solid #e4ecf4;
+  background: #fff;
+  transition: width .24s var(--ease), flex-basis .24s var(--ease),
+    opacity .2s var(--ease), border-color .2s var(--ease);
+}
+
+body.tanya-page .tanya-shell .tanya-riwayat-panel {
+  position: relative;
+  inset: auto;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  padding: 16px 14px 14px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+  transform: none;
+  transition: none;
+}
+
+body.tanya-page.tanya-sidebar-tutup .tanya-shell .tanya-riwayat {
+  width: 0;
+  flex-basis: 0;
+  border-right-color: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.tanya-page.tanya-sidebar-tutup .tanya-shell .tanya-riwayat-panel {
+  transform: translateX(-18px);
+}
+
+/* Merek dan tombol tutup -------------------------------------------------- */
+
+.tanya-side-brand {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 15px;
+}
+
+.tanya-merek {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  color: var(--navy);
+  text-decoration: none;
+}
+
+.tanya-merek img {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid #e2ecf6;
+  border-radius: 11px;
+  padding: 4px;
+  background: #f7fbfe;
+  object-fit: contain;
+}
+
+.tanya-merek span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.tanya-merek b {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: .94rem;
+  font-weight: 800;
+  letter-spacing: -.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tanya-merek small {
+  overflow: hidden;
+  color: #7b8da1;
+  font-size: .66rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tanya-side-tutup {
+  display: none;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  padding: 0;
+  background: #f2f7fb;
+  color: #526b84;
+  cursor: pointer;
+}
+
+.tanya-side-tutup:hover {
+  background: #e8f1f9;
+  color: var(--blue);
+}
+
+.tanya-side-tutup svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+}
+
+/* Percakapan baru --------------------------------------------------------- */
+
+body.tanya-page .tanya-riwayat-baru {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  border: 0;
+  border-radius: 11px;
+  padding: 10px 13px;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  color: #fff;
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 800;
+  letter-spacing: -.005em;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgb(23 109 168 / 18%);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+body.tanya-page .tanya-riwayat-baru:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 9px 22px rgb(23 109 168 / 26%);
+}
+
+body.tanya-page .tanya-riwayat-baru:active {
+  transform: translateY(1px);
+}
+
+body.tanya-page .tanya-riwayat-baru svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+/* Pencarian --------------------------------------------------------------- */
+
+.tanya-cari {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin: 0 0 17px;
+}
+
+.tanya-cari svg {
+  position: absolute;
+  left: 11px;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: #7e92a8;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.tanya-cari input {
+  width: 100%;
+  height: 37px;
+  border: 1px solid #e3ebf4;
+  border-radius: 10px;
+  padding: 0 12px 0 33px;
+  background: #f7fafd;
+  color: var(--ink);
+  font: inherit;
+  font-size: .78rem;
+  outline: none;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+
+.tanya-cari input::placeholder {
+  color: #93a3b4;
+}
+
+.tanya-cari input:focus {
+  border-color: #b6d3e9;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgb(23 109 168 / 8%);
+}
+
+.tanya-cari input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+/* Daftar riwayat ---------------------------------------------------------- */
+
+.tanya-side-label {
+  margin: 0 0 8px;
+  padding: 0 7px;
+  color: #8a99ab;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+body.tanya-page .tanya-riwayat-daftar {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -4px;
+  padding: 0 4px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: #d7e2ec transparent;
+}
+
+body.tanya-page .tanya-riwayat-daftar::-webkit-scrollbar {
+  width: 6px;
+}
+
+body.tanya-page .tanya-riwayat-daftar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #d7e2ec;
+}
+
+body.tanya-page .tanya-riwayat-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+
+body.tanya-page .tanya-riwayat-item:hover {
+  background: #f4f8fc;
+}
+
+body.tanya-page .tanya-riwayat-item.is-aktif {
+  background: #eaf3fb;
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+body.tanya-page .tanya-riwayat-pilih {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 9px 5px 9px 11px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+body.tanya-page .tanya-riwayat-judul {
+  overflow: hidden;
+  color: #1d3a58;
+  font-size: .8rem;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.tanya-page .tanya-riwayat-item.is-aktif .tanya-riwayat-judul {
+  color: var(--navy);
+  font-weight: 800;
+}
+
+body.tanya-page .tanya-riwayat-meta {
+  color: #93a2b3;
+  font-size: .66rem;
+  line-height: 1.3;
+}
+
+body.tanya-page .tanya-riwayat-alat {
+  display: flex;
+  gap: 1px;
+  padding-right: 3px;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+
+body.tanya-page .tanya-riwayat-item:hover .tanya-riwayat-alat,
+body.tanya-page .tanya-riwayat-item.is-aktif .tanya-riwayat-alat,
+body.tanya-page .tanya-riwayat-alat:focus-within {
+  opacity: 1;
+}
+
+body.tanya-page .tanya-riwayat-act {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: #7e91a6;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+body.tanya-page .tanya-riwayat-act:hover {
+  background: #e4eef7;
+  color: var(--blue);
+}
+
+body.tanya-page .tanya-riwayat-act.is-bahaya:hover {
+  background: #fdecec;
+  color: #b3261e;
+}
+
+body.tanya-page .tanya-riwayat-act svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.tanya-page .tanya-riwayat-input {
+  grid-column: 1 / -1;
+  margin: 7px 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  background: #fff;
+  color: #16324f;
+  font: inherit;
+  font-size: .8rem;
+}
+
+body.tanya-page .tanya-riwayat-item.is-konfirmasi {
+  grid-template-columns: 1fr;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid #f2c7c5;
+  background: #fdf4f3;
+}
+
+body.tanya-page .tanya-riwayat-tanya {
+  color: #8a2f2a;
+  font-size: .77rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+body.tanya-page .tanya-riwayat-ya {
+  display: flex;
+  gap: 7px;
+}
+
+body.tanya-page .tanya-riwayat-ya button {
+  padding: 6px 10px;
+  border: 1px solid #d9c3c0;
+  border-radius: 8px;
+  background: #fff;
+  color: #5f6d7c;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body.tanya-page .tanya-riwayat-ya-hapus {
+  border-color: #b3261e !important;
+  background: #b3261e !important;
+  color: #fff !important;
+}
+
+body.tanya-page .tanya-riwayat-kosong {
+  margin: 2px 7px 10px;
+  color: #8a99ab;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
+/* Kaki sidebar: catatan, pengaturan, tautan aplikasi, akun ----------------- */
+
+.tanya-side-bawah {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: 9px;
+  border-top: 1px solid #eaf0f6;
+}
+
+body.tanya-page .tanya-riwayat-kaki {
+  margin: 0 4px 7px;
+  padding: 0;
+  border: 0;
+  color: #97a5b5;
+  font-size: .65rem;
+  line-height: 1.45;
+}
+
+.tanya-side-menu {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: none;
+  color: #3d5873;
+  font: inherit;
+  font-size: .79rem;
+  font-weight: 650;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.tanya-side-menu:hover {
+  background: #f3f7fb;
+  color: var(--navy);
+}
+
+.tanya-side-menu svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tanya-side-menu span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Akun di dasar sidebar --------------------------------------------------- */
+
+body.tanya-page .tanya-akun {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  margin-top: 5px;
+  padding: 6px 7px;
+  border-radius: 11px;
+  background: #f7fafd;
+}
+
+body.tanya-page .tanya-akun .account-button {
+  width: 100%;
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 8px;
+  padding: 2px 4px;
+  background: none;
+}
+
+body.tanya-page .tanya-akun .account-button:hover {
+  background: #edf4fa;
+}
+
+body.tanya-page .tanya-akun .account-name {
+  max-width: 150px;
+  color: var(--navy);
+  text-align: left;
+}
+
+body.tanya-page .tanya-akun .account-avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+
+body.tanya-page .tanya-akun .account-menu {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+}
+
+/* Panel pengaturan -------------------------------------------------------- */
+
+.tanya-pengaturan {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  border: 1px solid #dde8f3;
+  border-radius: 13px;
+  padding: 12px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgb(16 43 73 / 18%);
+  animation: tanya-panel-in .18s var(--ease) both;
+}
+
+.tanya-pengaturan[hidden] {
+  display: none;
+}
+
+@keyframes tanya-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.tanya-pengaturan-kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tanya-pengaturan-kepala b {
+  color: var(--navy);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.tanya-pengaturan-kepala button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: #f2f7fb;
+  color: #5d748b;
+  cursor: pointer;
+}
+
+.tanya-pengaturan-kepala button svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+}
+
+.tanya-pengaturan-baris {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.tanya-pengaturan-baris span {
+  display: grid;
+  gap: 1px;
+}
+
+.tanya-pengaturan-baris b {
+  color: #2a445e;
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.tanya-pengaturan-baris small {
+  color: #93a2b3;
+  font-size: .66rem;
+  line-height: 1.4;
+}
+
+.tanya-pengaturan input[type="checkbox"] {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: 0 0 auto;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: #d7e3ee;
+  cursor: pointer;
+  transition: background .18s ease;
+}
+
+.tanya-pengaturan input[type="checkbox"]::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(16 43 73 / 22%);
+  content: "";
+  transition: transform .18s ease;
+}
+
+.tanya-pengaturan input[type="checkbox"]:checked {
+  background: var(--blue);
+}
+
+.tanya-pengaturan input[type="checkbox"]:checked::after {
+  transform: translateX(16px);
+}
+
+.tanya-pengaturan-garis {
+  height: 1px;
+  margin: 11px 0;
+  background: #edf2f7;
+}
+
+.tanya-hapus-semua {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #efd2d0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff8f7;
+  color: #a33a32;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.tanya-hapus-semua:hover {
+  border-color: #dda9a5;
+  background: #fdf0ee;
+}
+
+.tanya-hapus-semua.is-yakin {
+  border-color: #b3261e;
+  background: #b3261e;
+  color: #fff;
+}
+
+/* --------------------------------------------------------- header utama */
+
+.tanya-mobile-header {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 10px;
+  border-bottom: 1px solid #e8eff6;
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(14px);
+}
+
+.tanya-mobile-judul {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0;
+  text-align: center;
+}
+
+.tanya-mobile-judul b {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: .86rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tanya-mobile-judul small {
+  overflow: hidden;
+  color: #8c9bab;
+  font-size: .62rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.tanya-page .tanya-mobile-header .tanya-riwayat-buka {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: #3e5b77;
+}
+
+body.tanya-page .tanya-mobile-header .tanya-riwayat-buka:hover {
+  background: #f0f6fb;
+  color: var(--blue);
+}
+
+.tanya-topbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  height: 58px;
+  padding: 0 18px;
+  border-bottom: 1px solid #e9eff6;
+  background: rgb(255 255 255 / 88%);
+  backdrop-filter: blur(14px);
+}
+
+.tanya-topbar-toggle {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e4ecf4;
+  border-radius: 9px;
+  padding: 0;
+  background: #fff;
+  color: #526b84;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.tanya-topbar-toggle:hover {
+  border-color: #c9dcea;
+  background: #f5fafd;
+  color: var(--blue);
+}
+
+.tanya-topbar-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .2s ease;
+}
+
+body.tanya-page.tanya-sidebar-tutup .tanya-topbar-toggle svg {
+  transform: rotate(180deg);
+}
+
+.tanya-topbar-judul {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0;
+}
+
+.tanya-topbar-judul b {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: .86rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tanya-topbar-judul small {
+  overflow: hidden;
+  color: #8c9bab;
+  font-size: .64rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tanya-model {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e1ebf4;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #f7fafd;
+  color: #5c748c;
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tanya-model i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2fa871;
+  box-shadow: 0 0 0 3px rgb(47 168 113 / 14%);
+}
+
+body.tanya-page .tanya-topbar .tanya-baru,
+body.tanya-page .tanya-mobile-header .tanya-baru {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e1ebf4;
+  background: #fff;
+  color: var(--blue);
+}
+
+body.tanya-page .tanya-topbar .tanya-baru:hover,
+body.tanya-page .tanya-mobile-header .tanya-baru:hover {
+  border-color: #b9d5e9;
+  background: #f2f8fd;
+}
+
+/* ------------------------------------------------------------- panggung */
+
+body.tanya-page .tanya-stage {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background:
+    radial-gradient(760px 320px at 50% -8%, rgb(23 109 168 / 5%), transparent 70%),
+    #fff;
+}
+
+body.tanya-page .tanya-scroll {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 26px 26px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #d9e4ee transparent;
+}
+
+body.tanya-page .tanya-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.tanya-page .tanya-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #d9e4ee;
+}
+
+body.tanya-page .tanya-intro,
+body.tanya-page .tanya-thread {
+  width: min(860px, 100%);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------ layar sambutan */
+
+body.tanya-page .tanya-intro {
+  position: relative;
+  margin: auto;
+  padding: clamp(20px, 6vh, 54px) 0 20px;
+  text-align: center;
+  animation: tanya-intro-in .45s var(--ease) both;
+}
+
+@keyframes tanya-intro-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+body.tanya-page .tanya-intro::before {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(23 109 168 / 12%), transparent 68%);
+  content: "";
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: none;
+}
+
+body.tanya-page .tanya-intro img {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border: 1px solid #e3edf7;
+  border-radius: 22px;
+  padding: 10px;
+  background: #fff;
+  object-fit: contain;
+  box-shadow: 0 16px 36px rgb(16 43 73 / 14%);
+  animation: none;
+}
+
+body.tanya-page .tanya-intro > .tanya-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 15px 0 0;
+  border: 1px solid #dce9f4;
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: #f4f9fd;
+  color: #4d6d8b;
+  font-size: .67rem;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+body.tanya-page .tanya-intro > .tanya-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2fa871;
+  box-shadow: 0 0 0 3px rgb(47 168 113 / 15%);
+  animation: none;
+}
+
+body.tanya-page .tanya-intro h1 {
+  margin: 15px auto 9px;
+  color: var(--navy);
+  font-size: clamp(1.55rem, 3.2vw, 2.2rem);
+  line-height: 1.18;
+  letter-spacing: -.035em;
+}
+
+body.tanya-page .tanya-intro > p:not(.tanya-badge) {
+  max-width: 650px;
+  margin: 0 auto 24px;
+  color: #5f7185;
+  font-size: .93rem;
+  line-height: 1.65;
+}
+
+/* Kartu rekomendasi ------------------------------------------------------- */
+
+.tanya-saran {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0;
+  text-align: left;
+}
+
+.tanya-saran-kartu {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 104px;
+  border: 1px solid #e3ecf5;
+  border-radius: 13px;
+  padding: 13px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgb(16 43 73 / 3%);
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.tanya-saran-kartu:hover {
+  border-color: #bcd8ec;
+  box-shadow: 0 9px 24px rgb(16 43 73 / 9%);
+  transform: translateY(-1px);
+}
+
+.tanya-saran-kartu:active {
+  transform: none;
+}
+
+.tanya-saran-ikon {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: #eaf4fc;
+  color: var(--blue);
+}
+
+.tanya-saran-ikon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tanya-saran-kartu b {
+  color: #213d5a;
+  font-size: .82rem;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.tanya-saran-kartu small {
+  color: #7d8fa2;
+  font-size: .71rem;
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------- utas percakapan */
+
+body.tanya-page .tanya-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-bottom: 22px;
+}
+
+body.tanya-page .tanya-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: bubble-in .28s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+body.tanya-page .tanya-row.is-user {
+  justify-content: flex-end;
+}
+
+body.tanya-page .tanya-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.tanya-page .tanya-row.is-assistant .tanya-body {
+  max-width: 780px;
+  flex: 1 1 auto;
+}
+
+body.tanya-page .tanya-row.is-user .tanya-body {
+  max-width: 78%;
+  flex: 0 1 auto;
+  align-items: flex-end;
+}
+
+body.tanya-page .tanya-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e2ecf6;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(16 43 73 / 8%);
+  overflow: hidden;
+}
+
+body.tanya-page .tanya-avatar img {
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  object-fit: contain;
+}
+
+body.tanya-page .tanya-msg {
+  min-width: 0;
+  max-width: 100%;
+  color: #1d2f43;
+  font-size: .965rem;
+  line-height: 1.75;
+}
+
+body.tanya-page .tanya-row.is-assistant .tanya-msg {
+  padding-top: 2px;
+}
+
+body.tanya-page .tanya-row.is-user .tanya-msg {
+  width: fit-content;
+  max-width: min(560px, 100%);
+  border: 1px solid #d8e9f7;
+  border-radius: 16px 16px 5px 16px;
+  padding: 9px 14px;
+  background: #edf6fd;
+  color: #163a59;
+  box-shadow: none;
+  font-size: .94rem;
+  line-height: 1.6;
+}
+
+body.tanya-page .tanya-actions {
+  margin-top: 4px;
+}
+
+body.tanya-page .tanya-row.is-error .tanya-msg,
+body.tanya-page .tanya-row.is-quota .tanya-msg {
+  border-radius: 13px;
+  padding: 10px 13px;
+}
+
+body.tanya-page .tanya-sumber {
+  margin-top: 12px;
+}
+
+/* --------------------------------------------------------------- komposer */
+
+body.tanya-page .tanya-composer {
+  position: relative;
+  z-index: 5;
+  flex: 0 0 auto;
+  border-top: 0;
+  padding: 8px 26px calc(11px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgb(255 255 255 / 0%), #fff 38%);
+  box-shadow: 0 -10px 24px rgb(16 43 73 / 3%);
+}
+
+body.tanya-page .tanya-field {
+  display: flex;
+  width: min(920px, 100%);
+  align-items: flex-end;
+  gap: 6px;
+  margin: 0 auto;
+  border: 1px solid #dde7f1;
+  border-radius: 24px;
+  padding: 7px 7px 7px 12px;
+  background: #fff;
+  box-shadow: 0 7px 24px rgb(16 43 73 / 6%);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+body.tanya-page .tanya-field:focus-within {
+  border-color: #a9c9e2;
+  box-shadow: 0 0 0 3px rgb(23 109 168 / 8%), 0 10px 30px rgb(16 43 73 / 8%);
+}
+
+body.tanya-page .tanya-field textarea {
+  min-width: 0;
+  min-height: 24px;
+  max-height: 160px;
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  padding: 10px 2px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: .95rem;
+  line-height: 1.55;
+  outline: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  resize: none;
+  box-shadow: none;
+}
+
+/* Fokus cincin dipegang oleh .tanya-field:focus-within, bukan oleh textarea
+   sendiri, supaya tidak ada dua bingkai yang bertumpuk di dalam komposer. */
+body.tanya-page .tanya-field textarea:focus,
+body.tanya-page .tanya-field textarea:focus-visible {
+  border-color: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+body.tanya-page .tanya-field textarea::placeholder {
+  color: #97a6b6;
+}
+
+body.tanya-page .tanya-kontrol {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+}
+
+body.tanya-page .tanya-submit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 5px 14px rgb(23 109 168 / 24%);
+  transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease,
+    background .16s ease;
+}
+
+body.tanya-page .tanya-submit:hover:not(:disabled) {
+  background: #125d92;
+  box-shadow: 0 7px 18px rgb(23 109 168 / 32%);
+}
+
+body.tanya-page .tanya-submit:active {
+  transform: scale(.94);
+}
+
+body.tanya-page .tanya-submit:disabled {
+  opacity: .55;
+  cursor: progress;
+}
+
+body.tanya-page .tanya-stop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid #d6e3f0;
+  border-radius: 50%;
+  padding: 0;
+  background: #fff;
+  color: #245079;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgb(16 43 73 / 8%);
+}
+
+body.tanya-page .tanya-stop::before {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: #245079;
+  content: "";
+}
+
+body.tanya-page .tanya-stop[hidden] {
+  display: none;
+}
+
+body.tanya-page .tanya-lampir {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  margin-bottom: 2px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: none;
+  color: #7e91a6;
+  cursor: pointer;
+}
+
+body.tanya-page .tanya-lampir:hover:not(:disabled) {
+  background: #f1f7fc;
+  color: var(--blue);
+}
+
+body.tanya-page .tanya-lampir[hidden] {
+  display: none;
+}
+
+body.tanya-page .tanya-field:has(.tanya-lampir:not([hidden])) {
+  padding-left: 8px;
+}
+
+body.tanya-page .tanya-lampiran {
+  width: min(920px, 100%);
+  margin: 0 auto 8px;
+}
+
+body.tanya-page .tanya-meter {
+  display: flex;
+  width: min(920px, 100%);
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px auto 0;
+  color: #8b9aab;
+  font-size: .68rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+body.tanya-page .tanya-meter::before {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #2fa871;
+  content: "";
+}
+
+body.tanya-page .tanya-meter[hidden] {
+  display: none;
+}
+
+body.tanya-page .tanya-bawah {
+  bottom: calc(var(--tanya-composer-tinggi, 128px) + 14px);
+}
+
+body.tanya-page .tanya-toast {
+  bottom: calc(var(--tanya-composer-tinggi, 128px) + 18px);
+}
+
+/* ------------------------------------------------------- drawer ponsel */
+
+@media (max-width: 1023px) {
+  body.tanya-page .tanya-shell .tanya-riwayat {
+    position: fixed;
+    z-index: 80;
+    inset: 0;
+    display: block;
+    width: auto;
+    height: auto;
+    flex: none;
+    visibility: hidden;
+    border: 0;
+    background: transparent;
+    opacity: 1;
+    pointer-events: none;
+    transition: visibility .26s ease;
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat.is-open {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat-backdrop {
+    position: absolute;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgb(9 30 52 / 44%);
+    cursor: default;
+    opacity: 0;
+    transition: opacity .26s ease;
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat.is-open .tanya-riwayat-backdrop {
+    opacity: 1;
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat-panel {
+    position: absolute;
+    inset: 0 auto 0 0;
+    display: flex;
+    width: min(302px, 86vw);
+    height: 100%;
+    flex-direction: column;
+    padding: 15px 14px calc(14px + env(safe-area-inset-bottom));
+    border-right: 1px solid #dde7f1;
+    border-radius: 0 16px 16px 0;
+    background: #fff;
+    box-shadow: 16px 0 44px rgb(9 30 52 / 22%);
+    transform: translateX(-102%);
+    transition: transform .28s cubic-bezier(.22, 1, .36, 1);
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat.is-open .tanya-riwayat-panel {
+    transform: none;
+  }
+
+  .tanya-side-tutup {
+    display: grid;
+  }
+
+  .tanya-topbar {
+    display: none;
+  }
+
+  .tanya-mobile-header {
+    display: flex;
+  }
+
+  body.tanya-page .tanya-scroll {
+    padding: 20px 16px 10px;
+  }
+
+  body.tanya-page .tanya-intro {
+    padding: 20px 0 14px;
+  }
+
+  body.tanya-page .tanya-intro h1 {
+    font-size: clamp(1.45rem, 5.2vw, 1.9rem);
+  }
+
+  body.tanya-page .tanya-intro > p:not(.tanya-badge) {
+    margin-bottom: 20px;
+    font-size: .9rem;
+  }
+
+  body.tanya-page .tanya-saran-kartu {
+    min-height: 0;
+  }
+
+  body.tanya-page .tanya-composer {
+    padding: 7px 12px calc(9px + env(safe-area-inset-bottom));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  body.tanya-page .tanya-field {
+    border-radius: 22px;
+    padding: 5px 5px 5px 9px;
+  }
+
+  body.tanya-page .tanya-field textarea {
+    font-size: 1rem;
+    padding: 10px 2px;
+  }
+
+  body.tanya-page .tanya-row.is-user .tanya-body {
+    max-width: 88%;
+  }
+
+  body.tanya-page .tanya-thread {
+    gap: 19px;
+  }
+
+  body.tanya-page .tanya-row.is-assistant .tanya-body {
+    max-width: 100%;
+  }
+
+  body.tanya-page.tanya-keyboard-up .tanya-composer {
+    padding-bottom: 8px;
+  }
+}
+
+/* Ponsel kecil: kartu rekomendasi satu kolom dan target sentuh tetap lega. */
+@media (max-width: 560px) {
+  .tanya-saran {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .tanya-saran-kartu {
+    flex-direction: row;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 11px;
+  }
+
+  .tanya-saran-ikon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .tanya-saran-kartu b {
+    flex: 1 1 auto;
+  }
+
+  .tanya-saran-kartu small {
+    display: none;
+  }
+
+  body.tanya-page .tanya-intro img {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  body.tanya-page .tanya-intro > .tanya-badge {
+    font-size: .62rem;
+  }
+
+  body.tanya-page .tanya-intro h1 {
+    margin-top: 12px;
+  }
+
+  body.tanya-page .tanya-riwayat-alat {
+    opacity: 1;
+  }
+
+  body.tanya-page .tanya-riwayat-act {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Layar sangat lebar: tiga kartu sejajar seperti referensi. */
+@media (min-width: 1200px) {
+  .tanya-saran {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Perangkat tanpa hover: toolbar jawaban dan aksi riwayat selalu terlihat. */
+@media (hover: none) {
+  body.tanya-page .tanya-riwayat-alat {
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   TANYA PII — tema gelap
+   --------------------------------------------------------------------------
+   Palet mengikuti referensi: sidebar biru dongker, kanvas #0A0C19, cahaya
+   ungu/pink di atas sambutan, kartu #171B27, dan komposer #23262F. Gaya ini
+   sengaja ditaruh paling akhir supaya menimpa warna terang dari styles.css,
+   sambil mempertahankan semua ukuran, transisi, dan perlaku interaksi yang
+   sudah diuji.
+   ========================================================================== */
+
+body.tanya-page.tanya-page {
+  --tanya-bg: #0a0c19;
+  --tanya-bg-2: #0c1125;
+  --tanya-side: #121d3f;
+  --tanya-side-deep: #0e1025;
+  --tanya-panel: #171b27;
+  --tanya-field: #23262f;
+  --tanya-line: rgb(255 255 255 / 9%);
+  --tanya-line-strong: rgb(255 255 255 / 16%);
+  --tanya-text: #eef0ff;
+  --tanya-soft: #c7ccdf;
+  --tanya-muted: #929bb8;
+  --tanya-violet: #a855f7;
+  --tanya-pink: #ec4899;
+  --tanya-accent: #c084fc;
+  color-scheme: dark;
+  color: var(--tanya-text);
+  background: var(--tanya-bg);
+}
+
+body.tanya-page button:focus-visible,
+body.tanya-page a:focus-visible,
+body.tanya-page input:focus-visible,
+body.tanya-page textarea:focus-visible {
+  outline-color: var(--tanya-accent);
+}
+
+body.tanya-page ::selection {
+  background: rgb(168 85 247 / 36%);
+  color: #fff;
+}
+
+/* Kerangka ---------------------------------------------------------------- */
+
+body.tanya-page .tanya-shell {
+  background:
+    radial-gradient(1000px 460px at 76% -18%, rgb(124 58 237 / 12%), transparent 66%),
+    var(--tanya-bg);
+}
+
+body.tanya-page .tanya-main {
+  background: var(--tanya-bg-2);
+}
+
+/* Sidebar ----------------------------------------------------------------- */
+
+body.tanya-page .tanya-shell .tanya-riwayat {
+  border-right-color: var(--tanya-line);
+  background: linear-gradient(180deg, var(--tanya-side) 0%, #10162f 42%, var(--tanya-side-deep) 100%);
+}
+
+body.tanya-page .tanya-shell .tanya-riwayat-panel {
+  background: transparent;
+}
+
+body.tanya-page.tanya-sidebar-tutup .tanya-shell .tanya-riwayat {
+  border-right-color: transparent;
+}
+
+body.tanya-page .tanya-merek {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-merek img {
+  border-color: var(--tanya-line);
+  background: rgb(255 255 255 / 6%);
+}
+
+body.tanya-page .tanya-merek b {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-merek small {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-side-tutup {
+  background: rgb(255 255 255 / 6%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-side-tutup:hover {
+  background: rgb(168 85 247 / 16%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-riwayat-baru {
+  background: linear-gradient(135deg, rgb(109 40 217 / 88%), rgb(162 28 175 / 82%) 55%, rgb(219 39 119 / 82%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), 0 10px 22px rgb(124 58 237 / 28%);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body.tanya-page .tanya-riwayat-baru:hover {
+  box-shadow: 0 12px 26px rgb(168 85 247 / 36%);
+}
+
+body.tanya-page .tanya-cari svg {
+  stroke: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-cari input {
+  border-color: var(--tanya-line);
+  background: rgb(8 10 24 / 52%);
+  color: var(--tanya-text);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+body.tanya-page .tanya-cari input::placeholder {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-cari input:focus {
+  border-color: rgb(192 132 252 / 55%);
+  background: rgb(8 10 24 / 82%);
+  box-shadow: 0 0 0 3px rgb(168 85 247 / 12%);
+}
+
+body.tanya-page .tanya-side-label {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-riwayat-daftar {
+  scrollbar-color: var(--tanya-line-strong) transparent;
+}
+
+body.tanya-page .tanya-riwayat-daftar::-webkit-scrollbar-thumb {
+  background: var(--tanya-line-strong);
+}
+
+body.tanya-page .tanya-riwayat-item:hover {
+  background: rgb(255 255 255 / 5%);
+}
+
+body.tanya-page .tanya-riwayat-item.is-aktif {
+  background: rgb(168 85 247 / 12%);
+  box-shadow: inset 3px 0 0 var(--tanya-accent);
+}
+
+body.tanya-page .tanya-riwayat-judul {
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-riwayat-item.is-aktif .tanya-riwayat-judul {
+  color: #fff;
+}
+
+body.tanya-page .tanya-riwayat-meta {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-riwayat-act {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-riwayat-act:hover {
+  background: rgb(168 85 247 / 16%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-riwayat-act.is-bahaya:hover {
+  background: rgb(239 68 68 / 14%);
+  color: #fca5a5;
+}
+
+body.tanya-page .tanya-riwayat-input {
+  border-color: var(--tanya-accent);
+  background: #0b0d1c;
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-riwayat-item.is-konfirmasi {
+  border-color: rgb(248 113 113 / 28%);
+  background: rgb(239 68 68 / 10%);
+}
+
+body.tanya-page .tanya-riwayat-tanya {
+  color: #fecaca;
+}
+
+body.tanya-page .tanya-riwayat-ya button {
+  border-color: var(--tanya-line-strong);
+  background: rgb(255 255 255 / 5%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-riwayat-ya-hapus {
+  border-color: #ef4444 !important;
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+
+body.tanya-page .tanya-riwayat-kosong {
+  color: var(--tanya-muted);
+}
+
+/* Kaki sidebar, pengaturan, dan akun --------------------------------------- */
+
+body.tanya-page .tanya-side-bawah {
+  border-top-color: var(--tanya-line);
+}
+
+body.tanya-page .tanya-riwayat-kaki {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-side-menu {
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-side-menu:hover {
+  background: rgb(255 255 255 / 6%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-akun {
+  background: rgb(255 255 255 / 5%);
+}
+
+body.tanya-page .tanya-akun .account-button {
+  border-color: var(--tanya-line);
+  background: transparent;
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-akun .account-button:hover {
+  background: rgb(255 255 255 / 7%);
+}
+
+body.tanya-page .tanya-akun .account-name {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-akun .account-avatar {
+  background: rgb(168 85 247 / 20%);
+  color: #fff;
+}
+
+body.tanya-page .account-menu {
+  border-color: var(--tanya-line-strong);
+  background: rgb(23 27 39 / 88%);
+  box-shadow: 0 18px 42px rgb(0 0 0 / 46%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body.tanya-page .account-menu-item {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .account-menu-item:hover,
+body.tanya-page .account-menu-item:focus-visible {
+  background: rgb(168 85 247 / 14%);
+}
+
+body.tanya-page .account-menu .account-signout {
+  color: #fca5a5;
+}
+
+body.tanya-page .account-menu .account-signout:hover {
+  background: rgb(239 68 68 / 12%);
+}
+
+body.tanya-page .tanya-pengaturan {
+  border-color: var(--tanya-line-strong);
+  background: rgb(23 27 39 / 88%);
+  box-shadow: 0 18px 42px rgb(0 0 0 / 46%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body.tanya-page .tanya-pengaturan-kepala b {
+  color: #fff;
+}
+
+body.tanya-page .tanya-pengaturan-kepala button {
+  background: rgb(255 255 255 / 7%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-pengaturan-baris b {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-pengaturan-baris small {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-pengaturan input[type="checkbox"] {
+  background: rgb(255 255 255 / 18%);
+}
+
+body.tanya-page .tanya-pengaturan input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, var(--tanya-violet), var(--tanya-pink));
+}
+
+body.tanya-page .tanya-pengaturan-garis {
+  background: var(--tanya-line);
+}
+
+body.tanya-page .tanya-hapus-semua {
+  border-color: rgb(248 113 113 / 26%);
+  background: rgb(239 68 68 / 8%);
+  color: #fca5a5;
+}
+
+body.tanya-page .tanya-hapus-semua:hover {
+  border-color: rgb(248 113 113 / 48%);
+  background: rgb(239 68 68 / 14%);
+}
+
+body.tanya-page .tanya-hapus-semua.is-yakin {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+/* Header ------------------------------------------------------------------ */
+
+body.tanya-page .tanya-mobile-header {
+  border-bottom-color: var(--tanya-line);
+  background: rgb(10 12 25 / 72%);
+}
+
+body.tanya-page .tanya-mobile-judul b,
+body.tanya-page .tanya-topbar-judul b {
+  color: #fff;
+}
+
+body.tanya-page .tanya-mobile-judul small,
+body.tanya-page .tanya-topbar-judul small {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-mobile-header .tanya-riwayat-buka {
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-mobile-header .tanya-riwayat-buka:hover {
+  background: rgb(168 85 247 / 14%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-topbar {
+  border-bottom-color: var(--tanya-line);
+  background: rgb(10 12 25 / 62%);
+}
+
+body.tanya-page .tanya-topbar-toggle {
+  border-color: var(--tanya-line);
+  background: rgb(255 255 255 / 5%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-topbar-toggle:hover {
+  border-color: rgb(192 132 252 / 42%);
+  background: rgb(168 85 247 / 14%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-model {
+  border-color: var(--tanya-line);
+  background: rgb(255 255 255 / 5%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-model i {
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgb(52 211 153 / 16%);
+}
+
+body.tanya-page .tanya-topbar .tanya-baru,
+body.tanya-page .tanya-mobile-header .tanya-baru {
+  border-color: var(--tanya-line);
+  background: rgb(255 255 255 / 5%);
+  color: var(--tanya-accent);
+}
+
+body.tanya-page .tanya-topbar .tanya-baru:hover,
+body.tanya-page .tanya-mobile-header .tanya-baru:hover {
+  border-color: rgb(192 132 252 / 42%);
+  background: rgb(168 85 247 / 14%);
+}
+
+/* Panggung dan sambutan ---------------------------------------------------- */
+
+body.tanya-page .tanya-stage {
+  background:
+    radial-gradient(560px 250px at 50% 20%, rgb(226 161 239 / 32%), rgb(124 58 237 / 20%) 44%, transparent 72%),
+    radial-gradient(1000px 520px at 82% -12%, rgb(59 130 246 / 10%), transparent 65%),
+    linear-gradient(180deg, #101633 0%, #0a0c19 58%, #090b16 100%);
+}
+
+body.tanya-page .tanya-scroll {
+  scrollbar-color: var(--tanya-line-strong) transparent;
+}
+
+body.tanya-page .tanya-scroll::-webkit-scrollbar-thumb {
+  background: var(--tanya-line-strong);
+}
+
+body.tanya-page .tanya-intro {
+  width: min(720px, 68%);
+  padding: clamp(18px, 5vh, 42px) 0 18px;
+}
+
+body.tanya-page .tanya-intro::before {
+  top: -120px;
+  width: 620px;
+  height: 360px;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgb(226 161 239 / 58%) 0%, rgb(168 85 247 / 36%) 32%, rgb(124 58 237 / 16%) 56%, transparent 72%);
+  filter: blur(18px);
+  opacity: .95;
+}
+
+body.tanya-page .tanya-intro img {
+  width: 52px;
+  height: 52px;
+  border-color: rgb(255 255 255 / 14%);
+  border-radius: 16px;
+  padding: 8px;
+  background: rgb(255 255 255 / 7%);
+  box-shadow: 0 0 0 6px rgb(168 85 247 / 8%), 0 18px 44px rgb(124 58 237 / 35%);
+}
+
+body.tanya-page .tanya-intro > .tanya-badge {
+  margin-top: 14px;
+  border-color: var(--tanya-line);
+  background: rgb(255 255 255 / 5%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-intro > .tanya-badge i {
+  background: var(--tanya-accent);
+  box-shadow: 0 0 0 3px rgb(168 85 247 / 18%);
+}
+
+body.tanya-page .tanya-intro h1 {
+  margin: 13px auto 8px;
+  color: #fff;
+  font-size: clamp(1.55rem, 2.7vw, 2.05rem);
+  letter-spacing: -.035em;
+}
+
+body.tanya-page .tanya-intro > p:not(.tanya-badge) {
+  max-width: 560px;
+  margin-bottom: 22px;
+  color: var(--tanya-muted);
+  font-size: .88rem;
+  line-height: 1.6;
+}
+
+/* Kartu rekomendasi -------------------------------------------------------- */
+
+body.tanya-page .tanya-saran {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.tanya-page .tanya-saran-kartu {
+  min-height: 80px;
+  border-color: rgb(255 255 255 / 12%);
+  border-radius: 14px;
+  padding: 10px 11px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%)), rgb(23 27 39 / 34%);
+  color: var(--tanya-text);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 12px 28px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+body.tanya-page .tanya-saran-kartu:hover {
+  border-color: rgb(192 132 252 / 55%);
+  background: linear-gradient(180deg, rgb(255 255 255 / 12%), rgb(255 255 255 / 4%)), rgb(23 27 39 / 42%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%), 0 16px 34px rgb(124 58 237 / 26%);
+  transform: translateY(-2px);
+}
+
+body.tanya-page .tanya-saran-ikon {
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 9px;
+  background: rgb(168 85 247 / 20%);
+  color: #e9d5ff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+body.tanya-page .tanya-saran-kartu b {
+  color: #f5f3ff;
+  font-size: .82rem;
+  line-height: 1.25;
+}
+
+body.tanya-page .tanya-saran-kartu small {
+  color: var(--tanya-muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+
+/* Utas dan jawaban --------------------------------------------------------- */
+
+body.tanya-page .tanya-thread {
+  gap: 20px;
+}
+
+body.tanya-page .tanya-avatar {
+  border-color: var(--tanya-line);
+  background: var(--tanya-panel);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 28%);
+}
+
+body.tanya-page .tanya-msg {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-row.is-user .tanya-msg {
+  border-color: rgb(192 132 252 / 22%);
+  background: linear-gradient(135deg, #4c1d95, #7c3aed);
+  color: #fff;
+  box-shadow: 0 10px 26px rgb(124 58 237 / 22%);
+}
+
+/* Markdown, tabel, dan kode ------------------------------------------------- */
+
+body.tanya-page .tanya-msg a {
+  color: #c4b5fd;
+}
+
+body.tanya-page .tanya-h,
+body.tanya-page .tanya-h2,
+body.tanya-page .tanya-h3,
+body.tanya-page .tanya-h4 {
+  color: #fff;
+}
+
+body.tanya-page .tanya-h2 {
+  border-bottom-color: var(--tanya-line);
+}
+
+body.tanya-page .tanya-h5,
+body.tanya-page .tanya-h6 {
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-msg li::marker {
+  color: var(--tanya-accent);
+}
+
+body.tanya-page .tanya-msg blockquote {
+  border-left-color: var(--tanya-accent);
+  background: rgb(168 85 247 / 7%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-msg hr {
+  border-top-color: var(--tanya-line);
+}
+
+body.tanya-page .tanya-msg code,
+body.tanya-page .tanya-inline-kode {
+  background: rgb(255 255 255 / 8%);
+  color: #f0abfc;
+}
+
+body.tanya-page .tanya-tabel {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-tabel th,
+body.tanya-page .tanya-tabel td {
+  border-bottom-color: var(--tanya-line);
+}
+
+body.tanya-page .tanya-tabel th {
+  background: rgb(168 85 247 / 12%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-tabel tbody tr:nth-child(even) {
+  background: rgb(255 255 255 / 3%);
+}
+
+body.tanya-page .tanya-tabel caption {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-sorot,
+body.tanya-page .tanya-terminal {
+  border-color: var(--tanya-line-strong);
+  background: #0b1023;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 28%);
+}
+
+body.tanya-page .tanya-sorot-kepala,
+body.tanya-page .tanya-terminal-kepala {
+  border-bottom-color: var(--tanya-line);
+  background: #151b34;
+  color: #cbd5f9;
+}
+
+body.tanya-page .tanya-sorot_bahasa,
+body.tanya-page .tanya-terminal_judul {
+  color: #fff;
+}
+
+body.tanya-page .tanya-sorot_meta {
+  color: #8f9bbd;
+}
+
+body.tanya-page .tanya-ktombol {
+  border-color: rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 7%);
+  color: #e8ecff;
+}
+
+body.tanya-page .tanya-ktombol:hover {
+  background: rgb(255 255 255 / 16%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-kode,
+body.tanya-page .tanya-terminal code {
+  color: #e8ecff;
+}
+
+body.tanya-page .tanya-kode.is-nomor .tanya-baris-kode::before {
+  color: #64748b;
+}
+
+body.tanya-page .tanya-sorot.is-lipat:not(.is-terbuka) .tanya-sorot-badan::after {
+  background: linear-gradient(180deg, rgb(11 16 35 / 0%), #0b1023 80%);
+}
+
+body.tanya-page .tanya-kode .c-komentar { color: #8f9bbd; }
+body.tanya-page .tanya-kode .c-kata { color: #93c5fd; }
+body.tanya-page .tanya-kode .c-pustaka { color: #6ee7b7; }
+body.tanya-page .tanya-kode .c-fungsi { color: #fcd34d; }
+body.tanya-page .tanya-kode .c-string { color: #bef264; }
+body.tanya-page .tanya-kode .c-nomor { color: #fdba74; }
+body.tanya-page .tanya-kode .c-penanda { color: #e9d5ff; }
+body.tanya-page .tanya-kode .c-aksi { color: #b6c2e6; }
+
+/* Sumber dan aksi jawaban --------------------------------------------------- */
+
+body.tanya-page .tanya-sumber {
+  border-top-color: var(--tanya-line);
+}
+
+body.tanya-page .tanya-sumber-title,
+body.tanya-page .tanya-sumber-catat {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-sumber li {
+  border-color: var(--tanya-line);
+  background: rgb(255 255 255 / 4%);
+}
+
+body.tanya-page .tanya-sumber li span {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-sumber li em {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-sumber-link {
+  color: #c4b5fd;
+}
+
+body.tanya-page .tanya-sumber-buka {
+  border-color: var(--tanya-line-strong);
+  background: rgb(255 255 255 / 5%);
+  color: #d8b4fe;
+}
+
+body.tanya-page .tanya-sumber-buka:hover,
+body.tanya-page .tanya-sumber-buka:focus-visible {
+  border-color: var(--tanya-accent);
+}
+
+body.tanya-page .tanya-sumber-web li {
+  border-color: rgb(52 211 153 / 22%);
+  background: rgb(16 185 129 / 7%);
+}
+
+body.tanya-page .tanya-sumber-web li a {
+  color: #6ee7b7;
+}
+
+body.tanya-page .tanya-sumber-resmi li {
+  border-color: rgb(251 191 36 / 22%);
+  background: rgb(245 158 11 / 7%);
+}
+
+body.tanya-page .tanya-sumber-resmi li span {
+  color: #fcd34d;
+}
+
+body.tanya-page .tanya-sumber-resmi li em {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-act {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-act:hover {
+  background: rgb(168 85 247 / 14%);
+  color: #fff;
+}
+
+body.tanya-page .tanya-act.is-rasa.is-aktif {
+  background: rgb(34 197 94 / 14%);
+  color: #86efac;
+}
+
+body.tanya-page .tanya-act.is-unduh {
+  border-color: rgb(192 132 252 / 30%);
+  background: rgb(168 85 247 / 12%);
+  color: #e9d5ff;
+}
+
+body.tanya-page .tanya-act.is-unduh:hover {
+  border-color: var(--tanya-accent);
+  background: rgb(168 85 247 / 20%);
+}
+
+/* Status jawaban ----------------------------------------------------------- */
+
+body.tanya-page .tanya-row.is-error .tanya-msg {
+  border-color: rgb(248 113 113 / 30%);
+  background: rgb(239 68 68 / 10%);
+  color: #fecaca;
+}
+
+body.tanya-page .tanya-row.is-quota .tanya-msg {
+  border-color: rgb(52 211 153 / 25%);
+  background: rgb(16 185 129 / 10%);
+  color: #a7f3d0;
+}
+
+body.tanya-page .tanya-dots i {
+  background: var(--tanya-accent);
+}
+
+body.tanya-page .tanya-orbit {
+  border-color: rgb(168 85 247 / 18%);
+  border-top-color: var(--tanya-accent);
+  border-right-color: rgb(168 85 247 / 55%);
+}
+
+body.tanya-page .tanya-pending-text {
+  color: #d8b4fe;
+}
+
+body.tanya-page .tanya-skeleton i {
+  background: linear-gradient(90deg, #1b2038 0%, #2b3152 40%, #1b2038 80%);
+  background-size: 260% 100%;
+}
+
+body.tanya-page .tanya-retry {
+  border-color: rgb(248 113 113 / 30%);
+  background: rgb(239 68 68 / 9%);
+  color: #fecaca;
+}
+
+body.tanya-page .tanya-upgrade {
+  border-color: rgb(192 132 252 / 32%);
+  background: rgb(168 85 247 / 10%);
+  color: #e9d5ff;
+}
+
+body.tanya-page .tanya-upgrade:hover {
+  border-color: var(--tanya-accent);
+  background: rgb(168 85 247 / 20%);
+}
+
+/* Komposer ---------------------------------------------------------------- */
+
+body.tanya-page .tanya-composer {
+  background: linear-gradient(180deg, rgb(10 12 25 / 0%), rgb(10 12 25 / 68%) 48%, rgb(10 12 25 / 94%) 100%);
+  box-shadow: 0 -12px 34px rgb(0 0 0 / 22%);
+}
+
+body.tanya-page .tanya-field {
+  width: min(920px, 84%);
+  border-color: rgb(255 255 255 / 12%);
+  padding: 7px 7px 7px 11px;
+  background: rgb(35 38 47 / 76%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%), 0 18px 44px rgb(0 0 0 / 38%);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+}
+
+body.tanya-page .tanya-field:focus-within {
+  border-color: rgb(192 132 252 / 55%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 0 0 3px rgb(168 85 247 / 12%), 0 18px 44px rgb(0 0 0 / 38%);
+}
+
+body.tanya-page .tanya-field textarea {
+  color: var(--tanya-text);
+}
+
+body.tanya-page .tanya-field textarea::placeholder {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-submit {
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+  color: #fff;
+  box-shadow: 0 6px 18px rgb(168 85 247 / 32%);
+}
+
+body.tanya-page .tanya-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8b5cf6, #e8590c);
+  box-shadow: 0 8px 22px rgb(236 72 153 / 34%);
+}
+
+body.tanya-page .tanya-stop {
+  border-color: var(--tanya-line-strong);
+  background: var(--tanya-panel);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-stop::before {
+  background: currentColor;
+}
+
+body.tanya-page .tanya-lampir {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-lampir:hover:not(:disabled) {
+  background: rgb(168 85 247 / 14%);
+  color: #d8b4fe;
+}
+
+body.tanya-page .tanya-lampiran-item.is-gambar,
+body.tanya-page .tanya-lampiran-item.is-dokumen {
+  border-color: var(--tanya-line);
+  background: var(--tanya-panel);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 26%);
+}
+
+body.tanya-page .tanya-lampiran-item.is-dokumen > svg {
+  stroke: var(--tanya-accent);
+}
+
+body.tanya-page .tanya-lampiran-meta b {
+  color: #fff;
+}
+
+body.tanya-page .tanya-lampiran-meta em {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-lampiran-item button {
+  background: rgb(255 255 255 / 8%);
+  color: var(--tanya-soft);
+}
+
+body.tanya-page .tanya-lampiran-item.is-gambar button {
+  border-color: var(--tanya-field);
+  background: #4c1d95;
+}
+
+body.tanya-page .tanya-lampiran-item button:hover {
+  background: rgb(239 68 68 / 16%);
+  color: #fca5a5;
+}
+
+body.tanya-page .tanya-meter {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-meter::before {
+  background: #34d399;
+}
+
+body.tanya-page .tanya-bawah {
+  border-color: var(--tanya-line-strong);
+  background: var(--tanya-panel);
+  color: var(--tanya-accent);
+  box-shadow: 0 10px 26px rgb(0 0 0 / 34%);
+}
+
+body.tanya-page .tanya-toast {
+  border: 1px solid var(--tanya-line-strong);
+  background: #1b1538;
+  color: #fff;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 42%);
+}
+
+/* Responsive --------------------------------------------------------------- */
+
+@media (max-width: 1023px) {
+  body.tanya-page .tanya-shell .tanya-riwayat {
+    background: transparent;
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat-backdrop {
+    background: rgb(3 5 14 / 68%);
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat-panel {
+    border-right-color: var(--tanya-line-strong);
+    border-radius: 0 18px 18px 0;
+    background: linear-gradient(180deg, var(--tanya-side) 0%, var(--tanya-side-deep) 100%);
+    box-shadow: 18px 0 50px rgb(0 0 0 / 46%);
+  }
+}
+
+@media (max-width: 767px) {
+  body.tanya-page .tanya-saran {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  body.tanya-page .tanya-saran-kartu {
+    min-height: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 11px;
+  }
+
+  body.tanya-page .tanya-saran-kartu b {
+    flex: 1 1 auto;
+  }
+
+  body.tanya-page .tanya-saran-kartu small {
+    display: none;
+  }
+
+  body.tanya-page .tanya-intro {
+    width: min(100%, 520px);
+    padding: 14px 0 10px;
+  }
+
+  body.tanya-page .tanya-intro img {
+    width: 48px;
+    height: 48px;
+  }
+
+  body.tanya-page .tanya-intro h1 {
+    font-size: clamp(1.4rem, 6vw, 1.75rem);
+  }
+
+  body.tanya-page .tanya-intro > p:not(.tanya-badge) {
+    margin-bottom: 16px;
+    font-size: .84rem;
+  }
+
+  body.tanya-page .tanya-composer {
+    padding: 7px 12px calc(9px + env(safe-area-inset-bottom));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  body.tanya-page .tanya-field {
+    width: 100%;
+    border-radius: 20px;
+    padding: 5px 5px 5px 9px;
+  }
+
+  body.tanya-page .tanya-field textarea {
+    font-size: 1rem;
+  }
+
+  body.tanya-page .tanya-riwayat-alat {
+    opacity: 1;
+  }
+}
+
+/* Kartu tetap ringkas seperti referensi saat ruang kartu menyempit. */
+@media (min-width: 768px) and (max-width: 1199px) {
+  body.tanya-page .tanya-saran-kartu {
+    min-height: 78px;
+    padding: 9px 10px;
+  }
+
+  body.tanya-page .tanya-saran-kartu small {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------- gerak dikurangi */
+
+@media (prefers-reduced-motion: reduce) {
+  .tanya-pengaturan,
+  body.tanya-page .tanya-intro,
+  body.tanya-page .tanya-row {
+    animation: none !important;
+  }
+
+  body.tanya-page .tanya-shell .tanya-riwayat,
+  body.tanya-page .tanya-shell .tanya-riwayat-panel,
+  body.tanya-page .tanya-topbar-toggle svg {
+    transition-duration: .01ms !important;
+  }
+}

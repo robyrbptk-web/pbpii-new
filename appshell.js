@@ -66,6 +66,10 @@
 
   const naskah = document.currentScript || document.querySelector('script[data-halaman]');
   const halaman = String((naskah && naskah.getAttribute('data-halaman')) || 'beranda');
+  /* Halaman yang membawa kerangkanya sendiri tetap memakai penjaga sesi di
+     atas, tetapi tidak perlu kop, rail ikon, dan bar bawah AppLayout. Tanya PII
+     memakai sidebar percakapan selebar penuh, jadi dua sidebar tidak bertumpuk. */
+  const kerangkaSendiri = String((naskah && naskah.getAttribute('data-kerangka')) || '') === 'sendiri';
   const jalur = (String(location.pathname || '/').replace(/\/+$/, '') || '/').toLowerCase();
 
   // Beranda, Artikel, dan Notifikasi hidup di dalam index.html.
@@ -336,7 +340,7 @@
   /* ------------------------------------------------------------ kerangka */
 
   function pasangKerangka() {
-    if (kepala) return;
+    if (kepala || kerangkaSendiri) return;
 
     utama = document.querySelector('main');
     kepala = elemen('header', 'app-header');

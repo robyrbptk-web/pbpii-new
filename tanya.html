@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Tanya PII menjawab pertanyaan umum secara bebas, dan menjawab pertanyaan tentang Pelajar Islam Indonesia berdasarkan kutipan berkas PII di Pustaka atau sumber tepercaya.">
-  <meta name="theme-color" content="#0c2948">
+  <meta name="theme-color" content="#0a0c19">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,107 +15,155 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/appshell.css">
-  <script src="/appshell.js" data-halaman="tanya"></script>
+  <link rel="stylesheet" href="/tanya.css?v=75">
+  <script src="/appshell.js" data-halaman="tanya" data-kerangka="sendiri"></script>
 </head>
 <body class="tanya-page">
-  <header class="site-header">
-    <a class="brand" href="./">
-      <img src="/assets/logo-pii.webp" alt="Logo Pelajar Islam Indonesia" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
-      <span><b>Tanya PII</b><small>Asisten Pelajar Islam Indonesia</small></span>
-    </a>
-    <nav id="nav" aria-label="Navigasi utama">
-      <a href="index.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.5h5V20"/></svg><span>Beranda</span></a>
-      <a href="acara.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"/><path d="M4 10h16M8.5 3.5v3.4M15.5 3.5v3.4"/></svg><span>Acara</span></a>
-      <a href="ibadah.html"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 4.6a7.4 7.4 0 1 0 0 14.8 6.1 6.1 0 0 1 0-14.8Z"/><path d="M18.6 8.1h.01"/></svg><span>Ibadah</span></a>
-      <a href="tanya.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.2V17a2.5 2.5 0 0 1-1-2V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5Z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg><span>Tanya</span></a>
-      <a href="index.html#berita" class="nav-extra"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel</span></a>
-      <a href="sso.html" class="nav-masuk"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5.4 19.2c.6-3.2 2.8-5.1 6.6-5.1s6 1.9 6.6 5.1"/></svg><span>Masuk</span></a>
-      <button class="nav-more" id="navMore" type="button" aria-expanded="false" aria-controls="navMoreSheet"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.1"/><circle cx="12" cy="7" r="2.1"/><circle cx="18" cy="7" r="2.1"/><circle cx="6" cy="17" r="2.1"/><circle cx="12" cy="17" r="2.1"/><circle cx="18" cy="17" r="2.1"/></svg><span>Lainnya</span></button>
-    </nav>
-    <button class="tanya-riwayat-buka" id="tanyaRiwayatBuka" type="button" aria-label="Riwayat percakapan" aria-expanded="false" aria-controls="tanyaRiwayat" title="Riwayat percakapan">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.6v4.6l3 1.9"/><path d="M4.9 9.4A7.6 7.6 0 1 1 4.2 13"/><path d="M4 5.5v4h4"/></svg>
-    </button>
-    <button class="tanya-baru" id="tanyaReset" type="button" aria-label="Percakapan baru" title="Percakapan baru">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
-    </button>
-    <div class="account-slot" data-account aria-label="Akun kader PII"></div>
-    <button class="install-app" id="installApp" type="button" hidden>Instal aplikasi</button>
-  </header>
+  <div class="tanya-shell">
+    <aside class="tanya-riwayat" id="tanyaRiwayat" aria-hidden="true">
+      <button class="tanya-riwayat-backdrop" type="button" tabindex="-1" aria-label="Tutup menu dan riwayat"></button>
+      <section class="tanya-riwayat-panel" tabindex="-1" role="dialog" aria-modal="false" aria-label="Menu dan riwayat percakapan Tanya PII">
+        <header class="tanya-side-brand">
+          <a class="tanya-merek" href="/" aria-label="Beranda PB PII">
+            <img src="/assets/logo-pii.webp" alt="Logo Pelajar Islam Indonesia" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+            <span><b>Tanya PII</b><small>Asisten Pelajar Islam Indonesia</small></span>
+          </a>
+          <button type="button" class="tanya-side-tutup" id="tanyaRiwayatTutup" aria-label="Tutup menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+          </button>
+        </header>
 
-  <div class="nav-sheet" id="navMoreSheet" aria-hidden="true">
-    <button class="nav-sheet-backdrop" type="button" tabindex="-1" aria-label="Tutup menu"></button>
-    <div class="nav-sheet-panel">
-      <p class="nav-sheet-title">Menu lengkap PB PII</p>
-      <div class="nav-sheet-grid">
-        <a href="/situasi.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s6.4-5.3 6.4-10a6.4 6.4 0 1 0-12.8 0c0 4.7 6.4 10 6.4 10z"/><circle cx="12" cy="10.3" r="2.3"/></svg><span>PII Situation Room</span></a>
-        <a href="/situasi.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s6.4-5.3 6.4-10a6.4 6.4 0 1 0-12.8 0c0 4.7 6.4 10 6.4 10z"/><circle cx="12" cy="10.3" r="2.3"/></svg><span>Ruang Situasi</span></a>
-        <a href="pustaka.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2 2 0 0 0-2-2H5zM19 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2 2 0 0 1 2-2h5z"/></svg><span>Pustaka organisasi</span></a>
-        <a href="feed.html" data-requires="kader"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 5.5h14.8v13H4.6z"/><path d="M7.4 9h9M7.4 12.2h9M7.4 15.4h5.4"/></svg><span>Feed kader</span></a>
-        <a href="index.html#galeri"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m5 17 4.4-4.5 3.1 3 2.5-2.5 4 4"/></svg><span>Galeri kegiatan</span></a>
-        <a href="index.html#tentang"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 4.25 1.8c-1.1 1.05-1.85 1.35-1.85 2.9M12 17.3h.01"/></svg><span>Tentang PII</span></a>
-        <a href="index.html#sambutan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19c.5-3.1 2.7-5 6.5-5s6 1.9 6.5 5"/></svg><span>Sambutan Ketua Umum</span></a>
-        <a href="index.html#data"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M10 19V4M15 19v-7M20 19v-11"/></svg><span>Data terbuka</span></a>
-        <a href="index.html#berita"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14v14.5H5zM8 8h8M8 11.5h8M8 15h5"/></svg><span>Artikel &amp; berita</span></a>
-        <a href="login.html" data-requires="pengurus"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>Admin PB PII</span></a>
-      </div>
-    </div>
-  </div>
+        <button class="tanya-riwayat-baru" id="tanyaRiwayatBaru" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
+          <span>Percakapan Baru</span>
+        </button>
 
-  <div class="tanya-riwayat" id="tanyaRiwayat" aria-hidden="true">
-    <button class="tanya-riwayat-backdrop" type="button" tabindex="-1" aria-label="Tutup riwayat percakapan"></button>
-    <section class="tanya-riwayat-panel" tabindex="-1" role="dialog" aria-modal="true" aria-label="Riwayat percakapan Tanya PII">
-      <header class="tanya-riwayat-kepala">
-        <p>Riwayat percakapan</p>
-        <button type="button" id="tanyaRiwayatTutup" aria-label="Tutup riwayat">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        <label class="tanya-cari" for="tanyaCari">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          <input id="tanyaCari" type="search" placeholder="Cari percakapan" autocomplete="off" aria-label="Cari percakapan">
+        </label>
+
+        <p class="tanya-side-label">Riwayat Percakapan</p>
+        <p class="tanya-riwayat-kosong" id="tanyaRiwayatKosong">Belum ada percakapan tersimpan di perangkat ini.</p>
+        <ul class="tanya-riwayat-daftar" id="tanyaRiwayatDaftar"></ul>
+
+        <div class="tanya-side-bawah">
+          <p class="tanya-riwayat-kaki">Percakapan tersimpan di perangkat ini dan tetap ada saat halaman ditutup.</p>
+
+          <div class="tanya-pengaturan" id="tanyaPengaturanPanel" role="dialog" aria-label="Pengaturan Tanya PII" hidden>
+            <div class="tanya-pengaturan-kepala">
+              <b>Pengaturan</b>
+              <button type="button" id="tanyaPengaturanTutup" aria-label="Tutup pengaturan">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+              </button>
+            </div>
+            <label class="tanya-pengaturan-baris" for="tanyaEnterKirim">
+              <span><b>Kirim dengan Enter</b><small>Shift + Enter untuk baris baru.</small></span>
+              <input type="checkbox" id="tanyaEnterKirim" checked>
+            </label>
+            <div class="tanya-pengaturan-garis" aria-hidden="true"></div>
+            <button type="button" class="tanya-hapus-semua" id="tanyaHapusSemua">Hapus semua riwayat</button>
+          </div>
+
+          <button class="tanya-side-menu" id="tanyaPengaturan" type="button" aria-expanded="false" aria-controls="tanyaPengaturanPanel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+            <span>Pengaturan</span>
+          </button>
+
+          <a class="tanya-side-menu" href="/">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>
+            <span>Aplikasi PB PII</span>
+          </a>
+
+          <div class="tanya-akun" data-account aria-label="Akun pengguna"></div>
+        </div>
+      </section>
+    </aside>
+
+    <div class="tanya-main">
+      <header class="tanya-mobile-header">
+        <button class="tanya-riwayat-buka" id="tanyaRiwayatBuka" type="button" aria-label="Buka menu dan riwayat" aria-expanded="false" aria-controls="tanyaRiwayat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        </button>
+        <div class="tanya-mobile-judul">
+          <b id="tanyaJudulMobile">Tanya PII</b>
+          <small>Asisten Pelajar Islam Indonesia</small>
+        </div>
+        <button class="tanya-baru" id="tanyaReset" type="button" data-tanya-baru aria-label="Percakapan baru" title="Percakapan baru">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
         </button>
       </header>
-      <button class="tanya-riwayat-baru" id="tanyaRiwayatBaru" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
-        <span>Percakapan baru</span>
-      </button>
-      <p class="tanya-riwayat-kosong" id="tanyaRiwayatKosong">Belum ada percakapan tersimpan di perangkat ini.</p>
-      <ul class="tanya-riwayat-daftar" id="tanyaRiwayatDaftar"></ul>
-      <p class="tanya-riwayat-kaki">Percakapan tersimpan di perangkat ini dan tetap ada saat halaman ditutup.</p>
-    </section>
-  </div>
 
-  <main class="tanya-stage">
-    <div class="tanya-scroll" id="tanyaScroll">
-      <section class="tanya-intro" id="tanyaIntro">
-        <img src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
-        <h1>Tanya PII</h1>
-        <p class="tanya-badge"><i aria-hidden="true"></i>Model AI karya Badan Inovasi Digital PB PII</p>
-        <p>Silakan tanya apa pun. Untuk pertanyaan seputar Pelajar Islam Indonesia, jawaban dibangun dari berkas PII di Pustaka dan sumber penelusuran yang ditampilkan sebagai rujukan; bila bahannya kurang, Tanya PII akan mengatakannya. Untuk keputusan resmi, konfirmasi ke pengurus PB PII.</p>
-      </section>
-      <div class="tanya-thread" id="tanyaThread" role="log" aria-live="polite" aria-label="Percakapan dengan Tanya PII"></div>
-    </div>
-
-    <button class="tanya-bawah" id="tanyaBawah" type="button" hidden aria-label="Gulir ke jawaban terbaru">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v13"/><path d="M6.5 12.5 12 18l5.5-5.5"/></svg>
-    </button>
-
-    <form class="tanya-composer" id="tanyaComposer">
-      <div class="tanya-lampiran" id="tanyaLampiran" aria-label="Lampiran pertanyaan" hidden></div>
-      <div class="tanya-field">
-        <button class="tanya-lampir" id="tanyaLampir" type="button" aria-label="Lampirkan PDF" title="Lampirkan PDF">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.5 11.5-8.4 8.4a5.1 5.1 0 0 1-7.2-7.2l9-9a3.6 3.6 0 0 1 5.1 5.1L9.9 17.9a2.1 2.1 0 0 1-3-3l7.6-7.6"/></svg>
+      <header class="tanya-topbar">
+        <button class="tanya-topbar-toggle" id="tanyaSidebarToggle" type="button" aria-label="Tutup sidebar" aria-expanded="true" title="Tutup sidebar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>
         </button>
-        <input id="tanyaBerkas" type="file" accept="application/pdf" multiple hidden>
-        <label class="sr-only" for="tanyaInput">Tulis pertanyaan untuk Tanya PII</label>
-        <textarea id="tanyaInput" name="q" rows="1" maxlength="900" placeholder="Tulis pertanyaan apa pun…" autocomplete="off" enterkeyhint="send"></textarea>
-        <div class="tanya-kontrol">
-          <button class="tanya-stop" id="tanyaStop" type="button" hidden>
-            <span>Hentikan</span>
-          </button>
-          <button class="tanya-submit" id="tanyaSubmit" type="submit" aria-label="Kirim pertanyaan">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
-          </button>
+        <div class="tanya-topbar-judul">
+          <b id="tanyaJudulAtas">Tanya PII</b>
+          <small>Asisten Pelajar Islam Indonesia</small>
         </div>
-      </div>
-      <p class="tanya-meter" id="tanyaQuota" hidden></p>
-    </form>
-  </main>
+        <span class="tanya-model"><i aria-hidden="true"></i>Model AI PB PII</span>
+        <button class="tanya-baru" id="tanyaBaruAtas" type="button" data-tanya-baru aria-label="Percakapan baru" title="Percakapan baru">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
+        </button>
+      </header>
+
+      <main class="tanya-stage">
+        <div class="tanya-scroll" id="tanyaScroll">
+          <section class="tanya-intro" id="tanyaIntro">
+            <img src="/assets/logo-pii.webp" alt="Logo Pelajar Islam Indonesia" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
+            <p class="tanya-badge"><i aria-hidden="true"></i>Model AI karya Badan Inovasi Digital PB PII</p>
+            <h1>Selamat datang di Tanya PII</h1>
+            <p>Asisten digital Pelajar Islam Indonesia. Tanyakan apa saja tentang PII, atau minta bantu menulis, merencanakan, dan menjelajahi ide.</p>
+
+            <div class="tanya-saran" aria-label="Pertanyaan rekomendasi">
+              <button type="button" class="tanya-saran-kartu" data-soal="Jelaskan potongan kode ini langkah demi langkah.">
+                <span class="tanya-saran-ikon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 7-5 5 5 5M15 7l5 5-5 5"/></svg></span>
+                <b>Jelaskan Kode</b>
+                <small>Pahami baris kode satu per satu.</small>
+              </button>
+              <button type="button" class="tanya-saran-kartu" data-soal="Bantu saya merencanakan perjalanan kunjungan ke Pustaka PII.">
+                <span class="tanya-saran-ikon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+                <b>Rencanakan Perjalanan</b>
+                <small>Susun rute dan jadwal kunjungan.</small>
+              </button>
+              <button type="button" class="tanya-saran-kartu" data-soal="Bantu saya brainstorming ide kegiatan Pelajar Islam Indonesia.">
+                <span class="tanya-saran-ikon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6.5 6.5 0 0 0-3.8 11.8c.6.4.9 1 .9 1.7h5.8c0-.7.3-1.3.9-1.7A6.5 6.5 0 0 0 12 3Z"/></svg></span>
+                <b>Brainstorm Ide</b>
+                <small>Kembangkan gagasan kegiatan PII.</small>
+              </button>
+            </div>
+          </section>
+          <div class="tanya-thread" id="tanyaThread" role="log" aria-live="polite" aria-label="Percakapan dengan Tanya PII"></div>
+        </div>
+
+        <button class="tanya-bawah" id="tanyaBawah" type="button" hidden aria-label="Gulir ke jawaban terbaru">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v13"/><path d="M6.5 12.5 12 18l5.5-5.5"/></svg>
+        </button>
+
+        <form class="tanya-composer" id="tanyaComposer">
+          <div class="tanya-lampiran" id="tanyaLampiran" aria-label="Lampiran pertanyaan" hidden></div>
+          <div class="tanya-field">
+            <button class="tanya-lampir" id="tanyaLampir" type="button" aria-label="Lampirkan PDF" title="Lampirkan PDF">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.5 11.5-8.4 8.4a5.1 5.1 0 0 1-7.2-7.2l9-9a3.6 3.6 0 0 1 5.1 5.1L9.9 17.9a2.1 2.1 0 0 1-3-3l7.6-7.6"/></svg>
+            </button>
+            <input id="tanyaBerkas" type="file" accept="application/pdf" multiple hidden>
+            <label class="sr-only" for="tanyaInput">Tulis pertanyaan untuk Tanya PII</label>
+            <textarea id="tanyaInput" name="q" rows="1" maxlength="900" placeholder="Tulis pesan atau unggah berkas..." autocomplete="off" enterkeyhint="send"></textarea>
+            <div class="tanya-kontrol">
+              <button class="tanya-stop" id="tanyaStop" type="button" hidden>
+                <span>Hentikan</span>
+              </button>
+              <button class="tanya-submit" id="tanyaSubmit" type="submit" aria-label="Kirim pertanyaan">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <p class="tanya-meter" id="tanyaQuota" hidden></p>
+        </form>
+      </main>
+    </div>
+  </div>
 
   <script src="/akun.js" defer></script>
   <script src="/markdown.js" defer></script>
