@@ -506,7 +506,7 @@
                 <label class="checkline"><input type="checkbox" id="eventCommentsOpen" name="eventCommentsOpen"> Buka kolom komentar acara untuk akun kader</label>
               </div>
               <div class="field full">
-                <div class="hint">Login Google kader dikonfigurasi di server melalui variabel lingkungan <code>GOOGLE_CLIENT_ID</code>. Formulir masuk dan pendaftaran dilindungi pembatas laju, penguncian sementara, validasi server, dan kolom jebakan anti-bot; tidak ada widget pihak ketiga.</div>
+                <div class="hint">Konfigurasi teknis autentikasi tidak dikelola di dasbor: Google OAuth memakai <code>GOOGLE_CLIENT_ID</code>, sedangkan Cloudflare Turnstile memakai <code>TURNSTILE_SITE_KEY</code> dan <code>TURNSTILE_SECRET_KEY</code> dari environment server / secret manager. Kunci rahasia tidak pernah ditampilkan di sini. Formulir masuk dan pendaftaran tetap dilindungi Turnstile, pembatas laju, penguncian sementara, validasi server, dan kolom jebakan anti-bot.</div>
               </div>
             </div>
           </div>

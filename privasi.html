@@ -186,7 +186,7 @@
       <p>Setiap kali masuk, kami memverifikasi token identitas dari Google secara langsung di server agar tidak dapat dipalsukan. Akun tersebut hanya dipakai untuk mengenali Anda. Anda dapat mencabut izin kapan saja melalui <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">Akun Google → Keamanan → Aplikasi pihak ketiga</a>. Sesuai kebijakan Google API Services User Data Policy, penggunaan data dari Google hanya untuk fungsi masuk seperti dijelaskan pada halaman ini.</p>
 
       <h2 id="captcha">6. Perlindungan formulir dan pembatasan laju</h2>
-      <p>Formulir masuk dan pendaftaran dilindungi dengan pembatasan jumlah percobaan per alamat IP, penguncian sementara setelah beberapa kali gagal masuk, validasi di server, dan kolom tersembunyi yang hanya diisi oleh skrip otomatis. Kami tidak memakai widget verifikasi pihak ketiga dan tidak mengirim sinyal perangkat Anda ke layanan captcha. Permintaan juga dibatasi agar berasal dari halaman situs ini.</p>
+      <p>Formulir masuk dan pendaftaran dilindungi dengan widget <strong>Cloudflare Turnstile</strong>, pembatasan jumlah percobaan per alamat IP, penguncian sementara setelah beberapa kali gagal masuk, validasi di server, dan kolom tersembunyi yang hanya diisi oleh skrip otomatis. Saat Anda centang kotak verifikasi, Cloudflare memproses sinyal perangkat dan alamat IP Anda untuk menilai apakah permintaan berasal dari manusia; jawaban verifikasinya diperiksa ulang oleh server kami. Kami tidak memakai captcha berupa hitungan atau teks yang sulit dibaca. Permintaan juga dibatasi agar berasal dari halaman situs ini.</p>
 
       <h2 id="pihak-ketiga">7. Pihak ketiga penerima data</h2>
       <p>Kami tidak menjual atau menyewakan data pribadi Anda. Data hanya diproses oleh penyedia layanan yang kami perlukan, dengan kewajiban pelindungan data sesuai perjanjian masing-masing:</p>
@@ -198,6 +198,7 @@
           <tr><td>Supabase</td><td>Basis data dan penyimpanan berkas Pustaka yang bersifat privat.</td></tr>
           <tr><td>Vercel</td><td>Penghostingan situs dan fungsi server.</td></tr>
           <tr><td>Google (Identity Services)</td><td>Verifikasi masuk dengan akun Google.</td></tr>
+          <tr><td>Cloudflare Turnstile</td><td>Verifikasi formulir masuk dan pendaftaran agar tidak disalahgunakan skrip otomatis. Hanya Site Key yang dipakai di halaman; Secret Key disimpan di lingkungan server.</td></tr>
           <tr><td>Penyedia model AI</td><td>Pemrosesan pertanyaan Tanya PII. Pertanyaan dikirim tanpa identitas akun Anda.</td></tr>
           <tr><td>Penyedia wahana &amp; katalog pustaka</td><td>Data jadwal sholat, kalender hijriah, Al-Qur'an, hadis, dan katalog buku.</td></tr>
         </tbody>

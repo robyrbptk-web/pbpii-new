@@ -54,6 +54,7 @@
     @media(max-width:560px){.grid{grid-template-columns:minmax(0,1fr)}.card{padding:21px 17px;border-radius:15px}.seg{grid-template-columns:1fr}.seg label{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:12px 14px}.seg small{margin:0}.seg small{margin-left:8px}input,select,textarea{font-size:16px}select{max-width:100%}.brand small,.hint{font-size:12px}.seg small{font-size:11.5px}.preview{font-size:12.5px}}
   </style>
   <link rel="stylesheet" href="/design.css">
+  <link rel="stylesheet" href="/captcha.css">
   </head>
 <body>
   <div class="wrap">
@@ -108,6 +109,11 @@
               <span>Saya telah membaca dan menyetujui <a href="/privasi.html" target="_blank" rel="noopener">Kebijakan Privasi</a> SuperApp PB PII, termasuk pemrosesan data pribadi untuk keperluan keanggotaan dan verifikasi lembaga.</span>
             </label>
           </div>
+          <div class="field full">
+            <span class="lbl">Verifikasi keamanan</span>
+            <div id="captchaBox" aria-label="Verifikasi keamanan"></div>
+            <div class="hint">Dipakai untuk menahan pendaftaran otomatis oleh bot.</div>
+          </div>
           <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         </div>
 
@@ -122,6 +128,7 @@
     </main>
   </div>
 
+  <script src="/captcha.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
     const LAINNYA = { PW: 'Pengurus Wilayah PII', PD: 'Pengurus Daerah PII', PK: 'Pengurus Komisariat PII' };
@@ -132,6 +139,7 @@
     let lookup = { provinces: [], wps: [], pds: [] };
     let wilayah = { province: '', regencies: [], regencyCodeByName: {}, districts: [], districtsRegency: '' };
     const wilayahCache = new Map();
+    let verifikasi = null;
 
     const $ = (id) => document.getElementById(id);
     const form = $('registerForm');
@@ -412,6 +420,8 @@
         showMessage(error.message + ' Pendaftaran tetap dapat dikirim, tetapi data induk belum dapat diperiksa.', 'err');
       }
       await loadProvinces();
+      verifikasi = window.PBPIICaptcha?.attach($('captchaBox')) || null;
+      verifikasi?.ready().catch(() => {});
       syncRegionControls();
       setPreview();
     })();
@@ -432,6 +442,9 @@
       if (password.length < 8) return showMessage('Kata sandi minimal 8 karakter.', 'err');
       if (password !== $('password2').value) return showMessage('Kata sandi dan ulangannya tidak sama.', 'err');
       if (!$('consent').checked) return showMessage('Setujui Kebijakan Privasi terlebih dahulu sebelum mengirim pendaftaran.', 'err');
+      if (verifikasi && verifikasi.kind() === 'turnstile' && !verifikasi.valid()) {
+        return showMessage('Centang kotak verifikasi keamanan dulu, lalu kirim.', 'err');
+      }
 
       const payload = {
         action: 'orgRegister',
@@ -444,7 +457,8 @@
         phone: $('phone').value.trim(),
         skUrl: $('skUrl').value.trim(),
         note: $('note').value.trim(),
-        pii_hp: $('registerForm').elements.pii_hp.value
+        pii_hp: $('registerForm').elements.pii_hp.value,
+        ...(verifikasi ? verifikasi.fields() : {})
       };
 
       const button = $('submitBtn');
@@ -474,6 +488,9 @@
         message.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } catch (error) {
         showMessage(error.message, 'err');
+        if (error.code === 'captcha' || /verifikasi/i.test(String(error.message))) {
+          await verifikasi?.reload?.();
+        }
       } finally {
         button.disabled = false;
         button.textContent = 'Kirim pendaftaran';

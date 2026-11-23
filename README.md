@@ -749,25 +749,33 @@ Target minimal kegiatan per bulan dapat disetel berjenjang:
   `standar PB bawaan` / `standar <induk>`).
 
 Kunci pengaturan lain: `kaderCommentDailyLimit` (kuota komentar kader per hari)
-dan `eventCommentsOpen` (kolom komentar dibuka/tutup). Client ID Google tidak
-lagi disimpan di sheet: sumbernya adalah variabel lingkungan
-`GOOGLE_CLIENT_ID` (atau `PUBLIC_GOOGLE_CLIENT_ID`) di Vercel. Proxy
-`api/pii.js` menyuntikkannya hanya untuk `kaderLogin` dan `action: 'public'`,
-dan menghapus nilai yang dikirim browser.
+dan `eventCommentsOpen` (kolom komentar dibuka/tutup). Konfigurasi teknis tidak
+ada di sheet maupun dasbor admin: Client ID Google memakai env
+`GOOGLE_CLIENT_ID` (atau `PUBLIC_GOOGLE_CLIENT_ID`), Site Key Turnstile memakai
+env `TURNSTILE_SITE_KEY`, dan Secret Key Turnstile memakai env
+`TURNSTILE_SECRET_KEY`. Proxy `api/pii.js` menghapus nilai yang dikirim browser,
+lalu menyuntikkan versi server hanya untuk aksi yang berhak. Secret Google tidak
+dipakai karena alur GIS memakai ID token, bukan pertukaran kode.
 
 ### Proteksi spam berlapis
-Tanpa widget pihak ketiga. Lapisan yang aktif bersamaan:
+Lapisan yang aktif bersamaan:
 
-1. `api/pii.js` (Vercel) — jendela geser per pasangan `aksi|IP`. Baca 240/60s,
+1. Cloudflare Turnstile muncul di semua formulir masuk/daftar. `captcha.js`
+   meminta Site Key lewat aksi `captcha`, lalu mengirim token sebagai
+   `captchaToken`. Backend memverifikasinya ke `siteverify` memakai Secret Key
+   yang hanya ada di environment server / Script Properties. Kegagalan
+   verifikasi mengembalikan `code: 'captcha'` dan tidak menghitung sebagai
+   salah sandi, sehingga tidak memicu penguncian akun.
+2. `api/pii.js` (Vercel) — jendela geser per pasangan `aksi|IP`. Baca 240/60s,
    **semua jalur login (`login`, `orgLogin`, `kaderLogin`, `kaderEmailLogin`,
    `ssoLogin`) 10/600s**, tulis (termasuk `kaderRegister`) 150/600s,
    sisanya 90/600s. Penolakan mengembalikan HTTP 429
    dengan `code: 'rate_limited'` dan header `Retry-After`; proxy juga menyuntikkan
    `ip` ke body sehingga Apps Script ikut melihat alamat asli pengunjung.
    Proxy menolak POST dengan `Origin` yang tidak cocok dengan host yang
-   dilayani (CSRF ringan), membatasi ukuran body, dan membuang jejak
-   `captchaToken`/`turnstile*` sebelum diteruskan.
-2. `gas/Code.gs` `throttle_()` — jendela tetap di `CacheService` (TTL maksimum
+   dilayani (CSRF ringan), membatasi ukuran body, dan tidak pernah
+   meneruskan konfigurasi/rahasia yang dikirim klien.
+3. `gas/Code.gs` `throttle_()` — jendela tetap di `CacheService` (TTL maksimum
    600s) per aturan di `RATE_RULES`: login admin 8/600s, login lembaga 10/600s,
    pendaftaran lembaga 5/1800s, pendaftaran peserta 12/600s,
    login kader 12/600s (Google dan email sama), pendaftaran akun kader 5/1800s,
@@ -775,18 +783,17 @@ Tanpa widget pihak ketiga. Lapisan yang aktif bersamaan:
    per IP, unggah foto 10/600s, chat 6/60s. Percobaan masuk yang berulang
    dari satu IP juga memicu penguncian sementara sebelum pembatas laju
    mengembalikan `retryAfter`.
-3. Kolom jebakan (`pii_hp`, juga menerima `hp_field`/`honeypot`) disisipkan
+4. Kolom jebakan (`pii_hp`, juga menerima `hp_field`/`honeypot`) disisipkan
    pada semua formulir publik. Manusia membiarkannya kosong; bot yang mengisi
-   ditolak backend dengan `code: 'bot'` dan pesan netral. Nama aksi `captcha`
-   dan pembantu `captchaIssue_`/`assertCaptcha_` tersisa hanya sebagai shim
-   kompatibilitas: selalu menjawab `{kind:'none'}` dan tidak pernah memanggil
-   Cloudflare.
+   ditolak backend dengan `code: 'bot'` dan pesan netral. Lapisan ini berjalan
+   berdampingan dengan Turnstile, bukan menggantikannya.
 
-Formulir komentar acara tidak memakai jebakan karena penulisnya sudah terikat
-akun, dan dibatasi oleh kuota harian + kedua lapis pembatas laju di atas.
+Formulir komentar acara tidak memakai widget maupun jebakan karena penulisnya
+sudah terikat akun, dan dibatasi oleh kuota harian + kedua lapis pembatas laju.
 
-Uji manual: jalankan `npm run check:gas` untuk memastikan tidak ada panggilan
-`siteverify`, jebakan menolak bot, dan pengaturan Turnstile lama diabaikan.
+Uji: `npm run check:gas` memeriksa verifikasi token (token kosong, ditolak, dan
+valid), site key publik boleh keluar, secret tidak pernah keluar ke respons
+publik/admin, serta jebakan dan penguncian tetap bekerja.
 
 ### Catatan migrasi
 Backend ini sengaja masih memakai Google Sheets + Apps Script sebagai langkah
@@ -1007,9 +1014,10 @@ Satu orang boleh masuk lewat dua jalur. Kalau suatu saat akun email login dengan
 Google dan alamat emailnya sama, `kaderLogin_` menautkan `googleSub` ke baris yang
 sudah ada sehingga tidak muncul akun ganda.
 
-Formulir kader memakai kolom jebakan `pii_hp`, pembatas laju per IP, dan
-penguncian sementara setelah beberapa kali gagal masuk. Tidak ada widget
-Cloudflare Turnstile dan tidak ada lagi captcha hitungan.
+Formulir kader memakai Cloudflare Turnstile, kolom jebakan `pii_hp`, pembatas
+laju per IP, dan penguncian sementara setelah beberapa kali gagal masuk. Token
+Turnstile diverifikasi server; kegagalannya memakai `code: 'captcha'` dan tidak
+dihitung sebagai salah sandi. Tidak ada captcha hitungan.
 
 **Satu sesi untuk semua fitur.** Sesi disimpan di localStorage dengan tiga kunci
 (`pbpii_kader_token`, `pbpii_admin_token`, `pbpii_org_token`), tetapi `akun.js`

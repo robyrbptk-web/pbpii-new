@@ -1,0 +1,39 @@
+/* Verifikasi Turnstile: ringan, mengikuti kartu formulir redesign. */
+.captcha {
+  --captcha-muted: #64748b;
+  margin: 4px 0 2px;
+}
+
+.captcha-box {
+  min-height: 65px;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.captcha-help,
+.captcha-loading {
+  margin: 6px 0 2px;
+  color: var(--captcha-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.captcha-help.is-error {
+  color: #b42318;
+}
+
+.captcha .cf-turnstile,
+.captcha-box iframe {
+  width: 100% !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .captcha * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

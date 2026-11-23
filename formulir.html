@@ -67,6 +67,7 @@
     }
   </style>
   <link rel="stylesheet" href="/design.css">
+  <link rel="stylesheet" href="/captcha.css">
   </head>
 <body>
   <div class="wrap">
@@ -89,6 +90,7 @@
         <div class="msg ok" id="formMessage" role="status" aria-live="polite"></div>
         <form id="registerForm">
           <div id="dynamicFields"></div>
+          <div class="field"><span class="lbl">Verifikasi keamanan</span><div id="captchaBox" aria-label="Verifikasi keamanan"></div></div>
           <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
           <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
         </form>
@@ -110,6 +112,7 @@
   </div>
 
   <script src="/form-builder.js"></script>
+  <script src="/captcha.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
     const $ = (id) => document.getElementById(id);
@@ -117,6 +120,7 @@
     const registrationKey = window.crypto?.randomUUID?.()
       || Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     let formData = null;
+    let verifikasi = null;
 
     /* Kunci yang sama dipakai semua halaman (lihat akun.js). Panitia mendaftar
        lewat dashboard, bukan lewat formulirnya sendiri, jadi sesi pengurus ikut
@@ -234,6 +238,8 @@
         $('dynamicFields').innerHTML = window.PBPIIFormBuilder.render(formData.fields, { idPrefix: 'answer' });
         renderActivityDetails();
 
+        verifikasi = window.PBPIICaptcha?.attach($('captchaBox')) || null;
+        verifikasi?.ready().catch(() => {});
         $('loading').classList.add('hidden');
         $('formView').classList.remove('hidden');
         const registrationOpen = formData.registrationOpen === undefined
@@ -263,6 +269,10 @@
         showFormMessage('Isi nomor WhatsApp atau email agar panitia dapat menghubungi.');
         return;
       }
+      if (verifikasi && verifikasi.kind() === 'turnstile' && !verifikasi.valid()) {
+        showFormMessage('Selesaikan verifikasi keamanan di atas, lalu kirim.');
+        return;
+      }
       const button = $('submitBtn');
       button.disabled = true;
       button.textContent = 'Mengirim…';
@@ -281,7 +291,8 @@
             email,
             note: String(answers.note || '').trim(),
             ...(sesiAktif() ? { token: sesiAktif() } : {}),
-            pii_hp: $('registerForm').elements.pii_hp.value
+            pii_hp: $('registerForm').elements.pii_hp.value,
+            ...(verifikasi ? verifikasi.fields() : {})
           })
         });
         const result = await response.json();
@@ -305,6 +316,9 @@
         $('successView').scrollIntoView({ behavior: 'smooth', block: 'center' });
       } catch (error) {
         showFormMessage(error.message);
+        if (error.code === 'captcha' || /verifikasi/i.test(String(error.message))) {
+          await verifikasi?.reload?.();
+        }
       } finally {
         button.disabled = false;
         button.textContent = 'Kirim pendaftaran';

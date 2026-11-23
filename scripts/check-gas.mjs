@@ -190,12 +190,16 @@ const scriptCache = {
 const CacheService = { getScriptCache: () => scriptCache };
 
 /** Titik-titik keluar yang bisa diatur per pemeriksaan. */
-const http = { google: null, ai: null, calls: [] };
+const http = { google: null, ai: null, turnstile: null, calls: [] };
 const UrlFetchApp = {
   fetch(url, options) {
     http.calls.push({ url: String(url), options });
-    if (String(url).includes('challenges.cloudflare.com') || String(url).includes('siteverify')) {
-      throw new Error('Cloudflare Turnstile tidak boleh dipanggil lagi: ' + url);
+    if (String(url).includes('challenges.cloudflare.com/turnstile/v0/siteverify')) {
+      const jawaban = http.turnstile || { success: false };
+      return {
+        getContentText: () => JSON.stringify(jawaban),
+        getResponseCode: () => 200
+      };
     }
     if (String(url).includes('pollinations') || String(options?.payload || '').includes('"messages"')) {
       const teks = http.ai ? JSON.stringify(http.ai)
@@ -946,32 +950,83 @@ for (let i = 0; i < gas.RATE_RULES.chat.limit + 1; i += 1) {
 }
 check('pertanyaan Tanya PII dibatasi per menit', lewatBeruntun, gas.RATE_RULES.chat.limit);
 
+/* Turnstile diaktifkan hanya di blok ini. Kuncinya fixture, bukan kunci
+   produksi, dan dicabut lagi sebelum pemeriksaan lain berjalan. */
+const widgetNone = request({ action: 'captcha', ip: '203.0.113.7' });
+check('klien tanpa kunci tetap menerima captcha none', widgetNone.data, { kind: 'none' });
+
+properti.TURNSTILE_SITE_KEY = 'fixture-site-key';
+properti.TURNSTILE_SECRET_KEY = 'fixture-secret-key';
+http.turnstile = { success: true };
+http.calls.length = 0;
+
 const widget = request({ action: 'captcha', ip: '203.0.113.7' });
-check('browser tidak lagi ditawari widget pihak ketiga', widget.data, { kind: 'none' });
-check('tidak ada panggilan ke Cloudflare', http.calls.some((call) => /cloudflare|siteverify/i.test(call.url)), false);
+check('browser menerima Site Key Turnstile', widget.data, { kind: 'turnstile', siteKey: 'fixture-site-key' });
+check('aksi captcha tidak mengirim Secret Key',
+  JSON.stringify(widget).includes('fixture-secret-key'), false);
+check('aksi captcha hanya menerbitkan Site Key, bukan memverifikasi token',
+  http.calls.some((call) => /siteverify/.test(call.url)), false);
+
 const payloadPublic = request({ action: 'public', ip: '203.0.113.7' });
 check('jejak konfigurasi Turnstile tidak ikut ke browser',
   Object.keys(payloadPublic.data.settings).some((key) => /^turnstile/i.test(key)), false);
+check('respons publik tidak memuat Secret Key',
+  JSON.stringify(payloadPublic).includes('fixture-secret-key'), false);
 const paketAdmin = request({ action: 'adminData', token: 'ses-admin' });
-check('dasbor admin tidak menerima kunci Turnstile',
-  Object.keys(paketAdmin.data.settings).some((key) => /^turnstile/i.test(key)), false);
-const hasilSimpan = request({ action: 'saveSettings', token: 'ses-admin', settings: { turnstileSiteKey: 'site-key-abc', turnstileSecret: 'secret-xyz' } });
-check('pengaturan Turnstile lama diabaikan saat disimpan',
-  rowsOf('Settings').some((row) => /^turnstile/i.test(String(row.key))), false);
+check('dasbor admin tidak menerima kunci Turnstile maupun Client ID lama',
+  Object.keys(paketAdmin.data.settings).some((key) => /^(turnstile|googleClientId)/i.test(key)), false);
+check('respons admin tidak memuat Secret Key',
+  JSON.stringify(paketAdmin).includes('fixture-secret-key'), false);
+const clientIdLama = rowsOf('Settings').find((row) => row.key === 'googleClientId')?.value;
+const hasilSimpan = request({ action: 'saveSettings', token: 'ses-admin', settings: { turnstileSiteKey: 'site-key-abc', turnstileSecret: 'secret-xyz', googleClientId: 'klien-baru' } });
+check('dasbor tidak bisa menulis ulang baris teknis lama',
+  [
+    rowsOf('Settings').some((row) => /^turnstile/i.test(String(row.key))),
+    rowsOf('Settings').find((row) => row.key === 'googleClientId')?.value
+  ], [false, clientIdLama]);
 check('umpan simpan tidak membawa kunci rahasia', 'turnstileSecret' in hasilSimpan.data, false);
 
+const loginTanpaToken = request({ action: 'login', username: 'pb', password: 'tebakan', ip: '203.0.113.77' });
+check('token Turnstile kosong ditolak sebelum kata sandi',
+  [loginTanpaToken.code, loginTanpaToken.ok], ['captcha', false]);
+const ulangCaptcha = [];
+for (let i = 0; i < 6; i += 1) {
+  ulangCaptcha.push(request({ action: 'login', username: 'pb', password: 'tebakan', ip: '203.0.113.77' }));
+}
+check('kegagalan captcha tidak memicu penguncian akun',
+  ulangCaptcha.every((item) => item.code === 'captcha'), true);
+
+http.turnstile = { success: false };
+http.calls.length = 0;
+const loginDitolak = request({ action: 'login', username: 'pb', password: 'tebakan', ip: '203.0.113.78', captchaToken: 'token-ditolak' });
+check('token yang ditolak Cloudflare menghasilkan code captcha', loginDitolak.code, 'captcha');
+const panggilanVerify = http.calls.find((call) => /siteverify/.test(call.url));
+check('Secret Key hanya dikirim ke Cloudflare',
+  panggilanVerify && String(panggilanVerify.options.payload.secret) === 'fixture-secret-key', true);
+check('token diteruskan ke endpoint siteverify Cloudflare',
+  panggilanVerify &&
+    panggilanVerify.url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify' &&
+    String(panggilanVerify.options.payload.response) === 'token-ditolak', true);
+
+http.turnstile = { success: true };
 const pesertaAwal = rowsOf('Participants').length;
-const tanpaBot = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7' });
-check('pendaftaran tetap berjalan tanpa widget', tanpaBot.ok, true);
+const denganToken = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7', captchaToken: 'token-valid' });
+check('pendaftaran dengan token Turnstile valid berhasil', denganToken.ok, true);
 check('peserta tercatat satu baris', rowsOf('Participants').length, pesertaAwal + 1);
-const botPendaftaran = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Spam Bot', phone: '081100011', ip: '203.0.113.71', ...BOT_JEBAK });
-check('kolom jebakan menolak pendaftaran bot', botPendaftaran.code, 'bot');
+const botPendaftaran = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Spam Bot', phone: '081100011', ip: '203.0.113.71', captchaToken: 'token-valid', ...BOT_JEBAK });
+check('kolom jebakan tetap menolak pendaftaran bot', botPendaftaran.code, 'bot');
 check('pesanan bot tidak tercatat', rowsOf('Participants').length, pesertaAwal + 1);
-const daftarLolos = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40' });
-check('lembaga baru terdaftar tanpa verifikasi pihak ketiga', daftarLolos.data.status, 'pending');
-const daftarBot = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-bot@example.com', password: 'rahasia123', ip: '198.51.100.41', ...BOT_JEBAK });
+const daftarLolos = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40', captchaToken: 'token-valid' });
+check('lembaga baru terdaftar dengan verifikasi Turnstile', daftarLolos.data.status, 'pending');
+const daftarBot = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-bot@example.com', password: 'rahasia123', ip: '198.51.100.41', captchaToken: 'token-valid', ...BOT_JEBAK });
 check('pendaftaran lembaga bot ditolak', daftarBot.code, 'bot');
 check('pesan kegagalan bot tidak membocorkan mekanisme', daftarBot.error, PESAN_BOT);
+
+/* Kunci dicabut supaya pemeriksaan Google dan sisanya memakai jalur yang sama
+   seperti sebelum fixture Turnstile diaktifkan. */
+delete properti.TURNSTILE_SITE_KEY;
+delete properti.TURNSTILE_SECRET_KEY;
+http.turnstile = null;
 
 const klaimGoogle = {
   iss: 'https://accounts.google.com',

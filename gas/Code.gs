@@ -398,7 +398,6 @@ const ALLOWED_SETTINGS = [
   'instagramUrl',
   'youtubeUrl',
   'keaktifanMinPerMonth',
-  'googleClientId',
   'eventCommentsOpen',
   'feedOpen',
   'faktaSinkronAktif',
@@ -406,12 +405,12 @@ const ALLOWED_SETTINGS = [
 ];
 
 /**
- * Setelah Turnstile dihapus tidak ada lagi kunci rahasia di sheet Settings.
- * Client ID Google bersifat publik; Secret Google tidak pernah disimpan di sini.
- * Konstanta ini dipertahankan supaya penyaring umpan tetap única dan aman bila
- * kemudian ada kunci sensitif baru.
+ * Konfigurasi teknis tidak dikelola dari dasbor: Client ID Google dan kunci
+ * Turnstile berasal dari environment variable server / Script Properties.
+ * Baris lama di sheet Settings hanya dipakai sebagai cadangan migrasi dan
+ * sengaja disaring dari semua respons publik maupun admin.
  */
-const SECRET_SETTINGS = [];
+const SECRET_SETTINGS = ['turnstileSecret'];
 
 /**
  * Buat sheet yang dibutuhkan tanpa menghapus data yang sudah ada, lalu perbaiki
@@ -5744,18 +5743,39 @@ function noteLoginFailure_(kind, identity) {
   cache.put(failureKey, count + '|' + started, Math.min(LOGIN_LOCK_WINDOW, CACHE_MAX_SECONDS));
 }
 
-/** Setelan yang boleh dilihat browser; kunci sensitif dan jejak Turnstile dibuang. */
+/**
+ * Sumber konfigurasi teknis, berurutan dari yang paling aman:
+ * Script Properties / environment variable server, nilai yang disuntikkan proxy
+ * Vercel, lalu baris Settings lama sebagai cadangan migrasi. Tidak ada jalur
+ * yang menerima nilai ini dari browser atau dari field dasbor.
+ */
+function serverSetting_(nama, kunciLama, body) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const dariServer = props ? String(props.getProperty(nama) || '').trim() : '';
+    if (dariServer) return dariServer;
+  } catch (error) {
+    // Di luar Apps Script, lapisan port membaca environment lewat objek yang sama.
+  }
+  const dariProxy = body ? String(body['piiServer_' + nama] || '').trim() : '';
+  if (dariProxy) return dariProxy;
+  const settings = settingsMap_();
+  return String(settings[kunciLama] || '').trim();
+}
+
+/** Setelan yang boleh dilihat browser; jejak konfigurasi teknis dibuang. */
 function publicSettings_(settings) {
   const copy = {};
+  const tersembunyi = SECRET_SETTINGS.concat(['googleClientId']);
   Object.keys(settings || {}).forEach(function (key) {
-    if (SECRET_SETTINGS.indexOf(key) >= 0) return;
+    if (tersembunyi.indexOf(key) >= 0) return;
     if (/^turnstile/i.test(key)) return;
     copy[key] = settings[key];
   });
   return copy;
 }
 
-/** Umpan dasbor admin: tidak ada lagi kunci rahasia yang perlu ditandai. */
+/** Umpan dasbor admin: tidak ada kunci teknis yang dikirim ke pengelola. */
 function adminSettings_() {
   return publicSettings_(settingsMap_());
 }
@@ -5772,18 +5792,56 @@ function assertHoneypot_(body) {
   throw error;
 }
 
+/** Kunci Turnstile: Site Key boleh publik, Secret Key hanya hidup di server. */
+function turnstileKeys_(body) {
+  const siteKey = serverSetting_('TURNSTILE_SITE_KEY', 'turnstileSiteKey', body);
+  const secret = serverSetting_('TURNSTILE_SECRET_KEY', 'turnstileSecret', body);
+  return siteKey && secret ? { siteKey: siteKey, secret: secret } : null;
+}
+
 /**
- * Kompatibilitas untuk klien lama: tidak ada widget, tidak ada token, dan tidak
- * ada lagi verifikasi pihak ketiga. Perlindungan duduk di pembatas laju IP,
- * kunci jebakan, dan validasi server yang sudah ada.
+ * Beritahu browser apakah widget Turnstile harus dipasang. Hanya Site Key yang
+ * dikirim; Secret Key tidak pernah meninggalkan server.
  */
 function captchaIssue_(body) {
   throttle_('captcha-issue', clientIp_(body));
-  return { kind: 'none' };
+  const keys = turnstileKeys_(body);
+  return keys ? { kind: 'turnstile', siteKey: keys.siteKey } : { kind: 'none' };
 }
 
-/** Dipanggil tiap aksi tulis publik; kini hanya memeriksa kolom jebakan. */
+/** Verifikasi token ke Cloudflare; kegagalan captcha bukan kegagalan sandi. */
+function verifyTurnstile_(secret, token, ip) {
+  if (!token) {
+    const error = new Error('Captcha belum diselesaikan. Centang kotak verifikasi dulu.');
+    error.code = 'captcha';
+    throw error;
+  }
+
+  let claims = {};
+  try {
+    const response = UrlFetchApp.fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'post',
+      payload: { secret: secret, response: String(token).slice(0, 2048), remoteip: ip },
+      muteHttpExceptions: true
+    });
+    claims = JSON.parse(response.getContentText() || '{}');
+  } catch (error) {
+    const failed = new Error('Verifikasi captcha tidak dapat dihubungi. Coba lagi sebentar.');
+    failed.code = 'captcha';
+    throw failed;
+  }
+
+  if (claims.success !== true) {
+    const rejected = new Error('Verifikasi captcha ditolak. Muat ulang halaman lalu coba lagi.');
+    rejected.code = 'captcha';
+    throw rejected;
+  }
+}
+
+/** Dipanggil tiap aksi tulis publik: Turnstile dulu, lalu kolom jebakan. */
 function assertCaptcha_(body) {
+  const keys = turnstileKeys_(body);
+  if (keys) verifyTurnstile_(keys.secret, body && body.captchaToken, clientIp_(body));
   assertHoneypot_(body);
 }
 
@@ -5795,11 +5853,11 @@ function assertCaptcha_(body) {
  * pernah dipercaya dari sisi klien.
  */
 function kaderLogin_(body) {
-  const settings = settingsMap_();
-  // Proxy Vercel boleh menyuntik Client ID dari environment. Karena itu nilai
-  // publik di browser tidak pernah dipercaya; hanya server-to-server yang
-  // membawa `googleClientId` di body. Sheet tetap jadi cadangan deployment lama.
-  const clientId = String(body.googleClientId || settings.googleClientId || '').trim();
+  // Client ID selalu diambil dari environment server / Script Properties. Proksi
+  // menyuntikkannya sebagai `piiServer_GOOGLE_CLIENT_ID`; nilai yang dikirim
+  // browser tidak pernah dipercaya. Baris Settings lama hanya cadangan migrasi.
+  const clientId = serverSetting_('GOOGLE_CLIENT_ID', 'googleClientId', body) ||
+    String(body.googleClientId || '').trim();
   if (!clientId) {
     throw new Error('Masuk dengan Google belum dibuka di website ini.');
   }

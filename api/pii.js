@@ -13,7 +13,7 @@ export const DEFAULT_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfyc
 /** Reads are cheap; writes are where spam lives. `limit` requests per `windowMs`. */
 const RULES = {
   read: { limit: 240, windowMs: 60_000 },
-  captcha: { limit: 30, windowMs: 600_000 }, // kompatibilitas klien lama; selalu menjawab {kind:'none'}
+  captcha: { limit: 30, windowMs: 600_000 }, // permintaan Site Key Turnstile untuk widget
   login: { limit: 10, windowMs: 600_000 },
   // Posting has no daily count cap, so this budget is sized for a whole campus
   // sharing one exit IP — a burst should slow down, never look like a quota.
@@ -37,6 +37,12 @@ const WRITE_ACTIONS = new Set([
 
 /** Every password/OAuth entry point shares the strictest budget. */
 const LOGIN_ACTIONS = new Set(['login', 'orgLogin', 'kaderLogin', 'kaderEmailLogin', 'ssoLogin']);
+
+/** Aksi yang memakai token Turnstile; token tidak diteruskan di aksi lain. */
+const CAPTCHA_ACTIONS = new Set([
+  'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin',
+  'kaderEmailLogin', 'kaderRegister', 'ssoLogin'
+]);
 
 /** Base64 media/PDF uploads are the only payloads allowed to be large. */
 const MAX_BODY_BYTES = 220_000;
@@ -412,47 +418,78 @@ function originDiperbolehkan(req) {
   return !!host && asal.host.toLowerCase() === host;
 }
 
-/** Client ID Google bersifat publik, tetapi sumbernya hanya environment server. */
-function googleClientId() {
-  return String(process.env.GOOGLE_CLIENT_ID || process.env.PUBLIC_GOOGLE_CLIENT_ID || '').trim();
+/** Konfigurasi teknis hanya boleh berasal dari environment server. */
+function serverConfig(nama) {
+  return String(process.env[nama] || '').trim();
 }
 
-/** Buang jejak Turnstile dan token lama sebelum diteruskan ke backend. */
+/** Client ID Google bersifat publik, tetapi sumbernya hanya environment server. */
+function googleClientId() {
+  return serverConfig('GOOGLE_CLIENT_ID') || serverConfig('PUBLIC_GOOGLE_CLIENT_ID');
+}
+
+/**
+ * Buang semua konfigurasi/rahasia yang dikirim klien, lalu suntikkan nilai dari
+ * server. Token Turnstile diteruskan hanya untuk aksi yang benar-benar
+ * memverifikasinya; Secret Key tidak pernah dikirim ke browser.
+ */
 function bersihkanBody(body, action) {
   const bersih = { ...body };
-  delete bersih.captchaToken;
-  delete bersih.turnstileSiteKey;
-  delete bersih.turnstileSecret;
-  delete bersih.googleClientId;
+  [
+    'turnstileSiteKey', 'turnstileSecret', 'googleClientId', 'googleClientSecret',
+    'piiServer_TURNSTILE_SITE_KEY', 'piiServer_TURNSTILE_SECRET_KEY',
+    'piiServer_GOOGLE_CLIENT_ID', 'piiServer_GOOGLE_CLIENT_SECRET'
+  ].forEach((key) => { delete bersih[key]; });
 
   Object.keys(bersih).forEach((key) => {
-    if (/^turnstile/i.test(key)) delete bersih[key];
+    if (/^(turnstile|googleClient|piiServer_)/i.test(key)) delete bersih[key];
   });
+  if (!CAPTCHA_ACTIONS.has(action)) delete bersih.captchaToken;
 
-  if (action === 'kaderLogin') {
-    const clientId = googleClientId();
-    if (clientId) bersih.googleClientId = clientId;
-  }
+  const siteKey = serverConfig('TURNSTILE_SITE_KEY');
+  const secret = serverConfig('TURNSTILE_SECRET_KEY');
+  const clientId = googleClientId();
+  if (siteKey) bersih.piiServer_TURNSTILE_SITE_KEY = siteKey;
+  if (secret) bersih.piiServer_TURNSTILE_SECRET_KEY = secret;
+  if (clientId) bersih.piiServer_GOOGLE_CLIENT_ID = clientId;
+  if (action === 'kaderLogin' && clientId) bersih.googleClientId = clientId;
+
   return bersih;
 }
 
-/** Pastikan data balasan tidak pernah membocorkan kunci lama, dan suntikkan Client ID. */
+/**
+ * Pastikan balasan tidak pernah membocorkan Secret Key / Client Secret.
+ * Site Key dan Client ID memang konfigurasi publik, jadi boleh dikirim ke
+ * halaman yang memang membutuhkannya — bukan ke panel pengaturan admin.
+ */
 function rapikanRespons(payload, action) {
   if (!payload || typeof payload !== 'object') return payload;
   const data = payload.data && typeof payload.data === 'object' ? payload.data : null;
-  if (data) {
-    Object.keys(data).forEach((key) => {
-      if (/^turnstile/i.test(key)) delete data[key];
+  if (!data) return payload;
+
+  Object.keys(data).forEach((key) => {
+    if (/^(turnstileSecret|googleClientSecret|piiServer_)/i.test(key)) delete data[key];
+  });
+  if (data.settings && typeof data.settings === 'object') {
+    Object.keys(data.settings).forEach((key) => {
+      if (/^(turnstileSecret|googleClientSecret)/i.test(key)) delete data.settings[key];
     });
-    if (data.settings && typeof data.settings === 'object') {
-      Object.keys(data.settings).forEach((key) => {
-        if (/^turnstile/i.test(key)) delete data.settings[key];
-      });
-      if (action === 'public') {
-        const clientId = googleClientId();
-        if (clientId) data.settings.googleClientId = clientId;
-        else delete data.settings.googleClientId;
-      }
+    if (action === 'public') {
+      const clientId = googleClientId();
+      const siteKey = serverConfig('TURNSTILE_SITE_KEY');
+      if (clientId) data.settings.googleClientId = clientId;
+      else delete data.settings.googleClientId;
+      if (siteKey) data.settings.turnstileSiteKey = siteKey;
+      else delete data.settings.turnstileSiteKey;
+    }
+  }
+  if (action === 'captcha') {
+    const siteKey = serverConfig('TURNSTILE_SITE_KEY');
+    // Environment server adalah sumber kebenaran. Backend lama masih boleh
+    // menjawab dari baris Settings saat migrasi, tetapi nilainya ditimpa di sini.
+    if (siteKey) {
+      data.kind = 'turnstile';
+      data.siteKey = siteKey;
     }
   }
   return payload;
@@ -495,6 +532,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
+  // Jawaban autentikasi tidak boleh disimpan perantara, apa pun konfigurasi
+  // hostingnya. Header vercel.json tetap dipertahankan sebagai lapis kedua.
+  res.setHeader('Cache-Control', 'no-store');
   if (!originDiperbolehkan(req)) {
     return res.status(403).json({
       ok: false,

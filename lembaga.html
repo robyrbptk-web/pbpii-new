@@ -366,6 +366,7 @@
     }
   </style>
   <link rel="stylesheet" href="/design.css">
+  <link rel="stylesheet" href="/captcha.css">
   </head>
 <body>
   <div id="authView" class="auth-wrap">
@@ -381,6 +382,7 @@
         <div class="field"><label class="lbl" for="loginPassword">Kata sandi</label>
           <div class="pass-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pass-toggle" id="togglePass">Lihat</button></div>
         </div>
+        <div class="captcha" id="loginCaptcha" aria-label="Verifikasi keamanan"></div>
         <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button class="btn primary full" type="submit" id="loginBtn">Masuk</button>
         <div class="auth-msg" id="loginMessage" role="status" aria-live="polite"></div>
@@ -733,6 +735,7 @@
 
   <script src="/editor.js"></script>
   <script src="/form-builder.js"></script>
+  <script src="/captcha.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
     const TOKEN_KEY = 'pbpii_org_token';
@@ -745,6 +748,11 @@
     let editingForm = null;
     let letterFilter = 'all';
     let toastTimer = null;
+
+    /* Verifikasi manusia memakai Cloudflare Turnstile; wadah menyembunyikan
+       dirinya sendiri bila kunci belum dipasang di server. */
+    const verifikasi = window.PBPIICaptcha?.attach($('loginCaptcha')) || null;
+    verifikasi?.ready().catch(() => {});
 
     function toast(text) {
       const el = $('toast');
@@ -860,7 +868,8 @@
         const data = await api('orgLogin', {
           email: $('loginEmail').value.trim(),
           password: $('loginPassword').value,
-          pii_hp: $('loginForm').elements.pii_hp.value
+          pii_hp: $('loginForm').elements.pii_hp.value,
+          ...(verifikasi ? verifikasi.fields() : {})
         });
         localStorage.setItem(TOKEN_KEY, data.token);
         localStorage.setItem(ORG_KEY, data.org.name);
@@ -868,6 +877,10 @@
         await loadData();
       } catch (error) {
         showLoginMessage(error.message, 'err');
+        if (verifikasi && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
+          verifikasi.reset();
+          verifikasi.reload?.().catch(() => {});
+        }
       } finally {
         button.disabled = false;
         button.textContent = 'Masuk';
