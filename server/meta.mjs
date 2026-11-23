@@ -1227,7 +1227,13 @@ export const META = {
       "isi",
       "tautan",
       "dibuat",
-      "dibaca"
+      "dibaca",
+      "actorKey",
+      "actorName",
+      "actorPicture",
+      "targetType",
+      "targetId",
+      "grupKunci"
     ],
     "peta": [
       "id",
@@ -1237,7 +1243,13 @@ export const META = {
       "isi",
       "tautan",
       "dibuat",
-      "dibaca"
+      "dibaca",
+      "actor_key",
+      "actor_name",
+      "actor_picture",
+      "target_type",
+      "target_id",
+      "grup_kunci"
     ],
     "pk": "id",
     "tipe": [
@@ -1248,7 +1260,13 @@ export const META = {
       "text not null default ''",
       "text not null default ''",
       "timestamptz not null default now()",
-      "timestamptz"
+      "timestamptz",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''"
     ],
     "ambil": [
       "id",
@@ -1259,6 +1277,12 @@ export const META = {
       "tautan",
       "dibuat",
       "dibaca",
+      "actor_key",
+      "actor_name",
+      "actor_picture",
+      "target_type",
+      "target_id",
+      "grup_kunci",
       "seq"
     ]
   },
@@ -1308,6 +1332,39 @@ export const META = {
       "alasan",
       "dibuat",
       "detail",
+      "seq"
+    ]
+  },
+  "CeritaTonton": {
+    "tabel": "story_views",
+    "headers": [
+      "id",
+      "storyId",
+      "actorKey",
+      "ip",
+      "dibuat"
+    ],
+    "peta": [
+      "id",
+      "story_id",
+      "actor_key",
+      "ip",
+      "dibuat"
+    ],
+    "pk": "id",
+    "tipe": [
+      "text primary key",
+      "text not null",
+      "text not null default ''",
+      "text not null default ''",
+      "timestamptz not null default now()"
+    ],
+    "ambil": [
+      "id",
+      "story_id",
+      "actor_key",
+      "ip",
+      "dibuat",
       "seq"
     ]
   }

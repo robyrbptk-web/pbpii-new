@@ -229,8 +229,8 @@
       ? `<img src="${tautanGambar(kader.avatar)}" alt="" referrerpolicy="no-referrer"${atributGambar(kader.avatar)} onerror="profilGambarGagal(this)">`
       : '';
     const alamat = kader.username
-      ? `/profil.html?u=${encodeURIComponent(kader.username)}`
-      : `/profil.html?id=${encodeURIComponent(kader.id || '')}`;
+      ? `/app/profil?u=${encodeURIComponent(kader.username)}`
+      : `/app/profil?kader=${encodeURIComponent(kader.id || '')}`;
     const pegangan = kader.username ? `@${escapeHTML(kader.username)}` : '';
     const keterangan = [pegangan, kader.jenjang ? escapeHTML(kader.jenjang) : '']
       .filter(Boolean).join(' · ');
@@ -543,30 +543,81 @@
 
   /* ------------------------------------------------------------------ cari */
 
-  el.cariForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const kata = (el.cari.value || '').trim();
+  const cariCache = new Map();
+  const CARI_TTL = 60000;
+  let cariJeda = 0;
+  let cariUrutan = 0;
+
+  function kataCari(nilai) {
+    return String(nilai || '').trim().replace(/^@+/, '').trim().slice(0, 40);
+  }
+
+  function tampilkanTemuan(hasil) {
+    el.temuan.hidden = false;
+    el.temuan.innerHTML = hasil.length
+      ? '<p class="profil-temuan-judul">Hasil pencarian</p>' + hasil.map(barisOrang).join('')
+      : '<p class="profil-pesan">Belum ada kader dengan nama itu.</p>';
+  }
+
+  async function cariKader(nilai) {
+    if (!el.temuan) return;
+    const kata = kataCari(nilai);
     if (kata.length < 2) {
+      cariUrutan += 1;
+      state.temuan = [];
+      el.temuan.hidden = true;
+      el.temuan.innerHTML = '';
+      return;
+    }
+    const kunci = kata.toLowerCase();
+    const nomor = ++cariUrutan;
+    const tersimpan = cariCache.get(kunci);
+    if (tersimpan && Date.now() - tersimpan.pada < CARI_TTL) {
+      state.temuan = tersimpan.hasil;
+      tampilkanTemuan(tersimpan.hasil);
+      return;
+    }
+    el.temuan.hidden = false;
+    el.temuan.innerHTML = '<p class="profil-pesan">Mencari…</p>';
+    try {
+      const data = await api({ action: 'kaderCari', token: tokenSaya(), kata });
+      /* Jawaban lama dibuang supaya hasil tidak bertukar urutan saat kader
+         mengetik cepat. */
+      if (nomor !== cariUrutan) return;
+      if (!data.kemampuan?.mencari) {
+        el.temuan.innerHTML = '<p class="profil-pesan">Masuk sebagai kader untuk mencari kawan.</p>';
+        return;
+      }
+      const hasil = data.hasil || [];
+      state.temuan = hasil;
+      cariCache.set(kunci, { hasil, pada: Date.now() });
+      if (cariCache.size > 30) cariCache.delete(cariCache.keys().next().value);
+      tampilkanTemuan(hasil);
+    } catch (error) {
+      if (nomor !== cariUrutan) return;
+      el.temuan.innerHTML = `<p class="profil-pesan">${escapeHTML(error.message)}</p>`;
+    }
+  }
+
+  el.cari?.addEventListener('input', () => {
+    clearTimeout(cariJeda);
+    const kata = kataCari(el.cari.value);
+    if (kata.length < 2) {
+      cariUrutan += 1;
       state.temuan = [];
       el.temuan.hidden = true;
       el.temuan.innerHTML = '';
       return;
     }
     el.temuan.hidden = false;
-    el.temuan.innerHTML = '<p class="profil-pesan">Mencari kader…</p>';
-    try {
-      const data = await api({ action: 'kaderCari', token: tokenSaya(), kata: kata.slice(0, 40) });
-      if (!data.kemampuan?.mencari) {
-        el.temuan.innerHTML = '<p class="profil-pesan">Masuk sebagai kader untuk mencari kawan.</p>';
-        return;
-      }
-      const hasil = data.hasil || [];
-      el.temuan.innerHTML = hasil.length
-        ? `<p class="profil-temuan-judul">Hasil pencarian</p>` + hasil.map(barisOrang).join('')
-        : '<p class="profil-pesan">Belum ada kader dengan nama itu.</p>';
-    } catch (error) {
-      el.temuan.innerHTML = `<p class="profil-pesan">${escapeHTML(error.message)}</p>`;
-    }
+    el.temuan.innerHTML = '<p class="profil-pesan">Mencari…</p>';
+    cariJeda = setTimeout(() => cariKader(kata), 300);
+  });
+
+  el.cariForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    clearTimeout(cariJeda);
+    cariKader(el.cari.value);
   });
 
   /* ------------------------------------------------------------------ edit */

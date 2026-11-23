@@ -36,7 +36,9 @@ const HEADERS = {
   Stories: ['id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa', 'status'],
   Moderasi: ['id', 'jenis', 'targetId', 'actorKey', 'actorName', 'adminRole', 'alasan', 'dibuat', 'detail'],
   Threads: ['id', 'actor', 'thread', 'judul', 'dibuat', 'diubah', 'isi', 'jumlah', 'status'],
-  Notifikasi: ['id', 'untuk', 'jenis', 'judul', 'isi', 'tautan', 'dibuat', 'dibaca'],
+  Notifikasi: ['id', 'untuk', 'jenis', 'judul', 'isi', 'tautan', 'dibuat', 'dibaca',
+    'actorKey', 'actorName', 'actorPicture', 'targetType', 'targetId', 'grupKunci'],
+  CeritaTonton: ['id', 'storyId', 'actorKey', 'ip', 'dibuat'],
   Fakta: ['id', 'topik', 'pernyataan', 'sumber', 'tautan', 'terbit',
     'berlakuSejak', 'berlakuSampai', 'status', 'diperbarui', 'peran'],
   PustakaBerkas: ['id', 'judul', 'kategori', 'ringkas', 'halaman', 'potong', 'byte', 'berkas', 'versi', 'tanggal', 'visibel'],
@@ -390,7 +392,12 @@ const exported = [
   'faktaSinkron', 'pastikanPacuFakta_', 'faktaTeksHtml_', 'faktaNama_', 'faktaAlamat_',
   'faktaIdentitas_', 'faktaArtikelResmi_', 'faktaCalonDari_', 'faktaCerminSettings_',
   'faktaTerapkan_', 'faktaKonteks_',
-  'notifKirim_', 'notifTautan_', 'NOTIF_HEADERS', 'NOTIF_KOTAK_ADMIN', 'orgSetStatus_', 'orgRegister_'
+  'notifKirim_', 'notifTautan_', 'notifSosial_', 'notifSebut_', 'notifTargetHilang_',
+  'notifTampilan_', 'notifDaftar_', 'notifTandai_', 'NOTIF_RUTE', 'NOTIF_HEADERS',
+  'NOTIF_BATAS_HALAMAN', 'NOTIF_KOTAK_ADMIN', 'TONTONAN_HEADERS',
+  'ceritaAktif_', 'ceritaBersihkanInteraksi_', 'ceritaLihat_', 'ceritaSuka_',
+  'ceritaBalas_', 'ceritaDetail_', 'ceritaDaftar_', 'ceritaAksi_',
+  'kaderCari_', 'feedIkuti_', 'orgSetStatus_', 'orgRegister_'
 ].join(', ');
 const load = new Function(
   'SpreadsheetApp', 'PropertiesService', 'Session', 'Utilities', 'CacheService', 'ContentService', 'LockService', 'HtmlService', 'UrlFetchApp', 'DriveApp', 'AppLog', 'ScriptApp', 'Logger',
@@ -2126,6 +2133,37 @@ check('pencarian menyembunyikan akun yang dicari sendiri',
   request({ action: 'kaderCari', token: 'ses-rozak', kata: 'rozak', ip: IP_ROZAK }).data.hasil.some((kader) => kader.id === 'kader-rozak'), false);
 check('tamu tidak dapat mencari daftar kader', request({ action: 'kaderCari', kata: 'rozak', ip: IP_ROZAK }).data.kemampuan.mencari, false);
 check('pencarian kata pendek tidak membocorkan daftar', request({ action: 'kaderCari', token: 'ses-panjang', kata: 'r', ip: IP_KUOTA }).data.hasil, []);
+
+/* Ikuti memakai keadaan eksplisit: token browser tidak boleh mengubah arti
+   tombol menjadi "pindah" dengan mengirim kaderId yang sama berulang kali. */
+const ikutUlang = request({ action: 'feedFollow', token: 'ses-kuota', kaderId: 'kader-rozak', mengikuti: true, ip: IP_KUOTA });
+check('meminta ikuti dua kali tidak membuat baris ganda',
+  [ikutUlang.data.mengikuti, rowsOf('Follows').filter((row) => row.actorKey === 'k:kader-kuota' && row.targetId === 'kader-rozak').length],
+  [true, 1]);
+check('membatalkan ikuti yang belum ada ditolak',
+  request({ action: 'feedFollow', token: 'ses-panjang', kaderId: 'kader-rozak', mengikuti: false, ip: IP_PANJANG }).error,
+  'Anda belum mengikuti akun ini.');
+check('akun lembaga tidak dapat mengikuti kader',
+  request({ action: 'feedFollow', token: 'ses-pd', kaderId: 'kader-rozak', ip: '198.51.100.210' }).error,
+  'Hanya akun kader yang dapat mengikuti kader lain.');
+const batalIkut = request({ action: 'feedFollow', token: 'ses-kuota', kaderId: 'kader-rozak', mengikuti: false, ip: IP_KUOTA });
+check('membatalkan ikuti mengembalikan keadaan eksplisit',
+  [batalIkut.data.mengikuti, batalIkut.data.pengikut], [false, 0]);
+request({ action: 'feedFollow', token: 'ses-kuota', kaderId: 'kader-rozak', mengikuti: true, ip: IP_KUOTA });
+check('kabar ikuti masuk ke kotak kader yang diikuti',
+  request({ action: 'notifList', token: 'ses-rozak', ip: '198.51.100.220' }).data.notifikasi
+    .filter((item) => item.jenis === 'ikuti' && item.targetId === 'kader-kuota').length >= 1, true);
+
+const cariCampur = request({ action: 'kaderCari', token: 'ses-panjang', kata: 'KUOTA', ip: IP_KUOTA }).data.hasil;
+const cariAwalan = request({ action: 'kaderCari', token: 'ses-panjang', kata: '@kuota', ip: IP_KUOTA }).data.hasil;
+const cariNama = request({ action: 'kaderCari', token: 'ses-panjang', kata: 'kader ku', ip: IP_KUOTA }).data.hasil;
+check('pencarian nama/username case-insensitive dan tanpa @', [
+  cariCampur.some((kader) => kader.username === 'kuota-pii'),
+  cariAwalan.map((kader) => kader.username),
+  cariNama.some((kader) => kader.username === 'kuota-pii')
+], [true, ['kuota-pii'], true]);
+check('pencarian mengembalikan ringkasan profil yang dibutuhkan',
+  ['id', 'nama', 'username', 'avatar', 'pengikut'].every((kunci) => kunci in cariCampur[0]), true);
 check('aksi profil asing ditolak di pintu masuk', request({ action: 'kaderTidakAda', token: 'ses-rozak', ip: IP_ROZAK }).error,
   'Aksi profil kader tidak dikenal.');
 check('pengunggah gambar profil memakai pembatas laju sendiri',
@@ -2254,6 +2292,53 @@ check('superadmin memulihkan cerita',
   { id: ID_CERITA_MOD, diturunkan: false });
 check('jejak moderasi cerita masuk audit',
   rowsOf('Moderasi').some((row) => row.targetId === ID_CERITA_MOD && row.jenis === 'cerita'), true);
+
+/* Interaksi Story: suka dan balasan memakai tabel Reactions/Comments yang sudah
+   ada, penonton memakai tabel sendiri dan hanya dibuka untuk pemiliknya. */
+const IP_CERITA = '203.0.113.171';
+const detailPemilik = request({ action: 'ceritaDetail', token: 'ses-rozak', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data;
+const detailOrang = request({ action: 'ceritaDetail', token: 'ses-kuota', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data;
+check('daftar penonton hanya diberikan kepada pemilik Story',
+  [Array.isArray(detailPemilik.penonton), detailOrang.penonton], [true, null]);
+check('Story yang sudah dihapus tidak punya detail',
+  request({ action: 'ceritaDetail', token: 'ses-rozak', id: 'cerita-tidak-ada', ip: IP_CERITA }).ok, false);
+const lihatPertama = request({ action: 'ceritaLihat', token: 'ses-kuota', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data;
+const lihatKedua = request({ action: 'ceritaLihat', token: 'ses-kuota', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data;
+check('penonton Story dicatat sekali per akun', [lihatPertama.tercatat, lihatKedua.tercatat], [true, false]);
+check('pemilik melihat nama penonton yang benar', (() => {
+  const penonton = request({ action: 'ceritaDetail', token: 'ses-rozak', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data.penonton;
+  return [penonton.length, penonton[0].nama];
+})(), [1, 'Kader Kuota']);
+const sukaCerita = request({ action: 'ceritaSuka', token: 'ses-kuota', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data;
+check('kader lain dapat menyukai Story', [sukaCerita.liked, sukaCerita.likes], [true, 1]);
+check('pemilik mendapat kabar suka Story',
+  request({ action: 'notifList', token: 'ses-rozak', ip: '203.0.113.172' }).data.notifikasi
+    .filter((item) => item.jenis === 'suka-cerita' && item.targetId === ID_CERITA_VIDEO).length, 1);
+const batalSuka = request({ action: 'ceritaSuka', token: 'ses-kuota', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data;
+check('suka Story dapat dibatalkan', [batalSuka.liked, batalSuka.likes], [false, 0]);
+check('balasan Story menolak teks terlalu pendek',
+  request({ action: 'ceritaBalas', token: 'ses-kuota', id: ID_CERITA_VIDEO, teks: 'hi', ip: IP_CERITA }).ok, false);
+check('balasan Story menolak tautan',
+  request({ action: 'ceritaBalas', token: 'ses-kuota', id: ID_CERITA_VIDEO, teks: 'Buka https://luar.test', ip: IP_CERITA }).ok, false);
+const balasCerita = request({ action: 'ceritaBalas', token: 'ses-kuota', id: ID_CERITA_VIDEO, teks: 'Semangat kader!', ip: IP_CERITA }).data;
+check('kader lain dapat membalas Story', [balasCerita.jumlah, balasCerita.balasan.nama], [1, 'Kader Kuota']);
+check('balasan tampil pada detail Story pemilik', (() => {
+  const balasan = request({ action: 'ceritaDetail', token: 'ses-rozak', id: ID_CERITA_VIDEO, ip: IP_CERITA }).data.balasan;
+  return [balasan.length, balasan[0].teks, balasan[0].mine];
+})(), [1, 'Semangat kader!', false]);
+check('pemilik mendapat kabar balasan Story',
+  request({ action: 'notifList', token: 'ses-rozak', ip: '203.0.113.173' }).data.notifikasi
+    .filter((item) => item.jenis === 'balasan-cerita' && item.targetId === ID_CERITA_VIDEO).length, 1);
+check('kabar Story menautkan deep link yang benar',
+  request({ action: 'notifList', token: 'ses-rozak', ip: '203.0.113.174' }).data.notifikasi
+    .filter((item) => item.targetType === 'story' && item.targetId === ID_CERITA_VIDEO)
+    .every((item) => item.tautan === '/app/feed?cerita=' + ID_CERITA_VIDEO), true);
+request({ action: 'ceritaHapus', token: 'ses-rozak', id: ID_CERITA_VIDEO, ip: '203.0.113.175' });
+check('interaksi Story ikut dibersihkan saat Story dihapus', [
+  rowsOf('CeritaTonton').some((row) => row.storyId === ID_CERITA_VIDEO),
+  rowsOf('Reactions').some((row) => row.targetType === 'story' && row.eventId === ID_CERITA_VIDEO),
+  rowsOf('Comments').some((row) => row.targetType === 'story' && row.eventId === ID_CERITA_VIDEO)
+], [false, false, false]);
 
 // --------------------------------------------------- riwayat lintas perangkat
 
@@ -2833,8 +2918,25 @@ const suratMasuk = kotakAwal.data.notifikasi.filter((item) => item.jenis === 'su
 check('surat yang terkirim muncul di kotak lembaga tujuan', suratMasuk.length, 2);
 check('kabar surat membawa subjek aslinya',
   suratMasuk.some((item) => item.isi === 'Permohonan koordinasi'), true);
-check('kabar hanya menautkan halaman aplikasi',
-  kotakAwal.data.notifikasi.every((item) => !item.tautan || /^[a-z0-9_-]+\.html/.test(item.tautan)), true);
+const RUTE_KANONIK = /^\/(?:app(?:\/(?:feed|profil|acara|ibadah|tanya|pustaka|notifikasi))?|admin|lembaga)(?:[?#]|$)/;
+check('kabar hanya menautkan rute kanonik aplikasi',
+  kotakAwal.data.notifikasi.every((item) => !item.tautan || RUTE_KANONIK.test(item.tautan)), true);
+check('tautan lama dinormalisasi sebelum sampai ke browser', [
+  gas.notifTautan_('feed.html?kabar=abc'),
+  gas.notifTautan_('profil.html?u=uji'),
+  gas.notifTautan_('admin.html?halaman=lembaga'),
+  gas.notifTautan_('lembaga.html?halaman=surat&letter=L1'),
+  gas.notifTautan_('acara.html?event=act-1')
+], ['/app/feed?kabar=abc', '/app/profil?u=uji', '/admin?halaman=lembaga',
+  '/lembaga?halaman=surat&letter=L1', '/app/acara?event=act-1']);
+check('tautan berbahaya dan rute asing ditolak', [
+  gas.notifTautan_('https://luar.test/app'),
+  gas.notifTautan_('javascript:alert(1)'),
+  gas.notifTautan_('data:text/html,a'),
+  gas.notifTautan_('//luar.test'),
+  gas.notifTautan_('feed.html?kabar=x&u=https://luar.test'),
+  gas.notifTautan_('halaman-baru.html')
+], ['', '', '', '', '', '']);
 check('hitung belum dibaca memakai baris yang belum bertanggal baca',
   kotakAwal.data.belumDibaca, kotakAwal.data.notifikasi.length);
 
@@ -2900,11 +3002,17 @@ const bacaHalaman = (nama) => {
   }
   return halamanBacan.get(nama);
 };
+const HALAMAN_KANONIK = {
+  '/app': 'index.html', '/app/feed': 'feed.html', '/app/profil': 'profil.html',
+  '/app/acara': 'acara.html', '/app/ibadah': 'ibadah.html', '/app/tanya': 'tanya.html',
+  '/app/pustaka': 'pustaka.html', '/app/notifikasi': 'index.html',
+  '/admin': 'admin.html', '/lembaga': 'lembaga.html'
+};
 const daftarTautan = [...new Set(rowsOf('Notifikasi')
-  .map((baris) => String(baris.tautan || '')).filter(Boolean))];
+  .map((baris) => gas.notifTautan_(baris.tautan)).filter(Boolean))];
 const tautanPatah = daftarTautan.filter((tautan) => {
-  const [nama, tanya = ''] = tautan.split('?');
-  const isi = bacaHalaman(nama);
+  const [path, tanya = ''] = tautan.split('?');
+  const isi = bacaHalaman(HALAMAN_KANONIK[path] || path.replace(/^\//, ''));
   if (!isi) return true;
   const halaman = new URLSearchParams(tanya).get('halaman');
   return halaman ? !isi.includes('id="page-' + halaman + '"') : false;
@@ -2912,7 +3020,7 @@ const tautanPatah = daftarTautan.filter((tautan) => {
 check('tautan kabar menunjuk halaman serta tab yang benar-benar ada',
   [...new Set(tautanPatah)].join(', '), '');
 check('kabar surat membuka tab surat tempat surat itu berada',
-  daftarTautan.filter((tautan) => tautan.indexOf('lembaga.html?halaman=surat&letter=') === 0).length >= 2, true);
+  daftarTautan.filter((tautan) => tautan.indexOf('/lembaga?halaman=surat&letter=') === 0).length >= 2, true);
 
 const jumlahJenis = (hasil, jenis) => hasil.data.notifikasi.filter((item) => item.jenis === jenis).length;
 const sukaSebelum = jumlahJenis(request({ action: 'notifList', token: 'ses-kuota', ip: IP_KUOTA }), 'suka');
@@ -2926,6 +3034,63 @@ const balasSebelum = jumlahJenis(request({ action: 'notifList', token: 'ses-kuot
 request({ action: 'feedComment', token: 'ses-rozak', id: 'pos-profil-kuota', text: 'Insight bagus', ip: IP_ROZAK });
 check('balasan pada kabar ikut mengabari penulisnya',
   jumlahJenis(request({ action: 'notifList', token: 'ses-kuota', ip: IP_KUOTA }), 'balasan') - balasSebelum, 1);
+
+/* Kabar sosial membawa identitas pengirim dan target dari server, bukan dari
+   judul yang ditebak browser. */
+gas.notifKirim_('k:kader-kuota', {
+  jenis: 'suka', judul: 'Kabar Anda disukai', isi: 'Cuplikan kabar',
+  tautan: 'feed.html?kabar=pos-profil-kuota', actorKey: 'k:kader-rozak',
+  actorName: 'Kader Rozak', actorPicture: 'https://example.test/ava.png',
+  targetType: 'post', targetId: 'pos-profil-kuota',
+  grupKunci: 'suka:post:pos-profil-kuota'
+}, 'notif-metadata-uji');
+const kabarMeta = gas.notifTampilan_([rowsOf('Notifikasi')
+  .find((baris) => baris.id === 'notif-metadata-uji')])[0];
+check('kabar sosial menyimpan pengirim, target, dan kunci grup', [
+  kabarMeta.actorKey, kabarMeta.actorName, kabarMeta.targetType,
+  kabarMeta.targetId, kabarMeta.grupKunci, kabarMeta.tautan, kabarMeta.targetHilang
+], ['k:kader-rozak', 'Kader Rozak', 'post', 'pos-profil-kuota',
+  'suka:post:pos-profil-kuota', '/app/feed?kabar=pos-profil-kuota', false]);
+gas.notifKirim_('k:kader-kuota', {
+  jenis: 'suka', judul: 'Kabar lama', isi: 'Cuplikan', tautan: 'feed.html?kabar=hilang',
+  targetType: 'post', targetId: 'pos-tidak-ada', grupKunci: 'suka:post:pos-tidak-ada'
+}, 'notif-hilang-uji');
+const kabarHilang = gas.notifTampilan_([rowsOf('Notifikasi')
+  .find((baris) => baris.id === 'notif-hilang-uji')])[0];
+check('kabar dengan target terhapus ditandai dan dialihkan ke umpan',
+  [kabarHilang.targetHilang, kabarHilang.tautan], [true, '/app/feed']);
+check('kabar menyebut kader memakai daftar username yang sebenarnya', (() => {
+  const kotak = () => rowsOf('Notifikasi').filter((baris) => baris.untuk === 'k:kader-kuota').length;
+  const sebelum = kotak();
+  const terkirim = gas.notifSebut_('Halo @kuota-pii, mari diskusi.', gas.actorOf_('ses-rozak'), {
+    judul: 'Uji sebutan', tautan: 'feed.html?kabar=x', targetType: 'post', targetId: 'x'
+  });
+  const kabar = rowsOf('Notifikasi').find((baris) => baris.id === 'notif-sebut-kader-kuota');
+  return [terkirim, kotak() - sebelum, kabar && kabar.actorName, kabar && kabar.tautan];
+})(), [1, 1, 'Rozak Abdurrahman', '/app/feed?kabar=x']);
+
+/* Riwayat kabar dibaca per halaman: badge memakai hitungan seluruh kotak,
+   daftar hanya memuat potongan yang diminta. */
+seed('Notifikasi', Array.from({ length: 35 }, (_, i) => ({
+  id: `notif-halaman-${i}`, untuk: 'k:kader-panjang', jenis: 'info',
+  judul: `Kabar ${i}`, isi: 'Isi kabar', tautan: '/app/feed',
+  dibuat: `${today}T09:${String(i % 60).padStart(2, '0')}:00.000Z`, dibaca: ''
+})));
+const halaman1 = request({ action: 'notifList', token: 'ses-panjang', ip: '198.51.100.231', batas: 30, offset: 0 }).data;
+const halaman2 = request({ action: 'notifList', token: 'ses-panjang', ip: '198.51.100.232', batas: 30, offset: 30 }).data;
+check('riwayat notifikasi dibagi per halaman', [
+  halaman1.notifikasi.length, halaman1.punyaLebih, halaman2.notifikasi.length,
+  halaman2.punyaLebih, halaman2.offset
+], [30, true, 5, false, 30]);
+check('badge tetap menghitung seluruh kabar yang belum dibaca',
+  [halaman1.belumDibaca, halaman2.belumDibaca], [halaman1.belumDibaca, halaman1.belumDibaca]);
+const idsHalaman = halaman1.notifikasi.slice(0, 2).map((item) => item.id);
+const tandaiBeberapa = request({
+  action: 'notifRead', token: 'ses-panjang', ip: '198.51.100.233', ids: idsHalaman
+}).data;
+check('beberapa kabar dapat ditandai dibaca sekaligus',
+  [tandaiBeberapa.ditandai, tandaiBeberapa.belumDibaca],
+  [2, halaman1.belumDibaca - 2]);
 
 const sebelumUji = rowsOf('Notifikasi').length;
 gas.notifKirim_('o:pb-pii', { judul: 'Uji kotak', isi: 'Isi uji', tautan: 'https://luar.example' }, 'notif-uji-1');

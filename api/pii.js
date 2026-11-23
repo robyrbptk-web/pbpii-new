@@ -24,7 +24,7 @@ const READ_ACTIONS = new Set([
   'health', 'public', 'whoami', 'eventThread', 'orgLookup', 'publicForm', 'chatStatus',
   'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus', 'pustakaPdf', 'pustakaBlok',
   'pustakaAdminList',
-  'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList',
+  'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList', 'ceritaDetail',
   'feedTakenDownList', 'feedModerasiLog',
   'threadList', 'threadIsi', 'notifList'
 ]);
@@ -34,7 +34,8 @@ const WRITE_ACTIONS = new Set([
   'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage',
   'feedUpload', 'feedPost', 'feedEdit', 'feedDelete', 'feedLike', 'feedComment', 'feedRepost', 'feedBookmark', 'feedFollow',
   'feedTakeDown', 'feedRestore', 'feedModerateComment', 'ceritaTurunkan',
-  'kaderProfilSimpan', 'ceritaHapus', 'threadSimpan', 'threadHapus', 'notifRead'
+  'kaderProfilSimpan', 'ceritaHapus', 'ceritaLihat', 'ceritaSuka', 'ceritaBalas',
+  'threadSimpan', 'threadHapus', 'notifRead'
 ]);
 
 /** Every password/OAuth entry point shares the strictest budget. */

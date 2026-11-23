@@ -21,6 +21,26 @@
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const inisial = (nama) => String(nama || 'K').trim().charAt(0).toUpperCase() || 'K';
   const bersih = (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, KETERANGAN_MAX);
+  const angka = (nilai) => (Number(nilai) || 0).toLocaleString('id-ID');
+
+  /** Data server selalu masuk lewat textContent, bukan innerHTML mentah. */
+  function simpul(tag, kelas, teks) {
+    const node = document.createElement(tag);
+    if (kelas) node.className = kelas;
+    if (teks !== undefined && teks !== null) node.textContent = String(teks);
+    return node;
+  }
+
+  function waktuCerita(value) {
+    const waktu = Date.parse(String(value || ''));
+    if (!isFinite(waktu)) return '';
+    const menit = Math.max(0, Math.round((Date.now() - waktu) / 60000));
+    if (menit < 1) return 'baru saja';
+    if (menit < 60) return `${menit} menit lalu`;
+    const jam = Math.round(menit / 60);
+    if (jam < 24) return `${jam} jam lalu`;
+    return `${Math.round(jam / 24)} hari lalu`;
+  }
 
   const driveId = (value) => {
     const url = String(value || '').trim();
@@ -44,12 +64,13 @@
     (id) => `https://drive.usercontent.google.com/download?id=${id}&export=view&authuser=0`,
     (id) => `https://drive.google.com/thumbnail?id=${id}&sz=w1400`
   ];
-  const gambarSiap = (value) => {
+  const gambarMentah = (value) => {
     const url = String(value || '').trim();
     if (!/^https:\/\//i.test(url)) return LOGO;
     const id = driveId(url);
-    return id ? bentuk[0](id) : escapeHTML(url);
+    return id ? bentuk[0](id) : url;
   };
+  const gambarSiap = (value) => escapeHTML(gambarMentah(value));
   /* Video tidak lewat proksi gambar (butuh rentang byte). Tautan Drive lama,
      Storage baru, dan URL lokal untuk pratayang unggahan diterima; selain itu ditolak. */
   const videoSiap = (value, lokal = false) => {
@@ -170,10 +191,11 @@
 
     const lingkaran = daftar.map((item, index) => `
       <button class="cerita-ring${belumDibuka(item) ? ' is-baru' : ''}${item.sendiri ? ' is-sendiri' : ''}"
-        type="button" data-cerita="${index}" aria-label="Buka cerita ${escapeHTML(item.nama)}">
+        type="button" data-cerita="${index}" aria-label="Buka cerita ${escapeHTML(item.nama || 'Kader')}"
+        title="${escapeHTML(item.nama || 'Kader')}">
         <span class="cerita-ring-isi">${wajah(item)}</span>
         ${item.sendiri && bisaUnggah ? '<span class="cerita-ring-plus" aria-hidden="true">+</span>' : ''}
-        <span class="cerita-ring-nama">${escapeHTML(String(item.nama || 'Kader').split(/\s+/)[0])}</span>
+        <span class="cerita-ring-nama">${escapeHTML(item.nama || 'Kader')}</span>
       </button>`).join('');
 
     const awal = bisaUnggah && !punyaSendiri
@@ -223,6 +245,11 @@
   let sebelumCerita = null;
   let videoAktif = false;
   let notifPemroses = null;
+  /* Detail cerita diingat selama halaman terbuka; tayang dicatat sekali per id. */
+  let detailCache = new Map();
+  let detailUrutan = 0;
+  const tayangDicatat = new Set();
+  let geserTerakhir = 0;
 
   function panggungSiap() {
     if (panggung) return panggung;
@@ -238,7 +265,7 @@
         <span class="cerita-ava" data-ava></span>
         <span class="cerita-ident">
           <b data-nama></b>
-          <small data-sisa></small>
+          <small><span data-user></span><span data-sisa></span></small>
         </span>
         <button class="cerita-jeda" type="button" data-jeda aria-label="Jeda cerita">&#10073;&#10073;</button>
         <button class="cerita-suara" type="button" data-suara aria-label="Nyalakan suara video" hidden>&#128263;</button>
@@ -252,6 +279,17 @@
       </div>
       <footer class="cerita-bawah">
         <p class="cerita-ket" data-ket></p>
+        <div class="cerita-interaksi" data-interaksi hidden>
+          <button class="cerita-suka" type="button" data-suka aria-pressed="false" aria-label="Suka cerita ini">&#9825; <span data-suka-jumlah>0</span></button>
+          <button class="cerita-balas-pintas" type="button" data-fokus-balas aria-label="Balas cerita ini">&#128172; <span data-balasan-jumlah>0</span></button>
+          <button class="cerita-penonton-tombol" type="button" data-penonton hidden>Lihat penonton (<span data-penonton-jumlah>0</span>)</button>
+        </div>
+        <form class="cerita-balas-form" data-balas-form hidden>
+          <input type="text" maxlength="140" placeholder="Balas cerita ini…" aria-label="Tulis balasan untuk cerita" data-balas-teks>
+          <button type="submit">Kirim</button>
+        </form>
+        <p class="cerita-balas-note" data-balas-note hidden role="status"></p>
+        <ul class="cerita-balasan" data-balasan-list hidden></ul>
         <div class="cerita-mundur" data-mundur hidden>
           <input type="text" maxlength="140" placeholder="Tulis catatan singkat… (opsional)" data-catatan>
           <button type="button" data-kirim>Bagikan</button>
@@ -262,6 +300,12 @@
           <button type="button" class="cerita-turunkan" data-turunkan hidden>Turunkan cerita</button>
         </div>
       </footer>
+      <div class="cerita-penonton-panel" data-penonton-panel hidden role="dialog" aria-label="Penonton cerita">
+        <div class="cerita-penonton-card">
+          <header><b>Penonton cerita</b><button type="button" data-penonton-tutup aria-label="Tutup daftar penonton">&times;</button></header>
+          <ul data-penonton-list></ul>
+        </div>
+      </div>
       <span class="cerita-toast" data-toast hidden role="status"></span>
       <div class="cerita-mod" data-mod hidden role="dialog" aria-modal="true" aria-label="Turunkan cerita">
         <div class="cerita-mod-card">
@@ -276,6 +320,10 @@
           </div>
         </div>
       </div>`;
+    akar.querySelector('[data-balas-form]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      kirimBalasan();
+    });
     document.body.appendChild(akar);
     panggung = akar;
     return akar;
@@ -301,6 +349,12 @@
       cari('[data-ket]').textContent = '';
       cari('[data-toast]').hidden = true;
       cari('[data-mod]').hidden = true;
+      cari('[data-penonton-panel]').hidden = true;
+      cari('[data-interaksi]').hidden = true;
+      cari('[data-balas-form]').hidden = true;
+      cari('[data-balasan-list]').hidden = true;
+      cari('[data-balas-note]').hidden = true;
+      cari('[data-balas-teks]').value = '';
     }
     document.body.classList.remove('cerita-terkunci');
     pratayang = '';
@@ -482,6 +536,205 @@
     else lanjut();
   }
 
+  async function pastiAkun(pesan) {
+    const akun = window.PBPIIAkun?.account?.();
+    if (akun && akun.role !== 'tamu') return akun;
+    if (!window.PBPIIAkun?.requireAccount) return null;
+    try {
+      return await window.PBPIIAkun.requireAccount(pesan);
+    } catch {
+      return null;
+    }
+  }
+
+  function catatTayang(id) {
+    const kunci = String(id || '');
+    if (!kunci || tayangDicatat.has(kunci)) return;
+    tayangDicatat.add(kunci);
+    /* Dihitung sekali per cerita per kunjungan halaman. Gagalnya tidak boleh
+       mengganggu tayangan, dan tidak boleh memicu pbpii-cerita (profil tidak
+       perlu dimuat ulang hanya karena Story dibuka). */
+    api({ action: 'ceritaLihat', token: tokenSaya(), id }).catch(() => {});
+  }
+
+  function resetDetail() {
+    cari('[data-suka]').classList.remove('is-on');
+    cari('[data-suka]').setAttribute('aria-pressed', 'false');
+    cari('[data-suka-jumlah]').textContent = '0';
+    cari('[data-balasan-jumlah]').textContent = '0';
+    cari('[data-balasan-list]').replaceChildren(
+      simpul('li', 'cerita-balasan-kosong', 'Memuat balasan…')
+    );
+    cari('[data-balasan-list]').hidden = false;
+    cari('[data-balas-note]').hidden = true;
+    cari('[data-penonton]').hidden = true;
+    cari('[data-penonton-panel]').hidden = true;
+  }
+
+  function avatarKecil(sumber, nama) {
+    const bingkai = simpul('span', 'cerita-kecil-ava');
+    const url = String(sumber || '').trim();
+    if (!/^https:\/\//i.test(url)) {
+      bingkai.textContent = inisial(nama);
+      return bingkai;
+    }
+    const img = document.createElement('img');
+    img.alt = '';
+    img.referrerPolicy = 'no-referrer';
+    img.src = gambarMentah(url);
+    img.onerror = () => { img.onerror = null; img.src = LOGO; };
+    bingkai.appendChild(img);
+    return bingkai;
+  }
+
+  function barisBalasan(item) {
+    const li = simpul('li', `cerita-balasan-item${item.mine ? ' is-mine' : ''}`);
+    li.appendChild(avatarKecil(item.avatar, item.nama));
+    const isi = simpul('span', 'cerita-balasan-isi');
+    const kepala = simpul('span', 'cerita-balasan-kepala');
+    kepala.appendChild(simpul('b', '', item.nama || 'Kader PII'));
+    if (item.mine) kepala.appendChild(simpul('small', '', ' · Anda'));
+    kepala.appendChild(simpul('small', 'cerita-balasan-waktu', waktuCerita(item.dibuat)));
+    isi.appendChild(kepala);
+    isi.appendChild(simpul('span', 'cerita-balasan-teks', item.teks || ''));
+    li.appendChild(isi);
+    return li;
+  }
+
+  function paintDetail(data) {
+    if (!data) return;
+    const suka = cari('[data-suka]');
+    suka.classList.toggle('is-on', Boolean(data.liked));
+    suka.setAttribute('aria-pressed', String(Boolean(data.liked)));
+    cari('[data-suka-jumlah]').textContent = angka(data.likes);
+    const balasan = Array.isArray(data.balasan) ? data.balasan : [];
+    const jumlah = isFinite(Number(data.jumlahBalasan)) ? Number(data.jumlahBalasan) : balasan.length;
+    cari('[data-balasan-jumlah]').textContent = angka(jumlah);
+    const daftarBalasan = cari('[data-balasan-list]');
+    daftarBalasan.replaceChildren(...(balasan.length
+      ? balasan.map(barisBalasan)
+      : [simpul('li', 'cerita-balasan-kosong', 'Belum ada balasan. Jadilah yang pertama menyapa.')]));
+    daftarBalasan.hidden = false;
+    const penonton = Array.isArray(data.penonton) ? data.penonton : null;
+    const tombol = cari('[data-penonton]');
+    tombol.hidden = !penonton;
+    if (penonton) {
+      cari('[data-penonton-jumlah]').textContent = angka(data.jumlahPenonton ?? penonton.length);
+    } else {
+      cari('[data-penonton-panel]').hidden = true;
+    }
+  }
+
+  async function muatDetail(id) {
+    const kunci = String(id || '');
+    if (!kunci) return;
+    const nomor = ++detailUrutan;
+    const tersimpan = detailCache.get(kunci);
+    if (tersimpan) {
+      paintDetail(tersimpan);
+      return;
+    }
+    resetDetail();
+    try {
+      const data = await api({ action: 'ceritaDetail', token: tokenSaya(), id });
+      if (nomor !== detailUrutan || panggung?.dataset.ceritaId !== kunci) return;
+      detailCache.set(kunci, data || {});
+      paintDetail(data || {});
+    } catch {
+      if (nomor === detailUrutan && panggung?.dataset.ceritaId === kunci) {
+        cari('[data-suka-jumlah]').textContent = '—';
+        const kosong = cari('[data-balasan-list]').querySelector('.cerita-balasan-kosong');
+        if (kosong) kosong.textContent = 'Balasan belum dapat dimuat.';
+      }
+    }
+  }
+
+  async function toggleSuka() {
+    const id = panggung?.dataset.ceritaId;
+    const tombol = cari('[data-suka]');
+    if (!id || tombol.disabled) return;
+    if (!await pastiAkun('Masuk sebagai kader untuk menyukai cerita.')) return;
+    const data = detailCache.get(String(id)) || { likes: 0, liked: false };
+    const sebelum = { likes: Number(data.likes) || 0, liked: Boolean(data.liked) };
+    data.liked = !sebelum.liked;
+    data.likes = Math.max(0, sebelum.likes + (data.liked ? 1 : -1));
+    detailCache.set(String(id), data);
+    paintDetail(data);
+    tombol.disabled = true;
+    try {
+      const hasil = await api({ action: 'ceritaSuka', token: tokenSaya(), id });
+      data.liked = Boolean(hasil.liked);
+      data.likes = Number(hasil.likes) || 0;
+      detailCache.set(String(id), data);
+      paintDetail(data);
+    } catch (error) {
+      data.likes = sebelum.likes;
+      data.liked = sebelum.liked;
+      detailCache.set(String(id), data);
+      paintDetail(data);
+      notifikasiCerita(error.message || 'Suka belum dapat dikirim.');
+    } finally {
+      tombol.disabled = false;
+    }
+  }
+
+  async function kirimBalasan() {
+    const id = panggung?.dataset.ceritaId;
+    const input = cari('[data-balas-teks]');
+    const catatan = cari('[data-balas-note]');
+    const tombol = cari('[data-balas-form] button');
+    if (!id || tombol.disabled) return;
+    const teks = String(input.value || '').trim();
+    if (teks.length < 3) {
+      catatan.textContent = 'Tulis balasan minimal 3 karakter.';
+      catatan.hidden = false;
+      input.focus();
+      return;
+    }
+    if (!await pastiAkun('Masuk sebagai kader untuk membalas cerita.')) return;
+    catatan.hidden = true;
+    tombol.disabled = true;
+    try {
+      const hasil = await api({ action: 'ceritaBalas', token: tokenSaya(), id, teks });
+      const data = detailCache.get(String(id)) || { balasan: [] };
+      const daftar = Array.isArray(data.balasan) ? data.balasan.slice() : [];
+      if (hasil.balasan && !daftar.some((item) => String(item.id) === String(hasil.balasan.id))) {
+        daftar.push(hasil.balasan);
+      }
+      data.balasan = daftar;
+      data.jumlahBalasan = isFinite(Number(hasil.jumlah)) ? Number(hasil.jumlah) : daftar.length;
+      detailCache.set(String(id), data);
+      paintDetail(data);
+      input.value = '';
+      cari('[data-balasan-list]').scrollTop = cari('[data-balasan-list]').scrollHeight;
+    } catch (error) {
+      catatan.textContent = error.message || 'Balasan belum dapat dikirim.';
+      catatan.hidden = false;
+    } finally {
+      tombol.disabled = false;
+      input.focus();
+    }
+  }
+
+  function bukaPenonton() {
+    const data = detailCache.get(String(panggung?.dataset.ceritaId || ''));
+    const penonton = Array.isArray(data?.penonton) ? data.penonton : [];
+    const panel = cari('[data-penonton-panel]');
+    cari('[data-penonton-list]').replaceChildren(...(penonton.length
+      ? penonton.map((orang) => {
+        const li = simpul('li', 'cerita-penonton-item');
+        li.appendChild(avatarKecil(orang.avatar, orang.nama));
+        const isi = simpul('span', 'cerita-penonton-isi');
+        isi.appendChild(simpul('b', '', orang.nama || 'Kader PII'));
+        isi.appendChild(simpul('small', '', waktuCerita(orang.dibuat)));
+        li.appendChild(isi);
+        return li;
+      })
+      : [simpul('li', 'cerita-balasan-kosong', 'Belum ada kader yang menonton cerita ini.')]));
+    panel.hidden = false;
+    cari('[data-penonton-tutup]').focus();
+  }
+
   function tampilkan() {
     const grup = daftar[indeksGrup];
     if (!grup || !grup.cerita?.length) {
@@ -496,6 +749,12 @@
       return mundur(1);
     }
     const cerita = grup.cerita[indeksCerita];
+    panggung.classList.remove('is-pratayang', 'is-galat');
+    cari('[data-mundur]').hidden = true;
+    cari('[data-interaksi]').hidden = false;
+    cari('[data-balas-form]').hidden = false;
+    cari('[data-balas-note]').hidden = true;
+    cari('[data-penonton-panel]').hidden = true;
     const video = Boolean(cerita.video) || /^video\//i.test(String(cerita.mime || ''));
     const foto = cari('[data-foto]');
     hentikanVideo();
@@ -517,6 +776,7 @@
     }
     cari('[data-ava]').innerHTML = wajah(grup);
     cari('[data-nama]').textContent = grup.nama || 'Kader PII';
+    cari('[data-user]').textContent = grup.username ? '@' + String(grup.username) : '';
     cari('[data-sisa]').textContent = sisaWaktu(cerita.kedaluarsa);
     cari('[data-ket]').textContent = cerita.keterangan || '';
     cari('[data-kancing]').hidden = !grup.sendiri && !hak.moderasi;
@@ -526,6 +786,8 @@
     panggung.dataset.ceritaId = String(cerita.id);
     panggung.dataset.kaderId = String(grup.kaderId);
     tandaiDibuka([cerita]);
+    catatTayang(cerita.id);
+    muatDetail(cerita.id);
     if (!video) putar(DURI);
     return undefined;
   }
@@ -570,6 +832,35 @@
     indeksCerita = 0;
     bukaPanggung();
     tampilkan();
+  }
+
+  function posisiCerita(id) {
+    const kunci = String(id || '');
+    for (let g = 0; g < daftar.length; g += 1) {
+      const cerita = (daftar[g].cerita || []).findIndex((item) => String(item.id) === kunci);
+      if (cerita >= 0) return { grup: g, cerita };
+    }
+    return null;
+  }
+
+  /** Dipakai notifikasi: /app/feed?cerita=<id> harus membuka tayangan yang tepat. */
+  async function bukaId(id) {
+    const kunci = String(id || '');
+    if (!kunci) return false;
+    /* Penonton profil meminjam daftar satu kader; tautan langsung pakai daftar
+       lengkap dari umpan, jadi pinjaman itu dilepaskan sebelum mencari. */
+    sebelumCerita = null;
+    let posisi = posisiCerita(kunci);
+    if (!posisi) {
+      await muatLingkaran();
+      posisi = posisiCerita(kunci);
+    }
+    if (!posisi) return false;
+    indeksGrup = posisi.grup;
+    indeksCerita = posisi.cerita;
+    bukaPanggung();
+    tampilkan();
+    return true;
   }
 
   /* -------------------------------------------------------------------- unggah */
@@ -681,7 +972,11 @@
     cari('[data-nama]').textContent = 'Cerita baru';
     cari('[data-sisa]').textContent = videoFile ? 'Video · hilang dalam 24 jam' : 'Hilang dalam 24 jam';
     cari('[data-ket]').textContent = '';
+    cari('[data-user]').textContent = '';
     cari('[data-kancing]').hidden = true;
+    cari('[data-interaksi]').hidden = true;
+    cari('[data-balas-form]').hidden = true;
+    cari('[data-balasan-list]').hidden = true;
     cari('[data-mundur]').hidden = false;
     const catatan = cari('[data-catatan]');
     catatan.value = '';
@@ -712,9 +1007,13 @@
     foto.src = LOGO;
     cari('[data-ava]').innerHTML = wajah(sayaKini());
     cari('[data-nama]').textContent = 'Cerita belum terkirim';
+    cari('[data-user]').textContent = '';
     cari('[data-sisa]').textContent = '';
     cari('[data-ket]').textContent = message;
     cari('[data-kancing]').hidden = true;
+    cari('[data-interaksi]').hidden = true;
+    cari('[data-balas-form]').hidden = true;
+    cari('[data-balasan-list]').hidden = true;
     return undefined;
   }
 
@@ -752,6 +1051,7 @@
     tombol.disabled = true;
     try {
       await api({ action: 'ceritaHapus', token: tokenSaya(), id });
+      detailCache.delete(String(id));
       grup.cerita = grup.cerita.filter((item) => String(item.id) !== String(id));
       kabari('hapus');
       if (!grup.cerita.length) {
@@ -785,6 +1085,7 @@
     pesan.hidden = true;
     try {
       await api({ action: 'ceritaTurunkan', token: tokenSaya(), id, alasan });
+      detailCache.delete(String(id));
       cari('[data-mod]').hidden = true;
       const grup = daftar[indeksGrup];
       if (grup) {
@@ -854,16 +1155,29 @@
       return undefined;
     }
     if (!cari('[data-mod]').hidden) return undefined;
+    if (dekat('[data-penonton-tutup]') || dekat('[data-penonton-panel]')) {
+      if (!dekat('[data-penonton-tutup]')) return undefined;
+      cari('[data-penonton-panel]').hidden = true;
+      return undefined;
+    }
+    if (!cari('[data-penonton-panel]').hidden) return undefined;
     if (dekat('[data-tutup]')) {
       if (panggung.classList.contains('is-pratayang')) akhiriPratayang();
       return tutupPanggung();
     }
+    if (dekat('[data-suka]')) return toggleSuka();
+    if (dekat('[data-fokus-balas]')) {
+      cari('[data-balas-teks]').focus();
+      return undefined;
+    }
+    if (dekat('[data-penonton]')) return bukaPenonton();
     if (dekat('[data-kiri]')) {
+      if (Date.now() - geserTerakhir < 450) return undefined;
       jeda();
       return mundur(-1);
     }
     if (dekat('[data-kanan]')) {
-      if (panggung.classList.contains('is-pratayang')) return undefined;
+      if (panggung.classList.contains('is-pratayang') || Date.now() - geserTerakhir < 450) return undefined;
       jeda();
       return mundur(1);
     }
@@ -884,10 +1198,15 @@
         cari('[data-mod]').hidden = true;
         return undefined;
       }
+      if (cari('[data-penonton-panel]') && !cari('[data-penonton-panel]').hidden) {
+        cari('[data-penonton-panel]').hidden = true;
+        return undefined;
+      }
       if (panggung.classList.contains('is-pratayang')) akhiriPratayang();
       return tutupPanggung();
     }
     if (cari('[data-mod]') && !cari('[data-mod]').hidden) return undefined;
+    if (!cari('[data-penonton-panel]').hidden) return undefined;
     if (event.target?.matches?.('[data-catatan]')) {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -895,6 +1214,7 @@
       }
       return undefined;
     }
+    if (event.target?.closest?.('input, textarea, button, a')) return undefined;
     if (panggung.classList.contains('is-pratayang')) return undefined;
     if (event.key === 'ArrowLeft') {
       jeda();
@@ -909,17 +1229,35 @@
     return undefined;
   });
 
-  // Tahan sentuh = jeda, lepas = jalan lagi, seperti umpan sosial pada umumnya.
+  /* Tahan = jeda, lepas = jalan lagi. Geser horizontal mengganti cerita dan
+     menimpa klik pada sisi yang datang setelahnya (pointer → click). */
+  let sentuhAwal = null;
   panggungSiap().addEventListener('pointerdown', (event) => {
     if (panggung.hidden || panggung.classList.contains('is-pratayang')) return;
-    if (event.target.closest('button, [data-catatan]')) return;
+    if (!cari('[data-penonton-panel]').hidden) return;
+    /* Sisi kiri/kanan juga menjadi titik awal geser: di ponsel area itu
+       menutup sebagian besar gambar. */
+    const sisi = event.target.closest?.('[data-kiri], [data-kanan]');
+    if (!sisi && event.target.closest('button, input, textarea, a, [data-catatan]')) return;
+    sentuhAwal = { x: event.clientX, y: event.clientY, saat: Date.now() };
     jeda();
   });
   panggungSiap().addEventListener('pointerup', (event) => {
     if (panggung.hidden || panggung.classList.contains('is-pratayang')) return;
-    if (event.target.closest('button, [data-catatan]')) return;
+    const awal = sentuhAwal;
+    sentuhAwal = null;
+    if (!awal) return;
+    const dx = event.clientX - awal.x;
+    const dy = event.clientY - awal.y;
+    /* Geser cepat dan nyata lebih diutamakan daripada klik sisi. */
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.2 && Date.now() - awal.saat < 1200) {
+      geserTerakhir = Date.now();
+      mundur(dx < 0 ? 1 : -1);
+      return;
+    }
     lanjut();
   });
+  panggungSiap().addEventListener('pointercancel', () => { sentuhAwal = null; });
 
   /* ------------------------------------------------------------------ publik */
 
@@ -939,6 +1277,7 @@
     catat: catatLingkaran,
     daftar: () => daftar.slice(),
     buka,
+    bukaId,
     bukaSatu,
     unggah: bukaUnggah,
     tutup: () => tutupPanggung(),

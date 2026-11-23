@@ -189,6 +189,29 @@
     document.querySelectorAll('[data-angka]').forEach((node) => node.append(penanda()));
   }
 
+  function siarkanBelum() {
+    // notifikasi.js mendengar ini supaya loncengnya mengikuti hitungan di sini.
+    // Hanya angka yang dikirim, bukan isi kabar.
+    window.dispatchEvent(new CustomEvent('pbpii-notif-belum', { detail: { belum } }));
+  }
+
+  window.addEventListener('pbpii-notif-belum', (event) => {
+    const angka = Number(event && event.detail && event.detail.belum);
+    if (!Number.isFinite(angka) || angka < 0) return;
+    belum = angka;
+    gambarPenanda();
+  });
+
+  /** Pakai resolver notifikasi.js bila sudah termuat; cadangan tetap aman. */
+  function tautanKabar(nilai) {
+    if (window.PBPIINotifikasi && typeof window.PBPIINotifikasi.tautan === 'function') {
+      return window.PBPIINotifikasi.tautan(nilai);
+    }
+    const teks = String(nilai || '').trim();
+    return /^\/(app(\/|$)|admin(\?|\/|$)|lembaga(\?|\/|$)|situasi\.html)/.test(teks)
+      ? teks : '/app/notifikasi';
+  }
+
   function tautSisi(item) {
     const node = elemen('a', 'app-taut');
     node.href = item.href;
@@ -531,6 +554,7 @@
     muat('notifList', { action: 'notifList' }, kabar, (isi) => {
       belum = Number(isi.belumDibaca) || 0;
       gambarPenanda();
+      siarkanBelum();
       const daftar = Array.isArray(isi.notifikasi) ? isi.notifikasi : [];
       if (!daftar.length) {
         kabar.append(elemen('p', 'app-kosong', 'Belum ada kabar untuk Anda hari ini.'));
@@ -540,7 +564,7 @@
         judul: item.judul || 'Kabar',
         keterangan: item.isi ? String(item.isi).slice(0, 150) : '',
         waktu: relatif(item.dibuat),
-        taut: item.tautan || '/app/notifikasi'
+        taut: tautanKabar(item.tautan || '/app/notifikasi')
       })));
     }, () => { delete simpanan.notifList; isiBeranda(); });
 
@@ -631,7 +655,39 @@
     }, () => { delete simpanan.public; isiArtikel(); });
   }
 
+  /**
+   * Halaman penuh memakai perender notifikasi.js (panel dan halaman berbagi
+   * keadaan, termasuk offset "Muat lebih banyak"). Berkas itu dimuat dengan
+   * `defer`, jadi bila whoami menjawab lebih dulu kita tunggu hingga DOM siap
+   * sebelum jatuh ke implementasi lama.
+   */
   function isiNotifikasi() {
+    if (!wadah) return;
+    if (window.PBPIINotifikasi && typeof window.PBPIINotifikasi.halaman === 'function') {
+      window.PBPIINotifikasi.halaman(wadah);
+      return;
+    }
+    if (document.readyState === 'complete') {
+      isiNotifikasiLama();
+      return;
+    }
+    let selesai = false;
+    const jalankan = () => {
+      if (selesai) return;
+      selesai = true;
+      if (window.PBPIINotifikasi && typeof window.PBPIINotifikasi.halaman === 'function') {
+        window.PBPIINotifikasi.halaman(wadah);
+      } else {
+        isiNotifikasiLama();
+      }
+    };
+    document.addEventListener('DOMContentLoaded', jalankan, { once: true });
+    window.addEventListener('pbpii-notif-siap', jalankan, { once: true });
+    window.setTimeout(jalankan, 150);
+  }
+
+  /** Cadangan untuk peramban yang gagal memuat notifikasi.js. */
+  function isiNotifikasiLama() {
     if (!wadah) return;
     wadah.textContent = '';
     wadah.append(elemen('h1', 'app-judul', 'Notifikasi'));
@@ -641,6 +697,7 @@
       const daftar = Array.isArray(isi.notifikasi) ? isi.notifikasi : [];
       belum = Number(isi.belumDibaca) || 0;
       gambarPenanda();
+      siarkanBelum();
 
       if (belum > 0) {
         const tombol = elemen('button', 'app-pulihkan', 'Tandai semua dibaca');
@@ -649,7 +706,7 @@
           tombol.disabled = true;
           json({ action: 'notifRead' }).then(() => {
             delete simpanan.notifList;
-            isiNotifikasi();
+            isiNotifikasiLama();
           }).catch(() => {
             tombol.disabled = false;
             host.append(elemen('p', 'app-kosong', 'Status kabar belum dapat diperbarui.'));
@@ -664,6 +721,7 @@
       }
 
       daftar.forEach((item) => {
+        const tujuan = tautanKabar(item.tautan || '/app/notifikasi');
         const node = elemen('button', 'app-baris');
         node.type = 'button';
         if (!item.dibaca) node.append(elemen('span', 'app-unread'));
@@ -672,18 +730,13 @@
         if (item.isi) badan.append(elemen('p', null, String(item.isi)));
         node.append(badan, elemen('time', null, relatif(item.dibuat)));
         node.addEventListener('click', () => {
-          json({ action: 'notifRead', id: item.id }).catch(() => {}).then(() => {
-            if (item.tautan) {
-              location.href = item.tautan;
-              return;
-            }
-            delete simpanan.notifList;
-            isiNotifikasi();
-          });
+          // Kirim status baca paralel dengan pindah halaman.
+          void json({ action: 'notifRead', id: item.id }).catch(() => {});
+          location.href = tujuan;
         });
         host.append(node);
       });
-    }, () => { delete simpanan.notifList; isiNotifikasi(); });
+    }, () => { delete simpanan.notifList; isiNotifikasiLama(); });
   }
 
   /* ------------------------------------------------------------- pengunci */

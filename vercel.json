@@ -192,6 +192,42 @@
       "destination": "/index.html"
     },
     {
+      "source": "/app/notifikasi.html",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app/feed.html",
+      "destination": "/feed.html"
+    },
+    {
+      "source": "/app/profil.html",
+      "destination": "/profil.html"
+    },
+    {
+      "source": "/app/acara.html",
+      "destination": "/acara.html"
+    },
+    {
+      "source": "/app/ibadah.html",
+      "destination": "/ibadah.html"
+    },
+    {
+      "source": "/app/tanya.html",
+      "destination": "/tanya.html"
+    },
+    {
+      "source": "/app/pustaka.html",
+      "destination": "/pustaka.html"
+    },
+    {
+      "source": "/app/admin.html",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/app/lembaga.html",
+      "destination": "/lembaga.html"
+    },
+    {
       "source": "/app/profil",
       "destination": "/profil.html"
     },

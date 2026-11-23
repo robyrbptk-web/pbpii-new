@@ -26,6 +26,7 @@ export const TABEL = {
   Fakta: 'fakta',
   Notifikasi: 'notifikasi',
   Moderasi: 'moderasi_log',
+  CeritaTonton: 'story_views',
 };
 
 // Kunci baris untuk menandai posisi, meniru "id" pada sheet.
@@ -79,6 +80,7 @@ export const URUT = [
   'notifikasi',
   'chat_log',
   'moderasi_log',
+  'story_views',
 ];
 
 export function keSnake(nama) {

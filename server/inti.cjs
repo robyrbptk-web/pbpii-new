@@ -15,7 +15,7 @@
  * 4. Deploy sebagai Web App, execute as Me, access Anyone.
  * 5. Cek versi yang sedang melayani lewat doGet atau action "health".
  */
-const BACKEND_VERSION = '2026-11-23.1';
+const BACKEND_VERSION = '2026-11-23.2';
 
 const APP = {
   SHEET_ARTICLES: 'Articles',
@@ -43,6 +43,7 @@ const APP = {
   SHEET_FACTA: 'Fakta',
   SHEET_NOTIFIKASI: 'Notifikasi',
   SHEET_MODERASI: 'Moderasi',
+  SHEET_TONTONAN: 'CeritaTonton',
   /** Sesi 30 hari: kader tidak boleh disuruh masuk ulang setiap hari hanya
       untuk membaca komentar atau memakai Tanya PII. */
   TOKEN_TTL_SECONDS: 2592000,
@@ -331,13 +332,24 @@ const FAKTA_BATAS_KONTEKS = 4;
  * (k:<kader>, o:<lembaga>, a:<admin>) sehingga satu sesi cukup membawa token yang
  * sudah ada — tidak ada sistem login baru. `dibaca` kosong berarti belum dibuka.
  */
-const NOTIF_HEADERS = ['id', 'untuk', 'jenis', 'judul', 'isi', 'tautan', 'dibuat', 'dibaca'];
+const NOTIF_HEADERS = [
+  'id', 'untuk', 'jenis', 'judul', 'isi', 'tautan', 'dibuat', 'dibaca',
+  'actorKey', 'actorName', 'actorPicture', 'targetType', 'targetId', 'grupKunci'
+];
 /** Kunci kotak untuk semua admin; sesi admin mana pun boleh isinya. */
 const NOTIF_KOTAK_ADMIN = 'a:admin';
 const NOTIF_BATAS_TAMPIL = 40;
+const NOTIF_BATAS_HALAMAN = 30;
 const NOTIF_JUDUL_MAX = 140;
 const NOTIF_ISI_MAX = 300;
 const NOTIF_USIA_HARI = 30;
+
+/**
+ * Tontonan Story sengaja memakai tabel sendiri: suka dan balasan sudah memakai
+ * Reactions/Comments generik dengan target_type='story', tetapi daftar penonton
+ * butuh dedupe per akun dan hanya boleh dibaca pemilik Story.
+ */
+const TONTONAN_HEADERS = ['id', 'storyId', 'actorKey', 'ip', 'dibuat'];
 
 /**
  * Jejak moderasi Feed/Story. Satu baris = satu tindakan; `actorKey` dan
@@ -375,7 +387,8 @@ const SHEET_SCHEMA = [
   [APP.SHEET_THREADS, THREAD_HEADERS],
   [APP.SHEET_FACTA, FAKTA_HEADERS],
   [APP.SHEET_NOTIFIKASI, NOTIF_HEADERS],
-  [APP.SHEET_MODERASI, MODERASI_HEADERS]
+  [APP.SHEET_MODERASI, MODERASI_HEADERS],
+  [APP.SHEET_TONTONAN, TONTONAN_HEADERS]
 ];
 
 const DEFAULT_SETTINGS = [
@@ -5645,6 +5658,12 @@ const RATE_RULES = {
   'kader-profil': { limit: 12, window: 600 },
   'kader-unggah': { limit: 30, window: 900 },
   'cerita-unggah': { limit: 20, window: 900 },
+  'cerita-lihat': { limit: 120, window: 600 },
+  'cerita-suka': { limit: 60, window: 600 },
+  'cerita-balas': { limit: 30, window: 600 },
+  'cerita-balas-ip': { limit: 90, window: 600 },
+  'cerita-hapus': { limit: 30, window: 600 },
+  'cerita-turunkan': { limit: 40, window: 600 },
   'kader-cari': { limit: 30, window: 60 },
   'thread-list': { limit: 60, window: 60 },
   'thread-baca': { limit: 60, window: 60 },
@@ -6955,12 +6974,15 @@ function feedSuka_(body) {
       Utilities.getUuid(), id, actor.key, actor.name, 'like', new Date().toISOString(), 'post'
     ]);
     if (String(row.authorKey) !== actor.key) {
-      notifKirim_(row.authorKey, {
+      notifSosial_(row.authorKey, actor, {
         jenis: 'suka',
         judul: 'Kabar Anda disukai ' + actor.name,
         isi: cleanText_(row.isi).slice(0, 120),
-        tautan: 'feed.html?kabar=' + id
-      }, 'notif-suka-' + id + '-' + actor.key);
+        tautan: 'feed.html?kabar=' + id,
+        targetType: 'post', targetId: id,
+        grupKunci: 'suka:post:' + id,
+        id: 'notif-suka-' + id + '-' + actor.key
+      });
     }
   }
   const total = reactionIndex_('post')[id];
@@ -6998,28 +7020,39 @@ function feedBalas_(body) {
   ]);
 
   const tautanKabar = 'feed.html?kabar=' + id;
+  const kunciGrup = 'balasan:post:' + id;
   if (String(row.authorKey) !== actor.key) {
-    notifKirim_(row.authorKey, {
+    notifSosial_(row.authorKey, actor, {
       jenis: 'balasan',
       judul: parentId ? 'Balasan pada komentar Anda di kabar ' + (row.authorName || 'kader')
         : actor.name + ' mengomentari kabar Anda',
       isi: text,
-      tautan: tautanKabar
-    }, 'notif-balas-' + baru);
+      tautan: tautanKabar,
+      targetType: 'post', targetId: id, grupKunci: kunciGrup,
+      id: 'notif-balas-' + baru
+    });
   } else if (parentId) {
     // Pemilik kabar mengomentari balasan: kabari penulis komentar induk.
     const induk = (commentIndex_('post')[id] || []).filter(function (comment) {
       return String(comment.id) === parentId;
     })[0];
     if (induk && String(induk.actorKey) !== actor.key) {
-      notifKirim_(induk.actorKey, {
+      notifSosial_(induk.actorKey, actor, {
         jenis: 'balasan',
         judul: 'Ada balasan pada komentar Anda',
         isi: text,
-        tautan: tautanKabar
-      }, 'notif-balas-' + baru);
+        tautan: tautanKabar,
+        targetType: 'post', targetId: id, grupKunci: kunciGrup,
+        id: 'notif-balas-' + baru + '-induk'
+      });
     }
   }
+  notifSebut_(text, actor, {
+    judul: actor.name + ' menyebut Anda di komentar',
+    isi: text, tautan: tautanKabar,
+    targetType: 'post', targetId: id, grupKunci: 'sebutan:post:' + id,
+    id: 'notif-sebut-komentar-' + baru
+  });
 
   const view = commentView_({
     id: baru, actorName: actor.name, actorPicture: actor.picture, text: text, createdAt: now
@@ -7070,10 +7103,20 @@ function feedBagikan_(body) {
 
   if (!punya.length) {
     const now = new Date().toISOString();
+    const idBagikan = Utilities.getUuid();
     sheet_(APP.SHEET_POSTS).appendRow([
-      Utilities.getUuid(), actor.key, actor.id, actor.name, actor.picture,
+      idBagikan, actor.key, actor.id, actor.name, actor.picture,
       'berbagi', '', '', id, 'true', now, now
     ]);
+    notifSosial_(row.authorKey, actor, {
+      jenis: 'bagikan',
+      judul: actor.name + ' membagikan kabar Anda',
+      isi: cleanText_(row.isi).slice(0, 120),
+      tautan: 'feed.html?kabar=' + id,
+      targetType: 'post', targetId: id,
+      grupKunci: 'bagikan:post:' + id,
+      id: 'notif-bagikan-' + id + '-' + actor.key
+    });
   }
 
   const total = rows_(APP.SHEET_POSTS).filter(function (post) {
@@ -7103,6 +7146,7 @@ function feedSimpan_(body) {
 /** Mengikuti satu arah dan bisa dibatalkan; identitas kader sudah unik per orang. */
 function feedIkuti_(body) {
   const actor = actorOf_(body.token);
+  if (actor.kind !== 'kader') throw new Error('Hanya akun kader yang dapat mengikuti kader lain.');
   throttle_('feed-follow', actor.key);
 
   const targetId = String(body.kaderId || '').trim().slice(0, 64);
@@ -7114,17 +7158,38 @@ function feedIkuti_(body) {
   const punya = rows_(APP.SHEET_FOLLOWS).filter(function (follow) {
     return String(follow.actorKey) === actor.key && String(follow.targetId) === targetId;
   });
+  const diminta = body.mengikuti === undefined ? undefined : body.mengikuti === true;
+  if (diminta === false && !punya.length) throw new Error('Anda belum mengikuti akun ini.');
+  if (diminta === true && punya.length) {
+    return {
+      mengikuti: true,
+      pengikut: rows_(APP.SHEET_FOLLOWS).filter(function (follow) {
+        return String(follow.targetId) === targetId;
+      }).length
+    };
+  }
+
+  const akanMengikuti = diminta === undefined ? !punya.length : diminta;
   punya.forEach(function (follow) { deleteRowById_(APP.SHEET_FOLLOWS, follow.id); });
-  if (!punya.length) {
+  if (akanMengikuti) {
     sheet_(APP.SHEET_FOLLOWS).appendRow([
       Utilities.getUuid(), actor.key, actor.id, targetId, new Date().toISOString()
     ]);
+    notifSosial_('k:' + targetId, actor, {
+      jenis: 'ikuti',
+      judul: actor.name + ' mulai mengikuti Anda',
+      isi: cleanText_(target.name).slice(0, 120),
+      tautan: 'profil.html?kader=' + actor.id,
+      targetType: 'kader', targetId: actor.id,
+      grupKunci: 'ikuti:kader:' + actor.id,
+      id: 'notif-ikuti-' + targetId + '-' + actor.key
+    });
   }
 
   const pengikut = rows_(APP.SHEET_FOLLOWS).filter(function (follow) {
     return String(follow.targetId) === targetId;
   }).length;
-  return { mengikuti: !punya.length, pengikut: pengikut };
+  return { mengikuti: akanMengikuti, pengikut: pengikut };
 }
 
 /* ------------------------------------------------------------- moderasi feed */
@@ -7579,17 +7644,29 @@ function kaderCari_(body) {
   if (!actorKey) return { hasil: [], kemampuan: { mencari: false } };
   throttle_('kader-cari', actorKey);
 
-  const kata = cleanText_(body.kata).toLowerCase();
+  const kata = cleanText_(body.kata).toLowerCase().replace(/^@+/, '').slice(0, 40);
   const jaringan = kaderJaringanIndex_();
   const hasil = [];
   if (kata.length >= 2) {
+    const tertemu = [];
     rows_(APP.SHEET_KADERS).forEach(function (row) {
-      if (hasil.length >= 20) return;
-      const nama = cleanText_(row.name).toLowerCase();
-      const username = cleanText_(row.username).toLowerCase();
-      if (nama.indexOf(kata) < 0 && username.indexOf(kata) < 0) return;
       if ('k:' + String(row.id) === actorKey) return;
-      hasil.push(kaderRingkas_(row, jaringan, actorKey));
+      const nama = cleanText_(row.name).toLowerCase();
+      const username = cleanText_(row.username).toLowerCase().replace(/^@+/, '');
+      const diNama = nama.indexOf(kata);
+      const diUsername = username.indexOf(kata);
+      if (diNama < 0 && diUsername < 0) return;
+      // Awalan username paling relevan, lalu awalan nama, lalu kemunculan di tengah.
+      const skor = diUsername === 0 ? 0 : diNama === 0 ? 1
+        : diUsername > 0 && diNama > 0 ? Math.min(diUsername, diNama) + 2
+          : Math.max(diUsername, diNama) + 2;
+      tertemu.push({ row: row, skor: skor });
+    });
+    tertemu.sort(function (a, b) {
+      return a.skor - b.skor || cleanText_(a.row.name).localeCompare(cleanText_(b.row.name));
+    });
+    tertemu.slice(0, 20).forEach(function (item) {
+      hasil.push(kaderRingkas_(item.row, jaringan, actorKey));
     });
   }
   return { hasil: hasil, kemampuan: { mencari: true } };
@@ -7753,6 +7830,7 @@ function ceritaSingkirkan_(sekarang) {
     buangBerkasDrive_(String(row.url || ''));
     try {
       deleteRowById_(APP.SHEET_STORIES, row.id);
+      ceritaBersihkanInteraksi_(row.id);
     } catch (error) {
       console.warn('Baris cerita gagal dibuang: ' + error.message);
     }
@@ -7864,6 +7942,8 @@ function ceritaUnggah_(body) {
     throw new Error('Ukuran berkas melebihi 3 MB. Kecilkan terlebih dahulu.');
   }
 
+  const keterangan = cleanText_(body.keterangan).slice(0, APP.CERITA_CAPTION_MAX);
+  feedCekIsi_(keterangan);
   const media = mediaSimpan_(bytes, mime, 'cerita-' + slugify_(actor.name) + '-'
     + Utilities.getUuid().slice(0, 8));
   const createdAt = new Date(sekarang).toISOString();
@@ -7872,19 +7952,27 @@ function ceritaUnggah_(body) {
 
   sheet_(APP.SHEET_STORIES).appendRow([
     id, actor.id, actor.key, media.url, media.mime,
-    cleanText_(body.keterangan).slice(0, APP.CERITA_CAPTION_MAX), createdAt, kedaluarsa,
+    keterangan, createdAt, kedaluarsa,
     'published'
   ]);
 
   const baris = findRow_(APP.SHEET_STORIES, id);
   if (!baris) throw new Error('Cerita gagal disimpan. Coba unggah ulang.');
+  notifSebut_(keterangan, actor, {
+    judul: actor.name + ' menyebut Anda di cerita',
+    isi: keterangan,
+    tautan: 'feed.html?cerita=' + id,
+    targetType: 'story', targetId: id,
+    grupKunci: 'sebutan:story:' + id,
+    id: 'notif-sebut-cerita-' + id
+  });
   return {
     cerita: {
       id: id,
       gambar: media.url,
       mime: media.mime,
       video: media.mime.indexOf('video/') === 0,
-      keterangan: cleanText_(body.keterangan).slice(0, APP.CERITA_CAPTION_MAX),
+      keterangan: keterangan,
       createdAt: createdAt,
       kedaluarsa: timeOf_(kedaluarsa)
     },
@@ -7894,6 +7982,7 @@ function ceritaUnggah_(body) {
 
 function ceritaHapus_(body) {
   const actor = actorOf_(body.token);
+  throttle_('cerita-hapus', actor.key);
   const baris = findRow_(APP.SHEET_STORIES, String(body.id || ''));
   if (!baris) return { deleted: true };
   if (String(baris.actorKey) !== actor.key) {
@@ -7901,12 +7990,14 @@ function ceritaHapus_(body) {
   }
   buangBerkasDrive_(String(baris.url || ''));
   deleteRowById_(APP.SHEET_STORIES, baris.id);
+  ceritaBersihkanInteraksi_(baris.id);
   return { deleted: true, id: String(baris.id) };
 }
 
 /** Moderasi Story: sembunyikan baris tanpa membuang berkasnya. */
 function ceritaTurunkan_(body) {
   const moderator = moderatorDariToken_(body.token, false);
+  throttle_('cerita-turunkan', moderator.actor.key);
   const id = String(body.id || '').trim().slice(0, 64);
   const row = findRow_(APP.SHEET_STORIES, id);
   if (!row) throw new Error('Cerita tidak ditemukan.');
@@ -7925,11 +8016,197 @@ function ceritaTurunkan_(body) {
   return { id: id, diturunkan: !pulihkan };
 }
 
+/** Ambil baris Story yang masih tayang; dipakai semua jalur interaksi. */
+function ceritaAktif_(id) {
+  const baris = findRow_(APP.SHEET_STORIES, String(id || '').trim().slice(0, 64));
+  if (!baris || !ceritaHidup_(baris, Date.now())) {
+    throw new Error('Cerita tidak ditemukan atau sudah kedaluwarsa.');
+  }
+  return baris;
+}
+
+/** Tontonan, suka, dan balasan ikut dibersihkan saat Story dihapus/dibuang. */
+function ceritaBersihkanInteraksi_(id) {
+  const storyId = String(id || '');
+  if (!storyId) return;
+  const aturan = [
+    [APP.SHEET_TONTONAN, function (row) { return String(row.storyId) === storyId; }],
+    [APP.SHEET_REACTIONS, function (row) {
+      return String(row.targetType || 'event') === 'story' && String(row.eventId) === storyId;
+    }],
+    [APP.SHEET_COMMENTS, function (row) {
+      return String(row.targetType || 'event') === 'story' && String(row.eventId) === storyId;
+    }]
+  ];
+  aturan.forEach(function (pasangan) {
+    let baris;
+    try {
+      baris = rows_(pasangan[0]);
+    } catch (error) {
+      return;
+    }
+    baris.filter(pasangan[1]).forEach(function (row) {
+      try {
+        deleteRowById_(pasangan[0], row.id);
+      } catch (error) {
+        console.warn('Interaksi cerita gagal dibuang: ' + error.message);
+      }
+    });
+  });
+}
+
+/** Suka Story memakai Reactions yang sama dengan Feed, dibedakan target_type. */
+function ceritaSuka_(body) {
+  const actor = actorOf_(body.token);
+  if (actor.kind !== 'kader') throw new Error('Hanya kader yang dapat menyukai cerita.');
+  throttle_('cerita-suka', actor.key);
+  const row = ceritaAktif_(body.id);
+  const id = String(row.id);
+
+  const existing = rows_(APP.SHEET_REACTIONS).filter(function (reaction) {
+    return String(reaction.eventId) === id && String(reaction.actorKey) === actor.key
+      && String(reaction.targetType || 'event') === 'story';
+  });
+  existing.forEach(function (reaction) { deleteRowById_(APP.SHEET_REACTIONS, reaction.id); });
+  if (!existing.length && String(row.actorKey) !== actor.key) {
+    sheet_(APP.SHEET_REACTIONS).appendRow([
+      Utilities.getUuid(), id, actor.key, actor.name, 'like', new Date().toISOString(), 'story'
+    ]);
+    notifSosial_(row.actorKey, actor, {
+      jenis: 'suka-cerita',
+      judul: actor.name + ' menyukai cerita Anda',
+      isi: cleanText_(row.caption).slice(0, 120),
+      tautan: 'feed.html?cerita=' + id,
+      targetType: 'story', targetId: id,
+      grupKunci: 'suka-cerita:story:' + id,
+      id: 'notif-suka-cerita-' + id + '-' + actor.key
+    });
+  }
+  const total = reactionIndex_('story')[id];
+  return { liked: !existing.length, likes: total ? total.count : 0 };
+}
+
+function ceritaBalas_(body) {
+  const actor = actorOf_(body.token);
+  if (actor.kind !== 'kader') throw new Error('Hanya kader yang dapat membalas cerita.');
+  throttle_('cerita-balas', actor.key);
+  throttle_('cerita-balas-ip', clientIp_(body));
+  const row = ceritaAktif_(body.id);
+  const id = String(row.id);
+  const text = cleanText_(body.teks).slice(0, APP.COMMENT_MAX_CHARS);
+  if (text.length < 3) throw new Error('Tulis balasan yang lebih jelas.');
+  feedCekIsi_(text);
+
+  const waktu = new Date().toISOString();
+  const baru = Utilities.getUuid();
+  sheet_(APP.SHEET_COMMENTS).appendRow([
+    baru, id, actor.key, actor.name, actor.picture, text, 'published', waktu, waktu, 'story', ''
+  ]);
+
+  if (String(row.actorKey) !== actor.key) {
+    notifSosial_(row.actorKey, actor, {
+      jenis: 'balasan-cerita',
+      judul: actor.name + ' membalas cerita Anda',
+      isi: text,
+      tautan: 'feed.html?cerita=' + id,
+      targetType: 'story', targetId: id,
+      grupKunci: 'balasan-cerita:story:' + id,
+      id: 'notif-balas-cerita-' + baru
+    });
+  }
+  notifSebut_(text, actor, {
+    judul: actor.name + ' menyebut Anda di balasan cerita',
+    isi: text, tautan: 'feed.html?cerita=' + id,
+    targetType: 'story', targetId: id,
+    grupKunci: 'sebutan:story:' + id,
+    id: 'notif-sebut-balasan-' + baru
+  });
+
+  const index = commentIndex_('story')[id] || [];
+  return {
+    balasan: {
+      id: baru, nama: actor.name, avatar: actor.picture, teks: text,
+      dibuat: waktu, mine: true
+    },
+    jumlah: index.length
+  };
+}
+
+/** Tontonan dicatat sekali per akun (atau IP untuk tamu), bukan tiap kali dibuka. */
+function ceritaLihat_(body) {
+  throttle_('cerita-lihat', clientIp_(body));
+  const row = ceritaAktif_(body.id);
+  const id = String(row.id);
+  const actorKey = body.token ? safeActorKey_(body.token) : '';
+  const ip = clientIp_(body);
+  const sudah = rows_(APP.SHEET_TONTONAN).some(function (item) {
+    return String(item.storyId) === id && String(item.actorKey) === actorKey
+      && String(item.ip) === ip;
+  });
+  if (!sudah) {
+    sheet_(APP.SHEET_TONTONAN).appendRow([
+      Utilities.getUuid(), id, actorKey, ip, new Date().toISOString()
+    ]);
+  }
+  const jumlah = rows_(APP.SHEET_TONTONAN).filter(function (item) {
+    return String(item.storyId) === id;
+  }).length;
+  return { tercatat: !sudah, penonton: jumlah };
+}
+
+function ceritaDetail_(body) {
+  const row = ceritaAktif_(body.id);
+  const id = String(row.id);
+  const actorKey = body.token ? safeActorKey_(body.token) : '';
+  const pemilik = Boolean(actorKey) && String(row.actorKey) === actorKey;
+  const suka = reactionIndex_('story')[id];
+  const kader = feedPengarangIndex_();
+
+  const balasan = (commentIndex_('story')[id] || []).slice(-60).map(function (item) {
+    const lihat = commentView_(item);
+    return {
+      id: lihat.id, nama: lihat.author, avatar: lihat.picture,
+      teks: lihat.text, dibuat: lihat.createdAt,
+      mine: Boolean(actorKey) && String(item.actorKey) === actorKey
+    };
+  });
+
+  let penonton = null;
+  if (pemilik) {
+    penonton = rows_(APP.SHEET_TONTONAN)
+      .filter(function (item) { return String(item.storyId) === id; })
+      .sort(function (a, b) { return String(b.dibuat) < String(a.dibuat) ? -1 : 1; })
+      .slice(0, 50)
+      .map(function (item) {
+        const idKader = String(item.actorKey || '').replace(/^k:/, '');
+        const orang = kader[idKader] || {};
+        return {
+          nama: cleanText_(orang.name) || 'Kader PII',
+          avatar: safeUrl_(orang.picture),
+          dibuat: String(item.dibuat || '')
+        };
+      });
+  }
+
+  return {
+    id: id,
+    likes: suka ? suka.count : 0,
+    liked: Boolean(suka && actorKey && suka.byKey[actorKey]),
+    balasan: balasan,
+    penonton: penonton,
+    jumlahPenonton: penonton ? penonton.length : 0
+  };
+}
+
 function ceritaAksi_(action, body) {
   if (action === 'ceritaList') return ceritaDaftar_(body);
   if (action === 'ceritaUnggah') return ceritaUnggah_(body);
   if (action === 'ceritaHapus') return ceritaHapus_(body);
   if (action === 'ceritaTurunkan') return ceritaTurunkan_(body);
+  if (action === 'ceritaLihat') return ceritaLihat_(body);
+  if (action === 'ceritaSuka') return ceritaSuka_(body);
+  if (action === 'ceritaBalas') return ceritaBalas_(body);
+  if (action === 'ceritaDetail') return ceritaDetail_(body);
   throw new Error('Aksi cerita tidak dikenal.');
 }
 
@@ -7945,12 +8222,44 @@ function kaderAksi_(action, body) {
 /* ------------------------------------------------- notifikasi internal */
 
 /**
- * Tautan kabar dibatasi ke halaman aplikasi: sebuah kotak surat tidak boleh
- * dipakai mengirim orang ke situs luar lewat isian mana pun.
+ * Peta alamat kabar -> rute kanonik Vercel. Tautan lama berbentuk
+ * `feed.html?kabar=…` pernah dibuka mentah dari `/app/notifikasi` sehingga
+ * menjadi `/app/feed.html?…` dan ditolak Vercel. Semua tautan kabar, baik yang
+ * lama maupun yang baru, kini dinormalisasi di sini sebelum disimpan/dikirim.
  */
+const NOTIF_RUTE = {
+  'index.html': '/app',
+  'feed.html': '/app/feed',
+  'profil.html': '/app/profil',
+  'acara.html': '/app/acara',
+  'ibadah.html': '/app/ibadah',
+  'tanya.html': '/app/tanya',
+  'pustaka.html': '/app/pustaka',
+  'admin.html': '/admin',
+  'lembaga.html': '/lembaga',
+  '/feed': '/app/feed',
+  '/profil': '/app/profil',
+  '/app': '/app',
+  '/app/feed': '/app/feed',
+  '/app/profil': '/app/profil',
+  '/app/acara': '/app/acara',
+  '/app/ibadah': '/app/ibadah',
+  '/app/tanya': '/app/tanya',
+  '/app/pustaka': '/app/pustaka',
+  '/app/notifikasi': '/app/notifikasi',
+  '/admin': '/admin',
+  '/lembaga': '/lembaga'
+};
+
 function notifTautan_(value) {
   const raw = String(value || '').trim().slice(0, 200);
-  return /^[a-z0-9_-]+\.html(?:[?#][^\s<>]*)?$/i.test(raw) ? raw : '';
+  if (!raw || /[<>\\\s]/.test(raw) || /^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(raw)) return '';
+  const potong = raw.search(/[?#]/);
+  const path = (potong < 0 ? raw : raw.slice(0, potong)).replace(/\/+$/, '') || '/';
+  const ekor = potong < 0 ? '' : raw.slice(potong);
+  if (ekor && /(?:https?:)?\/\//i.test(ekor)) return '';
+  const tujuan = NOTIF_RUTE[path] || NOTIF_RUTE['/' + path.replace(/^\/+/, '')];
+  return tujuan ? tujuan + ekor : '';
 }
 
 /**
@@ -7960,16 +8269,80 @@ function notifTautan_(value) {
  */
 function notifKirim_(untuk, kabar, id) {
   const kotak = String(untuk || '');
-  const judul = cleanText_(kabar && kabar.judul).slice(0, NOTIF_JUDUL_MAX);
+  const info = kabar || {};
+  const judul = cleanText_(info.judul).slice(0, NOTIF_JUDUL_MAX);
   if (!kotak || !judul) return '';
   const barisId = String(id || 'notif-' + Utilities.getUuid());
   if (findRow_(APP.SHEET_NOTIFIKASI, barisId)) return barisId;
+  const targetType = String(info.targetType || '').slice(0, 24);
+  const targetId = String(info.targetId || '').slice(0, 64);
+  const grup = String(info.grupKunci || [info.jenis || 'info', targetType, targetId].join(':'))
+    .slice(0, 120);
   sheet_(APP.SHEET_NOTIFIKASI).appendRow([
-    barisId, kotak, String((kabar && kabar.jenis) || 'info'), judul,
-    cleanText_(kabar.isi).slice(0, NOTIF_ISI_MAX), notifTautan_(kabar.tautan),
-    new Date().toISOString(), ''
+    barisId, kotak, String(info.jenis || 'info'), judul,
+    cleanText_(info.isi).slice(0, NOTIF_ISI_MAX), notifTautan_(info.tautan),
+    new Date().toISOString(), '',
+    String(info.actorKey || '').slice(0, 80),
+    cleanText_(info.actorName).slice(0, 80),
+    safeUrl_(info.actorPicture),
+    targetType, targetId, grup
   ]);
   return barisId;
+}
+
+/** Kabar sosial selalu membawa identitas pengirim dari token, bukan dari body. */
+function notifSosial_(untuk, aktor, opsi) {
+  if (!untuk || String(untuk) === aktor.key) return '';
+  const info = opsi || {};
+  return notifKirim_(untuk, {
+    jenis: info.jenis || 'aktivitas',
+    judul: info.judul || (aktor.name + ' melakukan aktivitas'),
+    isi: info.isi || '',
+    tautan: info.tautan || '',
+    actorKey: aktor.key,
+    actorName: aktor.name,
+    actorPicture: aktor.picture,
+    targetType: info.targetType || '',
+    targetId: info.targetId || '',
+    grupKunci: info.grupKunci || ''
+  }, info.id);
+}
+
+/**
+ * Menyebut @username di isian kader menghasilkan kabar untuk kader yang sheets
+ * aliasnya benar-benar ada. Pencocokan memakai daftar username, bukan regex bebas,
+ * supaya `@name@example` atau `@name` di dalam URL tidak membuat kabar palsu.
+ */
+function notifSebut_(teks, aktor, opsi) {
+  const isi = cleanText_(teks);
+  if (!isi || !/@/.test(isi)) return 0;
+  const info = opsi || {};
+  let kader;
+  try {
+    kader = rows_(APP.SHEET_KADERS);
+  } catch (error) {
+    return 0;
+  }
+  let terkirim = 0;
+  kader.forEach(function (row) {
+    const username = cleanText_(row.username).toLowerCase();
+    if (username.length < 3 || 'k:' + String(row.id) === aktor.key) return;
+    const aman = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pola = new RegExp('(^|[^a-z0-9_])@' + aman + '(?=$|[^a-z0-9_])', 'i');
+    if (!pola.test(isi)) return;
+    const id = String(info.id || 'notif-sebut') + '-' + String(row.id);
+    if (notifSosial_('k:' + String(row.id), aktor, {
+      jenis: info.jenis || 'sebutan',
+      judul: info.judul || (aktor.name + ' menyebut Anda'),
+      isi: isi,
+      tautan: info.tautan || '',
+      targetType: info.targetType || '',
+      targetId: info.targetId || '',
+      grupKunci: info.grupKunci || '',
+      id: id
+    })) terkirim += 1;
+  });
+  return terkirim;
 }
 
 /** Kunci aktor sudah memuat jenis akun (k:, o:, a:), jadi peran tidak perlu ditebak. */
@@ -7986,16 +8359,55 @@ function notifBaris_(kotak) {
     .sort(function (a, b) { return String(b.dibuat) < String(a.dibuat) ? -1 : 1; });
 }
 
+/** Kabar yang objeknya sudah dihapus tidak boleh mengarah ke halaman kosong. */
+function notifTargetHilang_(item) {
+  const jenis = String(item.targetType || '');
+  const id = String(item.targetId || '');
+  if (!jenis || !id) return false;
+  try {
+    if (jenis === 'post') {
+      const row = findRow_(APP.SHEET_POSTS, id);
+      return !row || String(row.visibel) === 'false'
+        || String(row.status || 'published') === 'taken-down';
+    }
+    if (jenis === 'story') {
+      const row = findRow_(APP.SHEET_STORIES, id);
+      return !row || !ceritaHidup_(row, Date.now());
+    }
+    if (jenis === 'kader') {
+      return !findRow_(APP.SHEET_KADERS, id);
+    }
+  } catch (error) {
+    return true;
+  }
+  return false;
+}
+
 function notifTampilan_(baris) {
-  return baris.slice(0, NOTIF_BATAS_TAMPIL).map(function (item) {
+  return baris.map(function (item) {
+    const jenis = String(item.jenis || 'info');
+    const targetType = String(item.targetType || '');
+    const targetId = String(item.targetId || '');
+    const hilang = notifTargetHilang_(item);
+    let tautan = notifTautan_(item.tautan);
+    if (hilang) {
+      tautan = targetType === 'kader' ? '/app/notifikasi' : '/app/feed';
+    }
     return {
       id: String(item.id || ''),
-      jenis: String(item.jenis || 'info'),
+      jenis: jenis,
       judul: String(item.judul || ''),
       isi: String(item.isi || ''),
-      tautan: notifTautan_(item.tautan),
+      tautan: tautan,
       dibuat: String(item.dibuat || ''),
-      dibaca: String(item.dibaca || '')
+      dibaca: String(item.dibaca || ''),
+      actorKey: String(item.actorKey || ''),
+      actorName: String(item.actorName || ''),
+      actorPicture: safeUrl_(item.actorPicture),
+      targetType: targetType,
+      targetId: targetId,
+      targetHilang: hilang,
+      grupKunci: String(item.grupKunci || [jenis, targetType, targetId].join(':'))
     };
   });
 }
@@ -8007,13 +8419,23 @@ function notifBelumDibaca_(baris) {
 function notifDaftar_(body, aktor) {
   throttle_('notif-baca', clientIp_(body));
   const baris = notifBaris_(notifKotak_(aktor));
-  return { notifikasi: notifTampilan_(baris), belumDibaca: notifBelumDibaca_(baris) };
+  const batas = Math.min(60, Math.max(10, Number(body.batas) || NOTIF_BATAS_HALAMAN));
+  const offset = Math.max(0, Number(body.offset) || 0);
+  return {
+    notifikasi: notifTampilan_(baris.slice(offset, offset + batas)),
+    belumDibaca: notifBelumDibaca_(baris),
+    offset: offset,
+    batas: batas,
+    punyaLebih: offset + batas < baris.length
+  };
 }
 
-/** Menandai dibaca satu kabar atau seluruh isi kotak milik aktor ini saja. */
+/** Menandai dibaca satu kabar, beberapa id, atau seluruh isi kotak milik aktor ini saja. */
 function notifTandai_(body, aktor) {
   const kotak = notifKotak_(aktor);
-  const id = String(body.id || '').trim().slice(0, 80);
+  const ids = Array.isArray(body.ids)
+    ? body.ids.map(function (value) { return String(value).trim().slice(0, 80); }).filter(Boolean)
+    : (body.id ? [String(body.id).trim().slice(0, 80)] : []);
   const baris = notifBaris_(kotak);
   const belum = notifBelumDibaca_(baris);
   const kolom = NOTIF_HEADERS.indexOf('dibaca') + 1;
@@ -8022,7 +8444,7 @@ function notifTandai_(body, aktor) {
   let ditandai = 0;
 
   baris.forEach(function (item) {
-    if (String(item.dibaca) || (id && String(item.id) !== id)) return;
+    if (String(item.dibaca) || (ids.length && ids.indexOf(String(item.id)) < 0)) return;
     const existing = findRow_(APP.SHEET_NOTIFIKASI, item.id);
     if (!existing) return;
     sheet.getRange(existing._row, kolom).setValue(sekarang);
@@ -8044,4 +8466,4 @@ function notifLembaga_(orgId, kabar, id) {
   return notifKirim_('o:' + String(orgId || ''), kabar, id);
 }
 
-module.exports = { doPost, doGet, health_, BACKEND_VERSION, jumlahFungsi: 319 };
+module.exports = { doPost, doGet, health_, BACKEND_VERSION, jumlahFungsi: 328 };

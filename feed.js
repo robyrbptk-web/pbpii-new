@@ -311,7 +311,7 @@
     }
     const poster = item.poster ? safeImage(item.poster) : LOGO;
     return `<div class="feed-video-wrap" data-rasio="16 / 9">
-      <video class="feed-video" data-src="${src}" controls playsinline preload="none" poster="${poster}"
+      <video class="feed-video" data-src="${src}" controls playsinline loading="lazy" preload="metadata" poster="${poster}"
         aria-label="Video pada kabar ${escapeHTML(JENIS_LABEL[card.jenis] || 'kader')}">
         <span class="feed-video-fallback">Peramban ini tidak mendukung pemutaran video.</span>
       </video>
@@ -433,7 +433,7 @@
   function avatarHtml(author, kelas = '') {
     const initial = escapeHTML(initials(author.name));
     const foto = author.picture
-      ? `<img src="${safeImage(author.picture)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`
+      ? `<img src="${safeImage(author.picture)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : '';
     return `<span class="feed-ava${kelas}" aria-hidden="true">${initial}${foto}</span>`;
   }
@@ -888,7 +888,7 @@
     if (!el) return;
     el.textContent = initials(nama || 'K');
     if (foto && !el.querySelector('img')) {
-      el.insertAdjacentHTML('beforeend', `<img src="${safeImage(foto)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`);
+      el.insertAdjacentHTML('beforeend', `<img src="${safeImage(foto)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`);
     }
   }
 
@@ -921,12 +921,19 @@
     const nama = escapeHTML(kader.nama || 'Kader PII');
     const username = String(kader.username || '');
     const ava = `<span class="feed-ava">${escapeHTML(initials(kader.nama))}${kader.avatar
-      ? `<img src="${safeImage(kader.avatar)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`
+      ? `<img src="${safeImage(kader.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : ''}</span>`;
     const ket = username ? '@' + escapeHTML(username) : 'Kader PII';
     const pengikut = Number(kader.pengikut) || 0;
-    return `<div class="feed-orang">${ava}
-      <span class="feed-orang-isi"><b>${nama}</b><small>${ket}${pengikut ? ` · ${pengikut.toLocaleString('id-ID')} pengikut` : ''}</small></span>
+    /* Identitasnya hyperlink, tombol Ikuti tetap di luar agar tidak ikut
+       navigation saat diketuk. */
+    const alamat = username
+      ? `/app/profil?u=${encodeURIComponent(username)}`
+      : `/app/profil?kader=${encodeURIComponent(kader.id || '')}`;
+    return `<div class="feed-orang">
+      <a class="feed-orang-ident" href="${escapeHTML(alamat)}">${ava}
+        <span class="feed-orang-isi"><b>${nama}</b><small>${ket}${pengikut ? ` · ${pengikut.toLocaleString('id-ID')} pengikut` : ''}</small></span>
+      </a>
       ${tombolIkut(kader.id)}</div>`;
   }
 
@@ -1086,16 +1093,49 @@
     }
   }
 
-  async function cariKader(kata) {
+  /* Pencarian: '#' urutan menjamin respons lama tidak menimpa kata kunci baru,
+     cache singkat menghindari permintaan yang sama berulang. */
+  const cariCache = new Map();
+  const CARI_TTL = 60000;
+  let cariUrutan = 0;
+
+  function kataCari(nilai) {
+    return String(nilai || '').trim().replace(/^@+/, '').trim().slice(0, 40);
+  }
+
+  function paintCari(hasil) {
+    searchResultEl.innerHTML = hasil.length
+      ? hasil.map((kader) => barisOrang({ id: kader.id, nama: kader.nama, username: kader.username, avatar: kader.avatar, pengikut: kader.pengikut })).join('')
+      : '<p class="feed-side-kosong muted">Tidak ada kader dengan nama itu.</p>';
+    searchResultEl.hidden = false;
+  }
+
+  async function cariKader(nilai) {
     if (!adaSesi() || !searchResultEl) return;
+    const kata = kataCari(nilai);
+    if (kata.length < 2) {
+      searchResultEl.hidden = true;
+      searchResultEl.innerHTML = '';
+      return;
+    }
+    const kunci = kata.toLowerCase();
+    const nomor = ++cariUrutan;
+    const tersimpan = cariCache.get(kunci);
+    if (tersimpan && Date.now() - tersimpan.pada < CARI_TTL) {
+      paintCari(tersimpan.hasil);
+      return;
+    }
+    searchResultEl.hidden = false;
+    searchResultEl.innerHTML = '<p class="feed-side-kosong muted">Mencari…</p>';
     try {
       const data = await api({ action: 'kaderCari', kata, token: tokenSaya() });
+      if (nomor !== cariUrutan) return;
       const hasil = data.hasil || [];
-      searchResultEl.innerHTML = hasil.length
-        ? hasil.map((kader) => barisOrang({ id: kader.id, nama: kader.nama, username: kader.username, avatar: kader.avatar, pengikut: kader.pengikut })).join('')
-        : '<p class="feed-side-kosong muted">Tidak ada kader dengan nama itu.</p>';
-      searchResultEl.hidden = false;
+      cariCache.set(kunci, { hasil, pada: Date.now() });
+      if (cariCache.size > 30) cariCache.delete(cariCache.keys().next().value);
+      paintCari(hasil);
     } catch (error) {
+      if (nomor !== cariUrutan) return;
       searchResultEl.innerHTML = `<p class="feed-side-kosong muted">${escapeHTML(error.message)}</p>`;
       searchResultEl.hidden = false;
     }
@@ -2077,13 +2117,21 @@
   let cariJeda = 0;
   searchEl?.addEventListener('input', () => {
     clearTimeout(cariJeda);
-    const kata = searchEl.value.trim();
+    const kata = kataCari(searchEl.value);
     if (kata.length < 2) {
+      cariUrutan += 1;
       searchResultEl.hidden = true;
       searchResultEl.innerHTML = '';
       return;
     }
+    searchResultEl.hidden = false;
+    searchResultEl.innerHTML = '<p class="feed-side-kosong muted">Mencari…</p>';
     cariJeda = setTimeout(() => cariKader(kata), 320);
+  });
+  searchFormEl?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    clearTimeout(cariJeda);
+    cariKader(searchEl.value);
   });
 
   sideEl?.addEventListener('click', (event) => {
@@ -2352,8 +2400,34 @@
     countEl.textContent = `${state.items.length.toLocaleString('id-ID')} kabar terbaru dimuat dari perangkat…`;
   }
 
-  const ingin = new URLSearchParams(location.search).get('kabar');
-  loadFeed().then(() => {
+  const parameter = new URLSearchParams(location.search);
+  const ingin = parameter.get('kabar');
+  const inginCerita = parameter.get('cerita');
+
+  function bersihkanParamCerita() {
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete('cerita');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch {
+      /* URL tetap boleh memuat parameter bila riwayat tidak tersedia */
+    }
+  }
+
+  loadFeed().then(async () => {
+    if (inginCerita) {
+      let dibuka = false;
+      try {
+        const hasil = window.PBPIICerita?.bukaId?.(inginCerita);
+        dibuka = hasil && typeof hasil.then === 'function' ? await hasil : Boolean(hasil);
+      } catch {
+        dibuka = false;
+      }
+      if (!dibuka) {
+        toast(listEl, 'Cerita ini sudah tidak tersedia — mungkin sudah berakhir atau diturunkan.');
+        bersihkanParamCerita();
+      }
+    }
     if (!ingin) return;
     const panel = panelFor(ingin);
     if (panel) {
