@@ -12,7 +12,6 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="captcha.css">
   <style>
     *{box-sizing:border-box}
     body{margin:0;min-height:100vh;min-height:100dvh;background:radial-gradient(1100px 520px at 85% -8%,#dcecf9 0%,transparent 62%),radial-gradient(900px 480px at -12% 108%,#e3eef7 0%,transparent 58%),linear-gradient(160deg,#eef4f9,#ffffff 52%,#f3f7fa);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:#182638;padding:max(26px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(26px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));display:grid;place-items:start center}
@@ -37,7 +36,6 @@
     .pass-wrap{position:relative}
     .pass-wrap input{padding-right:88px}
     .pass-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:#176da8;font-weight:700;font-size:12px;min-width:58px;min-height:42px;cursor:pointer}
-    .sso-card .captcha{margin:4px 0 14px}
     .sso-msg{display:none;margin:12px 0 0;padding:11px 13px;border-radius:10px;font-size:12.5px;overflow-wrap:anywhere;line-height:1.5}
     .sso-msg.error{display:block;background:#fff0f0;color:#a51e27;border:1px solid #f4d1d3}
     .sso-msg.success{display:block;background:#eff9f0;color:#17642c;border:1px solid #d2ead6}
@@ -78,7 +76,8 @@
       .sso-card{padding:18px 16px 14px}
     }
   </style>
-</head>
+  <link rel="stylesheet" href="/design.css">
+  </head>
 <body>
   <main class="sso-wrap">
     <div class="sso-brand">
@@ -98,7 +97,7 @@
         <div class="sso-field"><label for="loginPassword">Kata sandi</label>
           <div class="pass-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pass-toggle" id="togglePass">Lihat</button></div>
         </div>
-        <div class="captcha" id="loginCaptcha"></div>
+        <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button class="sso-go" type="submit" id="loginBtn">Masuk</button>
         <div class="sso-msg" id="loginMessage" role="status" aria-live="polite"></div>
       </form>
@@ -115,7 +114,6 @@
     <div data-account hidden></div>
   </main>
 
-  <script src="captcha.js"></script>
   <script src="akun.js"></script>
   <script>
     const API_ENDPOINT = '/api/pii';
@@ -188,12 +186,6 @@
       document.getElementById('togglePass').textContent = tampil ? 'Sembunyikan' : 'Lihat';
     });
 
-    let verifikasi = null;
-    if (window.PBPIICaptcha && document.getElementById('loginCaptcha')) {
-      verifikasi = window.PBPIICaptcha.attach(document.getElementById('loginCaptcha'));
-      verifikasi.ready().catch(() => {});
-    }
-
     document.getElementById('loginForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const button = document.getElementById('loginBtn');
@@ -208,7 +200,7 @@
             action: 'ssoLogin',
             email: document.getElementById('loginEmail').value.trim(),
             password: document.getElementById('loginPassword').value,
-            ...(verifikasi ? verifikasi.fields() : {})
+            pii_hp: document.getElementById('loginForm').elements.pii_hp.value
           })
         });
         const result = await response.json();
@@ -231,11 +223,6 @@
         }
       } catch (error) {
         tampilPesan(message, error.message || 'Tidak dapat terhubung ke server.', 'error');
-        // Token verifikasi sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
-        if (verifikasi && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
-          verifikasi.reset();
-          verifikasi.reload?.().catch(() => {});
-        }
       } finally {
         button.disabled = false;
         button.textContent = 'Masuk';
@@ -252,5 +239,6 @@
     gambarSesi();
   </script>
   <script src="site.js" defer></script>
-</body>
+  <script src="/design.js" defer></script>
+  </body>
 </html>

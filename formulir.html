@@ -66,8 +66,8 @@
       .registration-code{font-size:18px;letter-spacing:1px;word-break:break-all}
     }
   </style>
-  <link rel="stylesheet" href="/captcha.css">
-</head>
+  <link rel="stylesheet" href="/design.css">
+  </head>
 <body>
   <div class="wrap">
     <div class="brand">
@@ -89,7 +89,7 @@
         <div class="msg ok" id="formMessage" role="status" aria-live="polite"></div>
         <form id="registerForm">
           <div id="dynamicFields"></div>
-          <div class="field"><span class="lbl">Verifikasi keamanan</span><div id="captchaBox"></div></div>
+          <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
           <button class="primary" type="submit" id="submitBtn">Kirim pendaftaran</button>
         </form>
       </div>
@@ -117,7 +117,6 @@
     const registrationKey = window.crypto?.randomUUID?.()
       || Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     let formData = null;
-    let verifikasi = null;
 
     /* Kunci yang sama dipakai semua halaman (lihat akun.js). Panitia mendaftar
        lewat dashboard, bukan lewat formulirnya sendiri, jadi sesi pengurus ikut
@@ -244,8 +243,6 @@
           $('closedBox').textContent = formData.closedReason || 'Formulir ini sudah ditutup. Hubungi panitia bila masih perlu mendaftar.';
           $('closedBox').classList.remove('hidden');
           $('registerForm').classList.add('hidden');
-        } else {
-          verifikasi = window.PBPIICaptcha?.attach($('captchaBox')) || null;
         }
         document.title = formData.title + ' — PB PII';
       } catch (error) {
@@ -266,11 +263,6 @@
         showFormMessage('Isi nomor WhatsApp atau email agar panitia dapat menghubungi.');
         return;
       }
-      if (verifikasi && !verifikasi.valid()) {
-        showFormMessage('Selesaikan verifikasi keamanan di atas, lalu kirim.');
-        return;
-      }
-
       const button = $('submitBtn');
       button.disabled = true;
       button.textContent = 'Mengirim…';
@@ -289,7 +281,7 @@
             email,
             note: String(answers.note || '').trim(),
             ...(sesiAktif() ? { token: sesiAktif() } : {}),
-            ...(verifikasi ? verifikasi.fields() : {})
+            pii_hp: $('registerForm').elements.pii_hp.value
           })
         });
         const result = await response.json();
@@ -313,15 +305,13 @@
         $('successView').scrollIntoView({ behavior: 'smooth', block: 'center' });
       } catch (error) {
         showFormMessage(error.message);
-        // Token lama sudah terpakai, jadi widget diambil ulang setiap kali ditolak.
-        if (error.code === 'captcha' && verifikasi) await verifikasi.reload();
       } finally {
         button.disabled = false;
         button.textContent = 'Kirim pendaftaran';
       }
     });
   </script>
-  <script src="captcha.js" defer></script>
   <script src="site.js" defer></script>
-</body>
+  <script src="/design.js" defer></script>
+  </body>
 </html>

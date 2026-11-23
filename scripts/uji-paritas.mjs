@@ -28,7 +28,6 @@ const { tutup } = await import('../server/io.mjs');
 const DAFTAR = [
   { action: 'public' },
   { action: 'orgLookup' },
-  { action: 'captcha' },
   { action: 'whoami' },
   { action: 'feedList', tab: 'untuk-anda' },
   { action: 'pustakaList' },

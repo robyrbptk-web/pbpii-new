@@ -725,7 +725,20 @@ async function init() {
       ['#aboutText', 'aboutText'],
       ['#footerText', 'footerText']
     ].forEach(([selector, key]) => {
-      if (settings[key]) $(selector).textContent = settings[key];
+      let value = String(settings[key] || '');
+      if (key === 'heroTitle') {
+        // Identitas merek yang diminta tidak boleh dikalahkan oleh salinan lama
+        // yang masih tersimpan di Sheet. Naskah hasil suntingan redaksi tetap
+        // dihormati selama bukan salah satu judul bawaan lama.
+        const lawas = [
+          'Membina Pelajar, Menguatkan Pendidikan dan Kebudayaan',
+          'Organisasi Pelajar Tertua di Indonesia, Bergerak Sejak 4 Mei 1947'
+        ];
+        if (!value || lawas.indexOf(value) >= 0) {
+          value = 'MEMBENTUK PELAJAR, MENYIAPKAN PEMIMPIN MASA DEPAN.';
+        }
+      }
+      if (value) $(selector).textContent = value;
     });
     const siteName = String(settings.siteName || '').trim();
     // Judul halaman publik bukan milik aplikasi: AppLayout sudah menamai

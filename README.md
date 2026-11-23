@@ -367,7 +367,7 @@ tautan publik. Akses melalui `orgReadLetterAttachment` memeriksa bahwa sesi
 lembaga adalah pengirim atau penerima surat terkait; jangan mengubah folder ini
 menjadi *anyone with link*.
 - **Tanya PII** — halaman chat penuh di `/tanya.html`, dengan tombol mengambang di beranda, Ruang Ibadah, Acara, dashboard admin, dashboard lembaga, dan formulir sebagai pintunya. Bisa dipakai tanpa login (jatah 5 pertanyaan per alamat IP per hari); kader yang masuk mendapat 20. Lihat bagian H.
-- **Akun kader** — dialog **Masuk kader** di kop semua halaman menawarkan tiga jalur: Google (kalau `googleClientId` diisi), email + kata sandi, dan pendaftaran baru dengan captcha. Lihat bagian I.
+- **Akun kader** — dialog **Masuk kader** di kop semua halaman menawarkan tiga jalur: Google (kalau `GOOGLE_CLIENT_ID` disetel di server), email + kata sandi, dan pendaftaran baru. Lihat bagian I.
 - **Akun lembaga** di `/daftar.html` dan `/lembaga.html`: pendaftaran PW/PD/PK dengan pilihan provinsi/kota/kecamatan resmi dari wilayah.id, verifikasi bertingkat (PB→PW→PD→PK) dengan override admin, kegiatan + Indeks Keaktifan, formulir peserta publik di `/formulir.html`, dan surat berkategori antarlebaga (lihat bagian G).
 
 ### Surat lembaga dan lampiran PDF
@@ -748,68 +748,45 @@ Target minimal kegiatan per bulan dapat disetel berjenjang:
   berlaku untuk jenjangnya (`keaktifanFor_`, sumber nilai ditampilkan sebagai
   `standar PB bawaan` / `standar <induk>`).
 
-Kunci pengaturan lain: `kaderCommentDailyLimit` (kuota komentar kader per hari),
-`eventCommentsOpen` (kolom komentar dibuka/tutup), `googleClientId` (masuk kader),
-`turnstileSiteKey` + `turnstileSecret` (opsional). `turnstileSecret` tidak pernah
-dikirim ke browser.
+Kunci pengaturan lain: `kaderCommentDailyLimit` (kuota komentar kader per hari)
+dan `eventCommentsOpen` (kolom komentar dibuka/tutup). Client ID Google tidak
+lagi disimpan di sheet: sumbernya adalah variabel lingkungan
+`GOOGLE_CLIENT_ID` (atau `PUBLIC_GOOGLE_CLIENT_ID`) di Vercel. Proxy
+`api/pii.js` menyuntikkannya hanya untuk `kaderLogin` dan `action: 'public'`,
+dan menghapus nilai yang dikirim browser.
 
 ### Proteksi spam berlapis
-Dua lapisan, keduanya aktif bersamaan:
+Tanpa widget pihak ketiga. Lapisan yang aktif bersamaan:
 
 1. `api/pii.js` (Vercel) — jendela geser per pasangan `aksi|IP`. Baca 240/60s,
-   captcha 30/600s, **semua jalur login (`login`, `orgLogin`, `kaderLogin`,
-   `kaderEmailLogin`) 10/600s**, tulis (termasuk `kaderRegister`) 25/600s,
+   **semua jalur login (`login`, `orgLogin`, `kaderLogin`, `kaderEmailLogin`,
+   `ssoLogin`) 10/600s**, tulis (termasuk `kaderRegister`) 150/600s,
    sisanya 90/600s. Penolakan mengembalikan HTTP 429
    dengan `code: 'rate_limited'` dan header `Retry-After`; proxy juga menyuntikkan
    `ip` ke body sehingga Apps Script ikut melihat alamat asli pengunjung.
+   Proxy menolak POST dengan `Origin` yang tidak cocok dengan host yang
+   dilayani (CSRF ringan), membatasi ukuran body, dan membuang jejak
+   `captchaToken`/`turnstile*` sebelum diteruskan.
 2. `gas/Code.gs` `throttle_()` — jendela tetap di `CacheService` (TTL maksimum
    600s) per aturan di `RATE_RULES`: login admin 8/600s, login lembaga 10/600s,
-   pendaftaran lembaga 5/1800s, pendaftaran peserta 12/600s, captcha 18/600s,
+   pendaftaran lembaga 5/1800s, pendaftaran peserta 12/600s,
    login kader 12/600s (Google dan email sama), pendaftaran akun kader 5/1800s,
    suka 20/60s, komentar 4/180s per akun, komentar 20/600s
-   per IP, unggah foto 10/600s, chat 6/60s.
+   per IP, unggah foto 10/600s, chat 6/60s. Percobaan masuk yang berulang
+   dari satu IP juga memicu penguncian sementara sebelum pembatas laju
+   mengembalikan `retryAfter`.
+3. Kolom jebakan (`pii_hp`, juga menerima `hp_field`/`honeypot`) disisipkan
+   pada semua formulir publik. Manusia membiarkannya kosong; bot yang mengisi
+   ditolak backend dengan `code: 'bot'` dan pesan netral. Nama aksi `captcha`
+   dan pembantu `captchaIssue_`/`assertCaptcha_` tersisa hanya sebagai shim
+   kompatibilitas: selalu menjawab `{kind:'none'}` dan tidak pernah memanggil
+   Cloudflare.
 
-Verifikasi manusia memakai **Cloudflare Turnstile** — kotak centang "Verify you
-are human" yang gratis dan tidak lagi menyuruh siapa pun menghitung soal
-(`captcha.js` + `captchaIssue_`). Widgetnya dipasang di semua jalur masuk dan
-daftar: login admin, login lembaga, login/daftar kader (Google maupun email),
-pendaftaran lembaga, dan formulir pendaftaran peserta kegiatan. Kolom komentar
-acara tidak memakai captcha karena penulisnya sudah terikat akun (Google atau
-email), dan dibatasi oleh kuota harian + kedua lapis pembatas laju di atas.
+Formulir komentar acara tidak memakai jebakan karena penulisnya sudah terikat
+akun, dan dibatasi oleh kuota harian + kedua lapis pembatas laju di atas.
 
-Cara memasangnya (satu kali, tanpa mengubah kode):
-
-1. Daftar Cloudflare (gratis) → dashboard **Turnstile** → *Add a widget* (atau
-   *Widgets* → *Add widget*).
-2. Isi **Site name** dengan domain situs (mis. `pbpii-new.vercel.app`; boleh
-   beberapa domain, termasuk `localhost` untuk uji di mesin sendiri) dan pilih
-   **Widget Mode = Interactive** supaya kotak centangnya selalu terlihat. Mode
-   *Managed* sering tampil tanpa kotak, *Non-interactive* tidak menampilkan apa
-   pun.
-3. Salin **Site Key** dan **Secret Key** ke **Dasbor admin → Pengaturan →
-   "Cloudflare Turnstile Site Key" dan "Secret Key"**, lalu simpan. Secret tidak
-   pernah ditampilkan kembali dan tidak pernah dikirim ke browser
-   (`SECRET_SETTINGS`).
-4. Terbitkan versi Apps Script baru — pengaturan dibaca dari sheet `Settings`,
-   jadi tidak perlu mengubah kode.
-5. Kalau `siteverify` malah membalas "Anda tidak memiliki izin untuk memanggil
-   UrlFetchApp.fetch" padahal `script.external_request` sudah ada di
-   `appsscript.json`, izin tersimpan itu basi dan editor tidak bertanya lagi.
-   Hapus blok `oauthScopes` dari manifes, simpan, jalankan satu fungsi apa pun
-   yang memakai `UrlFetchApp`, setujui dialog "Dibutuhkan otorisasi", lalu
-   kembalikan blok `oauthScopes` dan terbitkan versi baru.
-
-Selama **kedua** kolom itu belum terisi, `captchaIssue_` mengembalikan
-`{ kind: 'none' }`: wadah verifikasi disembunyikan dan `assertCaptcha_` tidak
-menuntut token, sehingga tidak ada satu pun formulir yang terkunci oleh kunci
-yang belum dipasang. Kalau widget gagal dimuat (mis. jaringan memblokir
-`challenges.cloudflare.com`), halaman menampilkan pesan singkat dan pengiriman
-akan ditolak server dengan pesan captcha — muat ulang halaman untuk memanggil
-widget sekali lagi.
-
-Uji manual: buka `/login.html` atau `/akun.html`; bila kotak centang tidak
-muncul, artinya salah satu kolom kunci masih kosong. Token palsu ditolak
-`siteverify` dengan `code: 'captcha'`.
+Uji manual: jalankan `npm run check:gas` untuk memastikan tidak ada panggilan
+`siteverify`, jebakan menolak bot, dan pengaturan Turnstile lama diabaikan.
 
 ### Catatan migrasi
 Backend ini sengaja masih memakai Google Sheets + Apps Script sebagai langkah
@@ -1017,7 +994,7 @@ pengurus).
 | --- | --- | --- |
 | Google | `kaderLogin` dengan `idToken` | token divalidasi server di `googleClaims_` (issuer, audience, kedaluwarsa) |
 | Email | `kaderEmailLogin` (`email`, `password`) | kata sandi dibandingkan dengan hash; pesan salah bersifat umum: "Email atau kata sandi salah." |
-| Daftar | `kaderRegister` (`name`, `email`, `password`, captcha) | minimal 8 karakter; email ganda ditolak dengan ajakan login |
+| Daftar | `kaderRegister` (`name`, `email`, `password`, `pii_hp`) | minimal 8 karakter; email ganda ditolak dengan ajakan login |
 
 Kolom sheet `Kaders` bertambah menjadi `id, email, name, picture, googleSub,
 createdAt, lastLoginAt, note, passwordHash, passwordSalt`. Dua kolom terakhir diisi
@@ -1030,10 +1007,9 @@ Satu orang boleh masuk lewat dua jalur. Kalau suatu saat akun email login dengan
 Google dan alamat emailnya sama, `kaderLogin_` menautkan `googleSub` ke baris yang
 sudah ada sehingga tidak muncul akun ganda.
 
-Verifikasi manusia memakai **Cloudflare Turnstile** dan hanya muncul kalau
-`turnstileSiteKey` + `turnstileSecret` dua-duanya terisi; selagi keduanya kosong
-`captchaIssue_` menjawab `{kind:'none'}`, `captcha.js` menyembunyikan wadahnya, dan
-formulir hanya dibatasi laju per IP. Tidak ada lagi captcha hitungan.
+Formulir kader memakai kolom jebakan `pii_hp`, pembatas laju per IP, dan
+penguncian sementara setelah beberapa kali gagal masuk. Tidak ada widget
+Cloudflare Turnstile dan tidak ada lagi captcha hitungan.
 
 **Satu sesi untuk semua fitur.** Sesi disimpan di localStorage dengan tiga kunci
 (`pbpii_kader_token`, `pbpii_admin_token`, `pbpii_org_token`), tetapi `akun.js`
@@ -1046,10 +1022,12 @@ belum mengenali aksi `whoami` (peran ditandai `unknown`, token tetap dipakai).
 Aksi `Keluar` menghapus ketiga kunci itu sekaligus.
 
 Google tetap opsional. Buat **OAuth client ID ▸ Web application**, tambahkan domain
-produksi dan `http://127.0.0.1:4173` ke *Authorized JavaScript origins*, lalu isi
-nilainya di Settings lewat dashboard admin (kolom `googleClientId`). Selama kolom
-itu kosong, tab Google disembunyikan dan kader memakai jalur email; dialog tetap
-tampil sehingga fitur tidak terlihat mati.
+produksi dan `http://127.0.0.1:4173` ke *Authorized JavaScript origins*, lalu
+simpan nilainya sebagai variabel lingkungan `GOOGLE_CLIENT_ID` di Vercel (produksi
+dan pratinjau). Proxy `api/pii.js` menyuntikkannya ke `kaderLogin` dan ke data
+`public`; nilai yang dikirim browser selalu dihapus. Tanpa env itu, tab Google
+disembunyikan dan kader memakai jalur email; dialog tetap tampil sehingga fitur
+tidak terlihat mati.
 
 ## Penting untuk keamanan dan produksi
 - Ini starter/MVP, belum audit keamanan produksi. Gunakan hanya akun admin tepercaya, password kuat, batasi akses editor, dan jangan bagikan URL deployment atau kredensial.
@@ -1061,9 +1039,9 @@ tampil sehingga fitur tidak terlihat mati.
   disimpan ke folder "PB PII Media" di Drive akun Apps Script, dan disajikan sebagai
   URL `lh3.googleusercontent.com`. Unggah memerlukan sesi pengurus yang sudah
   terverifikasi — token kader ditolak.
-- Token sesi disimpan di `sessionStorage` browser dan berlaku sementara; sesi dapat berakhir saat cache dibersihkan.
+- Token sesi disimpan di penyimpanan lokal browser (tiga kunci `pbpii_*_token`) dan diverifikasi ulang oleh server lewat `whoami`/`requireOrg_`/`requireAuth_`. Sesi memiliki masa berlaku; jawaban `/api/pii` tidak boleh di-cache (`no-store`), dan proxy menolak POST lintas origin serta menolak header `Sec-Fetch-Site: cross-site`. Perlu dicatat: token di penyimpanan lokal masih dapat dibaca skrip pada halaman yang sama, jadi hindari memasang skrip pihak ketiga di domain produksi.
 - `saveAdminPassword` hanya menyimpan hash SHA-256 bersalt (250 iterasi) di Script Properties, bukan teks kata sandi. Nilai lama yang masih berupa teks polos tetap bisa login dan otomatis dinaikkan menjadi hash pada login berikutnya. Gunakan tetap password unik yang tidak dipakai di layanan lain, dan batasi siapa yang punya akses edit ke spreadsheet/Apps Script.
 - Kunci AI (`AI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`) hanya boleh hidup di sisi server: **Script Properties** di Apps Script dan/atau **Environment Variables** di Vercel (dibaca `api/chat.js`). Jangan pernah memindahkannya ke file frontend, `akun.js`, `tanya.js`, atau repository mana pun: browser yang membuka DevTools bisa membaca apa pun yang dikirim ke sana. Tanpa kunci apa pun, `api/chat.js` memakai Pollinations gratis — itu memang bawaannya, dan kuota tamu diikat 5 pertanyaan per alamat IP per hari supaya jatah gratis tidak habis.
-- Masuk kader tidak bergantung pada Google: tersedia juga email + kata sandi dan pendaftaran ber-captcha (lihat bagian I). Client ID Google tetap opsional dan ditaruh di Settings lewat dashboard admin (kolom `googleClientId`) — bukan di kode, karena browser hanya memakai Client ID publik dan server yang memverifikasi token di `googleClaims_` (issuer, audience, kedaluwarsa). Selama kolom itu kosong, tab Google disembunyikan dan dialog menampilkan Email/Daftar.
+- Masuk kader tidak bergantung pada Google: tersedia juga email + kata sandi dan pendaftaran biasa (lihat bagian I). Client ID Google tetap opsional dan disimpan sebagai env `GOOGLE_CLIENT_ID` di server — bukan di kode maupun dashboard admin, karena browser hanya memakai Client ID publik dan server yang memverifikasi token di `googleClaims_` (issuer, audience, kedaluwarsa). Tanpa env itu, tab Google disembunyikan dan dialog menampilkan Email/Daftar.
 - Untuk penggunaan resmi, siapkan backup spreadsheet, logging operasional, tinjauan keamanan, serta pengelolaan izin Apps Script/Drive sebelum menambah banyak admin. Artikel dan surat sudah memakai sanitasi HTML allowlist; tetap tinjau perubahan format baru sebelum dipakai di produksi.
 - Halaman publik tidak boleh memuat instruksi teknis (menempel `Code.gs`, menjalankan `setup`, alur *Deploy ▸ New version*, atau "sampaikan ke admin"). Pesan kesalahan untuk pengunjung dibuat netral; langkah operasional semacam itu hanya boleh muncul di README dan perkakas internal Apps Script.

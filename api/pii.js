@@ -13,7 +13,7 @@ export const DEFAULT_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfyc
 /** Reads are cheap; writes are where spam lives. `limit` requests per `windowMs`. */
 const RULES = {
   read: { limit: 240, windowMs: 60_000 },
-  captcha: { limit: 30, windowMs: 600_000 },
+  captcha: { limit: 30, windowMs: 600_000 }, // kompatibilitas klien lama; selalu menjawab {kind:'none'}
   login: { limit: 10, windowMs: 600_000 },
   // Posting has no daily count cap, so this budget is sized for a whole campus
   // sharing one exit IP — a burst should slow down, never look like a quota.
@@ -386,6 +386,78 @@ function clientIp(req) {
   return String(req.headers['x-real-ip'] || req.headers['x-vercel-forwarded-for'] || '').trim().slice(0, 64) || 'tanpa-ip';
 }
 
+/**
+ * CSRF ringan: browser selalu mengirim Origin pada POST modern. Kalau ada dan
+ * tidak cocok dengan host yang dilayani, tolak sebelum aksi apa pun dijalankan.
+ * Permintaan non-browser tanpa Origin (CLI, pengujian, panggilan internal)
+ * tetap diterima, tetapi `Sec-Fetch-Site: cross-site` tetap ditolak.
+ */
+function originDiperbolehkan(req) {
+  const fetchSite = String(req.headers['sec-fetch-site'] || '').toLowerCase();
+  if (fetchSite === 'cross-site') return false;
+
+  const origin = String(req.headers.origin || '').trim();
+  if (!origin) return true;
+
+  let asal;
+  try {
+    asal = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (asal.protocol !== 'http:' && asal.protocol !== 'https:') return false;
+
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+    .split(',')[0].trim().toLowerCase();
+  return !!host && asal.host.toLowerCase() === host;
+}
+
+/** Client ID Google bersifat publik, tetapi sumbernya hanya environment server. */
+function googleClientId() {
+  return String(process.env.GOOGLE_CLIENT_ID || process.env.PUBLIC_GOOGLE_CLIENT_ID || '').trim();
+}
+
+/** Buang jejak Turnstile dan token lama sebelum diteruskan ke backend. */
+function bersihkanBody(body, action) {
+  const bersih = { ...body };
+  delete bersih.captchaToken;
+  delete bersih.turnstileSiteKey;
+  delete bersih.turnstileSecret;
+  delete bersih.googleClientId;
+
+  Object.keys(bersih).forEach((key) => {
+    if (/^turnstile/i.test(key)) delete bersih[key];
+  });
+
+  if (action === 'kaderLogin') {
+    const clientId = googleClientId();
+    if (clientId) bersih.googleClientId = clientId;
+  }
+  return bersih;
+}
+
+/** Pastikan data balasan tidak pernah membocorkan kunci lama, dan suntikkan Client ID. */
+function rapikanRespons(payload, action) {
+  if (!payload || typeof payload !== 'object') return payload;
+  const data = payload.data && typeof payload.data === 'object' ? payload.data : null;
+  if (data) {
+    Object.keys(data).forEach((key) => {
+      if (/^turnstile/i.test(key)) delete data[key];
+    });
+    if (data.settings && typeof data.settings === 'object') {
+      Object.keys(data.settings).forEach((key) => {
+        if (/^turnstile/i.test(key)) delete data.settings[key];
+      });
+      if (action === 'public') {
+        const clientId = googleClientId();
+        if (clientId) data.settings.googleClientId = clientId;
+        else delete data.settings.googleClientId;
+      }
+    }
+  }
+  return payload;
+}
+
 function ruleFor(action) {
   if (action === 'captcha') return RULES.captcha;
   if (LOGIN_ACTIONS.has(action)) return RULES.login;
@@ -423,6 +495,13 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
+  if (!originDiperbolehkan(req)) {
+    return res.status(403).json({
+      ok: false,
+      code: 'origin_ditolak',
+      error: 'Permintaan tidak berasal dari situs ini. Muat ulang halaman lalu coba lagi.'
+    });
+  }
 
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const action = String(body.action || '');
@@ -457,8 +536,8 @@ export default async function handler(req, res) {
   const url = process.env.GAS_WEB_APP_URL || DEFAULT_GAS_WEB_APP_URL;
   try {
     // Apps Script never sees the visitor's IP, so the durable limiter needs it here.
-    const data = await kirimAksi({ ...body, ip }, url);
-    return res.status(200).json(rewriteDriveImages(data));
+    const data = await kirimAksi({ ...bersihkanBody(body, action), ip }, url);
+    return res.status(200).json(rapikanRespons(rewriteDriveImages(data), action));
   } catch (e) {
     return res.status(502).json({ ok: false, error: e.message || 'Gagal menghubungi Apps Script.' });
   }

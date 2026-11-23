@@ -31,8 +31,6 @@
   let clientId = '';
   let emailAuth = false;
   let gsiPromise = null;
-  let captchaAssets = null;
-  const verifikasi = { google: null, email: null, daftar: null };
   let activeTab = 'email';
   let panelOpen = false;
 
@@ -140,22 +138,13 @@
       token: data.token
     };
     emit();
-    // Jawaban verifikasi Google sudah terpakai; buang widgetnya agar sesi
-    // berikutnya tidak mengirim soal yang sudah kedaluwarsa.
-    if (verifikasi.google) {
-      verifikasi.google = null;
-      document.querySelector('[data-captcha-slot="google"]')?.replaceChildren();
-    }
     closePanel();
     return account;
   }
 
   async function signIn(idToken) {
-    return applySession(await api({
-      action: 'kaderLogin',
-      idToken,
-      ...(verifikasi.google?.fields?.() || {})
-    }));
+    const jebak = document.querySelector('.kader-pane[data-pane="google"] [name="pii_hp"]')?.value || '';
+    return applySession(await api({ action: 'kaderLogin', idToken, pii_hp: jebak }));
   }
 
   function signOut() {
@@ -193,10 +182,7 @@
         client_id: clientId,
         ux_mode: 'popup',
         callback: (response) => {
-          signIn(response.credential).catch(async (error) => {
-            setNotice(error.message);
-            if (error.code === 'captcha' || /verifikasi/i.test(String(error.message))) await ulangiVerifikasi('google');
-          });
+          signIn(response.credential).catch((error) => setNotice(error.message));
         }
       });
       host.replaceChildren();
@@ -219,58 +205,6 @@
     box.hidden = !message;
   }
 
-  /** Berkas captcha hanya diambil saat tab daftar pertama kali dibuka. */
-  function loadAsset(tag, src, attributes) {
-    const selector = tag === 'link' ? `link[href="${src}"]` : `script[src="${src}"]`;
-    const existing = document.querySelector(selector);
-    if (existing) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const node = document.createElement(tag);
-      Object.entries(attributes).forEach(([key, value]) => { node[key] = value; });
-      node.onload = () => resolve();
-      node.onerror = () => reject(new Error('Verifikasi formulir gagal dimuat. Muat ulang halaman lalu coba lagi.'));
-      document.head.append(node);
-    });
-  }
-
-  function captchaAssetsReady() {
-    if (window.PBPIICaptcha) return Promise.resolve(window.PBPIICaptcha);
-    if (!captchaAssets) {
-      captchaAssets = Promise.all([
-        loadAsset('link', '/captcha.css', { rel: 'stylesheet', href: '/captcha.css' }),
-        loadAsset('script', '/captcha.js', { src: '/captcha.js' })
-      ]).then(() => window.PBPIICaptcha || null, (error) => { captchaAssets = null; throw error; });
-    }
-    return captchaAssets;
-  }
-
-  const captchaSiap = {};
-
-  async function ensureCaptcha(pane) {
-    const host = document.querySelector(`[data-captcha-slot="${pane}"]`);
-    if (!host || verifikasi[pane] || captchaSiap[pane]) return;
-    captchaSiap[pane] = true;
-    host.innerHTML = '<p class="captcha-loading" role="status">Menyiapkan verifikasi…</p>';
-    try {
-      const modul = await captchaAssetsReady();
-      if (!modul) throw new Error('Verifikasi formulir gagal dimuat. Muat ulang halaman lalu coba lagi.');
-      verifikasi[pane] = modul.attach(host);
-      await verifikasi[pane].ready();
-    } catch (error) {
-      host.innerHTML = `<p class="captcha-help is-error">${escapeHTML(error.message)}</p>`;
-    } finally {
-      captchaSiap[pane] = false;
-    }
-  }
-
-  /** Token lama tidak berlaku lagi: widget diambil ulang setiap kali server menolak. */
-  async function ulangiVerifikasi(pane) {
-    const state = verifikasi[pane];
-    if (!state) return;
-    state.reset();
-    await state.reload?.().catch(() => {});
-  }
-
   function buildPanel() {
     if (document.querySelector('.kader-dialog')) return;
     const dialog = document.createElement('dialog');
@@ -288,7 +222,7 @@
         </div>
         <div class="kader-pane" data-pane="google">
           <div class="kader-google" data-google-slot></div>
-          <div class="kader-captcha" data-captcha-slot="google"></div>
+          <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
           <p class="kader-hint">Masuk dengan akun Google tanpa membuat kata sandi baru.</p>
         </div>
         <div class="kader-pane" data-pane="email" hidden>
@@ -302,7 +236,7 @@
                 <button class="kader-eye" type="button" aria-pressed="false">Lihat</button>
               </span>
             </label>
-            <div class="kader-captcha" data-captcha-slot="email"></div>
+            <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
             <button class="kader-go" type="submit">Masuk</button>
             <p class="kader-alt">Belum punya akun? <button class="kader-link" type="button" data-tab="daftar">Daftar dulu</button></p>
           </form>
@@ -321,7 +255,7 @@
                 <button class="kader-eye" type="button" aria-pressed="false">Lihat</button>
               </span>
             </label>
-            <div class="kader-captcha" data-captcha-slot="daftar"></div>
+            <input class="pii-hp" type="text" name="pii_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
             <label class="kader-consent">
               <input type="checkbox" name="consent" required>
               <span>Saya menyetujui <a href="/privasi.html" target="_blank" rel="noopener">Kebijakan Privasi</a> SuperApp PB PII.</span>
@@ -360,9 +294,9 @@
           action: 'kaderEmailLogin',
           email: String(data.get('email') || '').trim(),
           password: String(data.get('password') || ''),
-          ...(verifikasi.email?.fields?.() || {})
+          pii_hp: String(data.get('pii_hp') || '')
         });
-      }, 'email');
+      });
     });
     dialog.querySelector('[data-form-daftar]').addEventListener('submit', (event) => {
       event.preventDefault();
@@ -376,8 +310,8 @@
       if (!data.get('consent')) { setNotice('Setujui Kebijakan Privasi sebelum membuat akun.'); return; }
       kirim(event.target, () => api({
         action: 'kaderRegister', name, email, password,
-        ...(verifikasi.daftar?.fields?.() || {})
-      }), 'daftar');
+        pii_hp: String(data.get('pii_hp') || '')
+      }));
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && panelOpen) closePanel();
@@ -385,7 +319,7 @@
   }
 
   /** Kirim salah satu formulir panel dengan status tombol yang jelas. */
-  async function kirim(form, jalankan, pane) {
+  async function kirim(form, jalankan) {
     const button = form.querySelector('button[type="submit"]');
     const label = button.textContent;
     button.disabled = true;
@@ -393,19 +327,10 @@
     setNotice('');
     try {
       applySession(await jalankan());
-      // Jawaban verifikasi dan kredenter tidak boleh tertinggal
-      // di perangkat, jadi formulir dibersihkan untuk pemakaian berikutnya.
+      // Kredensial tidak boleh tertinggal di perangkat untuk pemakaian berikutnya.
       form.reset();
-      if (pane) {
-        verifikasi[pane] = null;
-        document.querySelector(`[data-captcha-slot="${pane}"]`)?.replaceChildren();
-      }
     } catch (error) {
       setNotice(error.message || 'Belum berhasil masuk. Coba lagi.');
-      // Jawaban verifikasi sekali pakai: soal baru diperlukan setiap kali ditolak.
-      if (pane && (error.code === 'captcha' || /verifikasi/i.test(String(error.message)))) {
-        await ulangiVerifikasi(pane);
-      }
     } finally {
       if (button.isConnected) {
         button.disabled = false;
@@ -458,12 +383,7 @@
       pane.hidden = pane.dataset.pane !== activeTab;
     });
     setNotice('');
-    if (activeTab === 'google') {
-      renderGoogleButton(dialog.querySelector('[data-google-slot]'));
-      ensureCaptcha('google');
-    }
-    if (activeTab === 'email') ensureCaptcha('email');
-    if (activeTab === 'daftar') ensureCaptcha('daftar');
+    if (activeTab === 'google') renderGoogleButton(dialog.querySelector('[data-google-slot]'));
   }
 
   function openPanel(notice, tab) {

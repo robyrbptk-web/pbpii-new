@@ -276,7 +276,8 @@
         .stat:hover,.item:hover,.primary:hover{transform:none}
       }
   </style>
-</head>
+  <link rel="stylesheet" href="/design.css">
+  </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/">
@@ -497,16 +498,16 @@
             </div>
           </div>
           <div class="panel">
-            <h2>Acara, keaktifan, dan keamanan</h2>
+            <h2>Acara, keaktifan, dan akses</h2>
             <p class="panel-intro">Angka di bawah dipakai halaman Acara dan dasbor lembaga. Standar keaktifan dapat disetel lebih tinggi oleh lembaga induk untuk bawahan masing-masing.</p>
             <div class="form-grid">
               <div class="field"><label for="keaktifanMinPerMonth">Standar keaktifan bawaan (kegiatan/bulan)</label><input id="keaktifanMinPerMonth" name="keaktifanMinPerMonth" type="number" min="0" max="60" step="1"><div class="hint">0 berarti tidak ada target minimal. Range 0–60.</div></div>
               <div class="field full">
                 <label class="checkline"><input type="checkbox" id="eventCommentsOpen" name="eventCommentsOpen"> Buka kolom komentar acara untuk akun kader</label>
               </div>
-              <div class="field full"><label for="googleClientId">Google OAuth Client ID (login kader)</label><input id="googleClientId" name="googleClientId" placeholder="1234567890-abcdef.apps.googleusercontent.com"><div class="hint">Isi dengan Client ID web dari penyedia identitas. Selama kolom ini kosong, tombol masuk Google untuk kader tidak ditampilkan.</div></div>
-              <div class="field full"><label for="turnstileSiteKey">Cloudflare Turnstile Site Key</label><input id="turnstileSiteKey" name="turnstileSiteKey" placeholder="0x4AAAAAAxxxxxxxxxxxxxxxx"><div class="hint">Kotak centang "Verifikasi bahwa Anda manusia" gratis dari Cloudflare. Buat widget dengan mode Interactive, lalu tempel Site Key di sini dan Secret Key di bawah. Keduanya terisi = captcha tampil di semua halaman masuk dan daftar; salah satu kosong = captcha tidak diminta dan formulir hanya dibatasi laju per IP.</div></div>
-              <div class="field full"><label for="turnstileSecret">Cloudflare Turnstile Secret Key</label><input id="turnstileSecret" name="turnstileSecret" type="password" autocomplete="new-password"><div class="hint" id="turnstileSecretHint">Kunci tidak ditampilkan kembali. Kosongkan untuk mempertahankan yang tersimpan.</div></div>
+              <div class="field full">
+                <div class="hint">Login Google kader dikonfigurasi di server melalui variabel lingkungan <code>GOOGLE_CLIENT_ID</code>. Formulir masuk dan pendaftaran dilindungi pembatas laju, penguncian sementara, validasi server, dan kolom jebakan anti-bot; tidak ada widget pihak ketiga.</div>
+              </div>
             </div>
           </div>
           <div class="btn-row"><button type="submit" class="btn primary" id="saveSettingsButton">Simpan pengaturan</button></div>
@@ -1010,7 +1011,7 @@
         'siteName','tagline','heroTitle','heroText','aboutText','footerText',
         'chairmanName','chairmanRole','chairmanPhoto','chairmanGreeting',
         'contactEmail','instagramUrl','youtubeUrl',
-        'keaktifanMinPerMonth','googleClientId','turnstileSiteKey'
+        'keaktifanMinPerMonth'
       ];
       keys.forEach(key => {
         if ($(key)) $(key).value = settings[key] || '';
@@ -1019,11 +1020,6 @@
         String(settings.chairmanGreetingVisible == null ? 'true' : settings.chairmanGreetingVisible).toLowerCase() !== 'false';
       $('eventCommentsOpen').checked =
         String(settings.eventCommentsOpen == null ? 'true' : settings.eventCommentsOpen).toLowerCase() !== 'false';
-      // Secret tidak pernah ditampilkan kembali supaya tidak tertangkap riwayat form browser.
-      $('turnstileSecret').value = '';
-      $('turnstileSecretHint').textContent = settings.turnstileSecretSet
-        ? 'Secret tersimpan di server. Kosongkan untuk mempertahankan, isi untuk mengganti.'
-        : 'Belum ada secret. Selama kedua kolom belum terisi, halaman masuk dan daftar tidak menampilkan captcha.';
       refreshUploader('chairmanPhoto');
     }
 
@@ -1148,10 +1144,6 @@
       settings.chairmanGreetingVisible = $('chairmanGreetingVisible').checked ? 'true' : 'false';
       settings.eventCommentsOpen = $('eventCommentsOpen').checked ? 'true' : 'false';
       settings.keaktifanMinPerMonth = String(Math.max(0, Math.min(60, Number($('keaktifanMinPerMonth').value) || 0)));
-      settings.turnstileSiteKey = $('turnstileSiteKey').value.trim();
-      settings.googleClientId = $('googleClientId').value.trim();
-      // Kolom secret kosong berarti pertahankan kunci yang sudah tersimpan.
-      if ($('turnstileSecret').value.trim()) settings.turnstileSecret = $('turnstileSecret').value.trim();
 
       try {
         await api('saveSettings', {settings});
@@ -1720,5 +1712,6 @@
   </script>
   <script src="notifikasi.js" data-sesi="admin" defer></script>
   <script src="site.js" defer></script>
-</body>
+  <script src="/design.js" defer></script>
+  </body>
 </html>

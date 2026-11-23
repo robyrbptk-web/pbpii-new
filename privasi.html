@@ -89,7 +89,8 @@
     }
     .legal-foot { margin-top: 28px; padding-top: 18px; border-top: 1px solid #e6edf4; color: #637184; font-size: .9rem; }
   </style>
-</head>
+  <link rel="stylesheet" href="/design.css">
+  </head>
 <body>
   <header class="site-header">
     <a class="brand" href="./">
@@ -119,7 +120,7 @@
           <li><a href="#dasar">Dasar pemrosesan</a></li>
           <li><a href="#tujuan">Tujuan pemrosesan</a></li>
           <li><a href="#google">Masuk dengan Google</a></li>
-          <li><a href="#captcha">Verifikasi keamanan (Cloudflare Turnstile)</a></li>
+          <li><a href="#captcha">Perlindungan formulir dan pembatasan laju</a></li>
           <li><a href="#pihak-ketiga">Pihak ketiga penerima data</a></li>
           <li><a href="#retensi">Masa retensi</a></li>
           <li><a href="#keamanan">Keamanan data</a></li>
@@ -153,7 +154,7 @@
       <h3>c. Data teknis</h3>
       <ul>
         <li>Alamat IP, jenis peramban, dan waktu akses yang dipakai untuk membatasi penyalahgunaan (kuota dan pembatasan percobaan masuk).</li>
-        <li>Sinyal perangkat yang diperlukan layanan Cloudflare Turnstile untuk membedakan manusia dari robot, serta lokasi perkiraan di perangkat Anda bila Anda mengizinkannya pada fitur ibadah (kompas kiblat dan jadwal sholat).</li>
+        <li>Lokasi perkiraan di perangkat Anda bila Anda mengizinkannya pada fitur ibadah (kompas kiblat dan jadwal sholat).</li>
       </ul>
       <p>Kami tidak meminta dan tidak menyimpan data pribadi yang bersifat spesifik, seperti data kesehatan, data biometrik, atau data keuangan, kecuali Anda sendiri memasukkannya ke dalam konten.</p>
 
@@ -184,8 +185,8 @@
       <p>Selain email dan kata sandi, Anda dapat masuk memakai akun Google. Bila memilih cara ini, Google membagikan <strong>alamat email, nama tampilan, foto profil, dan pengenal akun (sub)</strong> kepada kami. Kami tidak pernah menerima atau menyimpan kata sandi Google Anda.</p>
       <p>Setiap kali masuk, kami memverifikasi token identitas dari Google secara langsung di server agar tidak dapat dipalsukan. Akun tersebut hanya dipakai untuk mengenali Anda. Anda dapat mencabut izin kapan saja melalui <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">Akun Google → Keamanan → Aplikasi pihak ketiga</a>. Sesuai kebijakan Google API Services User Data Policy, penggunaan data dari Google hanya untuk fungsi masuk seperti dijelaskan pada halaman ini.</p>
 
-      <h2 id="captcha">6. Verifikasi keamanan (Cloudflare Turnstile)</h2>
-      <p>Formulir masuk dan pendaftaran dilindungi Cloudflare Turnstile untuk memastikan yang mengakses adalah manusia, bukan skrip. Cloudflare dapat memproses alamat IP, ciri peramban, dan sinyal perangkat Anda semata-mata untuk menghasilkan penilaian keamanan. Turnstile tidak dipakai untuk periklanan atau pelacakan lintas situs.</p>
+      <h2 id="captcha">6. Perlindungan formulir dan pembatasan laju</h2>
+      <p>Formulir masuk dan pendaftaran dilindungi dengan pembatasan jumlah percobaan per alamat IP, penguncian sementara setelah beberapa kali gagal masuk, validasi di server, dan kolom tersembunyi yang hanya diisi oleh skrip otomatis. Kami tidak memakai widget verifikasi pihak ketiga dan tidak mengirim sinyal perangkat Anda ke layanan captcha. Permintaan juga dibatasi agar berasal dari halaman situs ini.</p>
 
       <h2 id="pihak-ketiga">7. Pihak ketiga penerima data</h2>
       <p>Kami tidak menjual atau menyewakan data pribadi Anda. Data hanya diproses oleh penyedia layanan yang kami perlukan, dengan kewajiban pelindungan data sesuai perjanjian masing-masing:</p>
@@ -197,7 +198,6 @@
           <tr><td>Supabase</td><td>Basis data dan penyimpanan berkas Pustaka yang bersifat privat.</td></tr>
           <tr><td>Vercel</td><td>Penghostingan situs dan fungsi server.</td></tr>
           <tr><td>Google (Identity Services)</td><td>Verifikasi masuk dengan akun Google.</td></tr>
-          <tr><td>Cloudflare (Turnstile)</td><td>Verifikasi keamanan formulir.</td></tr>
           <tr><td>Penyedia model AI</td><td>Pemrosesan pertanyaan Tanya PII. Pertanyaan dikirim tanpa identitas akun Anda.</td></tr>
           <tr><td>Penyedia wahana &amp; katalog pustaka</td><td>Data jadwal sholat, kalender hijriah, Al-Qur'an, hadis, dan katalog buku.</td></tr>
         </tbody>
@@ -260,5 +260,6 @@
 
   <script src="/appshell.js" data-halaman="beranda" defer></script>
   <script src="/site.js" defer></script>
-</body>
+  <script src="/design.js" defer></script>
+  </body>
 </html>

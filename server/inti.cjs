@@ -367,7 +367,7 @@ const SHEET_SCHEMA = [
 const DEFAULT_SETTINGS = [
   ['siteName', 'Pengurus Besar Pelajar Islam Indonesia'],
   ['tagline', '#PIILevelUp'],
-  ['heroTitle', 'Membina Pelajar, Menguatkan Pendidikan dan Kebudayaan'],
+  ['heroTitle', 'MEMBENTUK PELAJAR, MENYIAPKAN PEMIMPIN MASA DEPAN.'],
   ['heroText', 'Pelajar Islam Indonesia berdiri pada 4 Mei 1947. Tujuan PII ialah kesempurnaan pendidikan dan kebudayaan yang sesuai dengan Islam bagi seluruh rakyat Indonesia dan umat manusia.'],
   ['chairmanName', 'Kevin Prayoga, S.H.'],
   ['chairmanRole', 'Periode 2026 – 2028'],
@@ -381,8 +381,6 @@ const DEFAULT_SETTINGS = [
   ['youtubeUrl', ''],
   ['keaktifanMinPerMonth', '1'],
   ['googleClientId', ''],
-  ['turnstileSiteKey', ''],
-  ['turnstileSecret', ''],
   ['eventCommentsOpen', 'true'],
   ['feedOpen', 'true'],
   ['faktaSinkronAktif', 'true'],
@@ -406,8 +404,6 @@ const ALLOWED_SETTINGS = [
   'youtubeUrl',
   'keaktifanMinPerMonth',
   'googleClientId',
-  'turnstileSiteKey',
-  'turnstileSecret',
   'eventCommentsOpen',
   'feedOpen',
   'faktaSinkronAktif',
@@ -415,11 +411,12 @@ const ALLOWED_SETTINGS = [
 ];
 
 /**
- * Kunci yang tidak boleh keluar dari backend. Nilai ini tersimpan di sheet
- * Settings yang sama dengan teks halaman, jadi umpan publik harus menyaringnya
- * lebih dulu — kalau tidak, secret Turnstile ikut terkirim ke browser.
+ * Setelah Turnstile dihapus tidak ada lagi kunci rahasia di sheet Settings.
+ * Client ID Google bersifat publik; Secret Google tidak pernah disimpan di sini.
+ * Konstanta ini dipertahankan supaya penyaring umpan tetap única dan aman bila
+ * kemudian ada kunci sensitif baru.
  */
-const SECRET_SETTINGS = ['turnstileSecret'];
+const SECRET_SETTINGS = [];
 
 /**
  * Buat sheet yang dibutuhkan tanpa menghapus data yang sudah ada, lalu perbaiki
@@ -879,12 +876,6 @@ function kesehatanSistem_() {
     masalah.push('Penyimpanan berkas belum mengizinkan unggah foto dari dasbor.');
   }
 
-  const pengaturan = spreadsheet ? settingsMap_() : {};
-  if (!String(pengaturan.turnstileSiteKey || '').trim() ||
-      !String(pengaturan.turnstileSecret || '').trim()) {
-    masalah.push('Verifikasi manusia pada formulir masuk belum dipasang penuh di tab Pengaturan.');
-  }
-
   const korpus = spreadsheet ? pustakaKorpus_() : { tersedia: false };
   if (!korpus.tersedia) {
     masalah.push('Berkas organisasi belum terbaca, jadi Tanya PII tidak dapat merujuknya.');
@@ -1034,8 +1025,10 @@ function adminAction_(action, body) {
 }
 
 function login_(body) {
+  const identity = clientIp_(body) + ':' + String(body.username || '').trim().toLowerCase();
   throttle_('login', clientIp_(body));
   assertCaptcha_(body);
+  assertLoginUnlock_('login', identity);
   const properties = PropertiesService.getScriptProperties();
   const username = String(
     properties.getProperty(APP.PROP_ADMIN_USERNAME) || ''
@@ -1048,9 +1041,11 @@ function login_(body) {
     String(body.username || '').trim().toLowerCase() !== username.toLowerCase() ||
     !verifyAdminPassword_(String(body.password || ''))
   ) {
+    noteLoginFailure_('login', identity);
     throw new Error('Username atau kata sandi salah.');
   }
 
+  clearLoginFailures_('login', identity);
   const token = sessionPut_('admin', username);
 
   return {
@@ -2139,9 +2134,16 @@ function ensurePbOrg_(sheet) {
 function ensureDefaultSettings_(sheet) {
   const existingSettings = new Map();
   const legacyHomeCopy = new Map([
-    ['heroTitle', 'Organisasi Pelajar Tertua di Indonesia, Bergerak Sejak 4 Mei 1947'],
-    ['heroText', 'Pelajar Islam Indonesia (PII) telah menemani perjalanan bangsa selama puluhan tahun. Dari rahim sejarah itulah lahir kader-kader pelajar yang beriman, berilmu, dan berjuang untuk umat serta negara.'],
-    ['aboutText', 'Pelajar Islam Indonesia (PII) berdiri di Yogyakarta pada 4 Mei 1947 dan menjadi organisasi pelajar tertua di Indonesia. PII bergerak dalam bidang pendidikan dan kebudayaan dengan tujuan mewujudkan kesempurnaan pendidikan dan kebudayaan yang sesuai dengan Islam bagi segenap rakyat Indonesia dan umat manusia.']
+    ['heroTitle', [
+      'Membina Pelajar, Menguatkan Pendidikan dan Kebudayaan',
+      'Organisasi Pelajar Tertua di Indonesia, Bergerak Sejak 4 Mei 1947'
+    ]],
+    ['heroText', [
+      'Pelajar Islam Indonesia (PII) telah menemani perjalanan bangsa selama puluhan tahun. Dari rahim sejarah itulah lahir kader-kader pelajar yang beriman, berilmu, dan berjuang untuk umat serta negara.'
+    ]],
+    ['aboutText', [
+      'Pelajar Islam Indonesia (PII) berdiri di Yogyakarta pada 4 Mei 1947 dan menjadi organisasi pelajar tertua di Indonesia. PII bergerak dalam bidang pendidikan dan kebudayaan dengan tujuan mewujudkan kesempurnaan pendidikan dan kebudayaan yang sesuai dengan Islam bagi segenap rakyat Indonesia dan umat manusia.'
+    ]]
   ]);
   const lastRow = sheet.getLastRow();
 
@@ -2161,7 +2163,8 @@ function ensureDefaultSettings_(sheet) {
 
     // Perbarui salinan bawaan lama saat setup, tetapi jangan sentuh naskah yang
     // pernah disunting redaksi melalui dashboard.
-    if (legacyHomeCopy.get(setting[0]) === existing.value) {
+    const lawas = legacyHomeCopy.get(setting[0]);
+    if (Array.isArray(lawas) ? lawas.indexOf(existing.value) >= 0 : lawas === existing.value) {
       sheet.getRange(existing.row, 2).setValue(setting[1]);
     }
   });
@@ -2592,18 +2595,23 @@ function orgRegister_(body) {
 
 function orgLogin_(body) {
   const email = String(body.email || '').trim().toLowerCase();
-  throttle_('org-login', clientIp_(body) + ':' + email);
+  const identity = clientIp_(body) + ':' + email;
+  throttle_('org-login', identity);
   assertCaptcha_(body);
+  assertLoginUnlock_('org-login', identity);
   const password = String(body.password || '');
   const org = orgById_(rows_(APP.SHEET_ORGS), null, email);
 
   if (!org || !org.passwordHash || !org.passwordSalt) {
+    noteLoginFailure_('org-login', identity);
     throw new Error('Email atau kata sandi salah.');
   }
   if (hashPassword_(password, org.passwordSalt) !== String(org.passwordHash)) {
+    noteLoginFailure_('org-login', identity);
     throw new Error('Email atau kata sandi salah.');
   }
 
+  clearLoginFailures_('org-login', identity);
   const token = sessionPut_('org', org.id);
   orgSetCell_(APP.SHEET_ORGS, org.id, 'lastLoginAt', new Date().toISOString());
 
@@ -5585,9 +5593,9 @@ function namaPemicu_(pemicu) {
 }
 
 /* ==================================================== keamanan & akun kader
-   Pembatas laju, captcha, login Google untuk kader, serta suka dan komentar
-   pada acara. Semua halaman publik memakai aksi di bawah ini tanpa token
-   pengurus, jadi penjagaannya harus duduk di server, bukan di tombol HTML. */
+   Pembatas laju, kolom jebakan, login Google untuk kader, serta suka dan
+   komentar pada acara. Semua halaman publik memakai aksi di bawah ini tanpa
+   token pengurus, jadi penjagaannya harus duduk di server, bukan di tombol HTML. */
 
 /**
  * Anggaran permintaan. `window` dalam detik; `limit` jumlah permintaan
@@ -5675,81 +5683,113 @@ function throttle_(rule, key) {
   cache.put(id, count + '|' + started, Math.min(budget.window, CACHE_MAX_SECONDS));
 }
 
-/** Setelan yang boleh dilihat browser; kunci rahasia tidak pernah ikut keluar. */
+/* Penguncian sementara setelah beberapa kali gagal masuk. Berbeda dari
+   pembatas laju: pembatas menghitung semua permintaan, pengunci hanya menghitung
+   kegagalan dan memberi jeda sebelum percobaan berikutnya diterima lagi. */
+const LOGIN_LOCK_LIMIT = 5;
+const LOGIN_LOCK_WINDOW = 900;
+const LOGIN_LOCK_SECONDS = 300;
+
+function loginFailureKey_(kind, identity) {
+  return 'lf:' + kind + ':' + String(identity || 'tanpa-identitas').slice(0, 120);
+}
+
+function loginLockKey_(kind, identity) {
+  return 'lk:' + kind + ':' + String(identity || 'tanpa-identitas').slice(0, 120);
+}
+
+function assertLoginUnlock_(kind, identity) {
+  const cache = CacheService.getScriptCache();
+  const key = loginLockKey_(kind, identity);
+  const stored = cache.get(key);
+  if (!stored) return;
+  const until = Number(stored) || 0;
+  const wait = Math.ceil((until - Date.now()) / 1000);
+  if (wait > 0) {
+    const error = new Error('Terlalu banyak percobaan masuk. Coba lagi dalam ' + wait + ' detik.');
+    error.code = 'login_locked';
+    error.retryAfter = wait;
+    throw error;
+  }
+  cache.remove(key);
+  cache.remove(loginFailureKey_(kind, identity));
+}
+
+function clearLoginFailures_(kind, identity) {
+  const cache = CacheService.getScriptCache();
+  cache.remove(loginFailureKey_(kind, identity));
+  cache.remove(loginLockKey_(kind, identity));
+}
+
+function noteLoginFailure_(kind, identity) {
+  const cache = CacheService.getScriptCache();
+  const failureKey = loginFailureKey_(kind, identity);
+  const lockKey = loginLockKey_(kind, identity);
+  const now = Date.now();
+  const stored = cache.get(failureKey);
+  let count = 1;
+  let started = now;
+  if (stored) {
+    const parts = String(stored).split('|');
+    count = (Number(parts[0]) || 0) + 1;
+    started = Number(parts[1]) || now;
+    if (now - started >= LOGIN_LOCK_WINDOW * 1000) {
+      count = 1;
+      started = now;
+    }
+  }
+  if (count >= LOGIN_LOCK_LIMIT) {
+    cache.put(lockKey, String(now + LOGIN_LOCK_SECONDS * 1000), LOGIN_LOCK_SECONDS);
+    cache.remove(failureKey);
+    const error = new Error('Terlalu banyak percobaan masuk. Coba lagi dalam ' + LOGIN_LOCK_SECONDS + ' detik.');
+    error.code = 'login_locked';
+    error.retryAfter = LOGIN_LOCK_SECONDS;
+    throw error;
+  }
+  cache.put(failureKey, count + '|' + started, Math.min(LOGIN_LOCK_WINDOW, CACHE_MAX_SECONDS));
+}
+
+/** Setelan yang boleh dilihat browser; kunci sensitif dan jejak Turnstile dibuang. */
 function publicSettings_(settings) {
   const copy = {};
   Object.keys(settings || {}).forEach(function (key) {
     if (SECRET_SETTINGS.indexOf(key) >= 0) return;
+    if (/^turnstile/i.test(key)) return;
     copy[key] = settings[key];
   });
   return copy;
 }
 
-/**
- * Umpan dasbor admin. Admin memang boleh melihat kunci situs, tapi secret
- * verification tetap di server; yang dikirim hanya penanda bahwa kunci terisi,
- * supaya dasbor bisa menulis statusnya tanpa menyimpan secret di browser.
- */
+/** Umpan dasbor admin: tidak ada lagi kunci rahasia yang perlu ditandai. */
 function adminSettings_() {
-  const settings = settingsMap_();
-  const bersih = publicSettings_(settings);
-  SECRET_SETTINGS.forEach(function (key) {
-    bersih[key + 'Set'] = Boolean(String(settings[key] || '').trim());
-  });
-  return bersih;
-}
-
-/** Kunci Cloudflare Turnstile; kedua kolom harus terisi sebelum widget dipakai. */
-function turnstileKeys_() {
-  const settings = settingsMap_();
-  const siteKey = String(settings.turnstileSiteKey || '').trim();
-  const secret = String(settings.turnstileSecret || '').trim();
-  return siteKey && secret ? { siteKey: siteKey, secret: secret } : null;
+  return publicSettings_(settingsMap_());
 }
 
 /**
- * Verifikasi manusia memakai kotak centang Cloudflare Turnstile: gratis dan
- * tidak meminta siapa pun menghitung soal. Selama kuncinya belum dipasang,
- * server mengembalikan 'none' sehingga formulir hanya memakai pembatas laju IP.
+ * Honeypot untuk formulir publik. Kolom ini disembunyikan manusia tetapi sering
+ * diisi bot. Pesannya sengaja umum supaya tidak membocorkan mekanismenya.
+ */
+function assertHoneypot_(body) {
+  const jebak = String(body && (body.pii_hp || body.hp_field || body.honeypot) || '').trim();
+  if (!jebak) return;
+  const error = new Error('Permintaan tidak dapat diproses. Muat ulang halaman lalu coba lagi.');
+  error.code = 'bot';
+  throw error;
+}
+
+/**
+ * Kompatibilitas untuk klien lama: tidak ada widget, tidak ada token, dan tidak
+ * ada lagi verifikasi pihak ketiga. Perlindungan duduk di pembatas laju IP,
+ * kunci jebakan, dan validasi server yang sudah ada.
  */
 function captchaIssue_(body) {
   throttle_('captcha-issue', clientIp_(body));
-  const keys = turnstileKeys_();
-  return keys ? { kind: 'turnstile', siteKey: keys.siteKey } : { kind: 'none' };
+  return { kind: 'none' };
 }
 
-/** Dipanggil tiap aksi tulis publik; token hanya dituntut saat widget dipasang. */
+/** Dipanggil tiap aksi tulis publik; kini hanya memeriksa kolom jebakan. */
 function assertCaptcha_(body) {
-  const keys = turnstileKeys_();
-  if (keys) verifyTurnstile_(keys.secret, body.captchaToken, clientIp_(body));
-}
-
-function verifyTurnstile_(secret, token, ip) {
-  if (!token) {
-    const error = new Error('Captcha belum diselesaikan. Centang kotak verifikasi dulu.');
-    error.code = 'captcha';
-    throw error;
-  }
-
-  let claims = {};
-  try {
-    const response = UrlFetchApp.fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'post',
-      payload: { secret: secret, response: String(token).slice(0, 2048), remoteip: ip },
-      muteHttpExceptions: true
-    });
-    claims = JSON.parse(response.getContentText() || '{}');
-  } catch (error) {
-    const failed = new Error('Verifikasi captcha tidak dapat dihubungi. Coba lagi sebentar.');
-    failed.code = 'captcha';
-    throw failed;
-  }
-
-  if (claims.success !== true) {
-    const rejected = new Error('Verifikasi captcha ditolak. Muat ulang halaman lalu coba lagi.');
-    rejected.code = 'captcha';
-    throw rejected;
-  }
+  assertHoneypot_(body);
 }
 
 /* -------------------------------------------------------------- akun kader */
@@ -5761,7 +5801,10 @@ function verifyTurnstile_(secret, token, ip) {
  */
 function kaderLogin_(body) {
   const settings = settingsMap_();
-  const clientId = String(settings.googleClientId || '').trim();
+  // Proxy Vercel boleh menyuntik Client ID dari environment. Karena itu nilai
+  // publik di browser tidak pernah dipercaya; hanya server-to-server yang
+  // membawa `googleClientId` di body. Sheet tetap jadi cadangan deployment lama.
+  const clientId = String(body.googleClientId || settings.googleClientId || '').trim();
   if (!clientId) {
     throw new Error('Masuk dengan Google belum dibuka di website ini.');
   }
@@ -5771,9 +5814,18 @@ function kaderLogin_(body) {
     throw new Error('Token Google tidak dikenali. Silakan masuk ulang.');
   }
 
+  const identity = 'google:' + clientIp_(body);
   throttle_('kader-login', clientIp_(body));
   assertCaptcha_(body);
-  const claims = googleClaims_(idToken, clientId);
+  assertLoginUnlock_('kader-login', identity);
+  let claims;
+  try {
+    claims = googleClaims_(idToken, clientId);
+  } catch (error) {
+    noteLoginFailure_('kader-login', identity);
+    throw error;
+  }
+  clearLoginFailures_('kader-login', identity);
 
   const email = String(claims.email || '').trim().toLowerCase();
   const verified = claims.email_verified === true || claims.email_verified === 'true';
@@ -5877,8 +5929,10 @@ function kaderRegister_(body) {
 /** Masuk kader dengan email + kata sandi, untuk yang tidak memakai Google. */
 function kaderEmailLogin_(body) {
   const email = String(body.email || '').trim().toLowerCase();
-  throttle_('kader-login', clientIp_(body) + ':' + email);
+  const identity = clientIp_(body) + ':' + email;
+  throttle_('kader-login', identity);
   assertCaptcha_(body);
+  assertLoginUnlock_('kader-login', identity);
   const password = String(body.password || '');
 
   const rows = rows_(APP.SHEET_KADERS);
@@ -5889,9 +5943,11 @@ function kaderEmailLogin_(body) {
 
   if (!row || !row.passwordHash || !row.passwordSalt ||
       hashPassword_(password, row.passwordSalt) !== String(row.passwordHash)) {
+    noteLoginFailure_('kader-login', identity);
     throw new Error('Email atau kata sandi salah.');
   }
 
+  clearLoginFailures_('kader-login', identity);
   orgSetCell_(APP.SHEET_KADERS, row.id, 'lastLoginAt', new Date().toISOString());
   const token = sessionPut_('kader', row.id);
   return {
@@ -5909,13 +5965,15 @@ function kaderEmailLogin_(body) {
 
 /**
  * Satu form masuk untuk semua peran: alamat email yang sama dicari dulu di
- * akun kader, lalu di akun lembaga. Captcha Turnstile hanya diperiksa sekali,
- * karena token captcha hangus setelah satu verifikasi.
+ * akun kader, lalu di akun lembaga. Pembatas laju dan kolom jebakan diperiksa
+ * sekali di pintu ini sebelum pencarian akun dijalankan.
  */
 function ssoLogin_(body) {
   const email = String(body.email || '').trim().toLowerCase();
-  throttle_('sso-login', clientIp_(body) + ':' + email);
+  const identity = clientIp_(body) + ':' + email;
+  throttle_('sso-login', identity);
   assertCaptcha_(body);
+  assertLoginUnlock_('sso-login', identity);
   const password = String(body.password || '');
 
   const rows = rows_(APP.SHEET_KADERS);
@@ -5926,6 +5984,7 @@ function ssoLogin_(body) {
 
   if (row && row.passwordHash && row.passwordSalt &&
       hashPassword_(password, row.passwordSalt) === String(row.passwordHash)) {
+    clearLoginFailures_('sso-login', identity);
     orgSetCell_(APP.SHEET_KADERS, row.id, 'lastLoginAt', new Date().toISOString());
     const token = sessionPut_('kader', row.id);
     return {
@@ -5944,11 +6003,13 @@ function ssoLogin_(body) {
   const org = orgById_(rows_(APP.SHEET_ORGS), null, email);
   if (org && org.passwordHash && org.passwordSalt &&
       hashPassword_(password, org.passwordSalt) === String(org.passwordHash)) {
+    clearLoginFailures_('sso-login', identity);
     const token = sessionPut_('org', org.id);
     orgSetCell_(APP.SHEET_ORGS, org.id, 'lastLoginAt', new Date().toISOString());
     return { token: token, role: 'org', org: orgSelf_(org), expiresIn: APP.TOKEN_TTL_SECONDS };
   }
 
+  noteLoginFailure_('sso-login', identity);
   throw new Error('Email atau kata sandi salah.');
 }
 
@@ -7660,4 +7721,4 @@ function notifLembaga_(orgId, kabar, id) {
   return notifKirim_('o:' + String(orgId || ''), kabar, id);
 }
 
-module.exports = { doPost, doGet, health_, BACKEND_VERSION, jumlahFungsi: 301 };
+module.exports = { doPost, doGet, health_, BACKEND_VERSION, jumlahFungsi: 305 };

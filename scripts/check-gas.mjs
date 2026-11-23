@@ -169,7 +169,7 @@ const Utilities = {
   base64Encode: (bytes) => Buffer.from(bytes).toString('base64')
 };
 
-/** CacheService palsu: hitungan jendela geser dan captcha harus benar-benar hidup. */
+/** CacheService palsu: hitungan jendela geser pembatas laju harus benar-benar hidup. */
 const cacheStore = new Map();
 const scriptCache = {
   get(key) {
@@ -190,10 +190,13 @@ const scriptCache = {
 const CacheService = { getScriptCache: () => scriptCache };
 
 /** Titik-titik keluar yang bisa diatur per pemeriksaan. */
-const http = { google: null, turnstile: null, ai: null, calls: [] };
+const http = { google: null, ai: null, calls: [] };
 const UrlFetchApp = {
   fetch(url, options) {
     http.calls.push({ url: String(url), options });
+    if (String(url).includes('challenges.cloudflare.com') || String(url).includes('siteverify')) {
+      throw new Error('Cloudflare Turnstile tidak boleh dipanggil lagi: ' + url);
+    }
     if (String(url).includes('pollinations') || String(options?.payload || '').includes('"messages"')) {
       const teks = http.ai ? JSON.stringify(http.ai)
         : JSON.stringify({ choices: [{ message: { content: 'Jawaban contoh dari layanan AI.' } }] });
@@ -204,7 +207,7 @@ const UrlFetchApp = {
     }
     const text = String(url).includes('oauth2.googleapis.com/tokeninfo')
       ? JSON.stringify(http.google || { error: 'tokeninfo belum diatur' })
-      : JSON.stringify(http.turnstile || { success: false });
+      : '{}';
     return { getContentText: () => text, getResponseCode: () => 200 };
   }
 };
@@ -364,7 +367,7 @@ const exported = [
   'eventsFeed_', 'publicData_', 'orgData_', 'orgSetStandard_', 'keaktifanSettings_',
   'orgSaveActivity_', 'orgSaveForm_', 'orgSaveArticle_', 'orgParticipants_', 'orgSetParticipantStatus_',
   'publicForm_', 'publicRegister_', 'requireOrg_', 'currentMonthKey_', 'todayKey_', 'APP', 'STANDARD_HEADERS',
-  'doPost', 'throttle_', 'clientIp_', 'captchaIssue_', 'assertCaptcha_', 'kaderLogin_',
+  'doPost', 'throttle_', 'clientIp_', 'captchaIssue_', 'assertCaptcha_', 'assertHoneypot_', 'kaderLogin_',
   'eventLike_', 'eventComment_', 'eventThread_', 'whoami_', 'publicSettings_',
   'actorOf_', 'safeActorKey_', 'chatIdentity_', 'guestSubject_', 'RATE_RULES', 'hashPassword_',
   'pustakaKorpus_', 'pustakaCocok_', 'pustakaRujukanAI_', 'pustakaPromptBagian_', 'driveKesiapan_',
@@ -482,7 +485,7 @@ check('homepage defaults migrate without overwriting editorial copy', [
   rowsOf('Settings').find((row) => row.key === 'heroText')?.value,
   rowsOf('Settings').find((row) => row.key === 'aboutText')?.value
 ], [
-  'Membina Pelajar, Menguatkan Pendidikan dan Kebudayaan',
+  'MEMBENTUK PELAJAR, MENYIAPKAN PEMIMPIN MASA DEPAN.',
   'Salinan yang sudah diubah redaksi.',
   'Buku Panduan Kelembagaan (PII) mencatat bahwa Pelajar Islam Indonesia lahir pada 4 Mei 1947 dan merupakan organisasi pelajar Islam tertua di Indonesia. Ebook Ta’dib PII merumuskan tujuan PII sebagai kesempurnaan pendidikan dan kebudayaan yang sesuai dengan Islam bagi seluruh rakyat Indonesia dan umat manusia.'
 ]);
@@ -897,21 +900,15 @@ function request(body) {
   return JSON.parse(response.getContentText());
 }
 
-/**
- * Cloudflare Turnstile satu-satunya verifikasi, jadi kunci pengujinya dipasang
- * lebih dulu; blok di bawah mengembalikan lagi keadaan belum ber kunci.
- */
 function aturSetting(key, value) {
   const row = rowsOf('Settings').find((item) => item.key === key);
   if (row) row.value = value;
   else seed('Settings', [{ key, value }]);
 }
-aturSetting('turnstileSiteKey', 'site-key-abc');
-aturSetting('turnstileSecret', 'secret-xyz');
-http.turnstile = { success: true };
 
-/** Browser mengirim token dari widget, bukan jawaban hitungan. */
-const TOKEN_MANUSIA = { captchaToken: 'tok-manusia' };
+/** Kolom tersembunyi yang hanya diisi bot; manusia membiarkannya kosong. */
+const BOT_JEBAK = { pii_hp: 'saya-bot' };
+const PESAN_BOT = 'Permintaan tidak dapat diproses. Muat ulang halaman lalu coba lagi.';
 
 const percobaanLogin = [];
 for (let i = 0; i < 9; i += 1) {
@@ -921,8 +918,22 @@ check('delapan percobaan login pertama dilayani normal', percobaanLogin.slice(0,
 check('percobaan login kesembilan dibatasi laju', percobaanLogin[8].code, 'rate_limited');
 check('jawaban pembatas menyertakan hitung tunggu', typeof percobaanLogin[8].retryAfter, 'number');
 check('pembatas laju memakai kunci IP dari proxy', gas.clientIp_({ ip: '203.0.113.7, 10.0.0.1' }), '203.0.113.7');
-check('masuk admin tanpa centang Turnstile ditolak', request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.8' }).code, 'captcha');
-check('masuk lembaga tanpa centang Turnstile ditolak', request({ action: 'orgLogin', email: 'pk-baru@example.com', password: 'tebakan', ip: '198.51.100.45' }).code, 'captcha');
+check('kolom jebakan menolak masuk admin', request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.8', ...BOT_JEBAK }).code, 'bot');
+check('kolom jebakan menolak masuk lembaga', request({ action: 'orgLogin', email: 'pk-baru@example.com', password: 'tebakan', ip: '198.51.100.45', ...BOT_JEBAK }).code, 'bot');
+
+/* Kunci sementara: lima kegagalan berturut dari satu IP+email mengunci jalur
+   itu, bukan sekadar membatasi laju. IP lain tetap dilayani normal. */
+const kunciSso = { action: 'ssoLogin', email: 'kunci@example.com', password: 'salah', ip: '203.0.113.61' };
+const gagalSso = [];
+for (let i = 0; i < 5; i += 1) gagalSso.push(request(kunciSso));
+check('empat kegagalan masuk pertama masih membalas pesan umum',
+  gagalSso.slice(0, 4).every((item) => item.code !== 'rate_limited' && item.code !== 'login_locked'), true);
+check('kegagalan kelima mengunci percobaan masuk', gagalSso[4].code, 'login_locked');
+check('jawaban kunci menyertakan hitung tunggu', typeof gagalSso[4].retryAfter, 'number');
+check('percobaan berikutnya tetap terkunci sebelum kata sandi diperiksa',
+  request(kunciSso).code, 'login_locked');
+check('IP lain tidak ikut terkunci',
+  request({ ...kunciSso, ip: '203.0.113.62' }).error, 'Email atau kata sandi salah.');
 
 let lewatBeruntun = 0;
 for (let i = 0; i < gas.RATE_RULES.chat.limit + 1; i += 1) {
@@ -936,45 +947,31 @@ for (let i = 0; i < gas.RATE_RULES.chat.limit + 1; i += 1) {
 check('pertanyaan Tanya PII dibatasi per menit', lewatBeruntun, gas.RATE_RULES.chat.limit);
 
 const widget = request({ action: 'captcha', ip: '203.0.113.7' });
-check('browser ditawari widget Turnstile, bukan soal hitung', widget.data, { kind: 'turnstile', siteKey: 'site-key-abc' });
+check('browser tidak lagi ditawari widget pihak ketiga', widget.data, { kind: 'none' });
+check('tidak ada panggilan ke Cloudflare', http.calls.some((call) => /cloudflare|siteverify/i.test(call.url)), false);
 const payloadPublic = request({ action: 'public', ip: '203.0.113.7' });
-check('kunci rahasia tidak pernah keluar ke browser', 'turnstileSecret' in payloadPublic.data.settings, false);
-check('kunci situs Turnstile boleh dilihat browser', payloadPublic.data.settings.turnstileSiteKey, 'site-key-abc');
+check('jejak konfigurasi Turnstile tidak ikut ke browser',
+  Object.keys(payloadPublic.data.settings).some((key) => /^turnstile/i.test(key)), false);
 const paketAdmin = request({ action: 'adminData', token: 'ses-admin' });
-check('dasbor admin pun tidak menerima nilai secret', 'turnstileSecret' in paketAdmin.data.settings, false);
-check('dasbor admin hanya menerima penanda secret terisi', paketAdmin.data.settings.turnstileSecretSet, true);
+check('dasbor admin tidak menerima kunci Turnstile',
+  Object.keys(paketAdmin.data.settings).some((key) => /^turnstile/i.test(key)), false);
 const hasilSimpan = request({ action: 'saveSettings', token: 'ses-admin', settings: { turnstileSiteKey: 'site-key-abc', turnstileSecret: 'secret-xyz' } });
-check('simpan pengaturan membalas penanda, bukan nilai secret', hasilSimpan.data.turnstileSecretSet, true);
-check('umpan simpan tidak pernah membawa nilai secret', 'turnstileSecret' in hasilSimpan.data, false);
+check('pengaturan Turnstile lama diabaikan saat disimpan',
+  rowsOf('Settings').some((row) => /^turnstile/i.test(String(row.key))), false);
+check('umpan simpan tidak membawa kunci rahasia', 'turnstileSecret' in hasilSimpan.data, false);
 
-const tanpaVerifikasi = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7' });
-check('pendaftaran tanpa centang Turnstile ditolak', tanpaVerifikasi.code, 'captcha');
 const pesertaAwal = rowsOf('Participants').length;
-http.turnstile = { success: false, 'error-codes': ['bad-request'] };
-const ditolak = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Spam Bot', phone: '081100011', ip: '203.0.113.7', ...TOKEN_MANUSIA });
-check('token yang ditolak Cloudflare gagal masuk', ditolak.code, 'captcha');
-http.turnstile = { success: true };
-check('peserta baru tidak tercatat ketika ditolak', rowsOf('Participants').length, pesertaAwal);
-const benar = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7', ...TOKEN_MANUSIA });
-check('pendaftaran lolos dengan centang Turnstile', benar.ok, true);
+const tanpaBot = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Nur Aisyah', phone: '081234567890', ip: '203.0.113.7' });
+check('pendaftaran tetap berjalan tanpa widget', tanpaBot.ok, true);
 check('peserta tercatat satu baris', rowsOf('Participants').length, pesertaAwal + 1);
-const daftarLembaga = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40' });
-check('pendaftaran lembaga juga butuh centang Turnstile', daftarLembaga.code, 'captcha');
-const daftarLolos = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40', ...TOKEN_MANUSIA });
-check('lembaga baru terdaftar setelah verifikasi', daftarLolos.data.status, 'pending');
-
-/* Baru satu kunci terisi tidak boleh mengunci siapa pun dari formulir. */
-aturSetting('turnstileSecret', '');
-check('kunci situs saja tidak menawarkan widget', request({ action: 'captcha', ip: '203.0.113.8' }).data, { kind: 'none' });
-check('setengah kunci dipasang, pendaftaran tetap lolos',
-  request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Separuh Kunci', phone: '081299990003', ip: '203.0.113.8' }).ok, true);
-aturSetting('turnstileSiteKey', '');
-check('kedua kunci kosong, login tidak menuntut captcha',
-  request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.7' }).code === 'captcha', false);
-aturSetting('turnstileSiteKey', 'site-key-abc');
-aturSetting('turnstileSecret', 'secret-xyz');
-check('kembali menuntut centang setelah kunci dipasang',
-  request({ action: 'login', username: 'pb', password: 'tebakan', ip: '9.9.9.6' }).code, 'captcha');
+const botPendaftaran = request({ action: 'publicRegister', formId: 'form-kadaria', name: 'Spam Bot', phone: '081100011', ip: '203.0.113.71', ...BOT_JEBAK });
+check('kolom jebakan menolak pendaftaran bot', botPendaftaran.code, 'bot');
+check('pesanan bot tidak tercatat', rowsOf('Participants').length, pesertaAwal + 1);
+const daftarLolos = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-baru@example.com', password: 'rahasia123', ip: '198.51.100.40' });
+check('lembaga baru terdaftar tanpa verifikasi pihak ketiga', daftarLolos.data.status, 'pending');
+const daftarBot = request({ action: 'orgRegister', jenjang: 'PK', province: 'Kalimantan Barat', district: 'Kota Pontianak', subdistrict: 'Kec. Pontianak Timur', email: 'pk-bot@example.com', password: 'rahasia123', ip: '198.51.100.41', ...BOT_JEBAK });
+check('pendaftaran lembaga bot ditolak', daftarBot.code, 'bot');
+check('pesan kegagalan bot tidak membocorkan mekanisme', daftarBot.error, PESAN_BOT);
 
 const klaimGoogle = {
   iss: 'https://accounts.google.com',
@@ -987,11 +984,9 @@ const klaimGoogle = {
   exp: Math.floor(Date.now() / 1000) + 3600
 };
 http.google = klaimGoogle;
-http.turnstile = { success: false, 'error-codes': ['bad-request'] };
-check('centang yang ditolak Cloudflare menggagalkan masuk kader',
-  request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', ...TOKEN_MANUSIA }).code, 'captcha');
-http.turnstile = { success: true };
-const masukKader = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', ...TOKEN_MANUSIA });
+check('kolom jebakan menolak masuk Google kader',
+  request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4', ...BOT_JEBAK }).code, 'bot');
+const masukKader = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.4' });
 check('kader berhasil masuk dengan Google', masukKader.ok, true);
 check('peran kader dibedakan dari pengurus', masukKader.data.role, 'kader');
 check('nama kader diambil dari klaim Google', masukKader.data.kader.name, 'Bilal Rehnomi');
@@ -1004,15 +999,15 @@ check('kader tidak punya jenjang pengurus', 'jenjang' in siapa.data, false);
 check('tamu tanpa token dikenali sebagai tamu', request({ action: 'whoami' }).data.role, 'tamu');
 check('sesi kader kedaluwarsa tidak dianggap kader', request({ action: 'whoami', token: 'ses-kedaluwarsa' }).data.role, 'tamu');
 check('kader lolos sebagai identitas Tanya PII', gas.chatIdentity_({ token: 'ses-rozak' }).kind, 'kader');
-check('token rusak ditolak sebelum diverifikasi', request({ action: 'kaderLogin', idToken: 'abc', ip: '198.51.100.5', ...TOKEN_MANUSIA }).ok, false);
+check('token rusak ditolak sebelum diverifikasi', request({ action: 'kaderLogin', idToken: 'abc', ip: '198.51.100.5' }).ok, false);
 http.google = { ...klaimGoogle, aud: 'klien-punya-orang-lain' };
-check('token Google dari situs lain ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.5', ...TOKEN_MANUSIA }).error, 'Token login tidak dibuat untuk website ini.');
+check('token Google dari situs lain ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.5' }).error, 'Token login tidak dibuat untuk website ini.');
 http.google = { ...klaimGoogle, exp: Math.floor(Date.now() / 1000) - 60 };
-check('token Google kedaluwarsa ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.6', ...TOKEN_MANUSIA }).error, 'Token login sudah kedaluwarsa. Silakan masuk ulang.');
+check('token Google kedaluwarsa ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.6' }).error, 'Token login sudah kedaluwarsa. Silakan masuk ulang.');
 http.google = { ...klaimGoogle, email_verified: false };
-check('email Google belum terverifikasi ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.7', ...TOKEN_MANUSIA }).ok, false);
+check('email Google belum terverifikasi ditolak', request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.7' }).ok, false);
 http.google = { ...klaimGoogle, name: 'Bilal Baru' };
-const masukKedua = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.8', ...TOKEN_MANUSIA });
+const masukKedua = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.8' });
 check('login ulang memakai baris kader yang sama', rowsOf('Kaders').filter((row) => row.googleSub === 'sub-baru').length, 1);
 check('login ulang tidak mengganti nama akun yang sudah terlanjur dibagi',
   rowsOf('Kaders').find((row) => row.googleSub === 'sub-baru').username, 'bilalrehnomi');
@@ -1020,30 +1015,30 @@ check('nama kader diperbarui dari klaim terbaru', masukKedua.data.kader.name, 'B
 
 // -------------------------------------------------- masuk kader tanpa Google
 
-const daftarTanpaVerifikasi = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20' });
-check('daftar kader dengan email butuh centang Turnstile', daftarTanpaVerifikasi.code, 'captcha');
-check('kata sandi pendek ditolak', request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'singkat', ip: '198.51.100.20', ...TOKEN_MANUSIA }).error, 'Kata sandi minimal 8 karakter.');
-check('email tidak valid ditolak', request({ action: 'kaderRegister', email: 'bukan-email', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', ...TOKEN_MANUSIA }).error, 'Alamat email tidak valid.');
-const daftar = request({ action: 'kaderRegister', email: 'Siti@Example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20', ...TOKEN_MANUSIA });
+const daftarBotKader = request({ action: 'kaderRegister', email: 'bot-kader@example.com', name: 'Bot Kader', password: 'sandiku123', ip: '198.51.100.20', ...BOT_JEBAK });
+check('daftar kader yang mengisi jebakan ditolak', daftarBotKader.code, 'bot');
+check('kata sandi pendek ditolak', request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Aminah', password: 'singkat', ip: '198.51.100.20' }).error, 'Kata sandi minimal 8 karakter.');
+check('email tidak valid ditolak', request({ action: 'kaderRegister', email: 'bukan-email', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20' }).error, 'Alamat email tidak valid.');
+const daftar = request({ action: 'kaderRegister', email: 'Siti@Example.com', name: 'Siti Aminah', password: 'sandiku123', ip: '198.51.100.20' });
 check('kader bisa daftar tanpa Google', daftar.data.role, 'kader');
 check('email pendaftaran dinormalkan', daftar.data.kader.email, 'siti@example.com');
 check('satu baris kader baru dibuat', rowsOf('Kaders').filter((row) => row.email === 'siti@example.com').length, 1);
 check('pendaftaran email langsung punya nama akun', daftar.data.kader.username, 'sitiaminah');
 check('kata sandi disimpan sebagai hash, bukan teks', rowsOf('Kaders').some((row) => row.passwordHash === 'sandiku123'), false);
-const daftarGanda = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Baru', password: 'sandiku456', ip: '198.51.100.25', ...TOKEN_MANUSIA });
+const daftarGanda = request({ action: 'kaderRegister', email: 'siti@example.com', name: 'Siti Baru', password: 'sandiku456', ip: '198.51.100.25' });
 check('email yang sudah punya akun tidak bisa daftar lagi', daftarGanda.error, 'Email ini sudah punya akun kader. Silakan masuk.');
 http.google = { ...klaimGoogle, sub: 'sub-siti', email: 'siti@example.com', name: 'Siti Aminah' };
-const gabungGoogle = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.26', ...TOKEN_MANUSIA });
+const gabungGoogle = request({ action: 'kaderLogin', idToken: 'head.payload.sig', ip: '198.51.100.26' });
 check('akun email yang masuk lewat Google tidak dobel', rowsOf('Kaders').filter((row) => row.email === 'siti@example.com').length, 1);
 check('identitas Google tertaut ke akun email', rowsOf('Kaders').find((row) => row.email === 'siti@example.com').googleSub, 'sub-siti');
 check('masuk Google tetap memberi sesi kader', request({ action: 'whoami', token: gabungGoogle.data.token }).data.role, 'kader');
 http.google = klaimGoogle;
-check('masuk email kader tanpa centang Turnstile ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.27' }).code, 'captcha');
-const masukEmail = request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.21', ...TOKEN_MANUSIA });
+check('kolom jebakan menolak masuk email kader', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.27', ...BOT_JEBAK }).code, 'bot');
+const masukEmail = request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.21' });
 check('masuk dengan email dan kata sandi', masukEmail.data.role, 'kader');
 check('sesi email dikenal sebagai kader', request({ action: 'whoami', token: masukEmail.data.token }).data.role, 'kader');
-check('kata sandi salah ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.22', ...TOKEN_MANUSIA }).error, 'Email atau kata sandi salah.');
-check('email yang belum terdaftar gagal diam-diam', request({ action: 'kaderEmailLogin', email: 'tiada@example.com', password: 'apa12345', ip: '198.51.100.23', ...TOKEN_MANUSIA }).error, 'Email atau kata sandi salah.');
+check('kata sandi salah ditolak', request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.22' }).error, 'Email atau kata sandi salah.');
+check('email yang belum terdaftar gagal diam-diam', request({ action: 'kaderEmailLogin', email: 'tiada@example.com', password: 'apa12345', ip: '198.51.100.23' }).error, 'Email atau kata sandi salah.');
 const tembokEmail = [];
 for (let i = 0; i < gas.RATE_RULES['kader-login'].limit + 2; i += 1) {
   tembokEmail.push(request({ action: 'kaderEmailLogin', email: 'siti@example.com', password: 'tebakan', ip: '198.51.100.24' }));
@@ -1054,14 +1049,14 @@ check('kader non-Google mendapat jatah penuh Tanya PII', gas.chatIdentity_({ tok
 
 // --------------------------------------------- satu form masuk (SSO) semua peran
 
-check('sso tanpa centang Turnstile ditolak', request({ action: 'ssoLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.29' }).code, 'captcha');
-const ssoKader = request({ action: 'ssoLogin', email: 'Siti@Example.com', password: 'sandiku123', ip: '198.51.100.29', ...TOKEN_MANUSIA });
+check('kolom jebakan menolak SSO', request({ action: 'ssoLogin', email: 'siti@example.com', password: 'sandiku123', ip: '198.51.100.29', ...BOT_JEBAK }).code, 'bot');
+const ssoKader = request({ action: 'ssoLogin', email: 'Siti@Example.com', password: 'sandiku123', ip: '198.51.100.29' });
 check('satu form SSO menemukan akun kader lewat email', ssoKader.data.role, 'kader');
 check('sesi SSO kader dikenal sebagai kader', request({ action: 'whoami', token: ssoKader.data.token }).data.role, 'kader');
-const ssoOrg = request({ action: 'ssoLogin', email: 'PK-BARU@Example.com', password: 'rahasia123', ip: '198.51.100.30', ...TOKEN_MANUSIA });
+const ssoOrg = request({ action: 'ssoLogin', email: 'PK-BARU@Example.com', password: 'rahasia123', ip: '198.51.100.30' });
 check('satu form SSO menemukan akun lembaga lewat email', ssoOrg.data.role, 'org');
 check('sesi SSO lembaga dikenal sebagai lembaga', request({ action: 'whoami', token: ssoOrg.data.token }).data.role, 'org');
-check('satu form SSO menolak kata sandi salah diam-diam', request({ action: 'ssoLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.31', ...TOKEN_MANUSIA }).error, 'Email atau kata sandi salah.');
+check('satu form SSO menolak kata sandi salah diam-diam', request({ action: 'ssoLogin', email: 'siti@example.com', password: 'salah12345', ip: '198.51.100.31' }).error, 'Email atau kata sandi salah.');
 
 // ------------------------------------------------ Tanya PII pengunjung umum
 
@@ -1228,21 +1223,21 @@ check('kader biasa tidak punya aksi untuk mengubah kegiatan',
    mengelola kegiatan serta membaca daftar pendaftarnya. */
 const pendaftaranUmum = request({
   action: 'publicRegister', formId: 'form-kadaria', name: 'Peserta Umum',
-  phone: '081233311100', institution: 'SMAN 3', ip: '203.0.113.90', ...TOKEN_MANUSIA
+  phone: '081233311100', institution: 'SMAN 3', ip: '203.0.113.90'
 });
 check('umum tanpa akun tercatat sebagai peserta', pendaftaranUmum.ok, true);
 const pendaftaranKader = request({
   action: 'publicRegister', formId: 'form-kadaria', token: 'ses-rozak', name: 'Kader Peserta',
-  phone: '081233311101', institution: 'PK UNTAN', ip: '203.0.113.91', ...TOKEN_MANUSIA
+  phone: '081233311101', institution: 'PK UNTAN', ip: '203.0.113.91'
 });
 check('kader boleh mendaftar sebagai peserta', pendaftaranKader.ok, true);
 const PENOLAKAN_PENGURUS = 'Pendaftaran peserta terbuka untuk umum. Akun pengurus hanya mengelola kegiatan dan melihat pendaftarnya.';
 check('lembaga tidak bisa mendaftar sebagai peserta di kegiatannya', [
-  request({ action: 'publicRegister', formId: 'form-kadaria', token: 'ses-pd', name: 'PD Peserta', ip: '203.0.113.92', ...TOKEN_MANUSIA }).error,
-  request({ action: 'publicRegister', formId: 'form-kadaria', token: 'ses-poltek', name: 'PK Peserta', ip: '203.0.113.93', ...TOKEN_MANUSIA }).error
+  request({ action: 'publicRegister', formId: 'form-kadaria', token: 'ses-pd', name: 'PD Peserta', ip: '203.0.113.92' }).error,
+  request({ action: 'publicRegister', formId: 'form-kadaria', token: 'ses-poltek', name: 'PK Peserta', ip: '203.0.113.93' }).error
 ], [PENOLAKAN_PENGURUS, PENOLAKAN_PENGURUS]);
 check('admin pun tidak terdaftar sebagai peserta',
-  request({ action: 'publicRegister', formId: 'form-lk-open', token: 'ses-admin', name: 'Admin Peserta', ip: '203.0.113.94', ...TOKEN_MANUSIA }).error,
+  request({ action: 'publicRegister', formId: 'form-lk-open', token: 'ses-admin', name: 'Admin Peserta', ip: '203.0.113.94' }).error,
   PENOLAKAN_PENGURUS);
 check('penolakan pengurus tidak menambah peserta', rowsOf('Participants').filter((row) => {
   return ['form-kadaria', 'form-lk-open'].indexOf(row.formId) >= 0 && row.name === 'PD Peserta';
@@ -2781,15 +2776,8 @@ check('angka kesehatan memakai label yang dikenali pengurus',
   ['artikel dan sambutan', 'akun kader', 'lembaga dan wilayah']);
 check('jumlah berkas pustaka terbaca dari lembar indeks',
   kesehatan.angka.find((item) => item.label === 'berkas pustaka').jumlah, rowsOf('PustakaBerkas').length);
-check('verifikasi manusia yang terpasang tidak dilaporkan sebagai masalah',
-  kesehatan.masalah.some((item) => /verifikasi manusia/i.test(item)), false);
-
-aturSetting('turnstileSiteKey', '');
-const kesehatanTanpaKunci = request({ action: 'kesehatanSistem', token: 'ses-admin' }).data;
-aturSetting('turnstileSiteKey', 'site-key-abc');
-check('verifikasi manusia yang belum lengkap dilaporkan untuk ditindak',
-  [kesehatanTanpaKunci.siap, kesehatanTanpaKunci.masalah.some((item) => /verifikasi manusia.*belum dipasang/i.test(item))],
-  [false, true]);
+check('kesehatan tidak lagi menyinggung Turnstile',
+  [/turnstile/i, /verifikasi manusia/i].map((pola) => pola.test(teksKesehatan)), [false, false]);
 
 const failed = checks.filter((item) => !item.ok);
 checks.forEach((item) => {
