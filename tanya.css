@@ -1287,7 +1287,142 @@ body.tanya-page .tanya-lampir[hidden] {
   display: none;
 }
 
-body.tanya-page .tanya-field:has(.tanya-lampir:not([hidden])) {
+/* Tombol suara memakai ukuran dan ritme yang sama dengan tombol lampir. */
+body.tanya-page .tanya-mikrofon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  margin-bottom: 2px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: none;
+  color: #7e91a6;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, transform .16s ease;
+}
+
+body.tanya-page .tanya-mikrofon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.tanya-page .tanya-mikrofon .tanya-ikon-henti {
+  display: none;
+}
+
+body.tanya-page .tanya-mikrofon.is-recording .tanya-ikon-mikrofon {
+  display: none;
+}
+
+body.tanya-page .tanya-mikrofon.is-recording .tanya-ikon-henti {
+  display: block;
+  fill: currentColor;
+  stroke: none;
+}
+
+body.tanya-page .tanya-mikrofon:hover:not(:disabled) {
+  background: #f1f7fc;
+  color: var(--blue);
+}
+
+body.tanya-page .tanya-mikrofon:active:not(:disabled) {
+  transform: scale(.94);
+}
+
+body.tanya-page .tanya-mikrofon.is-recording {
+  background: #fee2e2;
+  color: #dc2626;
+  animation: tanya-mikrofon-denyut 1.4s ease-in-out infinite;
+}
+
+body.tanya-page .tanya-mikrofon:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+@keyframes tanya-mikrofon-denyut {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(220 38 38 / 28%); }
+  50% { box-shadow: 0 0 0 6px rgb(220 38 38 / 0%); }
+}
+
+body.tanya-page .tanya-suara {
+  display: flex;
+  width: min(920px, 100%);
+  align-items: center;
+  gap: 9px;
+  margin: 0 auto 8px;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  padding: 5px 7px 5px 12px;
+  background: #fff1f2;
+  color: #9f1239;
+  font-size: .78rem;
+}
+
+body.tanya-page .tanya-suara[hidden] {
+  display: none;
+}
+
+body.tanya-page .tanya-suara-gelombang {
+  display: flex;
+  height: 15px;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+body.tanya-page .tanya-suara-gelombang i {
+  width: 3px;
+  height: 6px;
+  border-radius: 3px;
+  background: #e11d48;
+  animation: tanya-gelombang .9s ease-in-out infinite;
+}
+
+body.tanya-page .tanya-suara-gelombang i:nth-child(2) { animation-delay: .12s; }
+body.tanya-page .tanya-suara-gelombang i:nth-child(3) { animation-delay: .24s; }
+body.tanya-page .tanya-suara-gelombang i:nth-child(4) { animation-delay: .36s; }
+
+@keyframes tanya-gelombang {
+  0%, 100% { height: 4px; opacity: .55; }
+  50% { height: 14px; opacity: 1; }
+}
+
+body.tanya-page .tanya-suara-teks {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.tanya-page .tanya-suara-henti {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: #e11d48;
+  color: #fff;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body.tanya-page .tanya-suara-henti:hover {
+  background: #be123c;
+}
+
+body.tanya-page .tanya-field:has(.tanya-lampir:not([hidden])),
+body.tanya-page .tanya-field:has(.tanya-mikrofon:not([hidden])) {
   padding-left: 8px;
 }
 
@@ -2015,22 +2150,41 @@ body.tanya-page .tanya-inline-kode {
   color: #f0abfc;
 }
 
+body.tanya-page .tanya-tabel-lapit {
+  border-color: var(--tanya-line-strong);
+  background: #101626;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 32%);
+}
+
 body.tanya-page .tanya-tabel {
-  color: var(--tanya-text);
+  color: #f5f7ff;
 }
 
 body.tanya-page .tanya-tabel th,
 body.tanya-page .tanya-tabel td {
-  border-bottom-color: var(--tanya-line);
+  border-bottom-color: var(--tanya-line-strong);
 }
 
 body.tanya-page .tanya-tabel th {
-  background: rgb(168 85 247 / 12%);
+  border-bottom-color: #3b608a;
+  background: linear-gradient(180deg, #183f6b 0%, #102b49 78%);
   color: #fff;
 }
 
+body.tanya-page .tanya-tabel tbody tr {
+  background: #141a2b;
+}
+
 body.tanya-page .tanya-tabel tbody tr:nth-child(even) {
-  background: rgb(255 255 255 / 3%);
+  background: #1a2136;
+}
+
+body.tanya-page .tanya-tabel tbody tr:hover {
+  background: #202a44;
+}
+
+body.tanya-page .tanya-tabel td a {
+  color: #c4b5fd;
 }
 
 body.tanya-page .tanya-tabel caption {
@@ -2289,6 +2443,39 @@ body.tanya-page .tanya-lampir:hover:not(:disabled) {
   color: #d8b4fe;
 }
 
+body.tanya-page .tanya-mikrofon {
+  color: var(--tanya-muted);
+}
+
+body.tanya-page .tanya-mikrofon:hover:not(:disabled) {
+  background: rgb(168 85 247 / 14%);
+  color: #d8b4fe;
+}
+
+body.tanya-page .tanya-mikrofon.is-recording {
+  background: rgb(239 68 68 / 18%);
+  color: #fca5a5;
+}
+
+body.tanya-page .tanya-suara {
+  border-color: rgb(248 113 113 / 38%);
+  background: rgb(76 12 32 / 62%);
+  color: #fecdd3;
+}
+
+body.tanya-page .tanya-suara-gelombang i {
+  background: #fb7185;
+}
+
+body.tanya-page .tanya-suara-henti {
+  background: #e11d48;
+  color: #fff;
+}
+
+body.tanya-page .tanya-suara-henti:hover {
+  background: #f43f5e;
+}
+
 body.tanya-page .tanya-lampiran-item.is-gambar,
 body.tanya-page .tanya-lampiran-item.is-dokumen {
   border-color: var(--tanya-line);
@@ -2418,5 +2605,10 @@ body.tanya-page .tanya-toast {
   body.tanya-page .tanya-shell .tanya-riwayat-panel,
   body.tanya-page .tanya-topbar-toggle svg {
     transition-duration: .01ms !important;
+  }
+
+  body.tanya-page .tanya-mikrofon.is-recording,
+  body.tanya-page .tanya-suara-gelombang i {
+    animation: none !important;
   }
 }

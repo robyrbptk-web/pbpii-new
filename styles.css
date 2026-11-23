@@ -5487,49 +5487,63 @@ body.has-kader-dialog {
   content: '\2713';
 }
 
-/* Tabel GFM: kepala jelas, angka rata kanan, sempit pun tetap terbaca. */
+/* Tabel GFM: latar gelap, kepala navy, dan teks terang yang benar-benar
+   terbaca. Wrapper tetap bisa digulir agar tabel lebar tidak merusak layout. */
 .tanya-tabel-lapit {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   max-width: 100%;
   margin: 13px 0;
-  border: 1px solid #d8e4f0;
+  border: 1px solid #2a4666;
   border-radius: 13px;
-  background: #fff;
-  box-shadow: 0 6px 16px rgb(16 43 73 / 5%);
+  background: #101c2e;
+  box-shadow: 0 8px 22px rgb(2 8 18 / 24%);
 }
 
 .tanya-tabel-lapit:focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid #93c5fd;
   outline-offset: 2px;
 }
 
 .tanya-tabel {
   width: 100%;
+  min-width: max-content;
   border-collapse: collapse;
+  color: #f3f7ff;
   font-size: .88rem;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .tanya-tabel th,
 .tanya-tabel td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #e7eff7;
+  padding: 10px 13px;
+  border-bottom: 1px solid #2a415d;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
 .tanya-tabel th {
   position: sticky;
   top: 0;
-  background: #f0f6fc;
-  color: var(--navy);
+  z-index: 1;
+  border-bottom-color: #3b608a;
+  background: linear-gradient(180deg, #173d67 0%, #102b49 100%);
+  color: #fff;
   font-weight: 800;
 }
 
+.tanya-tabel tbody tr {
+  background: #121f32;
+}
+
 .tanya-tabel tbody tr:nth-child(even) {
-  background: #fafcfe;
+  background: #172640;
+}
+
+.tanya-tabel tbody tr:hover {
+  background: #1c2f4c;
 }
 
 .tanya-tabel tr:last-child td {
@@ -5545,11 +5559,31 @@ body.has-kader-dialog {
 .tanya-tabel .is-center { text-align: center; }
 .tanya-tabel .is-left { text-align: left; }
 
+.tanya-tabel td a,
+.tanya-tabel td .tanya-inline-kode {
+  color: inherit;
+}
+
+.tanya-tabel td a {
+  color: #bfdbfe;
+}
+
+.tanya-tabel td .tanya-inline-kode {
+  background: rgb(255 255 255 / 10%);
+  color: #fbcfe8;
+}
+
+.tanya-tabel td ul,
+.tanya-tabel td ol {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
 .tanya-tabel caption {
   caption-side: bottom;
-  padding: 6px 12px;
-  color: var(--muted);
-  font-size: .74rem;
+  padding: 7px 13px;
+  color: #b6c7dd;
+  font-size: .76rem;
   text-align: left;
 }
 
@@ -7555,9 +7589,13 @@ body.has-kader-dialog {
     max-width: 100%;
     border: 0.7pt solid #9fb3c6;
     border-radius: 0;
+    background: #fff;
+    box-shadow: none;
   }
 
   #tanyaPrint .tanya-tabel {
+    min-width: 0;
+    color: #12293f;
     font-size: 9.4pt;
   }
 
@@ -7565,10 +7603,21 @@ body.has-kader-dialog {
     position: static;
     background: #eef4fa;
     border-bottom: 0.9pt solid #9fb3c6;
+    color: #102b49;
+  }
+
+  #tanyaPrint .tanya-tabel tbody tr,
+  #tanyaPrint .tanya-tabel tbody tr:nth-child(even) {
+    background: #fff;
+  }
+
+  #tanyaPrint .tanya-tabel tbody tr:nth-child(even) {
+    background: #f8fbff;
   }
 
   #tanyaPrint .tanya-tabel td {
     border-bottom: 0.4pt solid #d7e2ec;
+    color: #12293f;
   }
 
   #tanyaPrint .tanya-tabel tr {

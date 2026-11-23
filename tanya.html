@@ -15,7 +15,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/appshell.css">
-  <link rel="stylesheet" href="/tanya.css?v=76">
+  <link rel="stylesheet" href="/tanya.css?v=78">
   <script src="/appshell.js" data-halaman="tanya" data-kerangka="sendiri"></script>
 </head>
 <body class="tanya-page">
@@ -127,6 +127,10 @@
         <form class="tanya-composer" id="tanyaComposer">
           <div class="tanya-lampiran" id="tanyaLampiran" aria-label="Lampiran pertanyaan" hidden></div>
           <div class="tanya-field">
+            <button class="tanya-mikrofon" id="tanyaMikrofon" type="button" aria-label="Tanya dengan suara" aria-pressed="false" title="Tanya dengan suara">
+              <svg class="tanya-ikon-mikrofon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7"/></svg>
+              <svg class="tanya-ikon-henti" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
+            </button>
             <button class="tanya-lampir" id="tanyaLampir" type="button" aria-label="Lampirkan PDF" title="Lampirkan PDF">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.5 11.5-8.4 8.4a5.1 5.1 0 0 1-7.2-7.2l9-9a3.6 3.6 0 0 1 5.1 5.1L9.9 17.9a2.1 2.1 0 0 1-3-3l7.6-7.6"/></svg>
             </button>
@@ -142,6 +146,11 @@
               </button>
             </div>
           </div>
+          <p class="tanya-suara" id="tanyaSuara" role="status" aria-live="polite" hidden>
+            <span class="tanya-suara-gelombang" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="tanya-suara-teks" id="tanyaSuaraTeks">Mendengarkan… hasilnya akan muncul di kolom pesan.</span>
+            <button class="tanya-suara-henti" id="tanyaSuaraHenti" type="button">Hentikan</button>
+          </p>
           <p class="tanya-meter" id="tanyaQuota" hidden></p>
         </form>
       </main>

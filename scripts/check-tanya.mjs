@@ -464,5 +464,48 @@ const PETA = {
   sama('Tanpa lampiran pesan tetap teks polos', modul.userPesan('Halo', []).content, 'Halo');
 }
 
+/* ------------------------------------------------ renderer Markdown & suara */
+
+const jendelaMarkdown = {};
+new Function('window', readFileSync(new URL('../markdown.js', import.meta.url), 'utf8'))(jendelaMarkdown);
+const md = jendelaMarkdown.PBPIIMarkdown;
+uji('Renderer Markdown tersedia', Boolean(md?.render));
+
+const tabelMarkdown = md.render('| Nama | Catatan |\n| --- | --- |\n| A | satu<br>dua |');
+uji('<br> literal di dalam tabel menjadi elemen', tabelMarkdown.includes('satu<br>dua'));
+uji('<br> literal tidak tampil sebagai teks', !tabelMarkdown.includes('&lt;br&gt;'));
+uji('Tabel memakai pembungkus yang dapat digulir', /tanya-tabel-lapit[^>]*role="region"/.test(tabelMarkdown));
+uji('Header tabel memakai th scope="col"', tabelMarkdown.includes('<th scope="col">Nama</th>'));
+
+const blokMarkdown = md.render('# Judul\n\n- satu\n- dua\n\nTeks<br>baru');
+uji('Heading dirender sebagai h2', blokMarkdown.includes('<h2 class="tanya-h tanya-h2">Judul</h2>'));
+uji('Daftar bullet dirender sebagai ul', blokMarkdown.includes('<ul class="tanya-daf">'));
+uji('Baris baru paragraf memakai <br>', blokMarkdown.includes('Teks<br>baru'));
+uji('Tag berbahaya tetap di-escape', !md.render('<script>alert(1)</script>').includes('<script>'));
+
+const tanyaSumber = readFileSync(new URL('../tanya.js', import.meta.url), 'utf8');
+const tanyaHtml = readFileSync(new URL('../tanya.html', import.meta.url), 'utf8');
+const tanyaGaya = readFileSync(new URL('../tanya.css', import.meta.url), 'utf8');
+const gayaUmum = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+const vercelKonfigurasi = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+const izin = vercelKonfigurasi.headers
+  .find((entry) => entry.source === '/(.*)')?.headers
+  .find((header) => header.key === 'Permissions-Policy')?.value || '';
+
+uji('Komposer memiliki tombol mikrofon', tanyaHtml.includes('id="tanyaMikrofon"'));
+uji('Komposer memiliki tombol hentikan suara', tanyaHtml.includes('id="tanyaSuaraHenti"'));
+uji('Input suara memakai Web Speech API', /SpeechRecognition\s*\|\|\s*window\.webkitSpeechRecognition/.test(tanyaSumber));
+uji('Bahasa pengenalan suara id-ID', tanyaSumber.includes("pengenalSuara.lang = 'id-ID'"));
+uji('Perekaman dapat dihentikan', tanyaSumber.includes('function hentikanSuara()'));
+uji('Perekaman dihentikan saat halaman disembunyikan', /visibilitychange[\s\S]{0,140}hentikanSuara\(\)/.test(tanyaSumber));
+const bagianHasil = /pengenalSuara\.onresult = \(event\) => \{([\s\S]*?)\n      \};/.exec(tanyaSumber)?.[1] || '';
+uji('Hasil suara tidak dikirim otomatis', bagianHasil.length > 0 && !/\bsend\s*\(/.test(bagianHasil));
+uji('Kebijakan izin mengizinkan mikrofon di situs sendiri', /microphone=\(self\)/.test(izin));
+uji('Gaya indikator perekaman tersedia', tanyaGaya.includes('.tanya-mikrofon.is-recording'));
+uji('Animasi gelombang suara tersedia', tanyaGaya.includes('.tanya-suara-gelombang'));
+uji('Tabel memakai teks terang', /\.tanya-tabel \{[\s\S]{0,240}color: #f3f7ff/.test(gayaUmum));
+uji('Tabel menjaga pengguliran horizontal', /\.tanya-tabel \{[\s\S]{0,240}min-width: max-content/.test(gayaUmum));
+uji('Tema gelap menimpa latar putih tabel', /body\.tanya-page \.tanya-tabel-lapit \{[\s\S]{0,240}background: #101626/.test(tanyaGaya));
+
 console.log(`${lolos} lolos, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

@@ -490,6 +490,10 @@
     const lampirTombol = document.querySelector('#tanyaLampir');
     const lampirBerkas = document.querySelector('#tanyaBerkas');
     const lampirStrip = document.querySelector('#tanyaLampiran');
+    const mikrofon = document.querySelector('#tanyaMikrofon');
+    const suaraStatus = document.querySelector('#tanyaSuara');
+    const suaraTeks = document.querySelector('#tanyaSuaraTeks');
+    const suaraHenti = document.querySelector('#tanyaSuaraHenti');
     if (!scroll || !thread || !form) return;
 
     /**
@@ -517,6 +521,145 @@
     let busy = false;
     let retryTimer = null;
     let pembatal = null;
+    /* Input suara hanya mengisi teks; pengiriman tetap lewat send() seperti
+       sebelumnya. Transkrip akhir tidak pernah dikirim otomatis. */
+    let pengenalSuara = null;
+    let merekam = false;
+    let dasarSuara = '';
+    let transkripSuara = '';
+    let hentiDiminta = false;
+    let galatSuara = false;
+
+    const rekamAktif = () => merekam;
+
+    function aturTampilanSuara(aktif) {
+      if (mikrofon) {
+        mikrofon.classList.toggle('is-recording', aktif);
+        mikrofon.setAttribute('aria-pressed', String(aktif));
+        mikrofon.setAttribute('aria-label', aktif ? 'Hentikan perekaman suara' : 'Tanya dengan suara');
+        mikrofon.title = aktif ? 'Hentikan perekaman' : 'Tanya dengan suara';
+      }
+      if (suaraStatus) suaraStatus.hidden = !aktif;
+      if (suaraTeks && !aktif) suaraTeks.textContent = '';
+    }
+
+    function gabungTranskrip(dasar, hasil) {
+      const depan = String(dasar || '').trimEnd();
+      const belakang = String(hasil || '').trim();
+      if (!belakang) return depan;
+      if (!depan) return belakang;
+      return `${depan}${/\s$/.test(depan) ? '' : ' '}${belakang}`;
+    }
+
+    function bersihkanSuara() {
+      pengenalSuara = null;
+      merekam = false;
+      aturTampilanSuara(false);
+    }
+
+    function hentikanSuara() {
+      if (!rekamAktif()) return;
+      hentiDiminta = true;
+      try { pengenalSuara?.stop(); } catch { /* onend tetap membersihkan tampilan */ }
+      if (suaraTeks) suaraTeks.textContent = 'Menyusun hasil suara…';
+    }
+
+    function pesanGalatSuara(kode) {
+      switch (String(kode || '')) {
+        case 'not-allowed':
+        case 'service-not-allowed':
+        case 'permission-denied':
+          return 'Izin mikrofon ditolak. Aktifkan izin mikrofon di browser lalu coba lagi.';
+        case 'audio-capture':
+          return 'Mikrofon tidak ditemukan. Periksa perangkat lalu coba lagi.';
+        case 'no-speech':
+          return 'Tidak ada suara yang terdeteksi. Coba lagi dan bicaralah sedikit lebih dekat.';
+        case 'network':
+          return 'Layanan pengenalan suara tidak dapat dijangkau. Periksa koneksi lalu coba lagi.';
+        case 'aborted':
+          return '';
+        default:
+          return 'Pengenalan suara gagal. Coba lagi atau ketik pertanyaan Anda.';
+      }
+    }
+
+    function mulaiSuara() {
+      if (!mikrofon) return;
+      if (rekamAktif()) { hentikanSuara(); return; }
+      if (busy) { toast('Tunggu jawaban ini selesai sebelum memakai input suara.'); return; }
+      const Mesin = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Mesin) {
+        toast('Browser ini belum mendukung input suara. Silakan ketik pertanyaan Anda.');
+        return;
+      }
+      try {
+        pengenalSuara = new Mesin();
+      } catch {
+        toast('Input suara tidak dapat disiapkan. Silakan ketik pertanyaan Anda.');
+        return;
+      }
+
+      pengenalSuara.lang = 'id-ID';
+      pengenalSuara.continuous = true;
+      pengenalSuara.interimResults = true;
+      pengenalSuara.maxAlternatives = 1;
+      dasarSuara = input.value;
+      transkripSuara = '';
+      hentiDiminta = false;
+      galatSuara = false;
+      merekam = true;
+      aturTampilanSuara(true);
+      if (suaraTeks) suaraTeks.textContent = 'Mendengarkan… hasilnya akan muncul di kolom pesan.';
+
+      let sementara = '';
+      pengenalSuara.onstart = () => {
+        merekam = true;
+        aturTampilanSuara(true);
+      };
+      pengenalSuara.onresult = (event) => {
+        sementara = '';
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const hasil = event.results[i];
+          const bagian = String(hasil?.[0]?.transcript || '').trim();
+          if (!bagian) continue;
+          if (hasil?.isFinal) transkripSuara += `${transkripSuara ? ' ' : ''}${bagian}`;
+          else sementara += `${sementara ? ' ' : ''}${bagian}`;
+        }
+        const nilai = gabungTranskrip(dasarSuara, transkripSuara).slice(0, Number(input.maxLength) || 900);
+        if (input.value !== nilai) {
+          input.value = nilai;
+          grow();
+        }
+        if (suaraTeks) {
+          suaraTeks.textContent = sementara
+            ? `Mendengarkan… “${sementara.slice(0, 72)}”`
+            : 'Mendengarkan… hasilnya akan muncul di kolom pesan.';
+        }
+      };
+      pengenalSuara.onerror = (event) => {
+        galatSuara = true;
+        const pesan = pesanGalatSuara(event?.error);
+        if (pesan) toast(pesan);
+      };
+      pengenalSuara.onend = () => {
+        const adaHasil = Boolean(transkripSuara.trim());
+        bersihkanSuara();
+        if (adaHasil) {
+          input.focus({ noScroll: true });
+          toast('Teks hasil suara siap diedit sebelum dikirim.');
+        } else if (!hentiDiminta && !galatSuara) {
+          toast('Tidak ada suara yang berhasil dikenali. Coba lagi.');
+        }
+      };
+
+      try {
+        pengenalSuara.start();
+      } catch {
+        galatSuara = true;
+        toast('Perekaman tidak dapat dimulai. Periksa izin mikrofon lalu coba lagi.');
+        bersihkanSuara();
+      }
+    }
 
     /** Gulir hanya saat pembaca memang berada di dekat bawah; kalau sedang
         membaca pesan lama, kedatangan jawaban tidak boleh menculik layar. */
@@ -1274,6 +1417,7 @@
       submit.disabled = value;
       input.disabled = value;
       if (lampirTombol) lampirTombol.disabled = value;
+      if (mikrofon) mikrofon.disabled = value;
       form.classList.toggle('is-busy', value);
       const henti = document.querySelector('#tanyaStop');
       if (henti) henti.hidden = !value;
@@ -1410,6 +1554,7 @@
     }
 
     async function send(question) {
+      if (rekamAktif()) hentikanSuara();
       const text = String(question || '').trim()
         || (lampiran.length ? 'Tolong baca dan jelaskan lampiran ini.' : '');
       if (!text || busy) return;
@@ -1944,6 +2089,12 @@
       tombol.addEventListener('click', buatPercakapan);
     });
     pasangLampiran();
+
+    mikrofon?.addEventListener('click', mulaiSuara);
+    suaraHenti?.addEventListener('click', hentikanSuara);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && rekamAktif()) hentikanSuara();
+    });
 
     document.querySelector('#tanyaStop')?.addEventListener('click', () => pembatal?.abort());
 

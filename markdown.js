@@ -314,6 +314,11 @@
 
     let keluaran = escapeHTML(teks);
 
+    /* Model kadang menulis <br> secara literal di dalam sel tabel atau paragraf.
+       Teks sudah di-escape di atas, jadi hanya tag putih ini yang boleh kembali
+       menjadi elemen — <script> dan tag lain tetap tidak berbahaya. */
+    keluaran = keluaran.replace(/&lt;\s*br\s*\/?\s*&gt;/gi, '<br>');
+
     keluaran = keluaran.replace(/\\([\\`*_{}\[\]()#+\-.!>~|$])/g, (m, tanda) => simpan(escapeHTML(tanda)));
     keluaran = keluaran.replace(/`([^`\n]{1,400})`/g, (m, isi) => simpan(`<code class="tanya-inline-kode">${isi}</code>`));
     keluaran = keluaran.replace(/\$\$([^\s][^$\n]{0,300}?)\$\$/g, (m, isi) => simpan(matematikaKan(isi)));
