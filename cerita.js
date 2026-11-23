@@ -731,6 +731,7 @@
     tombol.disabled = true;
     try {
       const hasil = await api({ action: 'ceritaSuka', token: tokenSaya(), id });
+      detailUrutan += 1;
       data.liked = Boolean(hasil.liked);
       data.likes = Number(hasil.likes) || 0;
       detailCache.set(String(id), data);
@@ -764,6 +765,10 @@
     tombol.disabled = true;
     try {
       const hasil = await api({ action: 'ceritaBalas', token: tokenSaya(), id, teks });
+      /* Balasan yang baru dikirim lebih baru daripada permintaan detail yang
+         mungkin masih terbang; abaikan jawaban lama supaya daftar tidak
+         kembali ke isi sebelum balasan masuk. */
+      detailUrutan += 1;
       const data = detailCache.get(String(id)) || { balasan: [] };
       const daftar = Array.isArray(data.balasan) ? data.balasan.slice() : [];
       if (hasil.balasan && !daftar.some((item) => String(item.id) === String(hasil.balasan.id))) {
