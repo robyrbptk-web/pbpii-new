@@ -1038,79 +1038,6 @@ body.tanya-page .tanya-intro > p:not(.tanya-badge) {
   line-height: 1.65;
 }
 
-/* Kartu rekomendasi ------------------------------------------------------- */
-
-.tanya-saran {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-  margin: 0;
-  text-align: left;
-}
-
-.tanya-saran-kartu {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-height: 104px;
-  border: 1px solid #e3ecf5;
-  border-radius: 13px;
-  padding: 13px;
-  background: #fff;
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: 0 2px 10px rgb(16 43 73 / 3%);
-  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
-}
-
-.tanya-saran-kartu:hover {
-  border-color: #bcd8ec;
-  box-shadow: 0 9px 24px rgb(16 43 73 / 9%);
-  transform: translateY(-1px);
-}
-
-.tanya-saran-kartu:active {
-  transform: none;
-}
-
-.tanya-saran-ikon {
-  display: grid;
-  width: 29px;
-  height: 29px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 8px;
-  background: #eaf4fc;
-  color: var(--blue);
-}
-
-.tanya-saran-ikon svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.tanya-saran-kartu b {
-  color: #213d5a;
-  font-size: .82rem;
-  font-weight: 750;
-  line-height: 1.3;
-}
-
-.tanya-saran-kartu small {
-  color: #7d8fa2;
-  font-size: .71rem;
-  line-height: 1.45;
-}
-
 /* --------------------------------------------------------- utas percakapan */
 
 body.tanya-page .tanya-thread {
@@ -1491,10 +1418,6 @@ body.tanya-page .tanya-toast {
     font-size: .9rem;
   }
 
-  body.tanya-page .tanya-saran-kartu {
-    min-height: 0;
-  }
-
   body.tanya-page .tanya-composer {
     padding: 7px 12px calc(9px + env(safe-area-inset-bottom));
     padding-right: max(12px, env(safe-area-inset-right));
@@ -1528,33 +1451,8 @@ body.tanya-page .tanya-toast {
   }
 }
 
-/* Ponsel kecil: kartu rekomendasi satu kolom dan target sentuh tetap lega. */
+/* Ponsel kecil: identitas dan komposer tetap lega untuk sentuhan. */
 @media (max-width: 560px) {
-  .tanya-saran {
-    grid-template-columns: 1fr;
-    gap: 7px;
-  }
-
-  .tanya-saran-kartu {
-    flex-direction: row;
-    align-items: center;
-    gap: 9px;
-    padding: 10px 11px;
-  }
-
-  .tanya-saran-ikon {
-    width: 30px;
-    height: 30px;
-  }
-
-  .tanya-saran-kartu b {
-    flex: 1 1 auto;
-  }
-
-  .tanya-saran-kartu small {
-    display: none;
-  }
-
   body.tanya-page .tanya-intro img {
     width: 58px;
     height: 58px;
@@ -1577,13 +1475,6 @@ body.tanya-page .tanya-toast {
   body.tanya-page .tanya-riwayat-act {
     width: 32px;
     height: 32px;
-  }
-}
-
-/* Layar sangat lebar: tiga kartu sejajar seperti referensi. */
-@media (min-width: 1200px) {
-  .tanya-saran {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2059,55 +1950,6 @@ body.tanya-page .tanya-intro > p:not(.tanya-badge) {
   line-height: 1.6;
 }
 
-/* Kartu rekomendasi -------------------------------------------------------- */
-
-body.tanya-page .tanya-saran {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-body.tanya-page .tanya-saran-kartu {
-  min-height: 80px;
-  border-color: rgb(255 255 255 / 12%);
-  border-radius: 14px;
-  padding: 10px 11px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%)), rgb(23 27 39 / 34%);
-  color: var(--tanya-text);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 12px 28px rgb(0 0 0 / 22%);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-}
-
-body.tanya-page .tanya-saran-kartu:hover {
-  border-color: rgb(192 132 252 / 55%);
-  background: linear-gradient(180deg, rgb(255 255 255 / 12%), rgb(255 255 255 / 4%)), rgb(23 27 39 / 42%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%), 0 16px 34px rgb(124 58 237 / 26%);
-  transform: translateY(-2px);
-}
-
-body.tanya-page .tanya-saran-ikon {
-  width: 26px;
-  height: 26px;
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 9px;
-  background: rgb(168 85 247 / 20%);
-  color: #e9d5ff;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-body.tanya-page .tanya-saran-kartu b {
-  color: #f5f3ff;
-  font-size: .82rem;
-  line-height: 1.25;
-}
-
-body.tanya-page .tanya-saran-kartu small {
-  color: var(--tanya-muted);
-  font-size: .68rem;
-  line-height: 1.35;
-}
-
 /* Utas dan jawaban --------------------------------------------------------- */
 
 body.tanya-page .tanya-thread {
@@ -2523,27 +2365,6 @@ body.tanya-page .tanya-toast {
 }
 
 @media (max-width: 767px) {
-  body.tanya-page .tanya-saran {
-    grid-template-columns: 1fr;
-    gap: 7px;
-  }
-
-  body.tanya-page .tanya-saran-kartu {
-    min-height: 0;
-    flex-direction: row;
-    align-items: center;
-    gap: 9px;
-    padding: 10px 11px;
-  }
-
-  body.tanya-page .tanya-saran-kartu b {
-    flex: 1 1 auto;
-  }
-
-  body.tanya-page .tanya-saran-kartu small {
-    display: none;
-  }
-
   body.tanya-page .tanya-intro {
     width: min(100%, 520px);
     padding: 14px 0 10px;
@@ -2581,18 +2402,6 @@ body.tanya-page .tanya-toast {
 
   body.tanya-page .tanya-riwayat-alat {
     opacity: 1;
-  }
-}
-
-/* Kartu tetap ringkas seperti referensi saat ruang kartu menyempit. */
-@media (min-width: 768px) and (max-width: 1199px) {
-  body.tanya-page .tanya-saran-kartu {
-    min-height: 78px;
-    padding: 9px 10px;
-  }
-
-  body.tanya-page .tanya-saran-kartu small {
-    display: none;
   }
 }
 

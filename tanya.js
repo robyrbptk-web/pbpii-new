@@ -2,7 +2,7 @@
  * "Tanya PII" — asisten AI resmi PB PII.
  *
  * Dua mode dalam satu berkas:
- *  - tanya.html  → aplikasi chat layar penuh (riwayat, saran, kuota).
+ *  - tanya.html  → aplikasi chat layar penuh (riwayat dan kuota).
  *  - halaman lain → tombol melayang yang mengarahkan ke halaman tersebut.
  *
  * Kunci AI tidak pernah sampai ke browser: pertanyaan dikirim ke /api/chat dan
@@ -1888,15 +1888,6 @@
     });
 
     cari?.addEventListener('input', lukisRiwayat);
-
-    /* Kartu rekomendasi mengirim pertanyaannya langsung, memakai jalur send()
-       yang sama dengan kolom tulis — bukan jawaban contoh yang dipalsukan. */
-    intro.addEventListener('click', (event) => {
-      const kartu = event.target.closest('[data-soal]');
-      if (!kartu) return;
-      if (busy) { toast('Tunggu jawaban ini selesai.'); return; }
-      send(kartu.dataset.soal);
-    });
 
     panelBuka?.addEventListener('click', () => (panel?.classList.contains('is-open') ? tutupRiwayat() : bukaPanel()));
     panel?.querySelector('.tanya-riwayat-backdrop')?.addEventListener('click', tutupRiwayat);
