@@ -25,6 +25,7 @@ const READ_ACTIONS = new Set([
   'pustakaList', 'pustakaCari', 'pustakaBaca', 'pustakaKonteks', 'pustakaStatus', 'pustakaPdf', 'pustakaBlok',
   'pustakaAdminList',
   'feedList', 'feedThread', 'kaderProfil', 'kaderJaringan', 'kaderCari', 'ceritaList',
+  'feedTakenDownList', 'feedModerasiLog',
   'threadList', 'threadIsi', 'notifList'
 ]);
 
@@ -32,6 +33,7 @@ const WRITE_ACTIONS = new Set([
   'login', 'orgLogin', 'orgRegister', 'publicRegister', 'kaderLogin', 'kaderEmailLogin',
   'kaderRegister', 'eventLike', 'eventComment', 'uploadImage', 'orgUploadImage', 'orgUploadLetterImage',
   'feedUpload', 'feedPost', 'feedEdit', 'feedDelete', 'feedLike', 'feedComment', 'feedRepost', 'feedBookmark', 'feedFollow',
+  'feedTakeDown', 'feedRestore', 'feedModerateComment', 'ceritaTurunkan',
   'kaderProfilSimpan', 'ceritaHapus', 'threadSimpan', 'threadHapus', 'notifRead'
 ]);
 

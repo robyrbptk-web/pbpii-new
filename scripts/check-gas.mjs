@@ -28,11 +28,12 @@ const HEADERS = {
   Kaders: ['id', 'email', 'name', 'picture', 'googleSub', 'createdAt', 'lastLoginAt', 'note', 'passwordHash', 'passwordSalt', 'username', 'bio', 'lokasi', 'jenjang', 'orgId', 'tautan', 'sampul', 'profilPada'],
   Reactions: ['id', 'eventId', 'actorKey', 'actorName', 'kind', 'createdAt', 'targetType'],
   Comments: ['id', 'eventId', 'actorKey', 'actorName', 'actorPicture', 'text', 'status', 'createdAt', 'updatedAt', 'targetType', 'parentId'],
-  Posts: ['id', 'authorKey', 'authorId', 'authorName', 'authorPicture', 'jenis', 'isi', 'eventId', 'repostOf', 'visibel', 'createdAt', 'updatedAt'],
+  Posts: ['id', 'authorKey', 'authorId', 'authorName', 'authorPicture', 'jenis', 'isi', 'eventId', 'repostOf', 'visibel', 'createdAt', 'updatedAt', 'status', 'moderasiOleh', 'moderasiAlasan'],
   PostMedia: ['id', 'postId', 'url', 'mime', 'urut', 'createdAt'],
   Follows: ['id', 'actorKey', 'actorId', 'targetId', 'createdAt'],
   Bookmarks: ['id', 'actorKey', 'postId', 'createdAt'],
-  Stories: ['id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa'],
+  Stories: ['id', 'kaderId', 'actorKey', 'url', 'mime', 'caption', 'createdAt', 'kedaluarsa', 'status'],
+  Moderasi: ['id', 'jenis', 'targetId', 'actorKey', 'actorName', 'adminRole', 'alasan', 'dibuat', 'detail'],
   Threads: ['id', 'actor', 'thread', 'judul', 'dibuat', 'diubah', 'isi', 'jumlah', 'status'],
   Notifikasi: ['id', 'untuk', 'jenis', 'judul', 'isi', 'tautan', 'dibuat', 'dibaca'],
   Fakta: ['id', 'topik', 'pernyataan', 'sumber', 'tautan', 'terbit',
@@ -453,7 +454,8 @@ seed('Standards', [
   { id: 'pk-poltek', orgId: 'pk-poltek', minPerMonth: 1, setByOrgId: 'pd-pontianak', setByName: 'PD Kota Pontianak', note: '', updatedAt: `${today}T05:00:00.000Z` }
 ]);
 seed('Kaders', [
-  { id: 'kader-rozak', email: 'rozak@example.com', name: 'Rozak', picture: 'https://lh3.googleusercontent.com/a/rozak', googleSub: 'sub-rozak', createdAt: `${today}T04:00:00.000Z`, lastLoginAt: `${today}T04:00:00.000Z`, note: '' }
+  { id: 'kader-rozak', email: 'rozak@example.com', name: 'Rozak', picture: 'https://lh3.googleusercontent.com/a/rozak', googleSub: 'sub-rozak', createdAt: `${today}T04:00:00.000Z`, lastLoginAt: `${today}T04:00:00.000Z`, note: '' },
+  { id: 'kader-admin', email: 'admin@pbpii.or.id', name: 'Admin Kader', picture: '', googleSub: 'sub-admin-kader', createdAt: `${today}T04:00:00.000Z`, lastLoginAt: `${today}T04:00:00.000Z`, note: '' }
 ]);
 seed('Reactions', [
   { id: 'r1', eventId: 'act-kadaria', actorKey: 'k:kader-rozak', actorName: 'Rozak', kind: 'like', createdAt: `${today}T05:00:00.000Z` },
@@ -881,6 +883,7 @@ check('field nama wajib tidak dapat dihapus', captureError(() => gas.orgSaveForm
 const sesiBerlaku = new Date(Date.now() + 3600 * 1000).toISOString();
 seed('Sessions', [
   { token: 'ses-rozak', kind: 'kader', subject: 'kader-rozak', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
+  { token: 'ses-admin-kader', kind: 'kader', subject: 'kader-admin', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
   { token: 'ses-kuota', kind: 'kader', subject: 'kader-kuota', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
   { token: 'ses-panjang', kind: 'kader', subject: 'kader-panjang', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
   { token: 'ses-pd', kind: 'org', subject: 'pd-pontianak', createdAt: `${today}T07:00:00.000Z`, expiresAt: sesiBerlaku },
@@ -1599,7 +1602,8 @@ const kartuBasah = { ...kartuSkor, createdAt: new Date(jamSkor - 72 * 3600 * 100
 /** Dua panggilan Date.now() tidak pernah berselang persis nol, jadi dibulatkan. */
 check('sehari dua kali umur, skor separuh',
   Math.round(gas.feedSkor_(kartuSkor, {}) / gas.feedSkor_(kartuBasah, {}) * 1000) / 1000, 2);
-check('kader yang diikuti dinaikkan 1,6 kali', gas.feedSkor_(kartuSkor, { 'kader-x': true }) / gas.feedSkor_(kartuSkor, {}), 1.6);
+check('kader yang diikuti dinaikkan 1,6 kali',
+  Math.round(gas.feedSkor_(kartuSkor, { 'kader-x': true }) / gas.feedSkor_(kartuSkor, {}) * 1000) / 1000, 1.6);
 
 const IP_ROZAK = '203.0.113.140';
 const IP_KUOTA = '203.0.113.141';
@@ -1855,6 +1859,98 @@ check('id internal umpan tidak pernah keluar ke browser',
   JSON.stringify(request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_ROZAK }).data.items)
     .includes('_authorKey'), false);
 
+/* Moderasi Feed: hak diambil dari sesi terverifikasi, bukan dari tombol UI. */
+const IP_MOD = '203.0.113.150';
+const whoKader = request({ action: 'whoami', token: 'ses-rozak' }).data;
+check('kader biasa tidak diberi hak moderasi',
+  [whoKader.moderator, whoKader.superadmin, whoKader.adminRole], [false, false, '']);
+const whoAdmin = request({ action: 'whoami', token: 'ses-admin-kader' }).data;
+check('kader admin@pbpii.or.id menjadi moderator',
+  [whoAdmin.moderator, whoAdmin.superadmin, whoAdmin.adminRole], [true, false, 'admin']);
+const whoSuper = request({ action: 'whoami', token: 'ses-admin' }).data;
+check('sesi admin website menjadi superadmin',
+  [whoSuper.moderator, whoSuper.superadmin, whoSuper.adminRole], [true, true, 'superadmin']);
+
+const kemampuanKader = request({ action: 'feedList', token: 'ses-rozak', ip: IP_MOD }).data.kemampuan;
+check('kader biasa tidak melihat alat moderasi',
+  [kemampuanKader.moderasi, kemampuanKader.superadmin, kemampuanKader.lihatDiturunkan], [false, false, false]);
+const kemampuanAdmin = request({ action: 'feedList', token: 'ses-admin-kader', ip: IP_MOD }).data.kemampuan;
+check('admin melihat alat moderasi tetapi bukan tombol superadmin',
+  [kemampuanAdmin.moderasi, kemampuanAdmin.superadmin, kemampuanAdmin.lihatDiturunkan], [true, false, true]);
+const kemampuanSuper = request({ action: 'feedList', token: 'ses-admin', ip: IP_MOD }).data.kemampuan;
+check('superadmin melihat seluruh alat moderasi',
+  [kemampuanSuper.moderasi, kemampuanSuper.superadmin, kemampuanSuper.lihatDiturunkan], [true, true, true]);
+check('hak cerita kader biasa tanpa moderasi',
+  [request({ action: 'ceritaList', token: 'ses-rozak', ip: IP_MOD }).data.kemampuan.moderasi,
+    request({ action: 'ceritaList', token: 'ses-rozak', ip: IP_MOD }).data.kemampuan.superadmin], [false, false]);
+check('hak cerita admin membawa izin moderasi',
+  [request({ action: 'ceritaList', token: 'ses-admin-kader', ip: IP_MOD }).data.kemampuan.moderasi,
+    request({ action: 'ceritaList', token: 'ses-admin-kader', ip: IP_MOD }).data.kemampuan.superadmin], [true, false]);
+check('hak cerita superadmin lengkap',
+  [request({ action: 'ceritaList', token: 'ses-admin', ip: IP_MOD }).data.kemampuan.moderasi,
+    request({ action: 'ceritaList', token: 'ses-admin', ip: IP_MOD }).data.kemampuan.superadmin], [true, true]);
+
+check('kader tidak dapat menurunkan postingan',
+  request({ action: 'feedTakeDown', token: 'ses-rozak', id: ID_ROZAK, alasan: 'coba', ip: IP_MOD }).error,
+  'Hanya admin PB PII yang dapat melakukan moderasi.');
+check('alasan moderasi wajib diisi',
+  request({ action: 'feedTakeDown', token: 'ses-admin-kader', id: ID_ROZAK, ip: IP_MOD }).error,
+  'Alasan tindakan moderasi wajib diisi.');
+
+const posModerasi = request({ action: 'feedPost', token: 'ses-rozak', jenis: 'teks', isi: 'Kabar untuk diuji moderasi.', ip: IP_MOD });
+check('postingan uji moderasi dibuat', posModerasi.ok, true);
+const ID_MODERASI = posModerasi.data.post.id;
+check('admin dapat menurunkan postingan kader lain',
+  request({ action: 'feedTakeDown', token: 'ses-admin-kader', id: ID_MODERASI, alasan: 'Melanggar ketentuan konten', ip: IP_MOD }).data,
+  { id: ID_MODERASI, diturunkan: true });
+check('postingan diturunkan hilang dari umpan',
+  request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_MOD }).data.items.some((card) => card.id === ID_MODERASI), false);
+check('admin melihat daftar postingan diturunkan',
+  request({ action: 'feedTakenDownList', token: 'ses-admin-kader', ip: IP_MOD }).data.items.some((item) => item.id === ID_MODERASI), true);
+check('kader tidak melihat daftar postingan diturunkan',
+  request({ action: 'feedTakenDownList', token: 'ses-rozak', ip: IP_MOD }).error,
+  'Hanya admin PB PII yang dapat melakukan moderasi.');
+check('admin tidak dapat membaca audit log',
+  request({ action: 'feedModerasiLog', token: 'ses-admin-kader', ip: IP_MOD }).error,
+  'Tindakan ini hanya dapat dilakukan superadmin.');
+check('audit log mencatat admin, postingan, alasan, dan waktu', (() => {
+  const entri = request({ action: 'feedModerasiLog', token: 'ses-admin', ip: IP_MOD }).data.log
+    .find((item) => item.targetId === ID_MODERASI && item.jenis === 'post-takedown');
+  return entri && [entri.adminRole, entri.alasan, Boolean(entri.waktu)].join('|');
+})(), 'admin|Melanggar ketentuan konten|true');
+check('admin tidak dapat memulihkan postingan',
+  request({ action: 'feedRestore', token: 'ses-admin-kader', id: ID_MODERASI, ip: IP_MOD }).error,
+  'Tindakan ini hanya dapat dilakukan superadmin.');
+check('superadmin dapat memulihkan postingan',
+  request({ action: 'feedRestore', token: 'ses-admin', id: ID_MODERASI, alasan: 'Diterima setelah tinjauan', ip: IP_MOD }).data,
+  { id: ID_MODERASI, dipulihkan: true });
+check('postingan pulih muncul lagi di umpan',
+  request({ action: 'feedList', tab: 'terbaru', token: 'ses-rozak', ip: IP_MOD }).data.items.some((card) => card.id === ID_MODERASI), true);
+check('admin menghapus postingan kader lain secara lunak',
+  request({ action: 'feedDelete', token: 'ses-admin-kader', id: ID_MODERASI, alasan: 'Duplikat', ip: IP_MOD }).data,
+  { terhapus: ID_MODERASI, diturunkan: true });
+check('baris postingan tidak dibuang saat dihapus moderator',
+  rowsOf('Posts').some((row) => row.id === ID_MODERASI), true);
+check('jejak penghapusan moderator masuk audit',
+  rowsOf('Moderasi').some((row) => row.targetId === ID_MODERASI && row.jenis === 'post-hapus'), true);
+
+const komod = request({ action: 'feedComment', token: 'ses-rozak', id: ID_ROZAK, text: 'Komentar untuk dimoderasi.', ip: IP_MOD });
+check('komentar uji dibuat', komod.ok, true);
+const ID_KOMOD = komod.data.balasan.id;
+check('admin menyembunyikan komentar',
+  request({ action: 'feedModerateComment', token: 'ses-admin-kader', id: ID_KOMOD, alasan: 'Tidak sopan', ip: IP_MOD }).data,
+  { id: ID_KOMOD, disembunyikan: true });
+check('komentar tersembunyi tidak muncul di utas',
+  request({ action: 'feedThread', id: ID_ROZAK, ip: IP_MOD }).data.balasan.some((item) => item.id === ID_KOMOD), false);
+check('admin tidak dapat memulihkan komentar',
+  request({ action: 'feedModerateComment', token: 'ses-admin-kader', id: ID_KOMOD, pulihkan: true, alasan: 'Ditinjau ulang', ip: IP_MOD }).error,
+  'Hanya superadmin yang dapat memulihkan komentar.');
+check('superadmin memulihkan komentar',
+  request({ action: 'feedModerateComment', token: 'ses-admin', id: ID_KOMOD, pulihkan: true, alasan: 'Ditinjau ulang', ip: IP_MOD }).data,
+  { id: ID_KOMOD, disembunyikan: false });
+check('komentar pulih muncul lagi di utas',
+  request({ action: 'feedThread', id: ID_ROZAK, ip: IP_MOD }).data.balasan.some((item) => item.id === ID_KOMOD), true);
+
 // Sapuan setup(): baris umpan yang kabarnya sudah hilang tidak boleh menumpuk.
 rowsOf('Comments').push({ id: 'komentar-yatim', eventId: ID_SEMENTARA, targetType: 'post', isi: 'komentar tanpa induk' });
 rowsOf('Reactions').push({ id: 'suka-yatim', eventId: ID_SEMENTARA, targetType: 'post', actorKey: 'k:kader-rozak' });
@@ -2042,9 +2138,9 @@ check('belum ada cerita saat lembar masih kosong', ceritaTamu.data.cerita, []);
 check('tamu tidak diberi hak mengunggah cerita', ceritaTamu.data.kemampuan.unggah, false);
 check('pengurus tidak ditawari tombol cerita yang pasti ditolak',
   request({ action: 'ceritaList', token: 'ses-pd', ip: IP_ROZAK }).data.kemampuan.unggah, false);
-check('cerita bukan tempat video',
+check('cerita menolak berkas yang bukan foto maupun video',
   request({ action: 'ceritaUnggah', token: 'ses-rozak', data: Buffer.from('bukan gambar sama sekali', 'utf8').toString('base64'), ip: IP_ROZAK }).error,
-  'Cerita memakai foto JPEG, PNG, atau WebP.');
+  'Cerita memakai foto JPEG, PNG, WebP atau video MP4, WebM.');
 check('akun lembaga tidak dapat mengunggah cerita',
   request({ action: 'ceritaUnggah', token: 'ses-pd', data: JPEG_PROFIL, ip: IP_ROZAK }).error,
   'Cerita hanya dapat diunggah akun kader.');
@@ -2122,6 +2218,41 @@ check('bingkai foto cerita yang dihapus masuk tempat sampah', berkasCerita.trash
 check('menghapus cerita yang sudah hilang tidak menjadi galat',
   request({ action: 'ceritaHapus', token: 'ses-rozak', id: 'sudah-hilang', ip: IP_ROZAK }).ok, true);
 check('unggah cerita memakai pembatas laju sendiri', !!gas.RATE_RULES['cerita-unggah'], true);
+
+/* Cerita video dan moderasinya. */
+const MP4_uji = Buffer.from([0, 0, 0, 32].concat(Array.from(Buffer.from('ftypmp42', 'ascii'))));
+const ceritaVideo = request({ action: 'ceritaUnggah', token: 'ses-rozak', data: MP4_uji.toString('base64'), keterangan: 'Video singkat kegiatan.', ip: IP_MOD });
+check('cerita menerima video MP4', ceritaVideo.ok, true);
+check('cerita video diberi mime dan penanda video',
+  [ceritaVideo.data.cerita.mime, ceritaVideo.data.cerita.video], ['video/mp4', true]);
+const ID_CERITA_VIDEO = ceritaVideo.data.cerita.id;
+check('pembaca cerita menerima penanda video',
+  (request({ action: 'ceritaList', token: 'ses-rozak', ip: IP_MOD }).data.cerita
+    .find((grup) => grup.kaderId === 'kader-rozak') || {}).cerita
+    .some((item) => item.id === ID_CERITA_VIDEO && item.video), true);
+
+const ceritaMod = request({ action: 'ceritaUnggah', token: 'ses-kuota', data: JPEG_PROFIL, keterangan: 'Cerita untuk diuji.', ip: IP_MOD });
+check('cerita uji moderasi dibuat', ceritaMod.ok, true);
+const ID_CERITA_MOD = ceritaMod.data.cerita.id;
+check('kader tidak dapat menurunkan cerita',
+  request({ action: 'ceritaTurunkan', token: 'ses-rozak', id: ID_CERITA_MOD, alasan: 'coba', ip: IP_MOD }).error,
+  'Hanya admin PB PII yang dapat melakukan moderasi.');
+check('admin menurunkan cerita kader lain',
+  request({ action: 'ceritaTurunkan', token: 'ses-admin-kader', id: ID_CERITA_MOD, alasan: 'Tidak sesuai', ip: IP_MOD }).data,
+  { id: ID_CERITA_MOD, diturunkan: true });
+check('cerita diturunkan hilang dari lingkaran',
+  request({ action: 'ceritaList', ip: IP_MOD }).data.cerita
+    .some((grup) => grup.cerita.some((item) => item.id === ID_CERITA_MOD)), false);
+check('baris cerita tetap ada setelah diturunkan',
+  rowsOf('Stories').some((row) => row.id === ID_CERITA_MOD), true);
+check('admin tidak dapat memulihkan cerita',
+  request({ action: 'ceritaTurunkan', token: 'ses-admin-kader', id: ID_CERITA_MOD, pulihkan: true, alasan: 'Ditinjau', ip: IP_MOD }).error,
+  'Hanya superadmin yang dapat memulihkan cerita.');
+check('superadmin memulihkan cerita',
+  request({ action: 'ceritaTurunkan', token: 'ses-admin', id: ID_CERITA_MOD, pulihkan: true, alasan: 'Ditinjau', ip: IP_MOD }).data,
+  { id: ID_CERITA_MOD, diturunkan: false });
+check('jejak moderasi cerita masuk audit',
+  rowsOf('Moderasi').some((row) => row.targetId === ID_CERITA_MOD && row.jenis === 'cerita'), true);
 
 // --------------------------------------------------- riwayat lintas perangkat
 

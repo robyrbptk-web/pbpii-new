@@ -65,6 +65,10 @@
         </div>
         <div class="feed-head-side">
           <span class="pill" id="feedCount">Memuat feed…</span>
+          <div class="feed-mod-tools" id="feedModTools" hidden>
+            <button class="feed-mod-tool" type="button" data-mod-panel="diturunkan">Postingan diturunkan</button>
+            <button class="feed-mod-tool" type="button" data-mod-panel="log" id="feedModLogTool" hidden>Catatan moderasi</button>
+          </div>
           <button class="feed-rail-open" type="button" id="feedOpenRail" aria-controls="feedSide" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2"/><path d="m15.4 15.4 4.2 4.2"/></svg>
             <span class="feed-rail-label">Cari kader</span>
@@ -220,6 +224,33 @@
     <img alt="" referrerpolicy="no-referrer">
     <button class="feed-lightbox-nav is-next" type="button" id="feedLightboxNext" aria-label="Foto berikutnya">›</button>
     <span class="feed-lightbox-count" id="feedLightboxCount"></span>
+  </div>
+
+  <div class="feed-mod-overlay" id="feedModDialog" hidden role="dialog" aria-modal="true" aria-labelledby="feedModTitle">
+    <div class="feed-mod-card">
+      <button class="feed-mod-close" type="button" data-mod-close aria-label="Tutup dialog">✕</button>
+      <h2 id="feedModTitle">Konfirmasi tindakan</h2>
+      <p class="feed-mod-desc" id="feedModDesc"></p>
+      <div class="feed-mod-field" id="feedModReasonGroup">
+        <label for="feedModReason" id="feedModReasonLabel">Alasan moderasi <span aria-hidden="true">*</span></label>
+        <textarea id="feedModReason" rows="3" maxlength="240" placeholder="Tuliskan alasan agar tercatat di audit log."></textarea>
+        <small class="feed-mod-hint">Alasan akan disimpan bersama nama admin dan waktu tindakan.</small>
+      </div>
+      <p class="feed-mod-error" id="feedModError" role="alert" hidden></p>
+      <div class="feed-mod-actions">
+        <button class="button button-ghost" type="button" data-mod-close>Batal</button>
+        <button class="button button-solid is-danger" type="button" id="feedModConfirm">Ya, lanjutkan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="feed-mod-overlay" id="feedModPanel" hidden role="dialog" aria-modal="true" aria-labelledby="feedModPanelTitle">
+    <div class="feed-mod-card is-wide">
+      <button class="feed-mod-close" type="button" data-mod-panel-close aria-label="Tutup panel">✕</button>
+      <h2 id="feedModPanelTitle">Postingan diturunkan</h2>
+      <p class="feed-mod-desc" id="feedModPanelDesc"></p>
+      <div class="feed-mod-list" id="feedModPanelBody" aria-live="polite"></div>
+    </div>
   </div>
 
   <footer>

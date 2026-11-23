@@ -3,7 +3,7 @@
  * network; this worker only keeps the shell so the installed app opens
  * instantly and survives a lost connection.
  */
-const CACHE_NAME = 'pbpii-shell-v78';
+const CACHE_NAME = 'pbpii-shell-v79';
 const APP_SHELL = [
   '/',
   '/index.html',

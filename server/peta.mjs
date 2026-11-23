@@ -25,6 +25,7 @@ export const TABEL = {
   Threads: 'threads',
   Fakta: 'fakta',
   Notifikasi: 'notifikasi',
+  Moderasi: 'moderasi_log',
 };
 
 // Kunci baris untuk menandai posisi, meniru "id" pada sheet.
@@ -77,6 +78,7 @@ export const URUT = [
   'fakta',
   'notifikasi',
   'chat_log',
+  'moderasi_log',
 ];
 
 export function keSnake(nama) {

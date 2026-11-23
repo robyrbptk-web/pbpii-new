@@ -50,6 +50,24 @@
     const id = driveId(url);
     return id ? bentuk[0](id) : escapeHTML(url);
   };
+  /* Video tidak lewat proksi gambar (butuh rentang byte). Tautan Drive lama,
+     Storage baru, dan URL lokal untuk pratayang unggahan diterima; selain itu ditolak. */
+  const videoSiap = (value, lokal = false) => {
+    const url = String(value || '').trim();
+    if (lokal && /^(blob:https?:\/\/|data:video\/)/i.test(url)) return escapeHTML(url);
+    if (!/^https:\/\//i.test(url)) return '';
+    try {
+      const parsed = new URL(url);
+      const dasar = String(window.PBPII_CONFIG?.mediaBaseUrl || '').replace(/\/+$/, '');
+      const boleh = ['drive.google.com', 'drive.usercontent.google.com'].includes(parsed.hostname)
+        || /\/storage\/v1\/object\/public\/media\//.test(parsed.pathname)
+        || (dasar && url.startsWith(dasar + '/'))
+        || /\.(mp4|webm|ogg|mov|m4v)$/i.test(parsed.pathname);
+      return boleh ? escapeHTML(parsed.href) : '';
+    } catch {
+      return '';
+    }
+  };
   window.PBPIICeritaGagal = (node) => {
     const id = node.dataset.drive;
     const sudah = Number(node.dataset.coba || 1);
@@ -201,7 +219,10 @@
   let sisaJeda = DURI;
   let sejak = 0;
   let pratayang = '';
+  let pratayangVideo = false;
   let sebelumCerita = null;
+  let videoAktif = false;
+  let notifPemroses = null;
 
   function panggungSiap() {
     if (panggung) return panggung;
@@ -220,11 +241,13 @@
           <small data-sisa></small>
         </span>
         <button class="cerita-jeda" type="button" data-jeda aria-label="Jeda cerita">&#10073;&#10073;</button>
+        <button class="cerita-suara" type="button" data-suara aria-label="Nyalakan suara video" hidden>&#128263;</button>
         <button class="cerita-tutup" type="button" data-tutup aria-label="Tutup cerita">&times;</button>
       </header>
       <div class="cerita-badan" data-badan>
         <button class="cerita-sisi cerita-sisi-kiri" type="button" data-kiri aria-label="Cerita sebelumnya"></button>
         <img class="cerita-foto" data-foto alt="" referrerpolicy="no-referrer">
+        <video class="cerita-video" data-video playsinline preload="metadata" hidden></video>
         <button class="cerita-sisi cerita-sisi-kanan" type="button" data-kanan aria-label="Cerita berikutnya"></button>
       </div>
       <footer class="cerita-bawah">
@@ -236,8 +259,23 @@
         <div class="cerita-kancing" data-kancing hidden>
           <button type="button" data-tambah>+ Tambah cerita</button>
           <button type="button" data-hapus>Hapus cerita ini</button>
+          <button type="button" class="cerita-turunkan" data-turunkan hidden>Turunkan cerita</button>
         </div>
-      </footer>`;
+      </footer>
+      <span class="cerita-toast" data-toast hidden role="status"></span>
+      <div class="cerita-mod" data-mod hidden role="dialog" aria-modal="true" aria-label="Turunkan cerita">
+        <div class="cerita-mod-card">
+          <h3>Turunkan cerita ini</h3>
+          <p>Cerita akan disembunyikan dari lingkaran kader. Barisnya tetap disimpan supaya dapat dipulihkan.</p>
+          <label for="ceritaModAlasan">Alasan moderasi</label>
+          <textarea id="ceritaModAlasan" data-mod-alasan rows="3" maxlength="240" placeholder="Tuliskan alasan agar tercatat di audit log."></textarea>
+          <p class="cerita-mod-error" data-mod-error hidden role="alert"></p>
+          <div class="cerita-mod-aksi">
+            <button type="button" data-mod-batal>Batal</button>
+            <button type="button" class="is-utama" data-mod-lanjut>Turunkan</button>
+          </div>
+        </div>
+      </div>`;
     document.body.appendChild(akar);
     panggung = akar;
     return akar;
@@ -253,11 +291,16 @@
   function tutupPanggung({ muatUlang = true } = {}) {
     if (pemroses) clearTimeout(pemroses);
     pemroses = null;
+    if (notifPemroses) clearTimeout(notifPemroses);
+    notifPemroses = null;
     if (panggung) {
+      hentikanVideo();
       panggung.hidden = true;
       panggung.classList.remove('is-pratayang', 'is-galat');
       cari('[data-foto]').removeAttribute('src');
       cari('[data-ket]').textContent = '';
+      cari('[data-toast]').hidden = true;
+      cari('[data-mod]').hidden = true;
     }
     document.body.classList.remove('cerita-terkunci');
     pratayang = '';
@@ -274,6 +317,100 @@
       const kelas = index < indeksCerita ? ' is-lewat' : index === indeksCerita ? ' is-aktif' : '';
       return `<i class="cerita-batang-satu${kelas}"><b></b></i>`;
     }).join('');
+  }
+
+  const videoNode = () => panggung?.querySelector('[data-video]') || null;
+  const batangAktif = () => panggung?.querySelector('[data-batang] i.is-aktif b') || null;
+
+  function siapBatang(grup) {
+    cari('[data-batang]').innerHTML = batang(grup);
+    const isi = batangAktif();
+    if (isi) {
+      isi.style.transition = 'none';
+      isi.style.width = '0%';
+    }
+  }
+
+  function hentikanVideo() {
+    const video = videoNode();
+    if (!video) return;
+    video.pause();
+    video.removeEventListener('loadedmetadata', videoMeta);
+    video.removeEventListener('timeupdate', videoTime);
+    video.removeEventListener('ended', videoEnded);
+    video.removeEventListener('error', videoError);
+    video.removeAttribute('src');
+    video.load();
+    videoAktif = false;
+  }
+
+  function videoMeta() {
+    const isi = batangAktif();
+    if (isi) {
+      isi.style.transition = 'none';
+      isi.style.width = '0%';
+    }
+  }
+
+  function videoTime() {
+    const video = videoNode();
+    if (!video || !Number(video.duration) || !isFinite(video.duration)) return;
+    const isi = batangAktif();
+    if (!isi) return;
+    isi.style.transition = 'none';
+    isi.style.width = `${Math.min(100, (video.currentTime / video.duration) * 100)}%`;
+  }
+
+  function videoEnded() {
+    if (videoAktif) mundur(1);
+  }
+
+  function videoError() {
+    galat('Video tidak dapat diputar. Periksa koneksi, lalu buka cerita ini lagi.');
+  }
+
+  function pasangVideo(cerita, grup) {
+    const video = cari('[data-video]');
+    const foto = cari('[data-foto]');
+    const suara = cari('[data-suara]');
+    hentikanVideo();
+    foto.removeAttribute('src');
+    foto.hidden = true;
+    video.hidden = false;
+    video.muted = true;
+    video.loop = false;
+    suara.hidden = false;
+    suara.textContent = '\u{1F507}';
+    suara.setAttribute('aria-label', 'Nyalakan suara video');
+    const jedaTombol = panggung?.querySelector('[data-jeda]');
+    if (jedaTombol) {
+      jedaTombol.textContent = '❚❚';
+      jedaTombol.setAttribute('aria-label', 'Jeda cerita');
+    }
+    siapBatang(grup);
+    const src = videoSiap(cerita.gambar);
+    if (!src) {
+      galat('Tautan video tidak dikenal. Cerita ini tidak dapat diputar.');
+      return;
+    }
+    videoAktif = true;
+    video.addEventListener('loadedmetadata', videoMeta);
+    video.addEventListener('timeupdate', videoTime);
+    video.addEventListener('ended', videoEnded);
+    video.addEventListener('error', videoError);
+    video.src = src;
+    video.load();
+    const janji = video.play();
+    if (janji && typeof janji.catch === 'function') janji.catch(() => { /* ketuk layar untuk memutar */ });
+  }
+
+  function notifikasiCerita(pesan) {
+    const node = cari('[data-toast]');
+    if (!node) return;
+    node.textContent = pesan;
+    node.hidden = false;
+    if (notifPemroses) clearTimeout(notifPemroses);
+    notifPemroses = setTimeout(() => { node.hidden = true; }, 4500);
   }
 
   function putar(ms) {
@@ -293,11 +430,21 @@
   }
 
   function jeda() {
+    if (videoAktif) {
+      const video = videoNode();
+      if (video) video.pause();
+      const tombol = panggung?.querySelector('[data-jeda]');
+      if (tombol) {
+        tombol.textContent = '▶';
+        tombol.setAttribute('aria-label', 'Lanjut cerita');
+      }
+      return;
+    }
     if (!pemroses) return;
     clearTimeout(pemroses);
     pemroses = null;
     sisaJeda = Math.max(500, sisaJeda - (Date.now() - sejak));
-    const isi = panggung?.querySelector('[data-batang] i.is-aktif b');
+    const isi = batangAktif();
     if (isi) {
       const lebar = getComputedStyle(isi).width;
       isi.style.transition = 'none';
@@ -306,8 +453,33 @@
   }
 
   function lanjut() {
-    if (pemroses || panggung?.hidden || panggung?.classList.contains('is-pratayang')) return;
+    if (panggung?.hidden || panggung?.classList.contains('is-pratayang')) return;
+    if (videoAktif) {
+      const video = videoNode();
+      if (!video) return;
+      const janji = video.play();
+      if (janji && typeof janji.catch === 'function') janji.catch(() => { /* ketuk layar untuk memutar */ });
+      const tombol = panggung?.querySelector('[data-jeda]');
+      if (tombol) {
+        tombol.textContent = '❚❚';
+        tombol.setAttribute('aria-label', 'Jeda cerita');
+      }
+      return;
+    }
+    if (pemroses) return;
     putar(sisaJeda);
+  }
+
+  /** Satu tombol untuk foto (memakai timer) dan video (memakai elemen video). */
+  function jedaLanjut() {
+    if (videoAktif) {
+      const video = videoNode();
+      if (video && video.paused) lanjut();
+      else jeda();
+      return;
+    }
+    if (pemroses) jeda();
+    else lanjut();
   }
 
   function tampilkan() {
@@ -324,20 +496,37 @@
       return mundur(1);
     }
     const cerita = grup.cerita[indeksCerita];
+    const video = Boolean(cerita.video) || /^video\//i.test(String(cerita.mime || ''));
     const foto = cari('[data-foto]');
-    foto.dataset.drive = driveId(cerita.gambar);
-    foto.dataset.coba = '1';
-    foto.src = gambarSiap(cerita.gambar);
-    cari('[data-batang]').innerHTML = batang(grup);
+    hentikanVideo();
+    if (pemroses) {
+      clearTimeout(pemroses);
+      pemroses = null;
+    }
+    if (video) {
+      pasangVideo(cerita, grup);
+    } else {
+      foto.hidden = false;
+      cari('[data-video]').hidden = true;
+      cari('[data-suara]').hidden = true;
+      foto.dataset.drive = driveId(cerita.gambar);
+      foto.dataset.coba = '1';
+      foto.onerror = window.PBPIICeritaGagal;
+      foto.src = gambarSiap(cerita.gambar);
+      siapBatang(grup);
+    }
     cari('[data-ava]').innerHTML = wajah(grup);
     cari('[data-nama]').textContent = grup.nama || 'Kader PII';
     cari('[data-sisa]').textContent = sisaWaktu(cerita.kedaluarsa);
     cari('[data-ket]').textContent = cerita.keterangan || '';
-    cari('[data-kancing]').hidden = !grup.sendiri;
+    cari('[data-kancing]').hidden = !grup.sendiri && !hak.moderasi;
+    cari('[data-tambah]').hidden = !grup.sendiri;
+    cari('[data-hapus]').hidden = !grup.sendiri;
+    cari('[data-turunkan]').hidden = !hak.moderasi;
     panggung.dataset.ceritaId = String(cerita.id);
     panggung.dataset.kaderId = String(grup.kaderId);
     tandaiDibuka([cerita]);
-    putar(DURI);
+    if (!video) putar(DURI);
     return undefined;
   }
 
@@ -391,7 +580,7 @@
     if (berkas) return berkas;
     berkas = document.createElement('input');
     berkas.type = 'file';
-    berkas.accept = 'image/jpeg,image/png,image/webp';
+    berkas.accept = 'image/jpeg,image/png,image/webp,video/mp4,video/webm';
     berkas.hidden = true;
     document.body.appendChild(berkas);
     berkas.addEventListener('change', () => {
@@ -402,11 +591,11 @@
     return berkas;
   }
 
-  function bacaDataUrl(file) {
+  function bacaDataUrl(file, label = 'Berkas') {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error('Foto tidak dapat dibaca.'));
+      reader.onerror = () => reject(new Error(label + ' tidak dapat dibaca.'));
       reader.readAsDataURL(file);
     });
   }
@@ -416,7 +605,7 @@
    * diperkecil di browser. Kalau tidak, cerita hanya bisa dibuka dari laptop.
    */
   async function perkecil(file) {
-    const dataUrl = await bacaDataUrl(file);
+    const dataUrl = await bacaDataUrl(file, 'Foto');
     if (file.size <= BATAS_BERKAS && /^image\/(jpeg|webp)$/i.test(file.type)) return dataUrl;
     const image = await new Promise((resolve, reject) => {
       const node = new Image();
@@ -446,16 +635,21 @@
   }
 
   async function tataPratayang(file) {
+    const videoFile = /^video\//i.test(file.type) || /\.(mp4|webm)$/i.test(file.name);
+    const label = videoFile ? 'Video' : 'Foto';
     let dataUrl = '';
     try {
-      dataUrl = await perkecil(file);
+      dataUrl = videoFile ? await bacaDataUrl(file, label) : await perkecil(file);
     } catch (error) {
-      return galat(error.message || 'Foto belum dapat dibaca.');
+      return galat(error.message || label + ' belum dapat dibaca.');
     }
     if (dataUrl.length * 0.75 > BATAS_BERKAS) {
-      return galat('Foto masih terlalu besar. Ambil ulang dari jarak lebih dekat.');
+      return galat(videoFile
+        ? 'Video masih terlalu besar. Cerita menerima video hingga 3 MB.'
+        : 'Foto masih terlalu besar. Ambil ulang dari jarak lebih dekat.');
     }
     pratayang = dataUrl;
+    pratayangVideo = videoFile;
     bukaPanggung();
     panggung.classList.add('is-pratayang');
     panggung.classList.remove('is-galat');
@@ -463,15 +657,29 @@
       clearTimeout(pemroses);
       pemroses = null;
     }
+    hentikanVideo();
     const foto = cari('[data-foto]');
+    const video = cari('[data-video]');
     foto.removeAttribute('data-drive');
     foto.removeAttribute('data-coba');
     foto.onerror = null;
-    foto.src = dataUrl;
+    foto.hidden = videoFile;
+    video.hidden = !videoFile;
+    if (videoFile) {
+      video.muted = true;
+      video.src = videoSiap(dataUrl, true);
+      video.load();
+      const janji = video.play();
+      if (janji && typeof janji.catch === 'function') janji.catch(() => { /* pratayang bisa ditekan manual */ });
+      cari('[data-suara]').hidden = false;
+    } else {
+      foto.src = dataUrl;
+      cari('[data-suara]').hidden = true;
+    }
     cari('[data-batang]').innerHTML = '<i class="cerita-batang-satu"><b></b></i>';
     cari('[data-ava]').innerHTML = wajah(sayaKini());
     cari('[data-nama]').textContent = 'Cerita baru';
-    cari('[data-sisa]').textContent = 'Hilang dalam 24 jam';
+    cari('[data-sisa]').textContent = videoFile ? 'Video · hilang dalam 24 jam' : 'Hilang dalam 24 jam';
     cari('[data-ket]').textContent = '';
     cari('[data-kancing]').hidden = true;
     cari('[data-mundur]').hidden = false;
@@ -483,17 +691,25 @@
 
   function akhiriPratayang() {
     if (!panggung?.classList.contains('is-pratayang')) return;
+    if (pratayangVideo) hentikanVideo();
     panggung.classList.remove('is-pratayang');
     cari('[data-mundur]').hidden = true;
     pratayang = '';
+    pratayangVideo = false;
   }
 
   function galat(message) {
     bukaPanggung();
-    akhiriPratayang();
+    if (panggung.classList.contains('is-pratayang')) akhiriPratayang();
+    hentikanVideo();
     panggung.classList.add('is-galat');
     cari('[data-batang]').innerHTML = '<i class="cerita-batang-satu"><b></b></i>';
-    cari('[data-foto]').src = LOGO;
+    cari('[data-video]').hidden = true;
+    cari('[data-suara]').hidden = true;
+    const foto = cari('[data-foto]');
+    foto.hidden = false;
+    foto.onerror = null;
+    foto.src = LOGO;
     cari('[data-ava]').innerHTML = wajah(sayaKini());
     cari('[data-nama]').textContent = 'Cerita belum terkirim';
     cari('[data-sisa]').textContent = '';
@@ -554,6 +770,55 @@
     }
   }
 
+  async function turunkanCerita() {
+    const id = panggung?.dataset.ceritaId;
+    if (!id || !hak.moderasi) return;
+    const alasan = String(cari('[data-mod-alasan]').value || '').trim().slice(0, 240);
+    const pesan = cari('[data-mod-error]');
+    if (!alasan) {
+      pesan.textContent = 'Alasan tindakan moderasi wajib diisi.';
+      pesan.hidden = false;
+      return;
+    }
+    const tombol = cari('[data-mod-lanjut]');
+    tombol.disabled = true;
+    pesan.hidden = true;
+    try {
+      await api({ action: 'ceritaTurunkan', token: tokenSaya(), id, alasan });
+      cari('[data-mod]').hidden = true;
+      const grup = daftar[indeksGrup];
+      if (grup) {
+        grup.cerita = (grup.cerita || []).filter((item) => String(item.id) !== String(id));
+      }
+      kabari('moderasi');
+      notifikasiCerita('Cerita diturunkan dan tercatat di audit log.');
+      if (!grup || !grup.cerita.length) {
+        daftar = daftar.filter((item) => item !== grup);
+        if (!daftar.length) return tutupPanggung();
+        indeksGrup = Math.min(indeksGrup, daftar.length - 1);
+        indeksCerita = 0;
+        return tampilkan();
+      }
+      indeksCerita = Math.min(indeksCerita, grup.cerita.length - 1);
+      return tampilkan();
+    } catch (error) {
+      pesan.textContent = error.message || 'Cerita belum dapat diturunkan.';
+      pesan.hidden = false;
+      return undefined;
+    } finally {
+      tombol.disabled = false;
+    }
+  }
+
+  function gantiSuara() {
+    const video = videoNode();
+    if (!video || !videoAktif) return;
+    video.muted = !video.muted;
+    const suara = cari('[data-suara]');
+    suara.textContent = video.muted ? '\u{1F507}' : '\u{1F50A}';
+    suara.setAttribute('aria-label', video.muted ? 'Nyalakan suara video' : 'Matikan suara video');
+  }
+
   /* ------------------------------------------------------------------ peristiwa */
 
   document.addEventListener('click', (event) => {
@@ -571,6 +836,24 @@
     if (panggung?.hidden) return undefined;
 
     const dekat = (selektor) => event.target.closest?.(selektor);
+    if (dekat('[data-mod]') && !dekat('.cerita-mod-card')) {
+      cari('[data-mod]').hidden = true;
+      return undefined;
+    }
+    if (dekat('[data-mod-batal]')) {
+      cari('[data-mod]').hidden = true;
+      return undefined;
+    }
+    if (dekat('[data-mod-lanjut]')) return turunkanCerita();
+    if (dekat('[data-suara]')) return gantiSuara();
+    if (dekat('[data-turunkan]')) {
+      cari('[data-mod-alasan]').value = '';
+      cari('[data-mod-error]').hidden = true;
+      cari('[data-mod]').hidden = false;
+      cari('[data-mod-alasan]').focus();
+      return undefined;
+    }
+    if (!cari('[data-mod]').hidden) return undefined;
     if (dekat('[data-tutup]')) {
       if (panggung.classList.contains('is-pratayang')) akhiriPratayang();
       return tutupPanggung();
@@ -585,8 +868,7 @@
       return mundur(1);
     }
     if (dekat('[data-jeda]')) {
-      if (pemroses) jeda();
-      else lanjut();
+      jedaLanjut();
       return undefined;
     }
     if (dekat('[data-tambah]')) return bukaUnggah();
@@ -598,9 +880,14 @@
   document.addEventListener('keydown', (event) => {
     if (panggung?.hidden) return;
     if (event.key === 'Escape') {
+      if (cari('[data-mod]') && !cari('[data-mod]').hidden) {
+        cari('[data-mod]').hidden = true;
+        return undefined;
+      }
       if (panggung.classList.contains('is-pratayang')) akhiriPratayang();
       return tutupPanggung();
     }
+    if (cari('[data-mod]') && !cari('[data-mod]').hidden) return undefined;
     if (event.target?.matches?.('[data-catatan]')) {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -617,8 +904,7 @@
       mundur(1);
     } else if (event.key === ' ') {
       event.preventDefault();
-      if (pemroses) jeda();
-      else lanjut();
+      jedaLanjut();
     }
     return undefined;
   });

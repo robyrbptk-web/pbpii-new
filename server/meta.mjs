@@ -904,7 +904,10 @@ export const META = {
       "repostOf",
       "visibel",
       "createdAt",
-      "updatedAt"
+      "updatedAt",
+      "status",
+      "moderasiOleh",
+      "moderasiAlasan"
     ],
     "peta": [
       "id",
@@ -918,7 +921,10 @@ export const META = {
       "repost_of",
       "visibel",
       "created_at",
-      "updated_at"
+      "updated_at",
+      "status",
+      "moderasi_oleh",
+      "moderasi_alasan"
     ],
     "pk": "id",
     "tipe": [
@@ -933,7 +939,10 @@ export const META = {
       "text references posts(id) on delete set null",
       "boolean not null default true",
       "timestamptz not null default now()",
-      "timestamptz"
+      "timestamptz",
+      "text",
+      "text",
+      "text"
     ],
     "ambil": [
       "id",
@@ -948,6 +957,9 @@ export const META = {
       "visibel",
       "created_at",
       "updated_at",
+      "status",
+      "moderasi_oleh",
+      "moderasi_alasan",
       "seq"
     ]
   },
@@ -1060,7 +1072,8 @@ export const META = {
       "mime",
       "caption",
       "createdAt",
-      "kedaluarsa"
+      "kedaluarsa",
+      "status"
     ],
     "peta": [
       "id",
@@ -1070,7 +1083,8 @@ export const META = {
       "mime",
       "caption",
       "created_at",
-      "kedaluarsa"
+      "kedaluarsa",
+      "status"
     ],
     "pk": "id",
     "tipe": [
@@ -1081,7 +1095,8 @@ export const META = {
       "text not null default ''",
       "text not null default ''",
       "timestamptz not null default now()",
-      "timestamptz not null"
+      "timestamptz not null",
+      "text"
     ],
     "ambil": [
       "id",
@@ -1092,6 +1107,7 @@ export const META = {
       "caption",
       "created_at",
       "kedaluarsa",
+      "status",
       "seq"
     ]
   },
@@ -1243,6 +1259,55 @@ export const META = {
       "tautan",
       "dibuat",
       "dibaca",
+      "seq"
+    ]
+  },
+  "Moderasi": {
+    "tabel": "moderasi_log",
+    "headers": [
+      "id",
+      "jenis",
+      "targetId",
+      "actorKey",
+      "actorName",
+      "adminRole",
+      "alasan",
+      "dibuat",
+      "detail"
+    ],
+    "peta": [
+      "id",
+      "jenis",
+      "target_id",
+      "actor_key",
+      "actor_name",
+      "admin_role",
+      "alasan",
+      "dibuat",
+      "detail"
+    ],
+    "pk": "id",
+    "tipe": [
+      "text primary key",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''",
+      "text not null default ''",
+      "timestamptz not null default now()",
+      "text not null default ''"
+    ],
+    "ambil": [
+      "id",
+      "jenis",
+      "target_id",
+      "actor_key",
+      "actor_name",
+      "admin_role",
+      "alasan",
+      "dibuat",
+      "detail",
       "seq"
     ]
   }

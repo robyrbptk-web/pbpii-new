@@ -416,3 +416,144 @@
     transition: none;
   }
 }
+
+/* ------------------------------------------------------- video dan moderasi */
+
+.cerita-panggung [hidden] {
+  display: none !important;
+}
+
+.cerita-foto,
+.cerita-video {
+  max-width: min(100%, 460px);
+  max-height: 100%;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cerita-video {
+  background: #000;
+  touch-action: manipulation;
+}
+
+.cerita-suara {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cerita-suara:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.cerita-kancing [data-turunkan] {
+  border-color: rgba(255, 150, 150, 0.65);
+  color: #ffd9d9;
+}
+
+.cerita-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 6;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #ffffffef;
+  color: #102b49;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.cerita-mod {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #020a12cc;
+}
+
+.cerita-mod-card {
+  width: min(100%, 420px);
+  border-radius: 16px;
+  background: #fff;
+  color: #182638;
+  padding: 20px;
+  box-shadow: 0 20px 50px #0008;
+}
+
+.cerita-mod-card h3 {
+  margin: 0 0 8px;
+  color: #102b49;
+  font-size: 1.05rem;
+}
+
+.cerita-mod-card p {
+  margin: 0 0 14px;
+  font-size: .86rem;
+  line-height: 1.5;
+  color: #637184;
+}
+
+.cerita-mod-card label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.cerita-mod-card textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #e0e7ef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 500 .9rem/1.5 inherit;
+  color: #182638;
+}
+
+.cerita-mod-error {
+  margin: 10px 0 0 !important;
+  border-radius: 8px;
+  background: #fff1f0;
+  color: #8c1d18 !important;
+  padding: 8px 10px;
+}
+
+.cerita-mod-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.cerita-mod-aksi button {
+  border: 1px solid #e0e7ef;
+  border-radius: 999px;
+  background: #f5f8fb;
+  color: #102b49;
+  font: 700 .84rem/1 inherit;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.cerita-mod-aksi button.is-utama {
+  border-color: #8c1d18;
+  background: #8c1d18;
+  color: #fff;
+}

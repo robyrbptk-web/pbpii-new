@@ -72,6 +72,20 @@
   const fabEl = document.querySelector('#feedFab');
   const sortNoteEl = document.querySelector('#feedSortNote');
   const composerCloseEl = document.querySelector('#feedComposerClose');
+  const modToolsEl = document.querySelector('#feedModTools');
+  const modLogToolEl = document.querySelector('#feedModLogTool');
+  const modDialogEl = document.querySelector('#feedModDialog');
+  const modTitleEl = document.querySelector('#feedModTitle');
+  const modDescEl = document.querySelector('#feedModDesc');
+  const modReasonEl = document.querySelector('#feedModReason');
+  const modReasonLabelEl = document.querySelector('#feedModReasonLabel');
+  const modReasonGroupEl = document.querySelector('#feedModReasonGroup');
+  const modErrorEl = document.querySelector('#feedModError');
+  const modConfirmEl = document.querySelector('#feedModConfirm');
+  const modPanelEl = document.querySelector('#feedModPanel');
+  const modPanelTitleEl = document.querySelector('#feedModPanelTitle');
+  const modPanelDescEl = document.querySelector('#feedModPanelDesc');
+  const modPanelBodyEl = document.querySelector('#feedModPanelBody');
 
   const tokenSaya = () => window.PBPIIAkun?.sessionToken?.() || window.PBPIIAkun?.token?.() || '';
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -158,12 +172,15 @@
   }
 
   function toast(anchor, message) {
-    if (!anchor) return;
+    /* Tindakan moderasi menghapus kartu dari layar sebelum notifikasi muncul,
+       jadi jangkar yang sudah lepas dari dokumen diganti ke daftar feed. */
+    const sasaran = anchor?.isConnected ? anchor : listEl;
+    if (!sasaran) return;
     const box = document.createElement('span');
     box.className = 'feed-toast';
     box.setAttribute('role', 'status');
     box.textContent = message;
-    anchor.insertAdjacentElement('afterend', box);
+    sasaran.insertAdjacentElement('afterend', box);
     setTimeout(() => box.remove(), 5200);
   }
 
@@ -241,10 +258,33 @@
     }
   };
   /* Video butuh permintaan rentang supaya bisa diurut; proksi gambar hanya
-     menyalin berkas utuh, jadi video memakai tautan Drive langsung. */
+     menyalin berkas utuh. Tautan Drive lama dan berkas Supabase Storage baru
+     dipakai langsung, dengan daftar izin supaya atribut src tidak bisa diisi
+     sembarangan dari data sheet. */
+  const mediaDasar = () => {
+    const buatan = String(window.PBPII_CONFIG?.mediaBaseUrl || '').replace(/\/+$/, '');
+    if (/^https:\/\//i.test(buatan)) return buatan;
+    return '';
+  };
   const safeVideo = (value) => {
     const url = String(value || '').trim();
-    return /^https:\/\/drive\.(usercontent\.)?google\.com\//i.test(url) ? escapeHTML(url) : '';
+    if (!/^https:\/\//i.test(url)) return '';
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname;
+      const drive = ['drive.google.com', 'drive.usercontent.google.com'].includes(host);
+      const storage = /\/storage\/v1\/object\/public\/media\//.test(parsed.pathname);
+      const custom = mediaDasar() && url.startsWith(mediaDasar() + '/');
+      const berkasVideo = /\.(mp4|webm|ogg|mov|m4v)$/i.test(parsed.pathname);
+      return drive || storage || custom || berkasVideo ? escapeHTML(parsed.href) : '';
+    } catch {
+      return '';
+    }
+  };
+  /* Pratinjau unggahan memakai URL lokal sebelum berkas selesai dikirim. */
+  const safePreviewVideo = (value) => {
+    const url = String(value || '').trim();
+    return /^(blob:https?:\/\/|data:video\/)/i.test(url) ? escapeHTML(url) : safeVideo(url);
   };
   const imageAttrs = (value) => {
     const id = driveId(value);
@@ -262,16 +302,85 @@
     img.src = LOGO;
   };
 
+  function videoHtml(item, card) {
+    const src = safeVideo(item.url);
+    if (!src) {
+      return `<div class="feed-video-wrap is-error">
+        <span class="feed-video-error">Video tidak dapat ditampilkan karena tautan berkas tidak dikenal.</span>
+      </div>`;
+    }
+    const poster = item.poster ? safeImage(item.poster) : LOGO;
+    return `<div class="feed-video-wrap" data-rasio="16 / 9">
+      <video class="feed-video" data-src="${src}" controls playsinline preload="none" poster="${poster}"
+        aria-label="Video pada kabar ${escapeHTML(JENIS_LABEL[card.jenis] || 'kader')}">
+        <span class="feed-video-fallback">Peramban ini tidak mendukung pemutaran video.</span>
+      </video>
+      <span class="feed-video-loading" aria-hidden="true">Memuat video…</span>
+      <span class="feed-video-error" hidden>Video gagal dimuat. Periksa koneksi, lalu muat ulang halaman.</span>
+    </div>`;
+  }
+
   function mediaHtml(card) {
     if (!card.media?.length) return '';
     const video = card.jenis === 'video';
     return `<div class="feed-media${video ? ' is-video' : ''}" data-count="${card.media.length}">
       ${card.media.map((item) => (video
-        ? `<video src="${safeVideo(item.url)}" controls playsinline preload="metadata" poster="${LOGO}"></video>`
+        ? videoHtml(item, card)
         : `<button type="button" class="feed-shot" data-zoom="${safeImage(item.url)}">
             <img src="${safeImage(item.url)}" alt="Foto pada kabar ${escapeHTML(JENIS_LABEL[card.jenis] || 'kader')}" loading="lazy"${imageAttrs(item.url)} onerror="feedPhotoFailed(this)">
           </button>`)).join('')}
     </div>`;
+  }
+
+  /* Video dimuat saat hampir terlihat. Memakai src langsung (bukan proksi
+     gambar) penting karena pemutaran butuh permintaan rentang dari Storage. */
+  let pengamatVideo = null;
+  function videoGagal(video) {
+    video.classList.add('is-gagal');
+    video.closest('.feed-video-wrap')?.classList.add('is-error');
+    const pesan = video.closest('.feed-video-wrap')?.querySelector('.feed-video-error');
+    if (pesan) pesan.hidden = false;
+    const loading = video.closest('.feed-video-wrap')?.querySelector('.feed-video-loading');
+    if (loading) loading.hidden = true;
+  }
+
+  function muatVideo(video) {
+    if (!video.dataset.src || video.dataset.muat === '1') return;
+    video.dataset.muat = '1';
+    const bungkus = video.closest('.feed-video-wrap');
+    video.addEventListener('loadedmetadata', () => {
+      if (video.videoWidth && video.videoHeight) {
+        bungkus?.style.setProperty('--rasio', `${video.videoWidth} / ${video.videoHeight}`);
+      }
+      video.classList.add('is-siap');
+      const loading = bungkus?.querySelector('.feed-video-loading');
+      if (loading) loading.hidden = true;
+    });
+    video.addEventListener('error', () => videoGagal(video), { once: true });
+    video.src = video.dataset.src;
+    video.load();
+  }
+
+  function pantauVideo(scope = listEl) {
+    const semua = [...scope.querySelectorAll('video.feed-video[data-src]')];
+    if (!('IntersectionObserver' in window)) {
+      semua.forEach(muatVideo);
+      return;
+    }
+    pengamatVideo ||= new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        muatVideo(entry.target);
+      });
+    }, { rootMargin: '250px 0px' });
+    semua.forEach((video) => pengamatVideo.observe(video));
+  }
+
+  function jedaVideo(scope = listEl) {
+    scope.querySelectorAll('video').forEach((video) => {
+      try { video.pause(); } catch { /* video belum siap */ }
+    });
   }
 
   function eventHtml(detail) {
@@ -533,11 +642,15 @@
   }
 
   function paintCards() {
+    jedaVideo(listEl);
+    pengamatVideo?.disconnect();
+    pengamatVideo = null;
     listEl.innerHTML = state.items.map(cardHtml).join('');
     const tersisa = Number(state.sisa) || 0;
     moreEl.hidden = tersisa <= 0;
     paintKosong();
     pantauDilihat();
+    pantauVideo();
   }
 
   /** Keadaan kosong digambar sebagai satu ajakan bertindak, bukan teks lepas. */
@@ -567,11 +680,13 @@
   }
 
   function appendCards(items) {
+    jedaVideo(listEl);
     listEl.insertAdjacentHTML('beforeend', items.map(cardHtml).join(''));
     state.items = state.items.concat(items);
     moreEl.hidden = (Number(state.sisa) || 0) <= 0;
     paintKosong();
     pantauDilihat();
+    pantauVideo();
   }
 
   const cardFor = (id) => listEl.querySelector(`.feed-card[data-post="${CSS.escape(String(id))}"]`);
@@ -604,7 +719,10 @@
         <b>${escapeHTML(comment.author || 'Kader PII')}${comment.mine ? ' <small>Anda</small>' : ''}</b>
         <p>${escapeHTML(comment.text)}</p>
         <small>${escapeHTML(timeAgo(comment.createdAt))}</small>
-        <button type="button" class="feed-reply-to" data-reply="${escapeHTML(comment.id)}">Balas</button>
+        <span class="feed-comment-tools">
+          <button type="button" class="feed-reply-to" data-reply="${escapeHTML(comment.id)}">Balas</button>
+          ${state.kemampuan.moderasi ? `<button type="button" class="feed-comment-mod" data-comment-hide="${escapeHTML(comment.id)}">Sembunyikan</button>` : ''}
+        </span>
       </div>
     </li>`;
   }
@@ -740,6 +858,8 @@
     state.sisa = Number(data.sisa) || 0;
     state.kemampuan = data.kemampuan || {};
     countEl.textContent = `${state.total.toLocaleString('id-ID')} kabar`;
+    if (modToolsEl) modToolsEl.hidden = !state.kemampuan.moderasi;
+    if (modLogToolEl) modLogToolEl.hidden = !state.kemampuan.superadmin;
     paintComposer();
   }
 
@@ -1071,6 +1191,9 @@
       if (nomor !== urutanMuat) return;
       if (!lebih) {
         state.items = [];
+        jedaVideo(listEl);
+        pengamatVideo?.disconnect();
+        pengamatVideo = null;
         listEl.innerHTML = '';
         if (kosongEl) kosongEl.hidden = true;
         emptyEl.hidden = false;
@@ -1124,7 +1247,7 @@
     previewsEl.innerHTML = state.media.map((item, index) => `
       <div class="feed-preview">
         ${item.mime?.indexOf('video') === 0
-          ? `<video src="${safeVideo(item.url)}" muted playsinline preload="metadata"></video>`
+          ? `<video src="${safePreviewVideo(item.url)}" muted playsinline preload="metadata"></video>`
           : `<img src="${safeImage(item.url)}" alt="" referrerpolicy="no-referrer"${imageAttrs(item.url)} onerror="feedPhotoFailed(this)">`}
         <button type="button" data-drop-media="${index}" aria-label="Keluarkan berkas">×</button>
         ${item.busy ? '<span class="feed-preview-busy" aria-hidden="true"></span>' : ''}
@@ -1223,6 +1346,8 @@
       const data = await api(body);
       state.items.unshift(data.post);
       listEl.insertAdjacentHTML('afterbegin', cardHtml(data.post));
+      const kartuBaru = cardFor(data.post.id);
+      if (kartuBaru) pantauVideo(kartuBaru);
       emptyEl.hidden = true;
       textEl.value = '';
       state.media = [];
@@ -1462,7 +1587,11 @@
     simpanTersembunyi();
     state.items = state.items.filter((item) => String(item.id) !== String(cardId));
     state.threads.delete(String(cardId));
-    cardFor(cardId)?.remove();
+    const kartu = cardFor(cardId);
+    if (kartu) {
+      jedaVideo(kartu);
+      kartu.remove();
+    }
     if (!state.items.length) paintCards();
     toast(listEl, 'Kabar disembunyikan dari feed Anda.');
   }
@@ -1490,13 +1619,17 @@
       ? [
         '<button type="button" data-do-edit>Ubah kabar</button>',
         '<button type="button" data-do-share>Salin tautan</button>',
-        '<button type="button" class="is-danger" data-do-delete>Hapus kabar</button>'
+        '<button type="button" class="is-danger" data-do-delete>Hapus Postingan</button>'
       ]
       : [
         '<button type="button" data-do-share>Salin tautan</button>',
         `<button type="button" data-do-save>${card.bookmarked ? 'Hapus dari simpanan' : 'Simpan kabar'}</button>`,
         '<button type="button" data-do-hide>Sembunyikan dari feed</button>'
       ];
+    if (state.kemampuan.moderasi) {
+      if (!punyaSendiri) butir.push('<button type="button" class="is-danger" data-do-delete>Hapus Postingan</button>');
+      butir.push('<button type="button" class="is-danger" data-do-takedown>Take Down</button>');
+    }
     const pop = document.createElement('div');
     pop.className = 'feed-menu-pop';
     pop.innerHTML = butir.join('');
@@ -1511,7 +1644,11 @@
         return;
       }
       if (tombol.matches('[data-do-delete]')) {
-        mintaHapus(cardId, pop);
+        mintaHapus(cardId);
+        return;
+      }
+      if (tombol.matches('[data-do-takedown]')) {
+        mintaTakeDown(cardId);
         return;
       }
       if (tombol.matches('[data-do-share]')) {
@@ -1566,27 +1703,209 @@
     }
   }
 
-  function mintaHapus(cardId, pop) {
+  /* -------------------------------------------------------------- moderasi */
+
+  let aksiDialog = null;
+  let jangkarDialog = null;
+
+  function tutupDialogMod() {
+    if (modDialogEl) modDialogEl.hidden = true;
+    document.body.classList.remove('feed-mod-buka');
+    aksiDialog = null;
+    jangkarDialog = null;
+    if (modErrorEl) modErrorEl.hidden = true;
+  }
+
+  function bukaDialogMod({ judul, deskripsi, alasan = true, label = 'Alasan moderasi', teksTombol = 'Ya, lanjutkan', anchor, aksi }) {
+    if (!modDialogEl) return;
+    modPanelEl && (modPanelEl.hidden = true);
+    aksiDialog = aksi;
+    jangkarDialog = anchor || listEl;
+    modTitleEl.textContent = judul;
+    modDescEl.textContent = deskripsi;
+    modReasonGroupEl.hidden = !alasan;
+    modReasonLabelEl.textContent = alasan ? `${label} *` : `${label} (opsional)`;
+    modReasonEl.value = '';
+    modReasonEl.placeholder = alasan
+      ? 'Tuliskan alasan agar tercatat di audit log.'
+      : 'Boleh dikosongkan; akan dicatat bila diisi.';
+    modErrorEl.hidden = true;
+    modConfirmEl.textContent = teksTombol;
+    modDialogEl.hidden = false;
+    document.body.classList.add('feed-mod-buka');
+    modReasonEl.focus();
+  }
+
+  function buangDariLayar(cardId) {
+    state.items = state.items.filter((item) => String(item.id) !== String(cardId));
+    state.threads.delete(String(cardId));
+    const kartu = cardFor(cardId);
+    if (kartu) {
+      jedaVideo(kartu);
+      kartu.remove();
+    }
+    if (!state.items.length) paintCards();
+    loadFeed();
+  }
+
+  function mintaHapus(cardId) {
     const card = cardData(cardId);
     if (!card) return;
-    pop.innerHTML = '<span>Hapus kabar ini?</span><button type="button" data-confirm-yes>Ya, hapus</button><button type="button" data-confirm-no>Batal</button>';
-    pop.addEventListener('click', async (event) => {
-      if (event.target.matches('[data-confirm-no]')) {
-        tutupMenu();
-        return;
+    const moderator = Boolean(state.kemampuan.moderasi) && !card.author?.mine;
+    tutupMenu();
+    bukaDialogMod({
+      judul: moderator ? 'Hapus postingan kader' : 'Hapus kabar ini?',
+      deskripsi: moderator
+        ? `Postingan ${card.author?.name || 'kader'} akan diturunkan tetapi barisnya disimpan supaya dapat dipulihkan. Tindakan ini tercatat di audit log.`
+        : 'Kabar Anda akan dihapus dari feed.',
+      alasan: moderator,
+      label: 'Alasan penghapusan',
+      teksTombol: 'Ya, hapus postingan',
+      anchor: cardFor(cardId) || listEl,
+      aksi: async (alasan) => {
+        await api({ action: 'feedDelete', id: cardId, alasan, token: tokenSaya() });
+        buangDariLayar(cardId);
+        return moderator ? 'Postingan dihapus dan tercatat di audit log.' : 'Kabar dihapus.';
       }
-      if (!event.target.matches('[data-confirm-yes]')) return;
-      event.target.disabled = true;
-      try {
-        await api({ action: 'feedDelete', id: cardId, token: tokenSaya() });
-        state.items = state.items.filter((item) => item.id !== cardId);
-        cardFor(cardId)?.remove();
-        state.threads.delete(cardId);
-        if (!state.items.length) paintCards();
-        loadFeed();
-      } catch (error) {
-        toast(cardFor(cardId), error.message);
-        tutupMenu();
+    });
+  }
+
+  function mintaTakeDown(cardId) {
+    const card = cardData(cardId);
+    if (!card) return;
+    tutupMenu();
+    bukaDialogMod({
+      judul: 'Take down postingan',
+      deskripsi: `Postingan ${card.author?.name || 'kader'} akan disembunyikan dari feed tanpa membuang datanya. Alasan wajib diisi dan akan tercatat bersama nama Anda.`,
+      label: 'Alasan take down',
+      teksTombol: 'Ya, turunkan postingan',
+      anchor: cardFor(cardId) || listEl,
+      aksi: async (alasan) => {
+        await api({ action: 'feedTakeDown', id: cardId, alasan, token: tokenSaya() });
+        buangDariLayar(cardId);
+        return 'Postingan diturunkan dan tercatat di audit log.';
+      }
+    });
+  }
+
+  function mintaModerasiKomentar(button) {
+    const id = button.dataset.commentHide;
+    const cardId = button.closest('[data-thread-panel]')?.dataset.threadPanel;
+    if (!id) return;
+    bukaDialogMod({
+      judul: 'Sembunyikan komentar',
+      deskripsi: 'Komentar akan dikeluarkan dari utas, tetapi barisnya tetap disimpan dan dapat dipulihkan oleh superadmin.',
+      label: 'Alasan penyembunyian',
+      teksTombol: 'Ya, sembunyikan',
+      anchor: button,
+      aksi: async (alasan) => {
+        await api({ action: 'feedModerateComment', id, alasan, token: tokenSaya() });
+        const data = state.threads.get(cardId);
+        if (data) {
+          data.balasan = (data.balasan || []).filter((item) => String(item.id) !== String(id));
+          paintThread(cardId);
+        }
+        return 'Komentar disembunyikan.';
+      }
+    });
+  }
+
+  function tutupPanelMod() {
+    if (modPanelEl) modPanelEl.hidden = true;
+    document.body.classList.remove('feed-mod-buka');
+  }
+
+  const LABEL_MODERASI = {
+    'post-takedown': 'Postingan diturunkan',
+    'post-hapus': 'Postingan dihapus moderator',
+    'post-pulihkan': 'Postingan dipulihkan',
+    'komentar': 'Komentar disembunyikan',
+    'komentar-pulihkan': 'Komentar dipulihkan',
+    'cerita': 'Cerita diturunkan',
+    'cerita-pulihkan': 'Cerita dipulihkan'
+  };
+
+  function daftarDiturunkanHtml(items) {
+    if (!items.length) return '<p class="feed-mod-kosong">Belum ada postingan yang diturunkan.</p>';
+    return items.map((item) => `<article class="feed-mod-item">
+      <div class="feed-mod-item-head">
+        <b>${escapeHTML(item.penulis || 'Kader PII')}</b>
+        <span class="feed-mod-status">${escapeHTML(item.status || 'taken-down')}</span>
+      </div>
+      <p class="feed-mod-isi">${escapeHTML(item.isi || '')}</p>
+      ${item.alasan ? `<p class="feed-mod-alasan"><b>Alasan:</b> ${escapeHTML(item.alasan)}</p>` : ''}
+      <small>${escapeHTML(timeAgo(item.waktu))}${item.oleh ? ' · ' + escapeHTML(item.oleh) : ''}</small>
+      ${state.kemampuan.superadmin && item.status !== 'deleted'
+        ? `<button class="feed-mod-pulih" type="button" data-mod-restore="${escapeHTML(item.id)}">Pulihkan postingan</button>` : ''}
+    </article>`).join('');
+  }
+
+  function daftarLogHtml(log) {
+    if (!log.length) return '<p class="feed-mod-kosong">Belum ada tindakan moderasi yang tercatat.</p>';
+    const dipulihkan = new Set(log.filter((item) => String(item.jenis).indexOf('pulihkan') >= 0).map((item) => String(item.targetId)));
+    return log.map((item) => `<article class="feed-mod-item">
+      <div class="feed-mod-item-head">
+        <b>${escapeHTML(LABEL_MODERASI[item.jenis] || item.jenis)}</b>
+        <span class="feed-mod-status">${escapeHTML(item.adminRole || '')}</span>
+      </div>
+      <p class="feed-mod-isi">${escapeHTML(item.alasan || 'Tanpa alasan tercatat.')}</p>
+      <small>${escapeHTML(item.admin || 'Admin')} · ${escapeHTML(timeAgo(item.waktu))} · ${escapeHTML(item.targetId)}</small>
+      ${state.kemampuan.superadmin && item.jenis === 'komentar' && !dipulihkan.has(String(item.targetId))
+        ? `<button class="feed-mod-pulih" type="button" data-mod-restore-comment="${escapeHTML(item.targetId)}">Pulihkan komentar</button>` : ''}
+    </article>`).join('');
+  }
+
+  function bukaPanelMod(jenis) {
+    if (!modPanelEl || !state.kemampuan.moderasi) return;
+    modDialogEl && (modDialogEl.hidden = true);
+    modPanelEl.hidden = false;
+    document.body.classList.add('feed-mod-buka');
+    modPanelTitleEl.textContent = jenis === 'log' ? 'Catatan moderasi' : 'Postingan diturunkan';
+    modPanelDescEl.textContent = jenis === 'log'
+      ? 'Riwayat tindakan moderasi: siapa melakukan, pada postingan apa, kapan, dan mengapa. Hanya superadmin yang melihat halaman ini.'
+      : 'Postingan yang disembunyikan moderator. Superadmin dapat memulihkannya dari sini.';
+    modPanelBodyEl.innerHTML = '<p class="feed-mod-kosong">Memuat…</p>';
+    const aksi = jenis === 'log' ? 'feedModerasiLog' : 'feedTakenDownList';
+    api({ action: aksi, token: tokenSaya(), batas: 50 })
+      .then((data) => {
+        modPanelBodyEl.innerHTML = jenis === 'log'
+          ? daftarLogHtml(data.log || [])
+          : daftarDiturunkanHtml(data.items || []);
+      })
+      .catch((error) => {
+        modPanelBodyEl.innerHTML = `<p class="feed-mod-error">${escapeHTML(error.message)}</p>`;
+      });
+  }
+
+  function pulihkanPostingan(id) {
+    bukaDialogMod({
+      judul: 'Pulihkan postingan',
+      deskripsi: 'Postingan akan tampil kembali di feed. Tindakan ini hanya tersedia untuk superadmin dan tetap dicatat.',
+      alasan: false,
+      label: 'Catatan pemulihan',
+      teksTombol: 'Ya, pulihkan',
+      anchor: modPanelEl,
+      aksi: async (alasan) => {
+        await api({ action: 'feedRestore', id, alasan, token: tokenSaya() });
+        await loadFeed();
+        bukaPanelMod('diturunkan');
+        return 'Postingan dipulihkan.';
+      }
+    });
+  }
+
+  function pulihkanKomentar(id) {
+    bukaDialogMod({
+      judul: 'Pulihkan komentar',
+      deskripsi: 'Komentar akan muncul kembali pada utasnya. Tindakan ini hanya tersedia untuk superadmin.',
+      alasan: false,
+      label: 'Catatan pemulihan',
+      teksTombol: 'Ya, pulihkan',
+      anchor: modPanelEl,
+      aksi: async (alasan) => {
+        await api({ action: 'feedModerateComment', id, pulihkan: true, alasan, token: tokenSaya() });
+        bukaPanelMod('log');
+        return 'Komentar dipulihkan.';
       }
     });
   }
@@ -1630,6 +1949,9 @@
     moreEl.hidden = true;
     if (sortNoteEl) sortNoteEl.hidden = state.tab !== 'untuk-anda';
     countEl.textContent = 'Memuat kabar…';
+    jedaVideo(listEl);
+    pengamatVideo?.disconnect();
+    pengamatVideo = null;
     listEl.innerHTML = '<div class="feed-skeleton" aria-hidden="true"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>';
     loadFeed();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1668,6 +1990,8 @@
     if (menuButton) return menu(menuButton.closest('.feed-card').dataset.post);
     const replyTo = target.closest('[data-reply]');
     if (replyTo) return bukaBalas(replyTo);
+    const hideComment = target.closest('[data-comment-hide]');
+    if (hideComment) return mintaModerasiKomentar(hideComment);
     const zoom = target.closest('[data-zoom]');
     if (zoom) return ketukZoom(zoom);
     if (target.closest('[data-edit-cancel]')) {
@@ -1695,6 +2019,45 @@
 
   moreEl?.addEventListener('click', () => loadFeed({ lebih: true }));
   unhideEl?.addEventListener('click', tampilkanTersembunyi);
+
+  modToolsEl?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-mod-panel]');
+    if (button) bukaPanelMod(button.dataset.modPanel);
+  });
+  modDialogEl?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-mod-close]')) tutupDialogMod();
+  });
+  modConfirmEl?.addEventListener('click', async () => {
+    if (!aksiDialog) return;
+    const jalankan = aksiDialog;
+    const anchor = jangkarDialog;
+    const alasan = modReasonEl.value.trim();
+    modErrorEl.hidden = true;
+    modConfirmEl.disabled = true;
+    try {
+      const pesan = await jalankan(alasan);
+      tutupDialogMod();
+      toast(anchor, pesan);
+    } catch (error) {
+      modErrorEl.textContent = error.message || 'Tindakan moderasi gagal.';
+      modErrorEl.hidden = false;
+    } finally {
+      modConfirmEl.disabled = false;
+    }
+  });
+  modPanelEl?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-mod-panel-close]')) {
+      tutupPanelMod();
+      return;
+    }
+    const pulih = event.target.closest('[data-mod-restore]');
+    if (pulih) return pulihkanPostingan(pulih.dataset.modRestore);
+    const pulihKomentar = event.target.closest('[data-mod-restore-comment]');
+    if (pulihKomentar) return pulihkanKomentar(pulihKomentar.dataset.modRestoreComment);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) jedaVideo(document);
+  });
 
   /* Kabar berikutnya ditarik begitu ujung daftar terlihat, seperti gulir
      tanpa batas pada aplikasi media sosial; tombol tetap ada untuk yang
@@ -1916,6 +2279,16 @@
   }, { passive: true });
 
   document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      if (modDialogEl && !modDialogEl.hidden) {
+        tutupDialogMod();
+        return;
+      }
+      if (modPanelEl && !modPanelEl.hidden) {
+        tutupPanelMod();
+        return;
+      }
+    }
     if (!lightboxEl?.hidden) {
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
