@@ -940,9 +940,9 @@ export const META = {
       "boolean not null default true",
       "timestamptz not null default now()",
       "timestamptz",
-      "text",
-      "text",
-      "text"
+      "text not null default 'published'",
+      "text not null default ''",
+      "text not null default ''"
     ],
     "ambil": [
       "id",
@@ -1096,7 +1096,7 @@ export const META = {
       "text not null default ''",
       "timestamptz not null default now()",
       "timestamptz not null",
-      "text"
+      "text not null default 'published'"
     ],
     "ambil": [
       "id",

@@ -12,6 +12,7 @@
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { META } from '../server/meta.mjs';
 
 const HEADERS = {
   Articles: ['id', 'title', 'slug', 'category', 'excerpt', 'content', 'coverImage', 'author', 'status', 'createdAt', 'updatedAt', 'seoTitle', 'seoDescription', 'seoKeywords', 'orgId'],
@@ -2964,6 +2965,13 @@ check('jumlah berkas pustaka terbaca dari lembar indeks',
   kesehatan.angka.find((item) => item.label === 'berkas pustaka').jumlah, rowsOf('PustakaBerkas').length);
 check('kesehatan tidak lagi menyinggung Turnstile',
   [/turnstile/i, /verifikasi manusia/i].map((pola) => pola.test(teksKesehatan)), [false, false]);
+
+// Pemetaan PostgREST ikut menentukan apakah "" ditulis sebagai teks kosong atau
+// NULL. Tanpa kata kunci NOT NULL, memulihkan postingan mengirim NULL ke kolom
+// yang wajib diisi dan seluruh tulisan dibatalkan meski log audit sudah masuk.
+check('peta kolom moderasi mempertahankan batas NOT NULL',
+  [META.Posts.tipe.slice(12).every((tipe) => /not null/.test(tipe)), META.Stories.tipe[8]],
+  [true, "text not null default 'published'"]);
 
 const failed = checks.filter((item) => !item.ok);
 checks.forEach((item) => {

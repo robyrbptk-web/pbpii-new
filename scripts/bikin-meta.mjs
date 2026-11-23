@@ -70,7 +70,10 @@ for (const { sql } of migrasi) {
 /* Kolom yang baru datang dari migrasi setelah 0001. Urutan berkas adalah
    urutan penerapan, jadi penamaan kolom selalu mengikuti keadaan database. */
 for (const { nama, sql } of migrasi) {
-  const reAlter = /^\s*alter table (\w+) add column (?:if not exists )?(\w+)\s+([a-z][a-z0-9_]*(?:\([0-9,]+\))?)/gim;
+  // Simpan definisi lengkapnya, bukan hanya nama tipe. Kata kunci NOT NULL dan
+  // DEFAULT ikut menentukan cara nilai kosong diterjemahkan ke PostgREST: tanpa
+  // ituelas, "" dari sheet ditulis sebagai NULL dan kolom NOT NULL ditolak.
+  const reAlter = /^\s*alter table (\w+) add column (?:if not exists )?(\w+)\s+([a-z][a-z0-9_]*(?:\([0-9,]+\))?[^;\n]*)/gim;
   let a;
   while ((a = reAlter.exec(sql))) {
     const [, tabel, kolom, tipe] = a;
@@ -79,7 +82,7 @@ for (const { nama, sql } of migrasi) {
       process.exit(1);
     }
     if (!kolomTabel[tabel].includes(kolom)) kolomTabel[tabel].push(kolom);
-    tipeTabel[tabel][kolom] = tipe.toLowerCase();
+    tipeTabel[tabel][kolom] = tipe.trim().toLowerCase();
   }
 }
 if (Object.values(pkTabel).some((pk) => !pk)) {
