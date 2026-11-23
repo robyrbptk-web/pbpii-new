@@ -820,12 +820,16 @@
     }
   }
 
-  function bukaItem(item) {
+  async function bukaItem(item) {
     const tujuanAkhir = tujuan(item);
-    // Permintaan baca dikirim paralel dengan navigasi (keepalive di `kirim`).
-    if (!item.dibaca && item.id) void tandaiSatu(item, { diam: true });
-    window.location.assign(tujuanAkhir);
+    // Tunggu server mencatat status baca sebelum halaman berpindah. keepalive
+    // saja tidak cukup: sebagian peramban membatalkan fetch saat navigasi,
+    // sehingga notifikasi tetap terlihat belum dibaca setelah diklik.
+    if (!item.dibaca && item.id) {
+      try { await tandaiSatu(item, { diam: true }); } catch (_) { /* tetap buka kabar */ }
+    }
     tutup();
+    window.location.assign(tujuanAkhir);
   }
 
   /** Halaman penuh /app/notifikasi memakai perender yang sama dengan panel. */

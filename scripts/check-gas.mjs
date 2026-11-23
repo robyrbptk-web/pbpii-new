@@ -2955,6 +2955,18 @@ check('kotak lembaga lain tidak menampung surat yang bukan tujuannya',
   request({ action: 'notifList', token: 'ses-poltek', ip: IP_KABAR }).data.notifikasi
     .filter((item) => item.jenis === 'surat').length, 0);
 
+/* Id kabar sosial memuat jenis, target, dan kunci actor. Panjangnya bisa 86
+   karakter (notif-suka-<uuid>-k:<uuid>), jadi pemotongan 80 karakter dulu
+   membuat notifRead gagal diam-diam pada notifikasi Feed/Story. */
+const idSosialPanjang = 'notif-suka-' + 'a'.repeat(36) + '-k:' + 'b'.repeat(36);
+gas.notifKirim_('o:pd-pontianak', {
+  judul: 'Suka cerita', isi: 'Uji id panjang', tautan: 'feed.html?cerita=x', jenis: 'suka-cerita'
+}, idSosialPanjang);
+check('id notifikasi sosial panjang tetap dikenal saat ditandai dibaca', [
+  request({ action: 'notifRead', token: 'ses-pd', id: idSosialPanjang, ip: IP_KABAR }).data.ditandai,
+  rowsOf('Notifikasi').find((baris) => baris.id === idSosialPanjang).dibaca !== ''
+], [1, true]);
+
 const kotakAdmin = request({ action: 'notifList', token: 'ses-admin', ip: '198.51.100.215' });
 check('tamu tidak dapat membuka kotak kabar',
   request({ action: 'notifList', ip: '198.51.100.216' }).ok, false);

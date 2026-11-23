@@ -729,9 +729,10 @@
         badan.append(elemen('b', null, item.judul || 'Kabar'));
         if (item.isi) badan.append(elemen('p', null, String(item.isi)));
         node.append(badan, elemen('time', null, relatif(item.dibuat)));
-        node.addEventListener('click', () => {
-          // Kirim status baca paralel dengan pindah halaman.
-          void json({ action: 'notifRead', id: item.id }).catch(() => {});
+        node.addEventListener('click', async () => {
+          // Tunggu status baca tersimpan sebelum pindah halaman; keepalive saja
+          // tidak menjamin permintaan selesai saat navigasi.
+          try { await json({ action: 'notifRead', id: item.id }); } catch (_) { /* tetap buka */ }
           location.href = tujuan;
         });
         host.append(node);

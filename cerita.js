@@ -10,12 +10,16 @@
   'use strict';
 
   const API = window.PBPII_CONFIG?.apiEndpoint || '/api/pii';
-  const LOGO = 'assets/logo-pii.webp';
+  const LOGO = '/assets/logo-pii.webp';
   const DURI = 6000;
   const BATAS_BERKAS = 3 * 1024 * 1024;
   const KAPASITAS = 1400;
   const KETERANGAN_MAX = 140;
   const KUNCI_LIHAT = 'pbpii_cerita_dilihat';
+  /* Tablet portrait ikut pengalaman mobile; tablet landscape dan desktop memakai
+     penonton lebar. Satu daftar Story dipakai kedua tampilan, jadi tidak ada
+     backend atau state ganda. */
+  const LAYAR_MOBIL = window.matchMedia('(max-width: 680px), (orientation: portrait) and (max-width: 1024px)');
 
   const tokenSaya = () => window.PBPIIAkun?.sessionToken?.() || window.PBPIIAkun?.token?.() || '';
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -235,6 +239,27 @@
   /* -------------------------------------------------------------------- penonton */
 
   let panggung = null;
+  let modeListener = false;
+
+  function perbaruiTampilan() {
+    if (!panggung) return;
+    panggung.dataset.tampilan = LAYAR_MOBIL.matches ? 'mobile' : 'desktop';
+    const tinggi = window.visualViewport ? Math.round(window.visualViewport.height) : 0;
+    panggung.style.setProperty('--cerita-vv', tinggi ? tinggi + 'px' : '100dvh');
+  }
+
+  function pasangListenerTampilan() {
+    if (modeListener) return;
+    modeListener = true;
+    if (LAYAR_MOBIL.addEventListener) LAYAR_MOBIL.addEventListener('change', perbaruiTampilan);
+    else if (LAYAR_MOBIL.addListener) LAYAR_MOBIL.addListener(perbaruiTampilan);
+    window.addEventListener('resize', perbaruiTampilan, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', perbaruiTampilan, { passive: true });
+      window.visualViewport.addEventListener('scroll', perbaruiTampilan, { passive: true });
+    }
+  }
+
   let indeksGrup = 0;
   let indeksCerita = 0;
   let pemroses = null;
@@ -262,6 +287,7 @@
     akar.innerHTML = `
       <div class="cerita-batang" data-batang></div>
       <header class="cerita-atas">
+        <button class="cerita-kembali" type="button" data-kembali aria-label="Kembali ke daftar cerita">&#8249;</button>
         <span class="cerita-ava" data-ava></span>
         <span class="cerita-ident">
           <b data-nama></b>
@@ -269,7 +295,13 @@
         </span>
         <button class="cerita-jeda" type="button" data-jeda aria-label="Jeda cerita">&#10073;&#10073;</button>
         <button class="cerita-suara" type="button" data-suara aria-label="Nyalakan suara video" hidden>&#128263;</button>
+        <button class="cerita-menu" type="button" data-menu aria-label="Opsi cerita">&#8942;</button>
         <button class="cerita-tutup" type="button" data-tutup aria-label="Tutup cerita">&times;</button>
+        <div class="cerita-menu-pop" data-menu-pop hidden>
+          <button type="button" data-menu-tambah>+ Tambah cerita</button>
+          <button type="button" data-menu-hapus>Hapus cerita ini</button>
+          <button type="button" data-menu-turunkan>Turunkan cerita</button>
+        </div>
       </header>
       <div class="cerita-badan" data-badan>
         <button class="cerita-sisi cerita-sisi-kiri" type="button" data-kiri aria-label="Cerita sebelumnya"></button>
@@ -279,15 +311,31 @@
       </div>
       <footer class="cerita-bawah">
         <p class="cerita-ket" data-ket></p>
+        <div class="cerita-cepat" data-cepat aria-label="Reaksi cepat">
+          <button type="button" data-reaksi="&#10084;&#65039;" data-cepat-suka aria-label="Suka cerita">&#10084;&#65039;</button>
+          <button type="button" data-reaksi="&#128514;" aria-label="Kirim reaksi tertawa">&#128514;</button>
+          <button type="button" data-reaksi="&#128558;" aria-label="Kirim reaksi kagum">&#128558;</button>
+          <button type="button" data-reaksi="&#128591;" aria-label="Kirim reaksi hormat">&#128591;</button>
+        </div>
         <div class="cerita-interaksi" data-interaksi hidden>
           <button class="cerita-suka" type="button" data-suka aria-pressed="false" aria-label="Suka cerita ini">&#9825; <span data-suka-jumlah>0</span></button>
           <button class="cerita-balas-pintas" type="button" data-fokus-balas aria-label="Balas cerita ini">&#128172; <span data-balasan-jumlah>0</span></button>
           <button class="cerita-penonton-tombol" type="button" data-penonton hidden>Lihat penonton (<span data-penonton-jumlah>0</span>)</button>
         </div>
         <form class="cerita-balas-form" data-balas-form hidden>
+          <button class="cerita-emoji" type="button" data-emoji aria-label="Pilih emoji">&#9786;</button>
           <input type="text" maxlength="140" placeholder="Balas cerita ini…" aria-label="Tulis balasan untuk cerita" data-balas-teks>
-          <button type="submit">Kirim</button>
+          <button class="cerita-hati" type="button" data-suka-cepat aria-pressed="false" aria-label="Suka cerita ini">&#9825;</button>
+          <button class="cerita-kirim" type="submit" aria-label="Kirim balasan">&#10148;</button>
         </form>
+        <div class="cerita-emoji-panel" data-emoji-panel hidden>
+          <button type="button" data-emoji-pilih="&#128512;">&#128512;</button>
+          <button type="button" data-emoji-pilih="&#128525;">&#128525;</button>
+          <button type="button" data-emoji-pilih="&#128079;">&#128079;</button>
+          <button type="button" data-emoji-pilih="&#128591;">&#128591;</button>
+          <button type="button" data-emoji-pilih="&#10084;&#65039;">&#10084;&#65039;</button>
+          <button type="button" data-emoji-pilih="&#127881;">&#127881;</button>
+        </div>
         <p class="cerita-balas-note" data-balas-note hidden role="status"></p>
         <ul class="cerita-balasan" data-balasan-list hidden></ul>
         <div class="cerita-mundur" data-mundur hidden>
@@ -333,7 +381,10 @@
 
   function bukaPanggung() {
     panggungSiap().hidden = false;
+    document.documentElement.classList.add('cerita-terkunci');
     document.body.classList.add('cerita-terkunci');
+    pasangListenerTampilan();
+    perbaruiTampilan();
   }
 
   function tutupPanggung({ muatUlang = true } = {}) {
@@ -355,7 +406,10 @@
       cari('[data-balasan-list]').hidden = true;
       cari('[data-balas-note]').hidden = true;
       cari('[data-balas-teks]').value = '';
+      cari('[data-menu-pop]').hidden = true;
+      cari('[data-emoji-panel]').hidden = true;
     }
+    document.documentElement.classList.remove('cerita-terkunci');
     document.body.classList.remove('cerita-terkunci');
     pratayang = '';
     if (sebelumCerita) {
@@ -561,6 +615,13 @@
     cari('[data-suka]').classList.remove('is-on');
     cari('[data-suka]').setAttribute('aria-pressed', 'false');
     cari('[data-suka-jumlah]').textContent = '0';
+    const cepat = cari('[data-suka-cepat]');
+    if (cepat) {
+      cepat.classList.remove('is-on');
+      cepat.setAttribute('aria-pressed', 'false');
+    }
+    const reaksi = cari('[data-cepat-suka]');
+    if (reaksi) reaksi.classList.remove('is-on');
     cari('[data-balasan-jumlah]').textContent = '0';
     cari('[data-balasan-list]').replaceChildren(
       simpul('li', 'cerita-balasan-kosong', 'Memuat balasan…')
@@ -607,6 +668,13 @@
     suka.classList.toggle('is-on', Boolean(data.liked));
     suka.setAttribute('aria-pressed', String(Boolean(data.liked)));
     cari('[data-suka-jumlah]').textContent = angka(data.likes);
+    const cepat = cari('[data-suka-cepat]');
+    if (cepat) {
+      cepat.classList.toggle('is-on', Boolean(data.liked));
+      cepat.setAttribute('aria-pressed', String(Boolean(data.liked)));
+    }
+    const reaksi = cari('[data-cepat-suka]');
+    if (reaksi) reaksi.classList.toggle('is-on', Boolean(data.liked));
     const balasan = Array.isArray(data.balasan) ? data.balasan : [];
     const jumlah = isFinite(Number(data.jumlahBalasan)) ? Number(data.jumlahBalasan) : balasan.length;
     cari('[data-balasan-jumlah]').textContent = angka(jumlah);
@@ -682,8 +750,8 @@
     const id = panggung?.dataset.ceritaId;
     const input = cari('[data-balas-teks]');
     const catatan = cari('[data-balas-note]');
-    const tombol = cari('[data-balas-form] button');
-    if (!id || tombol.disabled) return;
+    const tombol = cari('[data-balas-form] button[type="submit"]');
+    if (!id || !tombol || tombol.disabled) return;
     const teks = String(input.value || '').trim();
     if (teks.length < 3) {
       catatan.textContent = 'Tulis balasan minimal 3 karakter.';
@@ -783,6 +851,11 @@
     cari('[data-tambah]').hidden = !grup.sendiri;
     cari('[data-hapus]').hidden = !grup.sendiri;
     cari('[data-turunkan]').hidden = !hak.moderasi;
+    cari('[data-menu-pop]').hidden = true;
+    cari('[data-menu-tambah]').hidden = !grup.sendiri;
+    cari('[data-menu-hapus]').hidden = !grup.sendiri;
+    cari('[data-menu-turunkan]').hidden = !hak.moderasi;
+    cari('[data-menu]').hidden = !grup.sendiri && !hak.moderasi;
     panggung.dataset.ceritaId = String(cerita.id);
     panggung.dataset.kaderId = String(grup.kaderId);
     tandaiDibuka([cerita]);
@@ -974,6 +1047,8 @@
     cari('[data-ket]').textContent = '';
     cari('[data-user]').textContent = '';
     cari('[data-kancing]').hidden = true;
+    cari('[data-menu]').hidden = true;
+    cari('[data-menu-pop]').hidden = true;
     cari('[data-interaksi]').hidden = true;
     cari('[data-balas-form]').hidden = true;
     cari('[data-balasan-list]').hidden = true;
@@ -1011,6 +1086,8 @@
     cari('[data-sisa]').textContent = '';
     cari('[data-ket]').textContent = message;
     cari('[data-kancing]').hidden = true;
+    cari('[data-menu]').hidden = true;
+    cari('[data-menu-pop]').hidden = true;
     cari('[data-interaksi]').hidden = true;
     cari('[data-balas-form]').hidden = true;
     cari('[data-balasan-list]').hidden = true;
@@ -1137,6 +1214,49 @@
     if (panggung?.hidden) return undefined;
 
     const dekat = (selektor) => event.target.closest?.(selektor);
+    if (dekat('[data-menu]')) {
+      const pop = cari('[data-menu-pop]');
+      pop.hidden = !pop.hidden;
+      return undefined;
+    }
+    if (dekat('[data-menu-tambah]')) {
+      cari('[data-menu-pop]').hidden = true;
+      return bukaUnggah();
+    }
+    if (dekat('[data-menu-hapus]')) {
+      cari('[data-menu-pop]').hidden = true;
+      return hapusCerita();
+    }
+    if (dekat('[data-menu-turunkan]')) {
+      cari('[data-menu-pop]').hidden = true;
+      cari('[data-mod-alasan]').value = '';
+      cari('[data-mod-error]').hidden = true;
+      cari('[data-mod]').hidden = false;
+      cari('[data-mod-alasan]').focus();
+      return undefined;
+    }
+    if (!cari('[data-menu-pop]').hidden && !dekat('[data-menu-pop]')) {
+      cari('[data-menu-pop]').hidden = true;
+    }
+    if (dekat('[data-emoji]')) {
+      const panel = cari('[data-emoji-panel]');
+      panel.hidden = !panel.hidden;
+      return undefined;
+    }
+    if (dekat('[data-emoji-pilih]')) {
+      const input = cari('[data-balas-teks]');
+      input.value = (input.value + dekat('[data-emoji-pilih]').dataset.emojiPilih).slice(0, 140);
+      cari('[data-emoji-panel]').hidden = true;
+      input.focus();
+      return undefined;
+    }
+    if (dekat('[data-cepat-suka]')) return toggleSuka();
+    if (dekat('[data-reaksi]')) {
+      const input = cari('[data-balas-teks]');
+      input.value = (input.value + dekat('[data-reaksi]').dataset.reaksi).slice(0, 140);
+      input.focus();
+      return undefined;
+    }
     if (dekat('[data-mod]') && !dekat('.cerita-mod-card')) {
       cari('[data-mod]').hidden = true;
       return undefined;
@@ -1161,7 +1281,7 @@
       return undefined;
     }
     if (!cari('[data-penonton-panel]').hidden) return undefined;
-    if (dekat('[data-tutup]')) {
+    if (dekat('[data-tutup]') || dekat('[data-kembali]')) {
       if (panggung.classList.contains('is-pratayang')) akhiriPratayang();
       return tutupPanggung();
     }

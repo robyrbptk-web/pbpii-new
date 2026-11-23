@@ -8429,9 +8429,12 @@ function notifDaftar_(body, aktor) {
 /** Menandai dibaca satu kabar, beberapa id, atau seluruh isi kotak milik aktor ini saja. */
 function notifTandai_(body, aktor) {
   const kotak = notifKotak_(aktor);
+  /* Id notifikasi sosial berisi jenis + target + actor (bisa lebih dari 80
+     karakter). Memotongnya membuat notifRead mengembalikan ditandai=0 walaupun
+     barisnya ada, jadi batasnya mengikuti panjang id gabungan ini. */
   const ids = Array.isArray(body.ids)
-    ? body.ids.map(function (value) { return String(value).trim().slice(0, 80); }).filter(Boolean)
-    : (body.id ? [String(body.id).trim().slice(0, 80)] : []);
+    ? body.ids.map(function (value) { return String(value).trim().slice(0, 180); }).filter(Boolean)
+    : (body.id ? [String(body.id).trim().slice(0, 180)] : []);
   const baris = notifBaris_(kotak);
   const belum = notifBelumDibaca_(baris);
   const kolom = NOTIF_HEADERS.indexOf('dibaca') + 1;
