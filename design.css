@@ -883,3 +883,590 @@ textarea:focus {
     animation: none;
   }
 }
+
+/* -------------------------------------------------------------------------
+ * Restorasi identitas digital PB PII — dibangun di atas lapisan Modern
+ * Institutional Technology (6e516c1). Tidak mengganti gama lama: lapisan ini
+ * hanya menambah komposisi visual hero, identitas organisasi, dan ekosistem
+ * digital, plus merapikan perilaku mobile yang masih memakai potongan lama.
+ * Semua aturan dibatasi untuk halaman publik agar aplikasi pengurus tetap
+ * memakai antarmukanya sendiri.
+ * ------------------------------------------------------------------------- */
+
+body:not(.aplikasi) .hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+body:not(.aplikasi) .hero::before,
+body:not(.aplikasi) .hero::after {
+  pointer-events: none;
+  z-index: 0;
+}
+
+body:not(.aplikasi) .hero::after {
+  display: block;
+  content: "";
+  position: absolute;
+  inset: auto -12% -38% 42%;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(158, 212, 244, .20), transparent 72%);
+}
+
+body:not(.aplikasi) .hero-copy,
+body:not(.aplikasi) .hero-mark {
+  position: relative;
+  z-index: 1;
+}
+
+body:not(.aplikasi) .hero .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+body:not(.aplikasi) .hero .eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 4px rgba(192, 57, 43, .16);
+}
+
+body:not(.aplikasi) .hero-mark {
+  width: min(430px, 42vw);
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
+}
+
+body:not(.aplikasi) .hero-orbit {
+  position: absolute;
+  border: 1px solid rgba(191, 226, 248, .28);
+  border-radius: 50%;
+}
+
+body:not(.aplikasi) .hero-orbit-one {
+  inset: 5%;
+}
+
+body:not(.aplikasi) .hero-orbit-two {
+  inset: 18%;
+  border-style: dashed;
+  transform: rotate(18deg);
+}
+
+body:not(.aplikasi) .hero-path {
+  position: absolute;
+  width: 126%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(191, 226, 248, .72), transparent);
+  transform: rotate(-24deg);
+}
+
+body:not(.aplikasi) .hero-emblem {
+  position: relative;
+  z-index: 2;
+  width: 62%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, .62);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 32px 80px rgba(3, 20, 38, .38);
+  transform: rotate(-2deg);
+  animation: piiMarkFloat 9s ease-in-out infinite;
+}
+
+body:not(.aplikasi) .hero-emblem img {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+body:not(.aplikasi) .hero-node {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  min-width: 112px;
+  padding: 10px 12px;
+  border: 1px solid rgba(211, 235, 250, .34);
+  border-radius: 14px;
+  background: rgba(8, 32, 58, .48);
+  box-shadow: 0 12px 30px rgba(3, 20, 38, .22);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+
+body:not(.aplikasi) .hero-node b {
+  font-size: .84rem;
+  line-height: 1.2;
+}
+
+body:not(.aplikasi) .hero-node small {
+  color: #BFE2F8;
+  font-size: .62rem;
+  line-height: 1.35;
+}
+
+body:not(.aplikasi) .hero-node-a { left: -5%; top: 16%; }
+body:not(.aplikasi) .hero-node-b { right: -7%; top: 5%; }
+body:not(.aplikasi) .hero-node-c { right: -9%; bottom: 12%; }
+
+body:not(.aplikasi) .hero-node-b {
+  animation: piiNodeGlow 7s ease-in-out infinite;
+}
+
+body:not(.aplikasi) .hero-stamp {
+  position: absolute;
+  left: 2%;
+  bottom: 3%;
+  color: rgba(223, 239, 251, .72);
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+}
+
+@keyframes piiMarkFloat {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(-1.4deg); }
+}
+
+@keyframes piiNodeGlow {
+  0%, 100% { box-shadow: 0 12px 30px rgba(3, 20, 38, .22); }
+  50% { box-shadow: 0 14px 34px rgba(3, 20, 38, .32), 0 0 0 4px rgba(158, 212, 244, .10); }
+}
+
+/* Identitas organisasi: satu band editorial, bukan tiga kartu seragam. */
+
+body:not(.aplikasi) .section-heading .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body:not(.aplikasi) .section-heading .eyebrow::before {
+  content: "";
+  width: 18px;
+  height: 2px;
+  background: var(--red);
+}
+
+body:not(.aplikasi) .identity-band {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--pii-shadow-sm);
+  overflow: hidden;
+}
+
+body:not(.aplikasi) .identity-band > div {
+  min-width: 0;
+  padding: 22px 24px;
+}
+
+body:not(.aplikasi) .identity-band > div + div {
+  border-left: 1px solid var(--line);
+}
+
+body:not(.aplikasi) .identity-band small {
+  display: block;
+  color: var(--red);
+  font-size: .64rem;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+
+body:not(.aplikasi) .identity-band b {
+  display: block;
+  margin-top: 8px;
+  color: var(--navy);
+  font-size: clamp(.96rem, 1.35vw, 1.12rem);
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: -.01em;
+}
+
+body:not(.aplikasi) .pillar-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  counter-reset: piiPillar;
+}
+
+body:not(.aplikasi) .pillar-card {
+  position: relative;
+  counter-increment: piiPillar;
+}
+
+body:not(.aplikasi) .pillar-card::before {
+  content: "0" counter(piiPillar);
+  display: block;
+  margin-bottom: 12px;
+  color: var(--electric);
+  font-size: .68rem;
+  font-weight: 850;
+  letter-spacing: .18em;
+}
+
+body:not(.aplikasi) .pillar-card:first-child {
+  grid-column: 1 / -1;
+  border-color: transparent;
+  background: linear-gradient(120deg, #0B2540 0%, #102F50 58%, #144E7C 100%);
+  color: #fff;
+  box-shadow: var(--pii-shadow-md);
+}
+
+body:not(.aplikasi) .pillar-card:first-child::before {
+  color: #9ED4F4;
+}
+
+body:not(.aplikasi) .pillar-card:first-child b,
+body:not(.aplikasi) .pillar-card:first-child h3 {
+  color: #fff;
+}
+
+body:not(.aplikasi) .pillar-card:first-child p {
+  color: rgba(235, 246, 254, .84);
+}
+
+body:not(.aplikasi) .pillar-card:first-child .source-note {
+  color: rgba(223, 239, 251, .62);
+}
+
+body:not(.aplikasi) .pillar-card:first-child .text-link {
+  color: #BFE2F8;
+}
+
+/* Ekosistem digital: panel utama + daftar layanan bergaris, bukan kartu
+   seragam. Tautannya memakai rute yang sudah ada; tidak ada halaman baru. */
+
+body:not(.aplikasi) .ecosystem-board {
+  display: grid;
+  grid-template-columns: minmax(280px, .88fr) minmax(0, 1.12fr);
+  gap: 22px;
+  align-items: stretch;
+}
+
+body:not(.aplikasi) .ecosystem-core {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  overflow: hidden;
+  padding: 30px;
+  border-radius: 28px;
+  background: linear-gradient(150deg, #0B2540 0%, #102F50 58%, #17649A 118%);
+  box-shadow: var(--pii-shadow-lg);
+  color: #fff;
+}
+
+body:not(.aplikasi) .ecosystem-core::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .05) 1px, transparent 1px);
+  background-size: 42px 42px;
+  pointer-events: none;
+}
+
+body:not(.aplikasi) .ecosystem-core > * {
+  position: relative;
+  z-index: 1;
+}
+
+body:not(.aplikasi) .eco-core-index {
+  color: #9ED4F4;
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .2em;
+}
+
+body:not(.aplikasi) .eco-core-mark {
+  width: 96px;
+  height: 96px;
+  margin: 26px 0 18px;
+  padding: 10px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(3, 20, 38, .28);
+}
+
+body:not(.aplikasi) .eco-core-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+body:not(.aplikasi) .ecosystem-core > b {
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  font-weight: 850;
+  letter-spacing: -.035em;
+}
+
+body:not(.aplikasi) .eco-core-tag {
+  margin-top: 4px;
+  color: #BFE2F8;
+  font-size: .86rem;
+  font-weight: 750;
+}
+
+body:not(.aplikasi) .ecosystem-core p {
+  margin: 16px 0 0;
+  color: rgba(235, 246, 254, .82);
+  font-size: .92rem;
+  line-height: 1.7;
+}
+
+body:not(.aplikasi) .ecosystem-list {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+
+body:not(.aplikasi) .eco-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color 220ms var(--pii-ease), padding-left 220ms var(--pii-ease);
+}
+
+body:not(.aplikasi) .eco-row:hover,
+body:not(.aplikasi) .eco-row:focus-visible {
+  padding-left: 22px;
+  background: var(--sky);
+}
+
+body:not(.aplikasi) .eco-num {
+  color: var(--electric);
+  font-size: .7rem;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+body:not(.aplikasi) .eco-copy {
+  min-width: 0;
+}
+
+body:not(.aplikasi) .eco-copy b {
+  display: block;
+  color: var(--navy);
+  font-size: 1rem;
+  font-weight: 820;
+  letter-spacing: -.015em;
+}
+
+body:not(.aplikasi) .eco-copy small {
+  display: block;
+  margin-top: 3px;
+  color: var(--slate);
+  font-size: .8rem;
+  line-height: 1.55;
+}
+
+body:not(.aplikasi) .eco-arrow {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #CFE1F0;
+  border-radius: 50%;
+  color: var(--blue);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+body:not(.aplikasi) .eco-row:hover .eco-arrow {
+  border-color: var(--electric);
+  background: #fff;
+}
+
+@media (max-width: 1080px) {
+  body:not(.aplikasi) .ecosystem-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:not(.aplikasi) .ecosystem-core {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 900px) {
+  body:not(.aplikasi) .hero-mark {
+    width: min(288px, 32vw);
+  }
+
+  body:not(.aplikasi) .hero-path {
+    width: 108%;
+  }
+
+  body:not(.aplikasi) .hero-node-a {
+    left: 0;
+  }
+
+  body:not(.aplikasi) .hero-node-b,
+  body:not(.aplikasi) .hero-node-c {
+    right: 0;
+  }
+
+  body:not(.aplikasi) .identity-band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body:not(.aplikasi) .identity-band > div:last-child {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  body:not(.aplikasi) .hero {
+    padding-bottom: 38px;
+  }
+
+  body:not(.aplikasi) .hero-mark {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 360px;
+    min-height: 0;
+    aspect-ratio: auto;
+    margin: 26px auto 0;
+  }
+
+  body:not(.aplikasi) .hero-orbit,
+  body:not(.aplikasi) .hero-path,
+  body:not(.aplikasi) .hero-stamp {
+    display: none;
+  }
+
+  body:not(.aplikasi) .hero-emblem {
+    position: static;
+    order: -1;
+    width: 116px;
+    aspect-ratio: 1 / 1;
+    padding: 12px;
+    border-radius: 20px;
+    transform: none;
+    animation: none;
+  }
+
+  body:not(.aplikasi) .hero-node {
+    position: static;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    padding: 8px 10px;
+  }
+
+  body:not(.aplikasi) .hero-node b { font-size: .72rem; }
+  body:not(.aplikasi) .hero-node small { font-size: .56rem; }
+
+  body:not(.aplikasi) .stats {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    width: auto;
+    overflow: visible;
+    margin-inline: 12px;
+  }
+
+  body:not(.aplikasi) .stats div {
+    min-width: 0;
+  }
+
+  body:not(.aplikasi) .stats div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+
+  body:not(.aplikasi) .nav-sheet {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  body:not(.aplikasi) .site-header nav {
+    max-width: 100vw;
+  }
+
+  body:not(.aplikasi) .identity-band {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:not(.aplikasi) .identity-band > div {
+    padding: 18px 20px;
+  }
+
+  body:not(.aplikasi) .identity-band > div + div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  body:not(.aplikasi) .pillar-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:not(.aplikasi) .pillar-card:first-child {
+    grid-column: auto;
+  }
+
+  body:not(.aplikasi) .ecosystem-core {
+    min-height: 0;
+    padding: 24px;
+    border-radius: 22px;
+  }
+
+  body:not(.aplikasi) .eco-core-mark {
+    width: 76px;
+    height: 76px;
+    margin: 20px 0 14px;
+  }
+
+  body:not(.aplikasi) .eco-row {
+    grid-template-columns: 30px minmax(0, 1fr) 26px;
+    gap: 9px;
+    padding: 14px 8px;
+  }
+
+  body:not(.aplikasi) .eco-row:hover,
+  body:not(.aplikasi) .eco-row:focus-visible {
+    padding-left: 12px;
+  }
+
+  body:not(.aplikasi) .eco-copy b { font-size: .93rem; }
+  body:not(.aplikasi) .eco-copy small { font-size: .74rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.aplikasi) .hero-emblem,
+  body:not(.aplikasi) .hero-node {
+    animation: none !important;
+  }
+}
