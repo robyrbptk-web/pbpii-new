@@ -1483,3 +1483,41 @@ body:not(.aplikasi) .eco-row:hover .eco-arrow {
     animation: none !important;
   }
 }
+
+/* ============================================================
+   Landing v88 - Sambutan Ketua Umum sebagai pembuka halaman.
+   Lapisan ini datang paling akhir supaya aturan lama tidak
+   mengembalikan latar polos atau kartu naskah tanpa bantalan.
+   ============================================================ */
+body:not(.aplikasi) #sambutan.greeting-section {
+  border-top: 3px solid var(--pii-electric);
+  background: radial-gradient(120% 150% at 12% 0%, #ffffff 0%, #f4f9fd 44%, #e3eff8 100%);
+}
+
+body:not(.aplikasi) #sambutan .greeting-photo {
+  box-shadow:
+    0 26px 62px rgb(11 33 52 / 28%),
+    0 0 0 9px rgb(127 212 255 / 12%);
+}
+
+body:not(.aplikasi) #sambutan .greeting-copy {
+  padding: 20px 26px 22px;
+  border: 1px solid rgb(211 227 239 / 88%);
+  border-left: 3px solid var(--pii-electric);
+}
+
+body:not(.aplikasi) #sambutan .greeting-copy::before {
+  top: -14px;
+  left: 6px;
+  color: rgb(23 109 168 / 20%);
+}
+
+@media (max-width: 680px) {
+  body:not(.aplikasi) #sambutan.greeting-section {
+    padding: 24px 16px 28px;
+  }
+
+  body:not(.aplikasi) #sambutan .greeting-copy {
+    padding: 14px 16px 16px;
+  }
+}
