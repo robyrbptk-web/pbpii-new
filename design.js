@@ -14,8 +14,6 @@
     '.hero-copy',
     '.hero-mark',
     '.stats',
-    '.greeting-photo',
-    '.greeting-copy',
     '.section-heading',
     '.identity-band > div',
     '.ecosystem-core',
@@ -53,7 +51,13 @@
       node.dataset.revealBound = '1';
       node.style.setProperty('--pii-delay', Math.min(index % 5, 4) * 65 + 'ms');
       node.dataset.reveal = '';
-      observer ? observer.observe(node) : node.classList.add('is-revealed');
+      /* Ketua Umum harus tampil lebih dulu. Bagian ini dibuka seketika,
+         bukan menunggu pemantau atau batas waktu 2200ms. */
+      if (node.id === 'sambutan' || (node.closest && node.closest('#sambutan'))) {
+        node.classList.add('is-revealed');
+      } else {
+        observer ? observer.observe(node) : node.classList.add('is-revealed');
+      }
     });
   }
 

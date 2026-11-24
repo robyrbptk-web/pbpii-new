@@ -1343,8 +1343,28 @@ body:not(.aplikasi) .eco-row:hover .eco-arrow {
 }
 
 @media (max-width: 680px) {
+  /* Ketua Umum harus masuk layar pertama di ponsel. Hero tetap dikenali,
+     tapi ruangnya dirapikan supaya sambutan tidak tersorok di bawah lipatan. */
   body:not(.aplikasi) .hero {
-    padding-bottom: 38px;
+    padding-top: 24px;
+    padding-bottom: 14px;
+  }
+
+  body:not(.aplikasi) .hero h1 {
+    margin-top: 8px;
+    margin-bottom: 10px;
+  }
+
+  body:not(.aplikasi) .hero-copy > p:not(.eyebrow) {
+    line-height: 1.6;
+  }
+
+  body:not(.aplikasi) .hero .source-note {
+    display: none;
+  }
+
+  body:not(.aplikasi) .hero-actions {
+    margin-top: 10px;
   }
 
   body:not(.aplikasi) .hero-mark {
@@ -1352,12 +1372,12 @@ body:not(.aplikasi) .eco-row:hover .eco-arrow {
     flex-wrap: wrap;
     align-content: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
     max-width: 360px;
     min-height: 0;
     aspect-ratio: auto;
-    margin: 26px auto 0;
+    margin: 8px auto 0;
   }
 
   body:not(.aplikasi) .hero-orbit,
@@ -1378,15 +1398,8 @@ body:not(.aplikasi) .eco-row:hover .eco-arrow {
   }
 
   body:not(.aplikasi) .hero-node {
-    position: static;
-    width: auto;
-    min-width: 0;
-    max-width: 100%;
-    padding: 8px 10px;
+    display: none;
   }
-
-  body:not(.aplikasi) .hero-node b { font-size: .72rem; }
-  body:not(.aplikasi) .hero-node small { font-size: .56rem; }
 
   body:not(.aplikasi) .stats {
     display: grid;

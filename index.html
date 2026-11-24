@@ -85,12 +85,6 @@
       </div>
     </section>
 
-    <section class="stats" aria-label="Informasi PII">
-      <div><strong>4 Mei 1947</strong><span>Berdiri di Yogyakarta</span></div>
-      <div><strong>Pendidikan</strong><span>Tujuan gerakan PII</span></div>
-      <div><strong>Kaderisasi</strong><span>Pembinaan pelajar yang sistemik</span></div>
-    </section>
-
     <section id="sambutan" class="greeting-section">
       <div class="greeting-photo" id="chairPhotoWrap">
         <span class="greeting-ring" aria-hidden="true"></span>
@@ -112,25 +106,10 @@
         (function () {
           var sambutan = document.getElementById('sambutan');
           document.documentElement.classList.add('greeting-animated');
-          /* Yang menunggu sampai bagian ini tersorot memang lebih manis, tapi
-             keselamatan isinya lebih penting: pemantau bisa tidak pernah
-             memberi tahu (tab di latar, pengamat tua), jadi ada batas waktu
-             yang membuka sambutan dengan sendirinya. */
-          var tampil = function () {
-            if (sambutan) sambutan.classList.add('is-tampil');
-          };
-          if ('IntersectionObserver' in window && sambutan) {
-            var pemantau = new IntersectionObserver(function (entri, observer) {
-              if (entri.some(function (e) { return e.isIntersecting; })) {
-                observer.disconnect();
-                tampil();
-              }
-            }, { rootMargin: '220px' });
-            pemantau.observe(sambutan);
-            setTimeout(tampil, 2600);
-          } else {
-            tampil();
-          }
+          /* Sambutan adalah bagian pertama yang harus terlihat. Jangan menunggu
+             pemantau atau batas waktu: buka segera supaya foto Ketua Umum tidak
+             pernah sempat tersembunyi, termasuk di layar ponsel. */
+          if (sambutan) sambutan.classList.add('is-tampil');
           try {
             var nama = localStorage.getItem('pbpii_ketum_nama') || '';
             var papan = document.getElementById('chairMonogram');
@@ -169,6 +148,12 @@
           }
         })();
       </script>
+    </section>
+
+    <section class="stats" aria-label="Informasi PII">
+      <div><strong>4 Mei 1947</strong><span>Berdiri di Yogyakarta</span></div>
+      <div><strong>Pendidikan</strong><span>Tujuan gerakan PII</span></div>
+      <div><strong>Kaderisasi</strong><span>Pembinaan pelajar yang sistemik</span></div>
     </section>
 
     <section id="gerakan" class="section">
