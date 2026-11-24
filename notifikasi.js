@@ -54,6 +54,7 @@
   const LABEL_JENIS = {
     like: 'Menyukai', suka: 'Menyukai', comment: 'Mengomentari', komentar: 'Mengomentari',
     reply: 'Membalas', balasan: 'Membalas', follow: 'Mengikuti', teman: 'Berteman',
+    ikuti: 'Mengikuti', bagikan: 'Membagikan',
     mention: 'Menyebut', tag: 'Menyebut', kabar: 'Kabar baru', feed: 'Kabar baru',
     cerita: 'Cerita baru', story: 'Cerita baru', acara: 'Acara baru', event: 'Acara baru',
     thread: 'Diskusi', tanya: 'Pertanyaan'
@@ -61,7 +62,9 @@
 
   const LABEL_GRUP = {
     like: 'Suka', suka: 'Suka', comment: 'Komentar', komentar: 'Komentar',
-    follow: 'Teman', teman: 'Teman', mention: 'Sebutan', tag: 'Sebutan',
+    follow: 'Teman', teman: 'Teman', ikuti: 'Mengikuti', bagikan: 'Bagikan',
+    reply: 'Balasan', balasan: 'Balasan',
+    mention: 'Sebutan', tag: 'Sebutan',
     kabar: 'Kabar', feed: 'Kabar', cerita: 'Cerita', acara: 'Acara', event: 'Acara',
     thread: 'Diskusi'
   };
@@ -355,11 +358,22 @@
     return 'Sebelumnya';
   }
 
-  function labelKunci(nilai) {
+  /* `grupKunci` ber bentuk "jenis:targetType:id" (mis. "suka:post:<uuid>").
+     Label grup HARUS diambil dari segmen pertama (jenis), bukan segmen
+     terakhir: segmen terakhir adalah id target sehingga yang tampil di kepala
+     tanggal justru UUID mentah. */
+  function jenisGrup(nilai) {
     const teks = String(nilai || '').trim();
-    if (!teks || /^\d{4}-\d{2}-\d{2}/.test(teks)) return '';
-    const ekor = teks.split(':').pop().trim().toLowerCase();
-    return LABEL_GRUP[ekor] || teks.split(':').pop().trim().replace(/[_-]+/g, ' ').slice(0, 40);
+    if (!teks) return '';
+    const jenis = teks.split(':')[0].trim().toLowerCase();
+    if (!jenis || /^[0-9a-f-]{16,}$/i.test(jenis)) return '';
+    return jenis;
+  }
+
+  function labelKunci(nilai) {
+    const jenis = jenisGrup(nilai);
+    if (!jenis) return '';
+    return LABEL_GRUP[jenis] || jenis.replace(/[_-]+/g, ' ').slice(0, 40);
   }
 
   function labelJenis(nilai) {
@@ -442,7 +456,9 @@
     let kunciSebelum = null;
     isi.forEach((item) => {
       const waktu = rentang(item.dibuat);
-      const kunci = waktu + '|' + String(item.grupKunci || '');
+      // Kelompokkan per hari + jenis, bukan per id target, agar kepala tanggal
+      // tidak berulang untuk setiap kabar.
+      const kunci = waktu + '|' + jenisGrup(item.grupKunci);
       if (kunci !== kunciSebelum) {
         const grup = elemen('div', 'pbpii-grup');
         grup.append(elemen('b', null, waktu));

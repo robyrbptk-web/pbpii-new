@@ -1222,6 +1222,14 @@ footer > small {
   gap: 14px;
 }
 
+/* Elemen profil memakai atribut `hidden` sebagai sakelar tampil, sedangkan
+   aturan display-nya sendiri (grid/flex) mengalahkan perilaku bawaan [hidden].
+   Tanpa penegasan ini kartu "Kader PII" kosong, tombol Ubah profil, dan tab
+   sempat tampil sebelum data tiba, seolah profil pengguna gagal dimuat. */
+.profil-board [hidden] {
+  display: none !important;
+}
+
 .profil-skeleton {
   display: grid;
   gap: 10px;
