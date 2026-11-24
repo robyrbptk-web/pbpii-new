@@ -474,6 +474,8 @@ body.cerita-terkunci {
   position: relative;
   z-index: 5;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: 9px;
   box-sizing: border-box;
   width: 100%;
@@ -1081,8 +1083,9 @@ body.cerita-terkunci {
   bottom: 0;
   left: 0;
   z-index: 6;
+  gap: 12px;
   max-height: min(54%, 390px);
-  padding: 54px max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: 54px max(18px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
   background: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.92) 58%, transparent 100%);
 }
 
@@ -1129,7 +1132,20 @@ body.cerita-terkunci {
 }
 
 .cerita-panggung[data-tampilan="mobile"] .cerita-balasan {
-  max-height: 104px;
+  gap: 12px;
+  max-height: 112px;
+  padding-right: 4px;
+}
+
+.cerita-panggung[data-tampilan="mobile"] .cerita-balasan-item {
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.cerita-panggung[data-tampilan="mobile"] .cerita-kecil-ava {
+  width: 30px;
+  height: 30px;
 }
 
 .cerita-panggung[data-tampilan="mobile"] .cerita-menu-pop {

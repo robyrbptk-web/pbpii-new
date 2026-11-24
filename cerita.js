@@ -679,9 +679,7 @@
     const jumlah = isFinite(Number(data.jumlahBalasan)) ? Number(data.jumlahBalasan) : balasan.length;
     cari('[data-balasan-jumlah]').textContent = angka(jumlah);
     const daftarBalasan = cari('[data-balasan-list]');
-    daftarBalasan.replaceChildren(...(balasan.length
-      ? balasan.map(barisBalasan)
-      : [simpul('li', 'cerita-balasan-kosong', 'Belum ada balasan. Jadilah yang pertama menyapa.')]));
+    daftarBalasan.replaceChildren(...balasan.map(barisBalasan));
     daftarBalasan.hidden = false;
     const penonton = Array.isArray(data.penonton) ? data.penonton : null;
     const tombol = cari('[data-penonton]');
