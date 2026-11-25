@@ -60,7 +60,7 @@
     <section class="feed-board" id="feed">
       <div class="feed-head">
         <div class="feed-head-copy">
-          <h1>Feed Kader</h1>
+          <h1>Feed</h1>
           <p>Kabar, gagasan, dan gerakan kader PII.</p>
         </div>
         <div class="feed-head-side">
@@ -160,7 +160,25 @@
 
       <div class="feed-list" id="feedList" aria-live="polite">
         <div class="feed-skeleton" aria-hidden="true">
-          <span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span>
+          <div class="feed-skeleton-item">
+            <span class="skeleton feed-skeleton-ava"></span>
+            <div class="feed-skeleton-col">
+              <span class="skeleton feed-skeleton-line is-name"></span>
+              <span class="skeleton feed-skeleton-line"></span>
+              <span class="skeleton feed-skeleton-line is-short"></span>
+              <span class="skeleton feed-skeleton-media"></span>
+              <span class="skeleton feed-skeleton-actions"></span>
+            </div>
+          </div>
+          <div class="feed-skeleton-item">
+            <span class="skeleton feed-skeleton-ava"></span>
+            <div class="feed-skeleton-col">
+              <span class="skeleton feed-skeleton-line is-name"></span>
+              <span class="skeleton feed-skeleton-line"></span>
+              <span class="skeleton feed-skeleton-line is-short"></span>
+              <span class="skeleton feed-skeleton-actions"></span>
+            </div>
+          </div>
         </div>
       </div>
       <p class="feed-empty" id="feedEmpty" hidden></p>
@@ -168,9 +186,9 @@
         <span class="feed-kosong-ikon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><rect x="4.4" y="5.4" width="15.2" height="13.2" rx="2.4"/><path d="M7.6 9.6h8.8M7.6 13h6"/></svg>
         </span>
-        <b>Belum ada kabar di sini</b>
+        <b>Belum ada kabar dari kader</b>
         <p id="feedKosongTeks">Jadilah yang pertama membagikan gagasan atau kegiatan untuk kawan kader.</p>
-        <button class="button button-solid" type="button" id="feedKosongCta">Tulis kabar pertama</button>
+        <button class="button button-solid" type="button" id="feedKosongCta">Buat Kabar</button>
       </div>
       <button class="button button-ghost" type="button" id="feedMore" hidden>Muat kabar lainnya</button>
       <button class="feed-unhide" type="button" id="feedUnhide" hidden></button>

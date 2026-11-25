@@ -202,16 +202,14 @@
 
   /* ----------------------------------------------------------------- suara */
 
+  /**
+   * Panel tidak lagi menampilkan kontrol suara. Lonceng menjadi satu-satunya
+   * nada dan tidak bisa dimatikan dari antarmuka, jadi nilai default internal
+   * ini yang dipakai. Kunci localStorage lama sengaja tidak dibaca supaya
+   * pilihan "nonaktif" dari versi sebelumnya tidak membungkam lonceng diam-diam.
+   */
   function pengaturanSuara() {
-    try {
-      const nilai = JSON.parse(localStorage.getItem(KUNCI_SUARA) || 'null');
-      const aktif = nilai && typeof nilai === 'object' && typeof nilai.aktif === 'boolean'
-        ? nilai.aktif : true;
-      const jenis = nilai && JENIS_SUARA.indexOf(nilai.jenis) >= 0 ? nilai.jenis : 'chime';
-      return { aktif, jenis };
-    } catch (_) {
-      return { aktif: true, jenis: 'chime' };
-    }
+    return { aktif: true, jenis: 'bell' };
   }
 
   function simpanSuara(perubahan) {
@@ -290,41 +288,6 @@
       return putarNada(aturan.jenis, false, id);
     }
   };
-
-  function kontrolSuara() {
-    const aturan = pengaturanSuara();
-    const node = elemen('div', 'pbpii-suara');
-    const label = elemen('label', 'pbpii-suara-pilih');
-    const kotak = document.createElement('input');
-    kotak.type = 'checkbox';
-    kotak.checked = Boolean(aturan.aktif);
-    kotak.addEventListener('change', () => {
-      simpanSuara({ aktif: kotak.checked });
-      if (kotak.checked) void aktifkanAudio();
-    });
-    label.append(kotak, elemen('span', null, 'Suara'));
-    const pilih = document.createElement('select');
-    pilih.setAttribute('aria-label', 'Jenis suara notifikasi');
-    [['chime', 'Chime'], ['tap', 'Ketuk'], ['bell', 'Lonceng']].forEach((pasangan) => {
-      const opsi = document.createElement('option');
-      opsi.value = pasangan[0];
-      opsi.textContent = pasangan[1];
-      opsi.selected = aturan.jenis === pasangan[0];
-      pilih.append(opsi);
-    });
-    pilih.addEventListener('change', () => {
-      simpanSuara({ jenis: pilih.value });
-      void aktifkanAudio();
-    });
-    const uji = elemen('button', 'pbpii-suara-uji', 'Uji');
-    uji.type = 'button';
-    uji.addEventListener('click', (event) => {
-      event.stopPropagation();
-      void suara.uji();
-    });
-    node.append(label, pilih, uji);
-    return node;
-  }
 
   /* -------------------------------------------------------------- tampilan */
 
@@ -480,8 +443,7 @@
       event.stopPropagation();
       void tandaiSemua();
     });
-    kepala.append(elemen('b', 'pbpii-notif-judul', 'Kabar untuk Anda'), semua);
-    const suaraHost = elemen('div', 'pbpii-suara-host');
+    kepala.append(elemen('b', 'pbpii-notif-judul', 'Notifikasi'), semua);
     const daftarHost = elemen('div', 'pbpii-notif-daftar');
     const muatTombol = elemen('button', 'pbpii-notif-muat', 'Muat lebih banyak');
     muatTombol.type = 'button';
@@ -490,17 +452,13 @@
       event.stopPropagation();
       void muatLebih();
     });
-    node.append(kepala, suaraHost, daftarHost, muatTombol);
-    return { node, semua, suaraHost, daftarHost, muatTombol, suaraTerpasang: false };
+    node.append(kepala, daftarHost, muatTombol);
+    return { node, semua, daftarHost, muatTombol };
   }
 
   function segarkanTampilan(tampilan) {
     if (!tampilan) return;
     tampilan.semua.hidden = belum <= 0 || !isi.some((item) => !item.dibaca);
-    if (!tampilan.suaraTerpasang) {
-      tampilan.suaraHost.append(kontrolSuara());
-      tampilan.suaraTerpasang = true;
-    }
     daftarItem(tampilan.daftarHost);
     tampilan.muatTombol.hidden = !punyaLebih;
     tampilan.muatTombol.disabled = sedangMuat;
@@ -541,21 +499,19 @@
       '.pbpii-notif .titik{position:absolute;top:6px;right:7px;width:9px;height:9px;border-radius:99px;',
       'background:#c0392b;box-shadow:0 0 0 2px #fff}',
       '.pbpii-notif .tersembunyi{display:none}',
-      '.pbpii-kotak{position:absolute;top:calc(100% + 10px);right:0;z-index:60;width:min(380px,calc(100vw - 24px));',
-      'max-height:min(70vh,560px);overflow:auto;background:#fff;border:1px solid #dbe5ef;border-radius:14px;',
-      'box-shadow:0 18px 44px rgba(16,43,73,.16);padding:8px;text-align:left}',
-      '.pbpii-notif-panel{display:grid;gap:4px}',
+      '.pbpii-kotak{position:absolute;top:calc(100% + 10px);right:0;z-index:60;width:min(384px,calc(100vw - 24px));',
+      'max-height:min(70vh,560px);overflow:hidden;background:#fff;border:1px solid #dbe5ef;border-radius:16px;',
+      'box-shadow:0 20px 50px rgba(16,43,73,.18);text-align:left;animation:pbpiiPanelIn .18s ease both}',
+      '@keyframes pbpiiPanelIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}',
+      '.pbpii-notif-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;max-height:inherit;padding:6px}',
       '.pbpii-notif-kepala{display:flex;align-items:center;justify-content:space-between;gap:8px;',
-      'padding:4px 6px 8px;border-bottom:1px solid #edf1f6}',
-      '.pbpii-notif-judul{color:#16324c;font-size:13px}',
+      'padding:8px 8px 10px;border-bottom:1px solid #edf1f6}',
+      '.pbpii-notif-judul{color:#16324c;font-size:14px;font-weight:800;letter-spacing:-.01em}',
       '.pbpii-notif-semua{border:0;background:none;color:#1d6fa8;font-size:12px;font-weight:700;',
-      'cursor:pointer;padding:4px 6px;border-radius:8px}',
+      'cursor:pointer;padding:5px 8px;border-radius:8px}',
       '.pbpii-notif-semua:hover{background:#eef3f9}',
-      '.pbpii-suara{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:6px;',
-      'border-radius:9px;background:#f5f8fb;color:#496075;font-size:11.5px}',
-      '.pbpii-suara-pilih{display:inline-flex;align-items:center;gap:5px;cursor:pointer}',
-      '.pbpii-suara select,.pbpii-suara button{font:inherit;font-size:11.5px;padding:3px 6px;',
-      'border:1px solid #dbe5ef;border-radius:7px;background:#fff;color:#33475e;cursor:pointer}',
+      '.pbpii-notif-daftar{min-height:0;overflow-y:auto;overscroll-behavior:contain;',
+      'scrollbar-width:thin;padding:2px 0}',
       '.pbpii-grup{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin:8px 6px 2px;',
       'color:#8494a4;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}',
       '.pbpii-grup small{font-weight:650;letter-spacing:0;text-transform:none}',
@@ -583,12 +539,14 @@
       'font-weight:800;cursor:pointer}',
       '.pbpii-tandai:hover{background:#eaf5ee}',
       '.pbpii-kosong{padding:18px 12px;margin:0;text-align:center;color:#64748b;font-size:12.5px}',
-      '.pbpii-notif-muat{display:block;width:calc(100% - 12px);margin:8px 6px 4px;padding:8px 10px;',
+      '.pbpii-notif-muat{display:block;width:calc(100% - 12px);margin:8px 6px 4px;padding:9px 10px;',
       'border:1px solid #dbe5ef;border-radius:9px;background:#f5f8fb;color:#1d6fa8;',
       'font-size:12px;font-weight:750;cursor:pointer}',
       '.pbpii-notif-muat:hover{background:#eaf2f8}',
-      '@media (max-width:640px){.pbpii-kotak{position:fixed;left:12px;right:12px;top:64px;',
-      'width:auto;max-height:62vh}}'
+      '@media (max-width:640px){.pbpii-kotak{position:fixed;left:10px;right:10px;top:auto;',
+      'bottom:calc(12px + env(safe-area-inset-bottom));width:auto;max-height:min(74vh,620px);border-radius:18px}',
+      'body.aplikasi .pbpii-kotak{bottom:calc(var(--app-bar,64px) + 14px + env(safe-area-inset-bottom))}}',
+      '@media (prefers-reduced-motion:reduce){.pbpii-kotak{animation:none}}'
     ].join('');
     document.head.appendChild(css);
   }

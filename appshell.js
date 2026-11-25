@@ -46,14 +46,13 @@
   };
 
   const MENU = [
-    { id: 'beranda', label: 'Beranda', href: '/app' },
-    { id: 'kabar', label: 'Kabar', href: '/app/feed', kader: true },
-    { id: 'acara', label: 'Acara', href: '/app/acara' },
+    { id: 'beranda', label: 'Beranda', barLabel: 'Beranda', href: '/app' },
+    { id: 'kabar', label: 'Feed Kader', barLabel: 'Feed', href: '/app/feed', kader: true },
+    { id: 'acara', label: 'Acara', barLabel: 'Event', href: '/app/acara' },
     { id: 'ibadah', label: 'Ibadah', href: '/app/ibadah' },
-    { id: 'tanya', label: 'Tanya PII', href: '/app/tanya' },
+    { id: 'tanya', label: 'Tanya PII', barLabel: 'Tanya AI', href: '/app/tanya' },
     { id: 'pustaka', label: 'Pustaka', href: '/app/pustaka' },
     { id: 'artikel', label: 'Artikel', href: '/app/artikel' },
-    { id: 'notifikasi', label: 'Notifikasi', href: '/app/notifikasi', angka: true },
     { id: 'profil', label: 'Profil saya', href: '/app/profil', kader: true },
     { id: 'situasi', label: 'PII Situation Room', href: '/situasi.html' },
     { id: 'pengurus', label: 'Dasbor Pengurus', href: '/admin.html', pengurus: true },
@@ -228,7 +227,7 @@
   function selBar(item) {
     const node = elemen('a', 'app-sel');
     node.href = item.href;
-    node.append(ikon(item.id), elemen('span', null, item.label));
+    node.append(ikon(item.id), elemen('span', null, item.barLabel || item.label));
     if (item.angka) node.dataset.angka = 'ya';
     if (item.id === tampilan) {
       node.classList.add('is-active');
@@ -297,8 +296,11 @@
     return (sesi && sesi.role) || 'kader';
   }
 
+  /* Empat menu bawah versi aplikasi. Ibadah, Notifikasi, dan Lainnya tidak
+     lagi di bar: notifikasi tetap lewat lonceng kop, sedangkan fitur lain
+     dibuka dari rel samping di layar lebar atau dari beranda. */
   function namaDiBar() {
-    return ['beranda', 'acara', 'ibadah', 'notifikasi'];
+    return ['beranda', 'kabar', 'acara', 'tanya'];
   }
 
   /** Navigasi sisi dan bar bawah dibangun ulang begitu peran diketahui. */
@@ -306,7 +308,7 @@
     if (!sisi || !bar) return;
     const daftar = menuBoleh(peran());
     const kelompok = [
-      { label: 'Menu utama', ids: ['beranda', 'kabar', 'acara', 'ibadah', 'tanya', 'pustaka', 'artikel', 'notifikasi'] },
+      { label: 'Menu utama', ids: ['beranda', 'kabar', 'acara', 'ibadah', 'tanya', 'pustaka', 'artikel'] },
       { label: 'Jelajah', ids: ['profil', 'situasi'] },
       { label: 'Kelola', ids: ['pengurus', 'lembaga'] }
     ];
@@ -334,7 +336,6 @@
       const item = daftar.find((menu) => menu.id === nama);
       if (item) bar.append(selBar(item));
     });
-    bar.append(tombolLainnya());
   }
 
   /** Rel samping bisa dipadatkan jadi ikon saja; pilihan diingat per perangkat. */

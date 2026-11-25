@@ -670,12 +670,12 @@
       ? 'Belum ada kegiatan terjadwal. Kegiatan yang dibagikan pengurus dan lembaga akan muncul di sini.'
       : state.tab === 'mengikuti'
         ? 'Anda belum mengikuti kader mana pun. Jelajahi kabar terbaru, lalu tekan Ikuti pada kader yang ingin Anda baca.'
-        : 'Belum ada kabar di feed. Jadilah yang pertama membagikan gagasan atau kegiatan untuk kawan kader.';
+        : 'Belum ada kabar dari kader. Bagikan gagasan atau kegiatanmu untuk memulai percakapan.';
     kosongCtaEl.textContent = state.tab === 'acara'
       ? 'Bagikan kegiatan'
       : state.tab === 'mengikuti'
         ? 'Lihat kabar terbaru'
-        : 'Tulis kabar pertama';
+        : 'Buat Kabar';
     kosongCtaEl.hidden = !adaSesi();
   }
 
@@ -793,6 +793,7 @@
     cardFor(id)?.classList.add('is-open');
     state.open.add(id);
     document.body.classList.add('feed-thread-open');
+    syncFeedViewport();
     if (diPonsel() && history.pushState) history.pushState({ feedThread: id }, '');
     cardFor(id)?.querySelector('[data-thread]')?.setAttribute('aria-expanded', 'true');
     if (!state.threads.has(id)) await loadThread(id);
@@ -805,7 +806,10 @@
     const panel = panelFor(id);
     state.open.delete(id);
     cardFor(id)?.classList.remove('is-open');
-    if (!state.open.size) document.body.classList.remove('feed-thread-open');
+    if (!state.open.size) {
+      document.body.classList.remove('feed-thread-open');
+      syncFeedViewport();
+    }
     if (!panel) return;
     panel.hidden = true;
     panel.classList.remove('is-open');
@@ -819,6 +823,26 @@
   window.addEventListener('popstate', () => {
     [...state.open].forEach((id) => closeThread(id, true));
   });
+
+  /* Papan ketik ponsel hanya mengecilkan visual viewport; tinggi utas dan
+     kolom balasan harus ikut nilai itu supaya isian tidak tertutup. */
+  function syncFeedViewport() {
+    const akar = document.documentElement;
+    const vv = window.visualViewport;
+    if (!document.body.classList.contains('feed-thread-open') || !vv) {
+      akar.style.removeProperty('--feed-vv-h');
+      akar.style.removeProperty('--feed-vv-top');
+      return;
+    }
+    akar.style.setProperty('--feed-vv-h', Math.round(vv.height) + 'px');
+    akar.style.setProperty('--feed-vv-top', Math.round(vv.offsetTop) + 'px');
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncFeedViewport);
+    window.visualViewport.addEventListener('scroll', syncFeedViewport);
+  }
+  window.addEventListener('orientationchange', syncFeedViewport);
 
   /** Kartu tab Acara berasal dari sheet kegiatan, jadi utasnya memakai mesin acara. */
   const isEventCard = (id) => String(id).indexOf('acara:') === 0;
