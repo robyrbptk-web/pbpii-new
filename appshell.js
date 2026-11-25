@@ -49,12 +49,8 @@
     { id: 'beranda', label: 'Beranda', barLabel: 'Beranda', href: '/app' },
     { id: 'kabar', label: 'Feed Kader', barLabel: 'Feed', href: '/app/feed', kader: true },
     { id: 'acara', label: 'Acara', barLabel: 'Event', href: '/app/acara' },
-    { id: 'ibadah', label: 'Ibadah', href: '/app/ibadah' },
     { id: 'tanya', label: 'Tanya PII', barLabel: 'Tanya AI', href: '/app/tanya' },
-    { id: 'pustaka', label: 'Pustaka', href: '/app/pustaka' },
-    { id: 'artikel', label: 'Artikel', href: '/app/artikel' },
     { id: 'profil', label: 'Profil saya', href: '/app/profil', kader: true },
-    { id: 'situasi', label: 'PII Situation Room', href: '/situasi.html' },
     { id: 'pengurus', label: 'Dasbor Pengurus', href: '/admin.html', pengurus: true },
     { id: 'lembaga', label: 'Dasbor Lembaga', href: '/lembaga.html', lembaga: true }
   ];
@@ -236,16 +232,6 @@
     return node;
   }
 
-  function tombolLainnya() {
-    const node = elemen('button', 'app-sel');
-    node.type = 'button';
-    node.dataset.lembar = 'ya';
-    node.setAttribute('aria-expanded', 'false');
-    node.append(ikon('lainnya'), elemen('span', null, 'Lainnya'));
-    node.addEventListener('click', () => bukaLembar(node));
-    return node;
-  }
-
   function tombolLembar(item) {
     const node = elemen('button', 'app-sel');
     node.type = 'button';
@@ -308,7 +294,7 @@
     if (!sisi || !bar) return;
     const daftar = menuBoleh(peran());
     const kelompok = [
-      { label: 'Menu utama', ids: ['beranda', 'kabar', 'acara', 'ibadah', 'tanya', 'pustaka', 'artikel'] },
+      { label: 'Menu utama', ids: ['beranda', 'kabar', 'acara', 'tanya'] },
       { label: 'Jelajah', ids: ['profil', 'situasi'] },
       { label: 'Kelola', ids: ['pengurus', 'lembaga'] }
     ];

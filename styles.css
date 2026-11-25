@@ -2422,6 +2422,11 @@ footer {
     backdrop-filter: blur(18px);
   }
 
+  /* Sembunyikan bar bawah publik saat aplikasi aktif (pakai app-bar sendiri). */
+  body.aplikasi nav:not(.footer-auth) {
+    display: none !important;
+  }
+
   /* Menu sekunder disembunyikan dari bar dan dipindahkan ke sheet "Lainnya". */
   nav .nav-extra {
     display: none;

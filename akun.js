@@ -1,5 +1,5 @@
-/**
- * Akun & hak akses — dimuat di semua halaman publik (beranda, acara, ibadah,
+﻿/**
+ * Akun & hak akses â€” dimuat di semua halaman publik (beranda, acara, ibadah,
  * tanya, situasi, formulir, daftar).
  *
  * Kader masuk lewat Google atau lewat email + kata sandi yang dibuat sendiri.
@@ -253,7 +253,7 @@
     const host = document.querySelector(`[data-captcha-slot="${pane}"]`);
     if (!host || verifikasi[pane] || captchaSiap[pane]) return;
     captchaSiap[pane] = true;
-    host.innerHTML = '<p class="captcha-loading" role="status">Menyiapkan verifikasi…</p>';
+    host.innerHTML = '<p class="captcha-loading" role="status">Menyiapkan verifikasiâ€¦</p>';
     try {
       const modul = await captchaAssetsReady();
       if (!modul) throw new Error('Verifikasi formulir gagal dimuat. Muat ulang halaman lalu coba lagi.');
@@ -280,7 +280,7 @@
     dialog.className = 'kader-dialog';
     dialog.innerHTML = `
       <div class="kader-card">
-        <button class="kader-close" type="button" aria-label="Tutup">×</button>
+        <button class="kader-close" type="button" aria-label="Tutup">Ã—</button>
         <img class="kader-mark" src="/assets/logo-pii.webp" alt="" onerror="this.onerror=null;this.src='assets/logo-pii.png'">
         <h2>Masuk sebagai kader</h2>
         <p class="kader-lead">Pakai akun kader untuk menyukai dan mengomentari acara serta memperbesar jatah Tanya PII. Dasbor pengurus tetap tertutup.</p>
@@ -397,7 +397,7 @@
     const button = form.querySelector('button[type="submit"]');
     const label = button.textContent;
     button.disabled = true;
-    button.textContent = 'Mengirim…';
+    button.textContent = 'Mengirimâ€¦';
     setNotice('');
     try {
       applySession(await jalankan());
@@ -512,7 +512,7 @@
     });
   }
 
-  function paintChip() {
+function paintChip() {
     const slots = document.querySelectorAll('[data-account]');
     if (!slots.length) return;
     const isStaff = account.role === 'admin' || account.role === 'org';
@@ -535,11 +535,28 @@
           ? `<a class="account-menu-item" href="/profil.html" data-account-profile>${IKON_MENU.profil}Profil saya</a>
             <a class="account-menu-item" href="/profil.html?ubah=1" data-account-settings>${IKON_MENU.atur}Pengaturan akun</a>`
           : '';
+
+        /* Fitur tambahan di dropdown akun: Pustaka, Ibadah, Situasi, Artikel.
+           Dasbor Pengurus/Lembaga hanya untuk staf. */
+        const fiturLain = [
+          { ikon: IKON_MENU.pustaka, label: 'Pustaka', href: '/pustaka.html' },
+          { ikon: IKON_MENU.ibadah, label: 'Ibadah', href: '/ibadah.html' },
+          { ikon: IKON_MENU.situasi, label: 'Situasi', href: '/situasi.html' },
+          { ikon: IKON_MENU.artikel, label: 'Artikel', href: '/artikel.html' }
+        ].map((m) => `<a class="account-menu-item" href="${m.href}">${m.ikon}${m.label}</a>`).join('');
+
+        const stafMenu = isStaff
+          ? `<a class="account-menu-item" href="/admin.html">${IKON_MENU.pengurus}Dasbor Pengurus</a>
+            <a class="account-menu-item" href="/lembaga.html">${IKON_MENU.lembaga}Dasbor Lembaga</a>`
+          : '';
+
         slot.innerHTML = `${photo}
-          <button class="account-name" type="button" data-account-open>${escapeHTML(account.name || (isStaff ? 'Pengurus' : 'Kader'))}</button>
+          <button class="account-name" type="button" data-account-open">${escapeHTML(account.name || (isStaff ? 'Pengurus' : 'Kader'))}</button>
           <span class="account-menu">
             ${profilSaya}
-            <button class="account-menu-item account-signout" type="button" data-account-out>${IKON_MENU.keluar}Keluar</button>
+            ${fiturLain}
+            ${stafMenu}
+            <button class="account-menu-item account-signout" type="button" data-account-out">${IKON_MENU.keluar}Keluar</button>
           </span>`;
       }
 
@@ -552,14 +569,6 @@
       slot.querySelector('[data-account-out]')?.addEventListener('click', signOut);
     });
   }
-
-  /**
-   * Pintu akses berjenjang: "kader" berarti terbuka untuk semua yang punya
-   * sesi (kader, lembaga, pengurus), "pengurus" khusus pintu dashboard
-   * pengelola. Tamu tetap melihat tautan pengurus karena halamannya memang
-   * publik; yang ditutup dari kader hanya dashboard pengelola, sesuai hak
-   * aksesnya. Tautan Pustaka diatur CSS lewat kelas `ada-sesi`.
-   */
   function applyGating() {
     const kader = account.role === 'kader';
     document.querySelectorAll('[data-requires="pengurus"]').forEach((node) => {
@@ -621,3 +630,9 @@
     init();
   }
 })();
+
+
+
+
+
+
